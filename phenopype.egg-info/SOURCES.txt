@@ -1,0 +1,10 @@
+README.md
+setup.py
+phenopype/__init__.py
+phenopype/base.py
+phenopype/custom.py
+phenopype.egg-info/PKG-INFO
+phenopype.egg-info/SOURCES.txt
+phenopype.egg-info/dependency_links.txt
+phenopype.egg-info/requires.txt
+phenopype.egg-info/top_level.txt
