@@ -2,7 +2,7 @@
 """
 Created: 2016/03/31
 Last Update: 2018/10/02
-Version 0.3
+Version 0.3.0
 @author: Moritz Lürig
 """
 
