@@ -383,6 +383,7 @@ class object_finder(object):
         if "exclude" in kwargs:
             self.mask = sum(kwargs.get('exclude'))
             self.thresh = cv2.subtract(self.thresh,self.mask)
+            self.thresh[self.thresh==1] = 0
 
         # find contours of objects
         idx = 0
