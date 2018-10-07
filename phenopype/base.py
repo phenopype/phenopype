@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created: 2016/03/31
 Last Update: 2018/10/02
-Version 0.3
+Version 0.4.0
 @author: Moritz Lürig
 """
 
@@ -13,71 +12,76 @@ import numpy.ma as ma
 import pandas as pd
 import copy
 import math
-from PIL import Image
+
 from collections import Counter
 
+from utils import blur, exif_date, gray_scale
+from utils import red, green, blue, white, black
 
 #%%
+class project:
+    def __init__(self):
+        self.in_dir = None
+        self.out_dir = None
+        self.scale = None
+        self.scale_image = None
+        #self.gray_scale = None
+        
+    def files(self, files = None, out_dir=None, mode="walk", **kwargs):
+        
+        # initialize
+        self.files = files
+        self.out_dir = out_dir
+        self.mode = mode
+        self.file_list = []
+        if "filetype" in kwargs:
+            self.file_type = kwargs.get("filetype")
+        
+        # =============================================================================
+        # go through directory and make filelist
+        # =============================================================================
+        
+        if self.mode == "walk":
+            for root, dirs, files in os.walk(self.files):
+                for i in os.listdir(root):
+                    path = os.path.join(root,i)
+                    if os.path.isfile(path):
+                        if hasattr(self,'file_type'):
+                            if self.in_dir.endswith(self.file_type):
+                                self.file_list.append(path)
+                        else: 
+                            self.file_list.append(path)
 
-green = (0, 255, 0)
-red = (0, 0, 255)
-blue = (255, 0, 0)
-black = (0,0,0)
-white = (255,255,255)
+        elif self.mode == "dir":
+            for i in os.listdir(root):
+                path = os.path.join(root,i)
+                if os.path.isfile(path):
+                    if hasattr(self,'file_type'):
+                        if self.files.endswith(self.file_type):
+                            self.file_list.append(path)
+                    else: 
+                        self.file_list.append(path)
+                        
+        elif self.mode == "single":
+            self.file_list.append(self.files)
 
-def exif_date(path): 
-       date = Image.open(path)._getexif()[36867]
-       date = date[0:4] + "-" + date[5:7] + "-" + date[8:10]
-       return date
 
-def blur(image, blur_kern):
-    kern = np.ones((blur_kern,blur_kern))/(blur_kern**2)
-    ddepth = -1
-    return cv2.filter2D(image,ddepth,kern)
+    def gray_scale(self, resize=0.25):
+        self.gray_scale_list = []
+        for file in self.file_list:
+            img = cv2.imread(file,0)
+            if resize:
+                img = cv2.resize(img, (0,0), fx=1*resize, fy=1*resize) 
+            vec = np.ravel(img)
+            mc = Counter(vec).most_common(9)
+            g = [item[0] for item in mc]
+            med = int(np.median(g))
+            self.gray_scale_list.append(med)
+            print(os.path.basename(file) + ": " + str(med))
+        print("\nMean grayscale in directory: " + str(int(np.mean(self.gray_scale_list))))
 
-def grayscale_finder(source=None, mode="dir", printing=True, resize=0.25, ret=True):
-    if mode == "dir":
-        med_list = []
-        for root, dirs, files in os.walk(source):
-            for i in os.listdir(root):     
-                if i.endswith(".jpg") or i.endswith(".JPG"):
-                    path = os.path.join(root, i)
-                    img = cv2.imread(path,0)
-                    if resize:
-                        img = cv2.resize(img, (0,0), fx=1*resize, fy=1*resize) 
-                    vec = np.ravel(img)
-                    mc = Counter(vec).most_common(9)
-                    g = [item[0] for item in mc]
-                    med = int(np.median(g))
-                    med_list.append(med)
-                    if printing==True:
-                        print(i + ": " + str(med))
-        print("\nMean grayscale in directory: " + str(int(np.mean(med_list))))
-    elif mode=="single":
-        img = cv2.imread(path,0)
-        if resize:
-            img = cv2.resize(img, (0,0), fx=1*resize, fy=1*resize)         
-        vec = np.ravel(img)
-        mc = Counter(vec).most_common(9)
-        g = [item[0] for item in mc]
-        med = int(np.median(g))
-        if printing==True:
-            print(os.path.basename(source) + ": " + str(med))
-    elif mode =="image":
-        if resize:
-            source = cv2.resize(copy.deepcopy(source), (0,0), fx=1*resize, fy=1*resize)         
-        if not len(source.shape)==2:
-            source = cv2.cvtColor(source, cv2.COLOR_BGR2GRAY)
-        vec = np.ravel(source)
-        mc = Counter(vec).most_common(9)
-        g = [item[0] for item in mc]
-        med = int(np.median(g))
-        if printing==True:
-            print("unkown image: " + str(med))
-        if ret==True:
-            return med
- 
-class scale_maker(object):
+#%%
+class scale_maker:
     def __init__(self):
 
         # setting up temporary variables
@@ -111,12 +115,12 @@ class scale_maker(object):
             self.done_step2 = True
             self.scale_px = int(math.sqrt( ((self.points_step2[0][0]-self.points_step2[1][0])**2)+((self.points_step2[0][1]-self.points_step2[1][1])**2)))
 
-
     def draw(self, im_path, **kwargs): #, 
         # initialize # ----------------
         length = kwargs.get('length', 10)
         unit = kwargs.get('unit', "mm")
         zoom = kwargs.get('zoom', False)
+        crop = kwargs.get('zoom', True)
         image = cv2.imread(im_path)
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
@@ -124,20 +128,23 @@ class scale_maker(object):
         # =============================================================================
         # Step 1 - draw scale outline
         # =============================================================================
-        print("\n(1) Mark the outline of the scale by left clicking, finish by right clicking:")
-        cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback(self.window_name, self.on_mouse_step1)
-        temp_canvas_1 = copy.deepcopy(image)
-
-        while(not self.done_step1):
-            if (len(self.points_step1) > 0):
-                cv2.polylines(temp_canvas_1, np.array([self.points_step1]), False, green, 2)
-                cv2.line(temp_canvas_1, self.points_step1[-1], self.current, blue, 2)
-            cv2.imshow(self.window_name, temp_canvas_1)
+        if crop == True:
+            print("\nMark the outline of the scale by left clicking, finish by right clicking:")
+            cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
+            cv2.setMouseCallback(self.window_name, self.on_mouse_step1)
             temp_canvas_1 = copy.deepcopy(image)
-            cv2.waitKey(50)
-        cv2.destroyWindow(self.window_name)
-        print("Finished, scale outline drawn. (2) Now add the scale by clicking on two points with a known distance between them:")
+    
+            while(not self.done_step1):
+                if (len(self.points_step1) > 0):
+                    cv2.polylines(temp_canvas_1, np.array([self.points_step1]), False, green, 2)
+                    cv2.line(temp_canvas_1, self.points_step1[-1], self.current, blue, 2)
+                cv2.imshow(self.window_name, temp_canvas_1)
+                temp_canvas_1 = copy.deepcopy(image)
+                cv2.waitKey(50)
+            cv2.destroyWindow(self.window_name)
+        else:
+            self.done_step2 = True
+        print("Finished, scale outline drawn. Add the scale by clicking on two points with a known distance between them:")
 
         # create colour mask to show scale outline
         colour_mask = np.zeros(image.shape, np.uint8)
@@ -148,7 +155,6 @@ class scale_maker(object):
         # create image for SIFT
         rx,ry,w,h = cv2.boundingRect(np.array(self.points_step1, dtype=np.int32))
         self.img = image[ry:ry+h,rx:rx+w]
-        
         # create mask for SIFT
         self.mask_det = np.zeros(image.shape[0:2], np.uint8)
         cv2.fillPoly(self.mask_det, np.array([self.points_step1]), white) 
@@ -163,7 +169,7 @@ class scale_maker(object):
         # Step 2 - measure scale length
         # =============================================================================
         temp_canvas_2 = copy.deepcopy(temp_canvas_1)
-        cv2.namedWindow(self.window_name, flags=cv2.WINDOW_AUTOSIZE)
+        cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
         cv2.setMouseCallback(self.window_name, self.on_mouse_step2)
 
         while(not self.done_step2):
@@ -179,6 +185,7 @@ class scale_maker(object):
         # give per pixel ratios
         # =============================================================================
         cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, black, 2)
+        cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
         cv2.imshow(self.window_name, temp_canvas_2)
         self.original = self.scale_px/length
         (x,y),radius = cv2.minEnclosingCircle(np.array(self.points_step1))
@@ -249,7 +256,7 @@ class scale_maker(object):
 
 
 #%%
-class polygon_maker(object):
+class polygon_maker:
     def __init__(self):
 
         # initialize # ----------------
@@ -308,7 +315,7 @@ class polygon_maker(object):
 
 #%%
 
-class object_finder(object):
+class object_finder:
     def run(self,im_path, scale, **kwargs):
         """ find objects in image via thresholding
         Parameters
@@ -352,7 +359,10 @@ class object_finder(object):
         # initialize -----------------
         self.image = cv2.imread(im_path)
         self.filename = os.path.basename(im_path)
-        self.date = exif_date(im_path)
+        try:
+            self.date = exif_date(im_path)
+        except:
+            self.date = "NA"
 
         # =============================================================================
         # Thresholding, masking & find contours
@@ -404,7 +414,7 @@ class object_finder(object):
         self.df = pd.DataFrame(data=df_list, columns = ["file","date","object", "x", "y", "scale","length", "area","contour"])
         self.df.index += 1
         if 'gray_value_ref' in kwargs:
-            ret = grayscale_finder(source=self.gray, mode="image", resize=0.1, ret = True, printing=False)
+            ret = gray_scale(source=self.gray, mode="image", resize=0.1, ret = True, printing=False)
             ref = kwargs.get('gray_value_ref', 200)
             self.df["gray_corr_factor"] = int(ref - ret)
 

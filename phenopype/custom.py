@@ -2,7 +2,7 @@
 """
 Created: 2016/03/31
 Last Update: 2018/10/02
-Version 0.3
+Version 0.3.0
 @author: Moritz Lürig
 """
 
@@ -10,23 +10,11 @@ import cv2
 import numpy as np
 import numpy.ma as ma
 import copy
-
-
-#%%
-
-green = (0, 255, 0)
-red = (0, 0, 255)
-blue = (255, 0, 0)
-black = (0,0,0)
-white = (255,255,255)
-
+#
+from phenopype import blur, exif_date
+from phenopype import red, green, blue, white, black
 
 #%%
-def blur(image, blur_kern):
-    kern = np.ones((blur_kern,blur_kern))/(blur_kern**2)
-    ddepth = -1
-    return cv2.filter2D(image,ddepth,kern)
-
 
 def kims_module(image, df, **kwargs):
 
