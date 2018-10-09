@@ -29,10 +29,10 @@ def blur(image, blur_kern):
     ddepth = -1
     return cv2.filter2D(image,ddepth,kern)
 
-def gray_scale(image, resize=0.25):
-    img = image
-    if resize:
-        img = cv2.resize(img, (0,0), fx=1*resize, fy=1*resize) 
+def gray_scale(source, **kwargs):
+    img = source
+    if "resize" in kwargs:
+        img = cv2.resize(img, (0,0), fx=1*kwargs.get("resize"), fy=1*kwargs.get("resize")) 
     vec = np.ravel(img)
     mc = Counter(vec).most_common(9)
     g = [item[0] for item in mc]

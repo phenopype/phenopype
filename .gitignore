@@ -1,7 +1,11 @@
 local
+
 build
+
 dist
+
 __pycache__/
-__pycache__
+
 phenopype.egg-info/
+
 dev.py

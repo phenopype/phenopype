@@ -2,17 +2,18 @@
 """
 Created: 2016/03/31
 Last Update: 2018/10/02
-Version 0.3.0
+Version 0.4.0
 @author: Moritz Lürig
 """
 
-import cv2
 import numpy as np
 import numpy.ma as ma
 import copy
-#
-from phenopype import blur, exif_date
-from phenopype import red, green, blue, white, black
+
+import cv2
+
+from phenopype.utils import (blue, white)
+from phenopype.utils import (blur)
 
 #%%
 
@@ -88,7 +89,7 @@ def kims_module(image, df, **kwargs):
             bgr_std_list.append((int(np.std(b)),int(np.std(g)),int(np.std(r)))) # mean grayscale value
 
             cv2.drawContours(roi_drawn, [shape], 0, blue, 4)
-            cv2.putText(roi_drawn, str(int(row["object"])) ,(int(x),int(y)), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
+            cv2.putText(roi_drawn, str(int(row["object"])) ,(int(x),int(y)), cv2.FONT_HERSHEY_SIMPLEX, 4,white,5,cv2.LINE_AA)
             drawn[int(max(0,y-q)):int(min(image.shape[0],y+q)),int(max(0,x-q)):int(min(image.shape[1],x+q))] = roi_drawn  
         else:
             mean_list.append("NA") # mean grayscale value

@@ -10,8 +10,6 @@ __all__ = []
 import pkgutil
 import inspect
 
-#__path__="E:\\Python1\\phenopype\\"
-
 for loader, name, is_pkg in pkgutil.walk_packages(__path__):
     module = loader.find_module(name).load_module(name)
 
@@ -22,5 +20,4 @@ for loader, name, is_pkg in pkgutil.walk_packages(__path__):
         globals()[name] = value
         __all__.append(name)
         
-#from phenopype import utils, base, custom
-#pp.__all__ + ["utils", "base", "custom"]
+from phenopype import base, custom, utils
