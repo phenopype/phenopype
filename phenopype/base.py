@@ -58,10 +58,9 @@ class project:
                                         self.filename_list.append(i)
                         else: 
                             if hasattr(self,'exclude'):
-                                for element in self.exclude:
-                                    if not any([j in i for j in self.exclude]):
-                                        self.filepath_list.append(path)
-                                        self.filename_list.append(i)
+                                if not any([j in i for j in self.exclude]):
+                                    self.filepath_list.append(path)
+                                    self.filename_list.append(i)
         elif self.mode == "dir":
             for i in os.listdir(self.files):
                 path = os.path.join(self.files,i)
@@ -233,6 +232,7 @@ class scale_maker:
         cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
         cv2.imshow(self.window_name, temp_canvas_2)
         self.measured = self.scale_px/length
+        self.current = self.measured
         
         if crop == True:
             (x,y),radius = cv2.minEnclosingCircle(np.array(self.points_step1))
@@ -507,6 +507,7 @@ class object_finder:
         # SINGLE-MODE
         # =============================================================================
         elif self.mode =="single":
+            df_list = []
             ret, contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             if contours:
                 areas = [cv2.contourArea(cnt) for cnt in contours]                
@@ -529,7 +530,7 @@ class object_finder:
                         sd1 = int(np.std(grayscale)) # standard deviation of grayscale values
                         bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
                         bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
-                        self.df_list = [self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1]
+                        df_list = [self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1]
 
                         # image
                         if "roi_size" in kwargs:
@@ -547,7 +548,10 @@ class object_finder:
         # =============================================================================
 
         # dataframe
-        self.df = pd.DataFrame(data=[self.df_list], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length", "area", "mean1", "sd1", "bgr1", "bgr_sd1"])
+        if len(df_list)>0:
+            self.df = pd.DataFrame(data=[df_list], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length", "area", "mean1", "sd1", "bgr1", "bgr_sd1"])
+        else: 
+            self.df = pd.DataFrame(data=[["NA"] * 13], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length", "area", "mean1", "sd1", "bgr1", "bgr_sd1"])
         self.df.rename(index={0:self.filename}, inplace=True)
         
         if hasattr(self,'gray_corr_factor'):
