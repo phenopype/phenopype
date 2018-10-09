@@ -33,8 +33,8 @@ class project:
         if not os.path.exists(self.output):
             os.makedirs(self.output)
         self.mode = mode
-        self.filepath_list = []
-        self.filename_list = []
+        self.filepaths = []
+        self.filenames = []
 
         if "filetype" in kwargs:
             self.file_type = kwargs.get("filetype")
@@ -54,43 +54,63 @@ class project:
                             if self.in_dir.endswith(self.file_type):
                                 if hasattr(self,'exclude'):
                                     if not any([j in i for j in self.exclude]):
-                                        self.filepath_list.append(path)
-                                        self.filename_list.append(i)
+                                        self.filepaths.append(path)
+                                        self.filenames.append(i)
+                                else:
+                                    self.filepaths.append(path)
+                                    self.filenames.append(i)
                         else: 
                             if hasattr(self,'exclude'):
                                 if not any([j in i for j in self.exclude]):
-                                    self.filepath_list.append(path)
-                                    self.filename_list.append(i)
+                                    self.filepaths.append(path)
+                                    self.filenames.append(i)
+                            else:
+                                self.filepaths.append(path)
+                                self.filenames.append(i)
+                                
         elif self.mode == "dir":
             for i in os.listdir(self.files):
                 path = os.path.join(self.files,i)
                 if os.path.isfile(path):
-                        if hasattr(self,'file_type'):
-                            if self.in_dir.endswith(self.file_type):
-                                if hasattr(self,'exclude'):
-                                    if not any([j in i for j in self.exclude]):
-                                        self.filepath_list.append(path)
-                                        self.filename_list.append(i)
-                        else: 
+                    if hasattr(self,'file_type'):
+                        if self.in_dir.endswith(self.file_type):
                             if hasattr(self,'exclude'):
-                                for element in self.exclude:
-                                    if not any([j in i for j in self.exclude]):
-                                        self.filepath_list.append(path)
-                                        self.filename_list.append(i)
+                                if not any([j in i for j in self.exclude]):
+                                    self.filepaths.append(path)
+                                    self.filenames.append(i)
+                            else:
+                                self.filepaths.append(path)
+                                self.filenames.append(i)
+                    else: 
+                        if hasattr(self,'exclude'):
+                            if not any([j in i for j in self.exclude]):
+                                self.filepaths.append(path)
+                                self.filenames.append(i)
+                        else:
+                            self.filepaths.append(path)
+                            self.filenames.append(i)
                     
         elif self.mode == "single":
-            self.filepath_list.append(self.files)
-            self.filename_list.append(os.path.basename(self.files))
+            self.filepaths.append(self.files)
+            self.filenames.append(os.path.basename(self.files))
 
-        self.df = pd.DataFrame(data=self.filename_list, columns = ["filename"])
-        self.df = pd.merge(left=self.df, right=pd.DataFrame(data=[], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length", "area", "mean1", "sd1", "bgr1", "bgr_sd1"]), how="outer")
-        self.df.index = self.filename_list
+        # =============================================================================
+        # make project dataframe
+        # =============================================================================
+        self.df = pd.DataFrame(data=list(zip(self.filepaths, self.filenames)), columns = ["filepath", "filename"])
+        self.df = self.df.reindex(columns = ["filepath","filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length", "area", "mean1", "sd1", "bgr1", "bgr_sd1", "gray_corr_factor"], fill_value = "NA")
+        self.df.index = self.filenames
         self.df.insert(0, "project", self.name)
-        self.df.loc[:,"date_taken":] = "NA"
+        self.df.drop_duplicates(subset="filename", inplace=True)
+        self.filepaths = self.df['filepath'].tolist()
+        self.filenames = self.df['filename'].tolist()
+        self.df.drop(columns='filepath', inplace=True)
+
+
 
     def gray_scale_finder(self, resize=0.25, write=False):
         self.gray_scale_list = []
-        for filepath, filename in zip(self.filepath_list, self.filename_list):
+        for filepath, filename in zip(self.filepaths, self.filenames):
             img = cv2.imread(filepath,0)
             if resize:
                 img = cv2.resize(img, (0,0), fx=1*resize, fy=1*resize) 
@@ -546,7 +566,6 @@ class object_finder:
         # =============================================================================
         # finish and return df and image
         # =============================================================================
-
         # dataframe
         if len(df_list)>0:
             self.df = pd.DataFrame(data=[df_list], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length", "area", "mean1", "sd1", "bgr1", "bgr_sd1"])
