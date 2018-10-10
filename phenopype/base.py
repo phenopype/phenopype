@@ -40,6 +40,8 @@ class project:
             self.file_type = kwargs.get("filetype")
         if "exclude" in kwargs:
             self.exclude = kwargs.get("exclude")
+            
+        self.resize = kwargs.get("resize",1)
 
         # =============================================================================
         # go through directory and make filelist
@@ -98,13 +100,67 @@ class project:
         # make project dataframe
         # =============================================================================
         self.df = pd.DataFrame(data=list(zip(self.filepaths, self.filenames)), columns = ["filepath", "filename"])
-        self.df = self.df.reindex(columns = ["filepath","filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length", "area", "mean1", "sd1", "bgr1", "bgr_sd1", "gray_corr_factor"], fill_value = "NA")
         self.df.index = self.filenames
         self.df.insert(0, "project", self.name)
         self.df.drop_duplicates(subset="filename", inplace=True)
         self.filepaths = self.df['filepath'].tolist()
         self.filenames = self.df['filename'].tolist()
         self.df.drop(columns='filepath', inplace=True)
+
+    def update_list(self):
+        self.filepaths = []
+        self.filenames = []
+        if self.mode == "walk":
+            for root, dirs, files in os.walk(self.files):
+                for i in os.listdir(root):
+                    path = os.path.join(root,i)
+                    if os.path.isfile(path):
+                        if hasattr(self,'file_type'):
+                            if self.in_dir.endswith(self.file_type):
+                                if hasattr(self,'exclude'):
+                                    if not any([j in i for j in self.exclude]):
+                                        self.filepaths.append(path)
+                                        self.filenames.append(i)
+                                else:
+                                    self.filepaths.append(path)
+                                    self.filenames.append(i)
+                        else: 
+                            if hasattr(self,'exclude'):
+                                if not any([j in i for j in self.exclude]):
+                                    self.filepaths.append(path)
+                                    self.filenames.append(i)
+                            else:
+                                self.filepaths.append(path)
+                                self.filenames.append(i)
+                                
+        elif self.mode == "dir":
+            for i in os.listdir(self.files):
+                path = os.path.join(self.files,i)
+                if os.path.isfile(path):
+                    if hasattr(self,'file_type'):
+                        if self.in_dir.endswith(self.file_type):
+                            if hasattr(self,'exclude'):
+                                if not any([j in i for j in self.exclude]):
+                                    self.filepaths.append(path)
+                                    self.filenames.append(i)
+                            else:
+                                self.filepaths.append(path)
+                                self.filenames.append(i)
+                    else: 
+                        if hasattr(self,'exclude'):
+                            if not any([j in i for j in self.exclude]):
+                                self.filepaths.append(path)
+                                self.filenames.append(i)
+                        else:
+                            self.filepaths.append(path)
+                            self.filenames.append(i)
+                    
+        elif self.mode == "single":
+            self.filepaths.append(self.files)
+            self.filenames.append(os.path.basename(self.files))
+            
+            
+        self.df = self.df[self.df["filename"].isin(self.filenames)]
 
 
 
@@ -180,6 +236,10 @@ class scale_maker:
         zoom = kwargs.get('zoom', False)
         crop = kwargs.get('crop', True)
         image = cv2.imread(im_path)
+        if "resize" in kwargs:
+            factor = kwargs.get('resize', 0.5)
+            image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
+
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
@@ -264,15 +324,16 @@ class scale_maker:
     def find(self, im_path, **kwargs):
         # initialize ------------------
         image = cv2.imread(im_path)
+        if "resize" in kwargs:
+            factor = kwargs.get('resize', 0.5)
+            image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
+            
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         min_matches = kwargs.get('min_keypoints', 10)
         show = kwargs.get('show', False)
         img1 = self.img
         img2 = copy.deepcopy(image)
-        if "resize" in kwargs:
-            factor = kwargs.get('resize', 0.5)
-            img2 = cv2.resize(img2, (0,0), fx=1*factor, fy=1*factor) 
 
         # =============================================================================
         # SIFT detector
@@ -304,7 +365,7 @@ class scale_maker:
             if show == True:
                 cv2.namedWindow("window", flags=cv2.WINDOW_NORMAL)
                 cv2.imshow("window", img2)
-            if "resize" in kwargs:
+            if kwargs.get("convert",True) == True:
                 rect = rect/factor
             rect = np.array(rect, dtype=np.int32)
             (x,y),radius = cv2.minEnclosingCircle(rect)
@@ -379,7 +440,7 @@ class polygon_maker:
 
 #%%
 
-class object_finder:
+class standard_object_finder:
     def run(self,im_path, scale, **kwargs):
         """ find objects in image via thresholding
         Parameters
@@ -453,18 +514,18 @@ class object_finder:
         # BLUR, THRESHOLDING, MASK
         # =============================================================================
         # blur image
-        blur_kern = kwargs.get('blur', 99)
+        if "blur1" in kwargs:
+            blur_kernel = kwargs.get("blur1")
+            self.blurred = blur(self.gray, blur_kernel)
+            
+        # thresholding / apply correction factor        
         thresholding = kwargs.get('thresholding', "otsu")
-
-        self.blurred = blur(self.gray, blur_kern)
-
-        # thresholding / apply correction factor
         if thresholding == "otsu":
             ret, self.thresh = cv2.threshold(self.blurred,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         elif thresholding == "adaptive":
             sensitivity = kwargs.get('sensitivity', 99)
             iterations = kwargs.get('iterations', 3)
-            self.thresh = cv2.adaptiveThreshold(self.blurred,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,sensitivity, iterations)
+            self.thresh = cv2.adaptiveThreshold(self.gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,sensitivity, iterations)
         elif thresholding == "binary":
             value = kwargs.get('bin_thresh', 127)
             ret, self.thresh = cv2.threshold(self.blurred,value, 255,cv2.THRESH_BINARY_INV)
@@ -475,6 +536,13 @@ class object_finder:
             self.thresh = cv2.erode(self.thresh,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
         if corr_factor > 0:
             self.thresh = cv2.dilate(self.thresh,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
+
+        if "blur2" in kwargs:
+            blur_kernel, thresh_val = kwargs.get("blur2")
+            self.thresh = blur(self.thresh, blur_kernel)
+            ret, self.morph = cv2.threshold(self.blurred, thresh_val, 255,cv2.THRESH_BINARY)
+        else:
+            self.thresh = self.thresh
 
         # mask arena, scale, etc.
         if "exclude" in kwargs:
@@ -535,8 +603,8 @@ class object_finder:
                 if len(cnt) > 5:
                     (x,y),radius = cv2.minEnclosingCircle(cnt)
                     x, y= int(x), int(y)
-                    length = int((radius * 2) / resize)
-                    area = int((cv2.contourArea(cnt) / resize)/resize)
+                    length = int(radius * 2)
+                    area = int(cv2.contourArea(cnt))
                     if length > kwargs.get('min_size', 0) and area > kwargs.get('min_area', 0):
                         idx = 1
                         rx,ry,rw,rh = cv2.boundingRect(cnt)
@@ -556,7 +624,7 @@ class object_finder:
                         if "roi_size" in kwargs:
                             q=kwargs.get("roi_size",300)/2
                             cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
-                        cv2.drawContours(self.drawn, [cnt], 0, green, int(10 * resize))
+                        cv2.drawContours(self.drawn, [cnt], 0, blue, int(10 * resize))
                         
                     else: 
                         print("Object not bigger than min_size or min_area")
@@ -568,16 +636,17 @@ class object_finder:
         # =============================================================================
         # dataframe
         if len(df_list)>0:
-            self.df = pd.DataFrame(data=[df_list], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length", "area", "mean1", "sd1", "bgr1", "bgr_sd1"])
+            self.df = pd.DataFrame(data=[df_list], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
         else: 
-            self.df = pd.DataFrame(data=[["NA"] * 13], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length", "area", "mean1", "sd1", "bgr1", "bgr_sd1"])
-        self.df.rename(index={0:self.filename}, inplace=True)
+            self.df = pd.DataFrame(data=[["NA"] * 13], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
+        self.df.set_index('filename', drop=True, inplace=True)
         
         if hasattr(self,'gray_corr_factor'):
-            self.df["gray_corr_factor"] = self.gray_corr_factor
-            
+            self.df.insert(3, "gray_corr_factor", self.gray_corr_factor)
+        self.df.insert(3, "resize_factor", resize)
+
         if kwargs.get('show_df', False) == True:
-            self.df_short = self.df[["scale", "length", "area","mean1","bgr1","gray_corr_factor"]]
+            self.df_short = self.df[["scale", "length1", "area1","mean1","bgr1","gray_corr_factor"]]
             print("----------------------------------------------------------")
             print("Found " + str(len(self.df)) + " objects in " + self.filename)
             print("----------------------------------------------------------")
