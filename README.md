@@ -14,11 +14,34 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 |||| 
 
 # installation
+You need:
+- python (>3.5) - using anaconda is highly recommended: https://www.anaconda.com/download/ (don't forget to add "conda" to your environental variables).
+- opencv (3.3.1) + dependencies. more info here: https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda
+- trackpy. more info here http://soft-matter.github.io/trackpy/v0.3.0/installation.html
+
+After downloading and installing Anaconda, you can simply install the other packages from your command line (windows cmd/power shell, linux terminal, ...):
 
 ```
+conda update conda
+conda install numpy pandas 
+conda install -c conda-forge opencv 
+conda install -c soft-matter trackpy
 ```
 
-# documentation 
+To download phenopype from github, you need pip:
+
+```
+conda install pip
+pip install git+https://github.com/mluerig/phenopype
+```
+All conda installations come with the spyder IDE. You can call spyder from the command line:
+
+```
+spyder
+```
+You are now all set to phenopype your organisms.
+
+# quick start 
 
 (coming soon)
 
