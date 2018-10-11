@@ -271,7 +271,7 @@ class scale_maker:
             
             # create image for SIFT
             rx,ry,w,h = cv2.boundingRect(np.array(self.points_step1, dtype=np.int32))
-            self.img = image[ry:ry+h,rx:rx+w]
+            self.image = image[ry:ry+h,rx:rx+w]
             # create mask for SIFT
             self.mask_det = np.zeros(image.shape[0:2], np.uint8)
             cv2.fillPoly(self.mask_det, np.array([self.points_step1]), white) 
@@ -281,8 +281,6 @@ class scale_maker:
             if zoom==True:
                 # colour mask for step 2
                 temp_canvas_1 = temp_canvas_1[ry:ry+h,rx:rx+w]
-            
-            temp_canvas_2 = copy.deepcopy(temp_canvas_1)
 
         else:
             self.done_step1 = True
@@ -291,7 +289,7 @@ class scale_maker:
         # =============================================================================
         # Step 2 - measure scale length
         # =============================================================================
-        temp_canvas_1 = image
+        
         temp_canvas_2 = copy.deepcopy(temp_canvas_1)
         cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
         cv2.setMouseCallback(self.window_name, self.on_mouse_step2)
@@ -323,16 +321,14 @@ class scale_maker:
 
     def find(self, im_path, **kwargs):
         # initialize ------------------
-        image = cv2.imread(im_path)
-        if "resize" in kwargs:
-            factor = kwargs.get('resize', 0.5)
-            image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
-            
+        self.image_current = cv2.imread(im_path)
+        factor = kwargs.get('resize', 0.5)
+        image = cv2.resize(copy.deepcopy(self.image_current), (0,0), fx=1*factor, fy=1*factor) 
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         min_matches = kwargs.get('min_keypoints', 10)
         show = kwargs.get('show', False)
-        img1 = self.img
+        img1 = self.image
         img2 = copy.deepcopy(image)
 
         # =============================================================================
@@ -370,10 +366,10 @@ class scale_maker:
             rect = np.array(rect, dtype=np.int32)
             (x,y),radius = cv2.minEnclosingCircle(rect)
             self.current = round(self.measured * ((radius * 2)/self.ref),1)
-            zeros = np.zeros(image.shape[0:2], np.uint8)
+            zeros = np.zeros(self.image_current.shape[0:2], np.uint8)
             self.mask = cv2.fillPoly(zeros, [np.array(rect, dtype=np.int32)], white)
 
-            return self.current, zeros
+            return self.current, self.mask
 
         else:
             print("Scale not found - Only %d/%d matches" % (len(good),min_matches))
@@ -558,7 +554,7 @@ class standard_object_finder:
         if self.mode == "multi":
             # find contours of objects
             idx = 0
-            df_list = []
+            self.df_list = []
             ret, contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             if contours:
                 for cnt in contours:
@@ -579,7 +575,7 @@ class standard_object_finder:
                             sd1 = int(np.std(grayscale)) # standard deviation of grayscale values
                             bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
                             bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
-                            df_list.append([self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1])
+                            self.df_list.append([self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1])
                             # drawing
                             q=kwargs.get("roi_size",300)/2
                             cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
@@ -595,7 +591,7 @@ class standard_object_finder:
         # SINGLE-MODE
         # =============================================================================
         elif self.mode =="single":
-            df_list = []
+            self.df_list = []
             ret, contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             if contours:
                 areas = [cv2.contourArea(cnt) for cnt in contours]                
@@ -603,8 +599,8 @@ class standard_object_finder:
                 if len(cnt) > 5:
                     (x,y),radius = cv2.minEnclosingCircle(cnt)
                     x, y= int(x), int(y)
-                    length = int(radius * 2)
-                    area = int(cv2.contourArea(cnt))
+                    length1 = int(radius * 2)
+                    area1 = int(cv2.contourArea(cnt))
                     if length > kwargs.get('min_size', 0) and area > kwargs.get('min_area', 0):
                         idx = 1
                         rx,ry,rw,rh = cv2.boundingRect(cnt)
@@ -618,7 +614,7 @@ class standard_object_finder:
                         sd1 = int(np.std(grayscale)) # standard deviation of grayscale values
                         bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
                         bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
-                        df_list = [self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1]
+                        self.df_list = [[self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length1, area1, mean1, sd1, bgr1, bgr_sd1]]
 
                         # image
                         if "roi_size" in kwargs:
@@ -635,8 +631,8 @@ class standard_object_finder:
         # finish and return df and image
         # =============================================================================
         # dataframe
-        if len(df_list)>0:
-            self.df = pd.DataFrame(data=[df_list], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
+        if len(self.df_list)>0:
+            self.df = pd.DataFrame(data=self.df_list, columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
         else: 
             self.df = pd.DataFrame(data=[["NA"] * 13], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
         self.df.set_index('filename', drop=True, inplace=True)

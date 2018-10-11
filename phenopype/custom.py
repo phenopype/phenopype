@@ -60,13 +60,13 @@ def kims_module(image, df, **kwargs):
         morph = thresh
         if "erosion" in kwargs:
             err_factor = kwargs.get('erosion')
-            err_element = 5; err_iter = int((row["length"] * 0.01)  *  err_factor)
+            err_element = 5; err_iter = int((row["length1"] * 0.01)  *  err_factor)
             err_kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(err_element,err_element))
             morph = cv2.morphologyEx(morph,cv2.MORPH_OPEN,err_kernel, iterations = err_iter)
             
         if "dilation" in kwargs:
             dil_factor = kwargs.get('dilation')
-            dil_element = 5; dil_iter = int((row["length"] * 0.01)  * dil_factor)
+            dil_element = 5; dil_iter = int((row["length1"] * 0.01)  * dil_factor)
             dil_kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(dil_element,dil_element))
             morph = cv2.morphologyEx(morph,cv2.MORPH_CLOSE,dil_kernel, iterations = dil_iter)
 
@@ -89,7 +89,7 @@ def kims_module(image, df, **kwargs):
             bgr_std_list.append((int(np.std(b)),int(np.std(g)),int(np.std(r)))) # mean grayscale value
 
             cv2.drawContours(roi_drawn, [shape], 0, blue, 4)
-            cv2.putText(roi_drawn, str(int(row["object"])) ,(int(x),int(y)), cv2.FONT_HERSHEY_SIMPLEX, 4,white,5,cv2.LINE_AA)
+            cv2.putText(roi_drawn, str(int(row["idx"])) ,(int(x),int(y)), cv2.FONT_HERSHEY_SIMPLEX, 4,white,5,cv2.LINE_AA)
             drawn[int(max(0,y-q)):int(min(image.shape[0],y+q)),int(max(0,x-q)):int(min(image.shape[1],x+q))] = roi_drawn  
         else:
             mean_list.append("NA") # mean grayscale value
@@ -105,7 +105,7 @@ def kims_module(image, df, **kwargs):
     if kwargs.get('show', False) == True:
         cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
         cv2.imshow('phenopype', drawn)
-        if cv2.waitKey(0)==27:
+        if cv2.waitKey(500)==27:
             cv2.destroyAllWindows()
 
     return df, drawn
