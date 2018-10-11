@@ -8,9 +8,9 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 
 |Object detection|Object tracking| Scale detection|
 |:--:|:--:|:--:|
-|<img src="assets/object_detection.gif" width="100%" />|<img src="assets/object_tracking.gif" width="80%" />| <img src="assets/scale_detection.gif" width="100%" />|
+|<img src="assets/object_detection.gif" width="80%" />|<img src="assets/object_tracking.gif" width="80%" />| <img src="assets/scale_detection.gif" width="100%" />|
 |Automatic object detection via multistep thresholding in a predefined area. Useful if your images have borders or irregular features. Accurracy can be increased with custom modules, e.g. for colour or shape|Automatic object tracking that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes.|Automatic scale detection. A scale drawn and measured once can be found in all following pictures. Automatically corrects pixel-size ratios. Performance depends on image size| 
-|<img src="assets/object_detection.JPG" width="100%" />|<img src="assets/object_tracking.png" width="80%" />| <img src="assets/scale_detection.png" width="100%" />|
+|<img src="assets/object_detection.JPG" width="80%" />|<img src="assets/object_tracking.png" width="80%" />| <img src="assets/scale_detection.png" width="100%" />|
 |||| 
 
 # installation
