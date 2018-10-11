@@ -5,10 +5,10 @@ setup(
     url='https://github.com/mluerig/phenopype',
     author='Moritz Lürig',
     author_email='moritz.luerig@eawag.ch',
-    packages=['phenopype',],
+    packages=['phenopype'],
     install_requires=['numpy'],
-    version='0.3.1',
+    version='0.4.0',
     license='LGPL',
-    description='phenotyping pipeline for python',
+    description='a phenotyping pipeline for python',
     long_description=open('README.md').read(),
 )
