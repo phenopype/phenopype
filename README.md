@@ -13,20 +13,25 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 |<img src="assets/object_detection.JPG" width="80%" />|<img src="assets/object_tracking.png" width="80%" />| <img src="assets/scale_detection.png" width="100%" />|
 |||| 
 
+# dependencies 
+- python (3.6)
+
+- numpy 
+- pandas 
+- opencv (3.4.1)
+- trackpy (0.4.x)
+- exifread
+
 # installation
-You need:
-- python (>3.5) - using anaconda is highly recommended: https://www.anaconda.com/download/ (don't forget to add "conda" to your environental variables).
-- opencv (3.3.1) + dependencies. more info here: https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda
-- trackpy. more info here http://soft-matter.github.io/trackpy/v0.3.0/installation.html
-
-After downloading and installing Anaconda, you can simply install the other packages from your command line (windows cmd/power shell, linux terminal, ...):
-
+1. install python (anaconda is highly recommended: https://www.anaconda.com/download/ - don't forget to add "conda" to your PATH).
+2. open a terminal / shell and enter: 
 ```
 conda update conda
-conda install numpy pandas 
+conda install numpy pandas trackpy exifread
 conda install -c conda-forge opencv 
 conda install -c soft-matter trackpy
 ```
+If you have trouble installing opencv: https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda
 
 To download phenopype from github, you need pip:
 
@@ -34,17 +39,18 @@ To download phenopype from github, you need pip:
 conda install pip
 pip install git+https://github.com/mluerig/phenopype
 ```
+
 All conda installations come with the spyder IDE. You can call spyder from the command line:
 
 ```
 spyder
 ```
-You are now all set to phenopype your organisms.
+
+Open `example.py` to analyze some pictures - you are now all set to phenopype your organisms.
 
 # quick start 
 
 (coming soon)
-
 
 # development (planned):
 
