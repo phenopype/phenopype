@@ -30,20 +30,19 @@ conda install -c soft-matter trackpy
 ```
 (if you have trouble installing opencv check [this](https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda))
 
-To download phenopype from github, you need `pip`:
+To install phenopype to your local python environment directly from github, you can go via `pip`:
 
 ```
 conda install pip
 pip install git+https://github.com/mluerig/phenopype
 ```
 
-All conda installations come with the spyder IDE. You can call spyder from the command line:
+To make use of the provided examples and to tinker with the code, simply clone and open the repository. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a fantastic scientific python environment and a good place to start, e.g. by opening the example: 
 
 ```
-spyder
+spyder eyample.py
 ```
 
-Open `example.py` in `spyder` to analyze some pictures - you are now all set to phenopype your organisms.
 
 # Dependencies
 
