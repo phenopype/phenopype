@@ -6,17 +6,42 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 
 # features
 
-|<img src="assets/object_detection.gif" width="100%" />|<img src="assets/scale_detection.gif" width="100%" />|<img src="assets/object_tracking.gif" width="100%" />| 
+|Object detection|Object tracking| Scale detection|
 |:--:|:--:|:--:|
-|<img src="assets/object_detection.JPG" width="100%" />|<img src="assets/scale_detection.png" width="100%" />|<img src="assets/object_tracking.png" width="100%" />| 
+|<img src="assets/object_detection.gif" width="90%" />|<img src="assets/object_tracking.gif" width="80%" />| <img src="assets/scale_detection.gif" width="100%" />|
+|Automatic object detection via multistep thresholding in a predefined area. Useful if your images have borders or irregular features. Accurracy can be increased with custom modules, e.g. for colour or shape|Automatic object tracking that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes.|A scale that is once identified and measured can be found in all following pictures. Automatically corrects pixel-size ratios. Performance depends on image size| 
+|<img src="assets/object_detection.JPG" width="80%" />|<img src="assets/object_tracking.png" width="80%" />| <img src="assets/scale_detection.png" width="100%" />|
 |||| 
 
 # installation
+You need:
+- python (>3.5) - using anaconda is highly recommended: https://www.anaconda.com/download/ (don't forget to add "conda" to your environental variables).
+- opencv (3.3.1) + dependencies. more info here: https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda
+- trackpy. more info here http://soft-matter.github.io/trackpy/v0.3.0/installation.html
+
+After downloading and installing Anaconda, you can simply install the other packages from your command line (windows cmd/power shell, linux terminal, ...):
 
 ```
+conda update conda
+conda install numpy pandas 
+conda install -c conda-forge opencv 
+conda install -c soft-matter trackpy
 ```
 
-# documentation 
+To download phenopype from github, you need pip:
+
+```
+conda install pip
+pip install git+https://github.com/mluerig/phenopype
+```
+All conda installations come with the spyder IDE. You can call spyder from the command line:
+
+```
+spyder
+```
+You are now all set to phenopype your organisms.
+
+# quick start 
 
 (coming soon)
 
