@@ -37,8 +37,9 @@ conda install pip
 pip install git+https://github.com/mluerig/phenopype
 ```
 
-To make use of the provided examples and to tinker with the code, simply clone and open the repository. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a fantastic scientific python environment and a good place to start, e.g. by opening the example: 
+# quickstart
 
+Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. After you have cloned the repository, go to in the shell and start the example:
 ```
 spyder eyample.py
 ```
