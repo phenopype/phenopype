@@ -13,27 +13,24 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 |<img src="assets/object_detection.JPG" width="80%" />|<img src="assets/object_tracking.png" width="80%" />| <img src="assets/scale_detection.png" width="100%" />|
 |||| 
 
-# dependencies 
-- python (3.6)
-
-- numpy 
-- pandas 
-- opencv (3.4.1)
-- trackpy (0.4.x)
-- exifread
-
 # installation
 1. install python (anaconda is highly recommended: https://www.anaconda.com/download/ - don't forget to add "conda" to your PATH).
-2. open a terminal / shell and enter: 
+2. open a terminal / shell and enter:
+
 ```
 conda update conda
-conda install numpy pandas trackpy exifread
+conda config --add channels conda-forge 
+```
+3. install dependencies:
+
+```
+conda install exifread
 conda install -c conda-forge opencv 
 conda install -c soft-matter trackpy
 ```
-If you have trouble installing opencv: https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda
+(if you have trouble installing opencv check [this](https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda))
 
-To download phenopype from github, you need pip:
+To download phenopype from github, you need `pip`:
 
 ```
 conda install pip
@@ -46,18 +43,17 @@ All conda installations come with the spyder IDE. You can call spyder from the c
 spyder
 ```
 
-Open `example.py` to analyze some pictures - you are now all set to phenopype your organisms.
+Open `example.py` in `spyder` to analyze some pictures - you are now all set to phenopype your organisms.
 
-# quick start 
+# Dependencies
 
-(coming soon)
+Most dependencies come with Anaconda or other scientific Python distributions, so you don't need to install them separately in those cases. Others, like `opencv` or `trackpy` need to be installed separately, as indicated [above](#installation)
+
 
 # development (planned):
 
-## hdf5-implementation
+- hdf5-implementation (original image > processed image (+ data) > image for ML-training-dataset >> hdf5)
+- localized feature extraction (e.g. stickleback armour-plates, amount of pigments in leafs,...)
+- shape detection (contour of objects)
+- landmark tool (analagours to tpsDig, but faster)
 
-## shape detection
-
-## landmark tool
-
-## training dataset generation
