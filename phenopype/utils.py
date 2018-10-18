@@ -7,7 +7,7 @@ Version 0.4.0
 
 import cv2
 import numpy as np
-from PIL import Image
+import exifread
 from collections import Counter
 
 #%%
@@ -20,9 +20,10 @@ white = (255,255,255)
 #%% helper functions
 
 def exif_date(path): 
-       date = Image.open(path)._getexif()[36867]
-       date = date[0:4] + "-" + date[5:7] + "-" + date[8:10]
-       return date
+    f = open(path, 'rb')
+    tags = exifread.process_file(f)
+    t = str(tags["EXIF DateTimeOriginal"])
+    return t[0:4] + "-" + t[5:7] + "-" + t[8:10] + " " + t[11:20]
 
 def blur(image, blur_kern):
     kern = np.ones((blur_kern,blur_kern))/(blur_kern**2)
@@ -37,4 +38,3 @@ def gray_scale(source, **kwargs):
     mc = Counter(vec).most_common(9)
     g = [item[0] for item in mc]
     return int(np.median(g))
-
