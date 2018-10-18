@@ -285,7 +285,7 @@ class scale_maker:
         else:
             self.done_step1 = True
             print("Add the scale by clicking on two points with a known distance between them:")
-
+            temp_canvas_1 = image
         # =============================================================================
         # Step 2 - measure scale length
         # =============================================================================
@@ -500,8 +500,10 @@ class standard_object_finder:
             else: 
                 ret = gray_scale(source=self.gray,  resize=0.25)
             ref = kwargs.get('gray_value_ref', ret)
-        self.gray_corr_factor = int(ref - ret)
-        self.drawn = copy.deepcopy(self.gray) + self.gray_corr_factor
+            self.gray_corr_factor = int(ref - ret)
+            self.drawn = copy.deepcopy(self.gray) + self.gray_corr_factor
+        else:
+             self.drawn = copy.deepcopy(self.gray)
         self.drawn = np.array(self.drawn, dtype="uint8")
         self.drawn = cv2.cvtColor(self.drawn,cv2.COLOR_GRAY2BGR)
 
@@ -510,21 +512,18 @@ class standard_object_finder:
         # BLUR, THRESHOLDING, MASK
         # =============================================================================
         # blur image
-        if "blur1" in kwargs:
-            blur_kernel = kwargs.get("blur1")
-            self.blurred = blur(self.gray, blur_kernel)
+
+        blur_kernel = kwargs.get("blur1", 1)
+        self.blurred = blur(self.gray, blur_kernel)
             
         # thresholding / apply correction factor        
         thresholding = kwargs.get('thresholding', "otsu")
         if thresholding == "otsu":
             ret, self.thresh = cv2.threshold(self.blurred,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         elif thresholding == "adaptive":
-            sensitivity = kwargs.get('sensitivity', 99)
-            iterations = kwargs.get('iterations', 3)
-            self.thresh = cv2.adaptiveThreshold(self.gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,sensitivity, iterations)
+            self.thresh = cv2.adaptiveThreshold(self.gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,kwargs.get('sensitivity', 99), kwargs.get('iterations', 3))
         elif thresholding == "binary":
-            value = kwargs.get('bin_thresh', 127)
-            ret, self.thresh = cv2.threshold(self.blurred,value, 255,cv2.THRESH_BINARY_INV)
+            ret, self.thresh = cv2.threshold(self.blurred,kwargs.get('bin_thresh', 127), 255,cv2.THRESH_BINARY_INV)
             
         corr_factor = kwargs.get('corr_factor', 0)
         if corr_factor < 0:
@@ -543,6 +542,7 @@ class standard_object_finder:
         # mask arena, scale, etc.
         if "exclude" in kwargs:
             self.mask = sum(kwargs.get('exclude'))
+            self.mask = cv2.resize(self.mask, (0,0), fx=1*resize, fy=1*resize) 
             self.thresh = cv2.subtract(self.thresh,self.mask)
             self.thresh[self.thresh==1] = 0
 
@@ -555,9 +555,9 @@ class standard_object_finder:
             # find contours of objects
             idx = 0
             self.df_list = []
-            ret, contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
-            if contours:
-                for cnt in contours:
+            ret, self.contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
+            if self.contours:
+                for cnt in self.contours:
                     if len(cnt) > 5:
                         (x,y),radius = cv2.minEnclosingCircle(cnt)
                         x, y= int(x), int(y)
@@ -577,9 +577,11 @@ class standard_object_finder:
                             bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
                             self.df_list.append([self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1])
                             # drawing
-                            q=kwargs.get("roi_size",300)/2
-                            cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
-                            cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
+                            if "roi_size" in kwargs:
+                                q=kwargs.get("roi_size",300)/2
+                                cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
+                            if "label" in kwargs:
+                                cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
                             cv2.drawContours(self.drawn, [cnt], 0, green, 4)
                     else: 
                         print("Object not bigger than min_size or min_area")
@@ -592,16 +594,16 @@ class standard_object_finder:
         # =============================================================================
         elif self.mode =="single":
             self.df_list = []
-            ret, contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
-            if contours:
-                areas = [cv2.contourArea(cnt) for cnt in contours]                
-                cnt = contours[np.argmax(areas)]
+            ret, self.contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
+            if self.contours:
+                areas = [cv2.contourArea(cnt) for cnt in self.contours]                
+                cnt = self.contours[np.argmax(areas)]
                 if len(cnt) > 5:
                     (x,y),radius = cv2.minEnclosingCircle(cnt)
                     x, y= int(x), int(y)
                     length1 = int(radius * 2)
                     area1 = int(cv2.contourArea(cnt))
-                    if length > kwargs.get('min_size', 0) and area > kwargs.get('min_area', 0):
+                    if length1 > kwargs.get('min_size', 0) and area1 > kwargs.get('min_area', 0):
                         idx = 1
                         rx,ry,rw,rh = cv2.boundingRect(cnt)
                         
