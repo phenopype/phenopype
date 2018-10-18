@@ -14,7 +14,7 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 |||| 
 
 # installation
-1. install python (anaconda is highly recommended: https://www.anaconda.com/download/ - don't forget to (add "conda" to your PATH)[https://docs.anaconda.com/anaconda/faq/#should-i-add-anaconda-to-the-windows-path], if you have not done so during installation).
+1. install python (anaconda is highly recommended: https://www.anaconda.com/download/ - don't forget to [add "conda" to your PATH](https://docs.anaconda.com/anaconda/faq/#should-i-add-anaconda-to-the-windows-path), if you have not done so during installation).
 2. open a terminal / shell and enter:
 
 ```
