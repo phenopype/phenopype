@@ -458,7 +458,7 @@ class standard_object_finder:
         blur_kern: int
             kernel size, bigger kernels remove small structures (default: 99)
         corr_factor: int
-            factor (in px) to add to object (default: 0)
+            factor (in px) to add to (positive int) or subtract from (negative int) object (default: 0)
         gray_value_ref: int (0-255)
             reference gray scale value to adjust the given picture's histogram to
         iterations: int
