@@ -258,7 +258,10 @@ class scale_maker:
                     cv2.line(temp_canvas_1, self.points_step1[-1], self.current, blue, 2)
                 cv2.imshow(self.window_name, temp_canvas_1)
                 temp_canvas_1 = copy.deepcopy(image)
-                cv2.waitKey(50)
+                if (cv2.waitKey(50) & 0xff) == 27:
+                    cv2.destroyWindow(self.window_name)
+                    break
+
             cv2.destroyWindow(self.window_name)
             
             print("Finished, scale outline drawn. Add the scale by clicking on two points with a known distance between them:")
@@ -300,7 +303,9 @@ class scale_maker:
                 cv2.line(temp_canvas_2, self.points_step2[-1], self.current, blue, 2)
             cv2.imshow(self.window_name, temp_canvas_2)
             temp_canvas_2 = copy.deepcopy(temp_canvas_1)
-            cv2.waitKey(50)
+            if (cv2.waitKey(50) & 0xff) == 27:
+                cv2.destroyWindow(self.window_name)
+                break
         print("Finished, scale drawn. your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
 
         # =============================================================================
@@ -416,7 +421,9 @@ class polygon_maker:
                 cv2.line(temp_canvas, self.points[-1], self.current, blue, 3)
             cv2.imshow(self.window_name, temp_canvas)
             temp_canvas = copy.deepcopy(image)
-            cv2.waitKey(50)
+            if (cv2.waitKey(50) & 0xff) == 27:
+                cv2.destroyWindow(self.window_name)
+                break
             
         zeros = np.zeros(image.shape[0:2], np.uint8)
         zeros.fill(255)

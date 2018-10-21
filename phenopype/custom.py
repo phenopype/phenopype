@@ -110,6 +110,8 @@ def kims_module(image, df, **kwargs):
 
     return df, drawn
 
+#%%
+
 class camera_stand_module:
     def run(self, image, df, **kwargs):
         # initialize
