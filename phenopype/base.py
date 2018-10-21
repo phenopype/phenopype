@@ -448,28 +448,34 @@ class standard_object_finder:
         """ find objects in image via thresholding
         Parameters
         ----------
-        image : array_like
+        image: array_like
             image that contains your objects
-            
+        mode: str("single", "multi")
+            detection of single largest object or multiple
+
         Parameters (optional)
         ---------------------
         blur_kern: int
             kernel size, bigger kernels remove small structures (default: 99)
         corr_factor: int
             factor (in px) to add to object (default: 0)
-        thresholding: {'binary', 'adaptive', 'otsu'}
-            type of thresholding (default: binary)
-        sensitivity: int (odd)
-            needs to be specified if 'adaptive' thresholding is used (default: 99)
+        gray_value_ref: int (0-255)
+            reference gray scale value to adjust the given picture's histogram to
         iterations: int
             needs to be specified if 'adaptive' thresholding is used (default: 3)
-        thresh_val: int (0-255)
-            needs to be specified if 'binary' thresholding is used (default: 127)
         min_size: int
             minimum size (longest distance in contour) in pixels for objects to be included (default: 0)
         min_area: int
             minimum contour area in pixels for objects to be included (default: 0)
-            
+        resize: in (0-1)
+            resize image to speed up detection process(WARNING: may result in poor detection results)
+        sensitivity: int (odd)
+            needs to be specified if 'adaptive' thresholding is used (default: 99)
+        thresholding: {'binary', 'adaptive', 'otsu'}
+            type of thresholding (default: binary)
+        thresh_val: int (0-255)
+            needs to be specified if 'binary' thresholding is used (default: 127)
+
 
         Returns (optional)
         ------------------
