@@ -306,8 +306,11 @@ class scale_maker:
             if (cv2.waitKey(50) & 0xff) == 27:
                 cv2.destroyWindow(self.window_name)
                 break
+            if self.done_step2==True:
+                break
         print("Finished, scale drawn. your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
-
+        if (cv2.waitKey(50) & 0xff) == 27:
+            cv2.destroyAllWindows()
         # =============================================================================
         # give per pixel ratios
         # =============================================================================
