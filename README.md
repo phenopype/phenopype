@@ -30,10 +30,10 @@ conda install -c soft-matter trackpy
 ```
 (if you have trouble installing opencv check [this](https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda))
 
-To install phenopype to your local python environment directly from github, you can go via `pip`:
+To install phenopype to your local python environment directly from github, you should use `git` via `pip`:
 
 ```
-conda install pip
+conda install git pip
 pip install git+https://github.com/mluerig/phenopype
 ```
 
