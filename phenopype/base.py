@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Last Update: 2018/10/02
-Version 0.4.0
+Version 0.4.4
 @author: Moritz Lürig
 """
 
@@ -26,7 +26,11 @@ class project:
         
     def project_maker(self, name, files, mode="walk", **kwargs):
 
-        # initialize
+        # =============================================================================
+        # INITIALIZE
+        # =============================================================================
+        
+        # LOAD
         self.name = name
         self.files = files
         self.output = kwargs.get("output",os.path.join(os.getcwd(),"output")) 
@@ -35,18 +39,17 @@ class project:
         self.mode = mode
         self.filepaths = []
         self.filenames = []
-
         if "filetype" in kwargs:
             self.file_type = kwargs.get("filetype")
         if "exclude" in kwargs:
             self.exclude = kwargs.get("exclude")
-            
         self.resize = kwargs.get("resize",1)
 
         # =============================================================================
-        # go through directory and make filelist
+        # MAKE FILELIST AND PATHLIST
         # =============================================================================
         
+        # WALK THROUGH ALL SUBDIRS OF TREE
         if self.mode == "walk":
             for root, dirs, files in os.walk(self.files):
                 for i in os.listdir(root):
@@ -69,7 +72,8 @@ class project:
                             else:
                                 self.filepaths.append(path)
                                 self.filenames.append(i)
-                                
+                   
+        # STAY IN CURRENT FOLDER ONLY
         elif self.mode == "dir":
             for i in os.listdir(self.files):
                 path = os.path.join(self.files,i)
@@ -92,12 +96,13 @@ class project:
                             self.filepaths.append(path)
                             self.filenames.append(i)
                     
+        # LOAD SINGLE IMAGE FROM PATH
         elif self.mode == "single":
             self.filepaths.append(self.files)
             self.filenames.append(os.path.basename(self.files))
 
         # =============================================================================
-        # make project dataframe
+        # BUILD PROJECT DF
         # =============================================================================
         self.df = pd.DataFrame(data=list(zip(self.filepaths, self.filenames)), columns = ["filepath", "filename"])
         self.df.index = self.filenames
@@ -106,10 +111,15 @@ class project:
         self.filepaths = self.df['filepath'].tolist()
         self.filenames = self.df['filename'].tolist()
         self.df.drop(columns='filepath', inplace=True)
+        
 
     def update_list(self):
+        
+        # MAKE NEW TEMPORARY LISTS
         self.filepaths = []
         self.filenames = []
+        
+        # WALK THROUGH ALL SUBDIRS OF TREE
         if self.mode == "walk":
             for root, dirs, files in os.walk(self.files):
                 for i in os.listdir(root):
@@ -133,6 +143,7 @@ class project:
                                 self.filepaths.append(path)
                                 self.filenames.append(i)
                                 
+        # STAY IN CURRENT FOLDER ONLY
         elif self.mode == "dir":
             for i in os.listdir(self.files):
                 path = os.path.join(self.files,i)
@@ -154,12 +165,15 @@ class project:
                         else:
                             self.filepaths.append(path)
                             self.filenames.append(i)
-                    
+    
+        # LOAD SINGLE IMAGE FROM PATH     
         elif self.mode == "single":
             self.filepaths.append(self.files)
             self.filenames.append(os.path.basename(self.files))
             
-            
+        # =============================================================================
+        # UPADE PROJECT DF: REMOVE OR ADD MISSING FILES
+        # =============================================================================
         self.df = self.df[self.df["filename"].isin(self.filenames)]
 
 
@@ -199,7 +213,6 @@ class scale_maker:
     def __init__(self):
 
         # setting up temporary variables
-        self.window_name = "phenopype" # Name for our window
         self.done_step1 = False 
         self.done_step2 = False
         self.current = (0, 0) 
@@ -248,21 +261,21 @@ class scale_maker:
         # =============================================================================
         if crop == True:
             print("\nMark the outline of the scale by left clicking, finish by right clicking:")
-            cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
-            cv2.setMouseCallback(self.window_name, self.on_mouse_step1)
+            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+            cv2.setMouseCallback("phenopype", self.on_mouse_step1)
             temp_canvas_1 = copy.deepcopy(image)
     
             while(not self.done_step1):
                 if (len(self.points_step1) > 0):
                     cv2.polylines(temp_canvas_1, np.array([self.points_step1]), False, green, 2)
                     cv2.line(temp_canvas_1, self.points_step1[-1], self.current, blue, 2)
-                cv2.imshow(self.window_name, temp_canvas_1)
+                cv2.imshow("phenopype", temp_canvas_1)
                 temp_canvas_1 = copy.deepcopy(image)
                 if (cv2.waitKey(50) & 0xff) == 27:
-                    cv2.destroyWindow(self.window_name)
+                    cv2.destroyWindow("phenopype")
                     break
 
-            cv2.destroyWindow(self.window_name)
+            cv2.destroyWindow("phenopype")
             
             print("Finished, scale outline drawn. Add the scale by clicking on two points with a known distance between them:")
 
@@ -294,17 +307,17 @@ class scale_maker:
         # =============================================================================
         
         temp_canvas_2 = copy.deepcopy(temp_canvas_1)
-        cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback(self.window_name, self.on_mouse_step2)
+        cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+        cv2.setMouseCallback("phenopype", self.on_mouse_step2)
 
         while(not self.done_step2):
             if (len(self.points_step2) > 0):
                 cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, green, 2)
                 cv2.line(temp_canvas_2, self.points_step2[-1], self.current, blue, 2)
-            cv2.imshow(self.window_name, temp_canvas_2)
+            cv2.imshow("phenopype", temp_canvas_2)
             temp_canvas_2 = copy.deepcopy(temp_canvas_1)
-            if (cv2.waitKey(50) & 0xff) == 27:
-                cv2.destroyWindow(self.window_name)
+            if (cv2.waitKey(10) & 0xff) == 27:
+                cv2.destroyWindow("phenopype")
                 break
             
         print("Finished, scale drawn. your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
@@ -314,10 +327,10 @@ class scale_maker:
         # =============================================================================
         cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, black, 2)
         
-        cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
-        cv2.imshow(self.window_name, temp_canvas_2)
+        cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+        cv2.imshow("phenopype", temp_canvas_2)
         if (cv2.waitKey(0) & 0xff) == 27:
-            cv2.destroyWindow(self.window_name)
+            cv2.destroyWindow("phenopype")
 
         self.measured = self.scale_px/length
         self.current = self.measured
@@ -391,7 +404,6 @@ class polygon_maker:
     def __init__(self):
 
         # initialize # ----------------
-        self.window_name = "phenopype" # Name for our window
         self.done = False # Flag signalling we're done
         self.current = (0, 0) # Current position, so we can draw the line-in-progress
         self.points = [] # List of points defining our polygon
@@ -413,8 +425,8 @@ class polygon_maker:
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish by right clicking:")
-        cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback(self.window_name, self.on_mouse)
+        cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+        cv2.setMouseCallback("phenopype", self.on_mouse)
         temp_canvas = copy.deepcopy(image)
 
         # =============================================================================
@@ -424,10 +436,10 @@ class polygon_maker:
             if (len(self.points) > 0):
                 cv2.polylines(temp_canvas, np.array([self.points]), False, green, 3)
                 cv2.line(temp_canvas, self.points[-1], self.current, blue, 3)
-            cv2.imshow(self.window_name, temp_canvas)
+            cv2.imshow("phenopype", temp_canvas)
             temp_canvas = copy.deepcopy(image)
-            if (cv2.waitKey(50) & 0xff) == 27:
-                cv2.destroyWindow(self.window_name)
+            if (cv2.waitKey(10) & 0xff) == 27:
+                cv2.destroyWindow("phenopype")
                 break
             
         zeros = np.zeros(image.shape[0:2], np.uint8)
@@ -437,10 +449,11 @@ class polygon_maker:
         if kwargs.get('show', False) == True:
             boo = np.array(self.mask, dtype=bool)
             temp_canvas[boo,2] =255
-            cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
-            cv2.imshow(self.window_name, temp_canvas)
+            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+            cv2.imshow("phenopype", temp_canvas)
             cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            cv2.destroyWindow("phenopype")
+
         else:
             cv2.waitKey(1)
             cv2.destroyAllWindows()
@@ -525,52 +538,58 @@ class standard_object_finder:
                 ret = gray_scale(source=self.gray,  resize=0.25)
             ref = kwargs.get('gray_value_ref', ret)
             self.gray_corr_factor = int(ref - ret)
-            self.drawn = copy.deepcopy(self.gray) + self.gray_corr_factor
+            self.gray_corrected = np.array(copy.deepcopy(self.gray) + self.gray_corr_factor, dtype="uint8")
+            self.drawn = self.gray_corrected
         else:
              self.drawn = copy.deepcopy(self.gray)            
-        self.drawn = np.array(self.drawn, dtype="uint8")
+
         self.drawn = cv2.cvtColor(self.drawn,cv2.COLOR_GRAY2BGR)
 
 
         # =============================================================================
-        # BLUR, THRESHOLDING, MASK
+        # BLUR1 > THRESHOLDING > MORPHOLOGY > BLUR2
         # =============================================================================
         
         # BLUR BEFORE
-        blur_kernel = kwargs.get("blur1", 1)
-        self.blurred = blur(self.gray, blur_kernel)
+        if "blur1" in kwargs:
+            blur_kernel = kwargs.get("blur1", 1)
+            self.blurred = blur(self.gray, blur_kernel)
+        else:
+            self.blurred = self.gray
             
         # THRESHOLDING   
         thresholding = kwargs.get('thresholding', "otsu")
         if thresholding == "otsu":
             ret, self.thresh = cv2.threshold(self.blurred,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         elif thresholding == "adaptive":
-            self.thresh = cv2.adaptiveThreshold(self.gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,kwargs.get('sensitivity', 99), kwargs.get('iterations', 3))
+            self.thresh = cv2.adaptiveThreshold(self.blurred,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,kwargs.get('sensitivity', 199), kwargs.get('iterations', 3))
         elif thresholding == "binary":
             ret, self.thresh = cv2.threshold(self.blurred,kwargs.get('bin_thresh', 127), 255,cv2.THRESH_BINARY_INV)
+        self.morph = self.thresh
+                   
+        # BLUR AFTER
+        if "blur2" in kwargs:
+            blur_kernel, thresh_val = kwargs.get("blur2")
+            self.morph = blur(self.morph, blur_kernel)
+            ret, self.morph = cv2.threshold(self.morph, thresh_val, 255,cv2.THRESH_BINARY)
+
             
         # BORDER CORRECTION FACTOR
         corr_factor = kwargs.get('corr_factor', 0)
         if corr_factor < 0:
             corr_factor = abs(corr_factor)
-            self.thresh = cv2.erode(self.thresh,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
+            self.morph = cv2.erode(self.morph,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
         if corr_factor > 0:
-            self.thresh = cv2.dilate(self.thresh,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
-            
-        # BLUR AFTER
-        if "blur2" in kwargs:
-            blur_kernel, thresh_val = kwargs.get("blur2")
-            self.thresh = blur(self.thresh, blur_kernel)
-            ret, self.morph = cv2.threshold(self.blurred, thresh_val, 255,cv2.THRESH_BINARY)
-        else:
-            self.thresh = self.thresh
+            self.morph = cv2.dilate(self.morph,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
+
+
 
         # APPLY ARENA MASK
         if "exclude" in kwargs:
             self.mask = sum(kwargs.get('exclude'))
             self.mask = cv2.resize(self.mask, (0,0), fx=1*resize, fy=1*resize) 
-            self.thresh = cv2.subtract(self.thresh,self.mask)
-            self.thresh[self.thresh==1] = 0
+            self.morph = cv2.subtract(self.morph,self.mask)
+            self.morph[self.morph==1] = 0
 
 
         # =============================================================================
@@ -580,7 +599,7 @@ class standard_object_finder:
         if self.mode == "multi":
             idx = 0
             self.df_list = []
-            ret, self.contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
+            ret, self.contours, hierarchy = cv2.findContours(self.morph,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             
             # LOOP THROUGH CONTOURS 
             if self.contours:
@@ -611,7 +630,7 @@ class standard_object_finder:
                                 cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
                             if "label" in kwargs:
                                 cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
-                            cv2.drawContours(self.drawn, [cnt], 0, green, 4)
+                            cv2.drawContours(self.drawn, [cnt], 0, blue, 4)
                     else: 
                         print("Object not bigger than min_size or min_area")
             else: 
@@ -624,7 +643,7 @@ class standard_object_finder:
         
         elif self.mode =="single":
             self.df_list = []
-            ret, self.contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
+            ret, self.contours, hierarchy = cv2.findContours(self.morph,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             
             # LOOP THROUGH CONTOURS AND PICK LARGEST
             if self.contours:
@@ -677,7 +696,7 @@ class standard_object_finder:
         self.df.insert(3, "resize_factor", resize)
 
         if kwargs.get('show_df', False) == True:
-            self.df_short = self.df[["scale", "length1", "area1","mean1","bgr1","gray_corr_factor"]]
+            self.df_short = self.df[["length1", "area1","mean1"]]
             print("----------------------------------------------------------")
             print("Found " + str(len(self.df)) + " objects in " + self.filename)
             print("----------------------------------------------------------")
