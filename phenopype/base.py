@@ -306,17 +306,19 @@ class scale_maker:
             if (cv2.waitKey(50) & 0xff) == 27:
                 cv2.destroyWindow(self.window_name)
                 break
-            if self.done_step2==True:
-                break
+            
         print("Finished, scale drawn. your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
-        if (cv2.waitKey(50) & 0xff) == 27:
-            cv2.destroyAllWindows()
+
         # =============================================================================
         # give per pixel ratios
         # =============================================================================
         cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, black, 2)
+        
         cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
         cv2.imshow(self.window_name, temp_canvas_2)
+        if (cv2.waitKey(0) & 0xff) == 27:
+            cv2.destroyWindow(self.window_name)
+
         self.measured = self.scale_px/length
         self.current = self.measured
         
@@ -432,13 +434,15 @@ class polygon_maker:
         zeros.fill(255)
         self.mask = cv2.fillPoly(zeros, np.array([self.points]), black)
 
-        if kwargs.get('show', True) == True:
+        if kwargs.get('show', False) == True:
             boo = np.array(self.mask, dtype=bool)
             temp_canvas[boo,2] =255
             cv2.namedWindow(self.window_name, flags=cv2.WINDOW_NORMAL)
             cv2.imshow(self.window_name, temp_canvas)
-            cv2.waitKey(200)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
         else:
+            cv2.waitKey(1)
             cv2.destroyAllWindows()
 
 #        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
@@ -493,7 +497,11 @@ class standard_object_finder:
         contours: list
             list of contours (lists)
         """
-        # initialize -----------------
+        # =============================================================================
+        # INITIALIZE
+        # =============================================================================
+        
+        # LOAD 
         self.mode =  kwargs.get('mode', "multi")
         self.image = cv2.imread(im_path)
         self.image_copy = self.image
@@ -501,14 +509,14 @@ class standard_object_finder:
         self.image = cv2.resize(self.image, (0,0), fx=1*resize, fy=1*resize) 
         self.filename = os.path.basename(im_path)
         
-        # image date 
+        # GET IMAGE DATE
         try:
             self.date_taken = exif_date(im_path)
         except:
             self.date_taken = "NA"
         self.date_analyzed = str(datetime.datetime.now())[:19]
             
-        # correct gray scale and make draw-template
+        # APPLY GRAY-CORRECTION FACTOR TO GRAYSCALE IMAGE AND ROI
         self.gray = cv2.cvtColor(self.image,cv2.COLOR_BGR2GRAY)
         if 'gray_value_ref' in kwargs:
             if resize < 1:
@@ -519,7 +527,7 @@ class standard_object_finder:
             self.gray_corr_factor = int(ref - ret)
             self.drawn = copy.deepcopy(self.gray) + self.gray_corr_factor
         else:
-             self.drawn = copy.deepcopy(self.gray)
+             self.drawn = copy.deepcopy(self.gray)            
         self.drawn = np.array(self.drawn, dtype="uint8")
         self.drawn = cv2.cvtColor(self.drawn,cv2.COLOR_GRAY2BGR)
 
@@ -527,12 +535,12 @@ class standard_object_finder:
         # =============================================================================
         # BLUR, THRESHOLDING, MASK
         # =============================================================================
-        # blur image
-
+        
+        # BLUR BEFORE
         blur_kernel = kwargs.get("blur1", 1)
         self.blurred = blur(self.gray, blur_kernel)
             
-        # thresholding / apply correction factor        
+        # THRESHOLDING   
         thresholding = kwargs.get('thresholding', "otsu")
         if thresholding == "otsu":
             ret, self.thresh = cv2.threshold(self.blurred,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -541,13 +549,15 @@ class standard_object_finder:
         elif thresholding == "binary":
             ret, self.thresh = cv2.threshold(self.blurred,kwargs.get('bin_thresh', 127), 255,cv2.THRESH_BINARY_INV)
             
+        # BORDER CORRECTION FACTOR
         corr_factor = kwargs.get('corr_factor', 0)
         if corr_factor < 0:
             corr_factor = abs(corr_factor)
             self.thresh = cv2.erode(self.thresh,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
         if corr_factor > 0:
             self.thresh = cv2.dilate(self.thresh,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
-
+            
+        # BLUR AFTER
         if "blur2" in kwargs:
             blur_kernel, thresh_val = kwargs.get("blur2")
             self.thresh = blur(self.thresh, blur_kernel)
@@ -555,7 +565,7 @@ class standard_object_finder:
         else:
             self.thresh = self.thresh
 
-        # mask arena, scale, etc.
+        # APPLY ARENA MASK
         if "exclude" in kwargs:
             self.mask = sum(kwargs.get('exclude'))
             self.mask = cv2.resize(self.mask, (0,0), fx=1*resize, fy=1*resize) 
@@ -568,10 +578,11 @@ class standard_object_finder:
         # =============================================================================
 
         if self.mode == "multi":
-            # find contours of objects
             idx = 0
             self.df_list = []
             ret, self.contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
+            
+            # LOOP THROUGH CONTOURS 
             if self.contours:
                 for cnt in self.contours:
                     if len(cnt) > 5:
@@ -582,7 +593,8 @@ class standard_object_finder:
                         if length > kwargs.get('min_size', 0) and area > kwargs.get('min_area', 0):
                             idx += 1
                             rx,ry,rw,rh = cv2.boundingRect(cnt)
-                            # values
+                            
+                            # GET VALUES FROM MASKED ROI
                             grayscale =  ma.array(data=self.gray[ry:ry+rh,rx:rx+rw], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
                             b =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,0], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
                             g =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,1], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
@@ -592,7 +604,8 @@ class standard_object_finder:
                             bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
                             bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
                             self.df_list.append([self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1])
-                            # drawing
+                            
+                            # DRAW TO ROI
                             if "roi_size" in kwargs:
                                 q=kwargs.get("roi_size",300)/2
                                 cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
@@ -608,9 +621,12 @@ class standard_object_finder:
         # =============================================================================
         # SINGLE-MODE
         # =============================================================================
+        
         elif self.mode =="single":
             self.df_list = []
             ret, self.contours, hierarchy = cv2.findContours(self.thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
+            
+            # LOOP THROUGH CONTOURS AND PICK LARGEST
             if self.contours:
                 areas = [cv2.contourArea(cnt) for cnt in self.contours]                
                 cnt = self.contours[np.argmax(areas)]
@@ -623,7 +639,7 @@ class standard_object_finder:
                         idx = 1
                         rx,ry,rw,rh = cv2.boundingRect(cnt)
                         
-                        # dataframe
+                        # GET VALUES FROM MASKED ROI
                         grayscale =  ma.array(data=self.gray[ry:ry+rh,rx:rx+rw], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
                         b =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,0], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
                         g =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,1], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
@@ -634,7 +650,7 @@ class standard_object_finder:
                         bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
                         self.df_list = [[self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length1, area1, mean1, sd1, bgr1, bgr_sd1]]
 
-                        # image
+                        # DRAW TO ROI
                         if "roi_size" in kwargs:
                             q=kwargs.get("roi_size",300)/2
                             cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
@@ -646,9 +662,10 @@ class standard_object_finder:
                 print("No objects found - change parameters?")
     
         # =============================================================================
-        # finish and return df and image
-        # =============================================================================
-        # dataframe
+        # RETURN DF AND IMAGE
+        # =============================================================================    
+
+        # DATAFRAME
         if len(self.df_list)>0:
             self.df = pd.DataFrame(data=self.df_list, columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
         else: 
@@ -666,7 +683,7 @@ class standard_object_finder:
             print("----------------------------------------------------------")
             print(self.df_short) # 
             
-        # image
+        # IMAGE
         if hasattr(self,'mask'):
             boo = np.array(self.mask, dtype=bool)
             #self.drawn = copy.deepcopy(self.image)
@@ -675,7 +692,8 @@ class standard_object_finder:
         if kwargs.get('show_img', False) == True:
             cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
             cv2.imshow('phenopype', self.drawn)
-
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
 
     def save(self, **kwargs):
