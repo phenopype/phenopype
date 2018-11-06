@@ -13,13 +13,25 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 |<img src="assets/object_detection.JPG" width="80%" />|<img src="assets/object_tracking.png" width="80%" />| <img src="assets/scale_detection.png" width="100%" />|
 |||| 
 
+# dependencies
+
+If you use Anaconda or another scientific Python distributions, you don't need to install them separately. Others, like `opencv` or `trackpy` need to be installed separately, as indicated [above](#installation)
+ Phenopype was programmed with At the core, phenopype uses opencv 
+
 # installation
-1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, install, and don't forget to [add "conda" to your PATH](https://docs.anaconda.com/anaconda/faq/#should-i-add-anaconda-to-the-windows-path), if you have not done so during installation).
+## ubuntu 18.04
+1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, install, 
+2. if you have not done so during the installation, [add "conda" to your PATH](https://docs.anaconda.com/anaconda/faq/#should-i-add-anaconda-to-the-windows-path) 
+
+`gedit ~/.bashrc`
+`export PATH="~/anaconda3/bin:$PATH"`
+
+
 2. open a terminal / shell and enter:
 
 ```
 conda update conda
-conda config --add channels conda-forge 
+#conda config --add channels conda-forge 
 ```
 3. install dependencies:
 
@@ -37,6 +49,8 @@ conda install git pip
 pip install git+https://github.com/mluerig/phenopype
 ```
 
+## windows
+
 # quickstart
 
 Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. After you have cloned the repository, go to in the shell and start the example:
@@ -47,7 +61,6 @@ spyder eyample.py
 
 # Dependencies
 
-Most dependencies come with Anaconda or other scientific Python distributions, so you don't need to install them separately in those cases. Others, like `opencv` or `trackpy` need to be installed separately, as indicated [above](#installation)
 
 
 # development (planned):
