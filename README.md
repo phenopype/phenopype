@@ -68,7 +68,9 @@ pip install git+https://github.com/mluerig/phenopype
 Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. Simply run `spyder` from the shell, and, after you have cloned the repository, open `example.py` from the example folder.
 
 
-# development (planned):
+# development
+
+Planned featues include
 
 - hdf5-implementation (original image > processed image (+ data) > image for ML-training-dataset >> hdf5)
 - localized feature extraction (e.g. stickleback armour-plates, amount of pigments in leafs,...)
