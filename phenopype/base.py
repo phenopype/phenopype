@@ -24,7 +24,7 @@ class project:
     def __init__(self):
         self.name = "phenopype project"
         
-    def project_maker(self, name, files, mode="walk", **kwargs):
+    def project_maker(self, name, in_dir, mode="walk", **kwargs):
 
         # =============================================================================
         # INITIALIZE
@@ -32,11 +32,11 @@ class project:
         
         # LOAD
         self.name = name
-        self.files = files
-        self.output = kwargs.get("output",os.path.join(os.getcwd(),"output")) 
-        if not os.path.exists(self.output):
-            os.makedirs(self.output)
-        self.mode = mode
+        self.in_dir = in_dir
+        self.out_dir = kwargs.get("out_dir",os.path.join(os.path.split(self.in_dir)[0], os.path.split(self.in_dir)[1] + "_out"))
+        if not os.path.exists(self.out_dir):
+            os.makedirs(self.out_dir)
+        self.mode = kwargs.get("mode","dir") 
         self.filepaths = []
         self.filenames = []
         if "filetype" in kwargs:
@@ -51,7 +51,7 @@ class project:
         
         # WALK THROUGH ALL SUBDIRS OF TREE
         if self.mode == "walk":
-            for root, dirs, files in os.walk(self.files):
+            for root, dirs, files in os.walk(self.in_dir):
                 for i in os.listdir(root):
                     path = os.path.join(root,i)
                     if os.path.isfile(path):
@@ -75,8 +75,8 @@ class project:
                    
         # STAY IN CURRENT FOLDER ONLY
         elif self.mode == "dir":
-            for i in os.listdir(self.files):
-                path = os.path.join(self.files,i)
+            for i in os.listdir(self.in_dir):
+                path = os.path.join(self.in_dir,i)
                 if os.path.isfile(path):
                     if hasattr(self,'file_type'):
                         if self.in_dir.endswith(self.file_type):
@@ -98,8 +98,8 @@ class project:
                     
         # LOAD SINGLE IMAGE FROM PATH
         elif self.mode == "single":
-            self.filepaths.append(self.files)
-            self.filenames.append(os.path.basename(self.files))
+            self.filepaths.append(self.in_dir)
+            self.filenames.append(os.path.basename(self.in_dir))
 
         # =============================================================================
         # BUILD PROJECT DF
@@ -121,7 +121,7 @@ class project:
         
         # WALK THROUGH ALL SUBDIRS OF TREE
         if self.mode == "walk":
-            for root, dirs, files in os.walk(self.files):
+            for root, dirs, files in os.walk(self.in_dir):
                 for i in os.listdir(root):
                     path = os.path.join(root,i)
                     if os.path.isfile(path):
@@ -145,8 +145,8 @@ class project:
                                 
         # STAY IN CURRENT FOLDER ONLY
         elif self.mode == "dir":
-            for i in os.listdir(self.files):
-                path = os.path.join(self.files,i)
+            for i in os.listdir(self.in_dir):
+                path = os.path.join(self.in_dir,i)
                 if os.path.isfile(path):
                     if hasattr(self,'file_type'):
                         if self.in_dir.endswith(self.file_type):
@@ -168,8 +168,8 @@ class project:
     
         # LOAD SINGLE IMAGE FROM PATH     
         elif self.mode == "single":
-            self.filepaths.append(self.files)
-            self.filenames.append(os.path.basename(self.files))
+            self.filepaths.append(self.in_dir)
+            self.filenames.append(os.path.basename(self.in_dir))
             
         # =============================================================================
         # UPADE PROJECT DF: REMOVE OR ADD MISSING FILES
@@ -196,7 +196,7 @@ class project:
 
 
     def save(self, **kwargs):
-        output = kwargs.get("output",self.output) # "out") #
+        output = kwargs.get("out_dir",self.out_dir) # "out") #
         if "append" in kwargs:
             app = '_' + kwargs.get('append')
         else:
@@ -558,7 +558,7 @@ class standard_object_finder:
             self.blurred = self.gray
             
         # THRESHOLDING   
-        thresholding = kwargs.get('thresholding', "otsu")
+        thresholding = kwargs.get('method', "otsu")
         if thresholding == "otsu":
             ret, self.thresh = cv2.threshold(self.blurred,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         elif thresholding == "adaptive":
@@ -598,18 +598,29 @@ class standard_object_finder:
 
         if self.mode == "multi":
             idx = 0
-            self.df_list = []
+            length_idx = 0
+            area_idx = 0
+            df_list = []
             ret, self.contours, hierarchy = cv2.findContours(self.morph,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             
             # LOOP THROUGH CONTOURS 
             if self.contours:
                 for cnt in self.contours:
                     if len(cnt) > 5:
+                        
+                        # SIZE / AREA CHECK
                         (x,y),radius = cv2.minEnclosingCircle(cnt)
                         x, y= int(x), int(y)
                         length = int(radius * 2)
                         area = int(cv2.contourArea(cnt))
-                        if length > kwargs.get('min_size', 0) and area > kwargs.get('min_area', 0):
+                        cont = True
+                        if not length > kwargs.get('min_size', 0):
+                            length_idx += 1
+                            cont = False
+                        if not area > kwargs.get('min_area', 0):
+                            area_idx += 1
+                            cont=False
+                        if not cont == False:
                             idx += 1
                             rx,ry,rw,rh = cv2.boundingRect(cnt)
                             
@@ -622,19 +633,17 @@ class standard_object_finder:
                             sd1 = int(np.std(grayscale)) # standard deviation of grayscale values
                             bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
                             bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
-                            self.df_list.append([self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1])
-                            
+                            df_list.append([self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1])
+
+
                             # DRAW TO ROI
-                            if "roi_size" in kwargs:
-                                q=kwargs.get("roi_size",300)/2
-                                cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
-                            if "label" in kwargs:
-                                cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
+                            q=kwargs.get("roi_size",300)/2
+                            cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
                             cv2.drawContours(self.drawn, [cnt], 0, blue, 4)
-                    else: 
-                        print("Object not bigger than min_size or min_area")
+                     
             else: 
                 print("No objects found - change parameters?")
+            
 
 
         # =============================================================================
@@ -642,7 +651,7 @@ class standard_object_finder:
         # =============================================================================
         
         elif self.mode =="single":
-            self.df_list = []
+            df_list = []
             ret, self.contours, hierarchy = cv2.findContours(self.morph,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             
             # LOOP THROUGH CONTOURS AND PICK LARGEST
@@ -667,7 +676,7 @@ class standard_object_finder:
                         sd1 = int(np.std(grayscale)) # standard deviation of grayscale values
                         bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
                         bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
-                        self.df_list = [[self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length1, area1, mean1, sd1, bgr1, bgr_sd1]]
+                        df_list = [[self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length1, area1, mean1, sd1, bgr1, bgr_sd1]]
 
                         # DRAW TO ROI
                         if "roi_size" in kwargs:
@@ -685,8 +694,8 @@ class standard_object_finder:
         # =============================================================================    
 
         # DATAFRAME
-        if len(self.df_list)>0:
-            self.df = pd.DataFrame(data=self.df_list, columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
+        if len(df_list)>0:
+            self.df = pd.DataFrame(data=df_list, columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
         else: 
             self.df = pd.DataFrame(data=[["NA"] * 13], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
         self.df.set_index('filename', drop=True, inplace=True)
@@ -696,12 +705,19 @@ class standard_object_finder:
         self.df.insert(3, "resize_factor", resize)
 
         if kwargs.get('show_df', False) == True:
-            self.df_short = self.df[["length1", "area1","mean1"]]
-            print("----------------------------------------------------------")
-            print("Found " + str(len(self.df)) + " objects in " + self.filename)
-            print("----------------------------------------------------------")
-            print(self.df_short) # 
             
+            if not length_idx == 0 or not area_idx ==0:
+                mla = ", %d object(s) not bigger than min_size and %d object(s) not bigger than min_area" % (length_idx,  area_idx)
+            else:
+                mla = ""
+            
+            self.df_short = self.df[["length1", "area1","mean1"]]
+            print(self.df_short) 
+            print("\n----------------------------------------------------------")
+            print("Found " + str(len(self.df)) + " objects in " + self.filename +  mla)
+            print("----------------------------------------------------------")
+
+
         # IMAGE
         if hasattr(self,'mask'):
             boo = np.array(self.mask, dtype=bool)
@@ -730,7 +746,7 @@ class standard_object_finder:
         im_path=os.path.join(output , name +  app + ext)
         df_path=os.path.join(output , name +  app + ".txt")
         
-        image = kwargs.get("image")
+        image = kwargs.get("image", self.drawn)
         # image
         if "image" in kwargs:
             if kwargs.get('overwrite',True) == False:
@@ -741,7 +757,7 @@ class standard_object_finder:
 
         # df
         if "df" in kwargs:
-            df = kwargs.get("df")
+            df = kwargs.get("df", self.df)
             df = df.fillna(-9999)
             df = df.astype(str)
             if kwargs.get('overwrite',True) == False:
