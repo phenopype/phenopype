@@ -41,12 +41,15 @@ pip install git+https://github.com/mluerig/phenopype
 Under ubuntu I encountered some issues with the opencv-GUI - you can still try yourself (need a working gtk installation and a python 3.6 environment):
 
 1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, install, 
-2. if you have not done so during the installation, [add "conda" to your PATH]:
-`gedit ~/.bashrc`
-`export PATH="~/anaconda3/bin:$PATH"`
+2. if you have not done so during the installation add "conda" to your PATH:
+```
+export PATH="~/anaconda3/bin:$PATH"
+```
 3. create a python 3.6 environment: 
-`conda create -n p36 python=3.6`
-`conda activate p36`
+```
+conda create -n p36 python=3.6`
+conda activate p36`
+```
 4. install dependencies:
 ```
 conda update conda
@@ -54,10 +57,15 @@ conda install exifread
 conda install -c menpo opencv3
 conda install -c soft-matter trackpy
 ```
+5. Install phenopype to your local python environment directly from github using `git` and `pip`:
+```
+conda install git pip
+pip install git+https://github.com/mluerig/phenopype
+```
 
 # quickstart
 
-Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. After you have cloned the repository, open `example.py` in the example folder.
+Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. Simply run `spyder` from the shell, and, after you have cloned the repository, open `example.py` from the example folder.
 
 
 # development (planned):
