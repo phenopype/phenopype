@@ -19,7 +19,7 @@ Currently, only windows 10 is tested and running stable:
 
 ## windows
 
-1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, install, 
+1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, download and install 
 2. if you have not done so during the installation, [add "conda" to your PATH](https://docs.anaconda.com/anaconda/faq/#should-i-add-anaconda-to-the-windows-path) 
 3. open cmd/powershell and enter:
 ```
