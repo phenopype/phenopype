@@ -1,46 +1,61 @@
 # -*- coding: utf-8 -*-
 """
 Last Update: 2018/10/07
-Version 0.4.0
+Version 0.4.5
 @author: Moritz Lürig
 """
 
-#%% DEV_startup
+#%% load modules
 
 import os
 import cv2
 import phenopype as pp
 
-#%%
-# =============================================================================
-# PROJECT INITIALIZATION - create list of all of you files to be analyzed
-# =============================================================================
+#%% DEV_startup
 
-files_dir = os.getcwd() + "\\example"
+import os
+import cv2
+os.chdir("E:\\python1\\phenopype")
+
+import phenopype as pp
+import importlib 
+importlib.reload(pp)
+pp.__file__
+
+#%% example 1 - multiple object in one image
+
+in_dir = os.getcwd() + "\\example\\example1\\ex1_images"
 
 proj = pp.project()    
-proj.project_maker("my_project_v1", files=files_dir,  mode="dir")
+proj.project_maker("example1", in_dir=in_dir)
 
-# =============================================================================
-# GRAYSCALE ADJUSTMENT - find average grayscale values in all your images
-# =============================================================================
-# my_project.gray_scale_finder(resize=0.2, write=True)
-
-# =============================================================================
-# SCALE SELECTION (GLOBAL)
-# =============================================================================
 scale = pp.scale_maker()
-scale.measure(proj.filepaths[0], length=10, unit="mm", crop=True, zoom=True)
+scale.measure(proj.filepaths[0], length=10, unit="mm", crop=True, zoom=True, save=True)
+
+# initialize object finder
+of = pp.standard_object_finder()
+
+# run with no finetuning
+of.run(im_path=proj.filepaths[0], exclude = [scale.mask], scale=scale.measured, show_img=True, show_df=True) 
+
+# with some finetuning
+of.run(im_path=proj.filepaths[0], exclude = [scale.mask], scale=scale.measured, show_img=True, show_df=True, blur1=25, min_size=50, min_area=5000) 
+
+# for comparison: with different method
+of.run(im_path=proj.filepaths[0], exclude = [scale.mask], scale=scale.measured, show_img=True, show_df=True, blur1=39, min_size=50, min_area=5000, method = "adaptive", sensitivity=149) 
+
+# default method ("otsu"), with some more finetuning
+of.run(im_path=proj.filepaths[0], exclude = [scale.mask], scale=scale.measured, show_img=True, show_df=True, blur1=19, min_size=50, min_area=5000, blur2=(70,40), corr_factor=-80) 
 
 # =============================================================================
-# ARENA SELECTION (GLOBAL)
+# write skeletonize function, maybe factorize finetunings? otherwise ok
 # =============================================================================
-#arena = poly_drawer()
-#arena.draw(image)
 
-#%% 
-scale.current = scale.measured
-# index = 0
+# save results
+of.save(output=proj.out_dir, overwrite=True)
+
+
+#%% example 2 - single objects in multiple images
 
 for filepath, filename in zip(proj.filepaths, proj.filenames):
     # =============================================================================
