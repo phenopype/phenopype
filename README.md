@@ -57,7 +57,7 @@ conda install -c soft-matter trackpy
 
 # quickstart
 
-Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. After you have cloned the repository, open `spyder eyample.py` in the example folder.
+Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. After you have cloned the repository, open `example.py` in the example folder.
 
 
 # development (planned):
