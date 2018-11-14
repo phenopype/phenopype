@@ -13,54 +13,51 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 |<img src="assets/object_detection.JPG" width="80%" />|<img src="assets/object_tracking.png" width="80%" />| <img src="assets/scale_detection.png" width="100%" />|
 |||| 
 
-# dependencies
-
-If you use Anaconda or another scientific Python distributions, you don't need to install them separately. Others, like `opencv` or `trackpy` need to be installed separately, as indicated [above](#installation)
- Phenopype was programmed with At the core, phenopype uses opencv 
-
 # installation
-## ubuntu 18.04
+
+Currently, only windows 10 is tested and running stable:
+
+## windows
+
 1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, install, 
 2. if you have not done so during the installation, [add "conda" to your PATH](https://docs.anaconda.com/anaconda/faq/#should-i-add-anaconda-to-the-windows-path) 
-
-`gedit ~/.bashrc`
-`export PATH="~/anaconda3/bin:$PATH"`
-
-
-2. open a terminal / shell and enter:
-
+3. open cmd/powershell and enter:
 ```
 conda update conda
-#conda config --add channels conda-forge 
-```
-3. install dependencies:
-
-```
+conda config --add channels conda-forge 
 conda install exifread
 conda install -c conda-forge opencv 
 conda install -c soft-matter trackpy
 ```
 (if you have trouble installing opencv check [this](https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda))
-
-To install phenopype to your local python environment directly from github, you should use `git` via `pip`:
-
+4. Install phenopype to your local python environment directly from github using `git` and `pip`:
 ```
 conda install git pip
 pip install git+https://github.com/mluerig/phenopype
 ```
 
-## windows
+## ubuntu 18.04
+
+Under ubuntu I encountered some issues with the opencv-GUI - you can still try yourself (need a working gtk installation and a python 3.6 environment):
+
+1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, install, 
+2. if you have not done so during the installation, [add "conda" to your PATH]:
+`gedit ~/.bashrc`
+`export PATH="~/anaconda3/bin:$PATH"`
+3. create a python 3.6 environment: 
+`conda create -n p36 python=3.6`
+`conda activate p36`
+4. install dependencies:
+```
+conda update conda
+conda install exifread
+conda install -c menpo opencv3
+conda install -c soft-matter trackpy
+```
 
 # quickstart
 
-Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. After you have cloned the repository, go to in the shell and start the example:
-```
-spyder eyample.py
-```
-
-
-# Dependencies
-
+Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. After you have cloned the repository, open `spyder eyample.py` in the example folder.
 
 
 # development (planned):
@@ -69,4 +66,6 @@ spyder eyample.py
 - localized feature extraction (e.g. stickleback armour-plates, amount of pigments in leafs,...)
 - shape detection (contour of objects)
 - landmark tool (analagours to tpsDig, but faster)
+
+If you have ideas for other functionality, let me know!
 
