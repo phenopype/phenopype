@@ -550,7 +550,7 @@ class standard_object_finder:
         # BLUR1 > THRESHOLDING > MORPHOLOGY > BLUR2
         # =============================================================================
         
-        # BLUR BEFORE
+        # BLUR 1ST PASS
         if "blur1" in kwargs:
             blur_kernel = kwargs.get("blur1", 1)
             self.blurred = blur(self.gray, blur_kernel)
@@ -558,16 +558,18 @@ class standard_object_finder:
             self.blurred = self.gray
             
         # THRESHOLDING   
-        thresholding = kwargs.get('method', "otsu")
+        method = kwargs.get('method', ("otsu",""))
+        thresholding = method[0]
+        
         if thresholding == "otsu":
             ret, self.thresh = cv2.threshold(self.blurred,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         elif thresholding == "adaptive":
-            self.thresh = cv2.adaptiveThreshold(self.blurred,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,kwargs.get('sensitivity', 199), kwargs.get('iterations', 3))
+            self.thresh = cv2.adaptiveThreshold(self.blurred,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,method[1], method[2])
         elif thresholding == "binary":
-            ret, self.thresh = cv2.threshold(self.blurred,kwargs.get('bin_thresh', 127), 255,cv2.THRESH_BINARY_INV)
+            ret, self.thresh = cv2.threshold(self.blurred,method[1], 255,cv2.THRESH_BINARY_INV)
         self.morph = self.thresh
                    
-        # BLUR AFTER
+        # BLUR 2ND PASS
         if "blur2" in kwargs:
             blur_kernel, thresh_val = kwargs.get("blur2")
             self.morph = blur(self.morph, blur_kernel)
@@ -575,14 +577,23 @@ class standard_object_finder:
 
             
         # BORDER CORRECTION FACTOR
-        corr_factor = kwargs.get('corr_factor', 0)
-        if corr_factor < 0:
-            corr_factor = abs(corr_factor)
-            self.morph = cv2.erode(self.morph,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
-        if corr_factor > 0:
-            self.morph = cv2.dilate(self.morph,np.ones((corr_factor,corr_factor),np.uint8), iterations = 1)
-
-
+        if "corr_factor" in kwargs:
+            corr_factor = kwargs.get("corr_factor")
+            size = abs(corr_factor[0])
+            iterations = corr_factor[1]
+            
+            if corr_factor[2] == "cross":
+                kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(size,size))
+            elif corr_factor[2] == "ellipse":
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(size,size))
+            else:
+                kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(size,size))
+            
+            corr_factor = kwargs.get('corr_factor', 0)
+            if corr_factor[0] < 0:
+                self.morph = cv2.erode(self.morph, kernel, iterations = iterations)
+            if corr_factor[0] > 0:
+                self.morph = cv2.dilate(self.morph, kernel, iterations = iterations)
 
         # APPLY ARENA MASK
         if "exclude" in kwargs:
@@ -688,12 +699,12 @@ class standard_object_finder:
                         print("Object not bigger than min_size or min_area")
             else: 
                 print("No objects found - change parameters?")
-    
+
         # =============================================================================
         # RETURN DF AND IMAGE
         # =============================================================================    
 
-        # DATAFRAME
+        # CREATE DF
         if len(df_list)>0:
             self.df = pd.DataFrame(data=df_list, columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
         else: 
@@ -703,9 +714,11 @@ class standard_object_finder:
         if hasattr(self,'gray_corr_factor'):
             self.df.insert(3, "gray_corr_factor", self.gray_corr_factor)
         self.df.insert(3, "resize_factor", resize)
-
-        if kwargs.get('show_df', False) == True:
-            
+        
+        show = kwargs.get('show', "")
+        
+        # SHOW DF
+        if "df" in show:        
             if not length_idx == 0 or not area_idx ==0:
                 mla = ", %d object(s) not bigger than min_size and %d object(s) not bigger than min_area" % (length_idx,  area_idx)
             else:
@@ -717,14 +730,14 @@ class standard_object_finder:
             print("Found " + str(len(self.df)) + " objects in " + self.filename +  mla)
             print("----------------------------------------------------------")
 
-
-        # IMAGE
+                
+        # SHOW IMAGE
         if hasattr(self,'mask'):
             boo = np.array(self.mask, dtype=bool)
             #self.drawn = copy.deepcopy(self.image)
             self.drawn[boo,2] = 255
 
-        if kwargs.get('show_img', False) == True:
+        if "image" in show:
             cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
             cv2.imshow('phenopype', self.drawn)
             cv2.waitKey(0)
