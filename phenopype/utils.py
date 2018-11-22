@@ -38,3 +38,24 @@ def gray_scale(source, **kwargs):
     mc = Counter(vec).most_common(9)
     g = [item[0] for item in mc]
     return int(np.median(g))
+
+def find_skeleton3(img):
+    skeleton = np.zeros(img.shape,np.uint8)
+    eroded = np.zeros(img.shape,np.uint8)
+    temp = np.zeros(img.shape,np.uint8)
+
+    _,thresh = cv2.threshold(img,127,255,0)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))
+
+    iters = 0
+    while(True):
+        cv2.erode(thresh, kernel, eroded)
+        cv2.dilate(eroded, kernel, temp)
+        cv2.subtract(thresh, temp, temp)
+        cv2.bitwise_or(skeleton, temp, skeleton)
+        thresh, eroded = eroded, thresh # Swap instead of copy
+
+        iters += 1
+        if cv2.countNonZero(thresh) == 0:
+            return (skeleton,iters)
