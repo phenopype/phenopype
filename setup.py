@@ -7,7 +7,7 @@ setup(
     author_email='moritz.luerig@eawag.ch',
     packages=['phenopype'],
     install_requires=['numpy'],
-    version='0.4.5',
+    version='0.4.6',
     license='LGPL',
     description='a phenotyping pipeline for python',
     long_description=open('README.md').read(),
