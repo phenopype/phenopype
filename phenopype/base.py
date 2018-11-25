@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Last Update: 2018/10/02
-Version 0.4.4
+Last Update: 2018/11/22
+Version 0.4.6
 @author: Moritz Lürig
 """
 
@@ -24,21 +24,19 @@ class project:
     def __init__(self):
         self.name = "phenopype project"
         
-    def project_maker(self, name, in_dir, mode="walk", **kwargs):
-
-        # =============================================================================
-        # INITIALIZE
-        # =============================================================================
+    def project_maker(self, project_name, image_dir, save_dir, mode="walk", **kwargs):
         
-        # LOAD
-        self.name = name
-        self.in_dir = in_dir
-        self.out_dir = kwargs.get("out_dir",os.path.join(os.path.split(self.in_dir)[0], os.path.split(self.in_dir)[1] + "_out"))
-        if not os.path.exists(self.out_dir):
-            os.makedirs(self.out_dir)
+        # initialize ----
+        self.name = project_name
+        self.in_dir = image_dir
+        out = os.path.join(os.path.split(self.in_dir)[0], os.path.split(self.in_dir)[1] + "_out")
+        self.save_dir = kwargs.get("save_dir",out)
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
         self.mode = kwargs.get("mode","dir") 
         self.filepaths = []
         self.filenames = []
+        
         if "filetype" in kwargs:
             self.file_type = kwargs.get("filetype")
         if "exclude" in kwargs:
@@ -196,7 +194,7 @@ class project:
 
 
     def save(self, **kwargs):
-        output = kwargs.get("out_dir",self.out_dir) # "out") #
+        output = kwargs.get("save_dir",self.save_dir) # "out") #
         if "append" in kwargs:
             app = '_' + kwargs.get('append')
         else:
@@ -242,29 +240,30 @@ class scale_maker:
             self.done_step2 = True
             self.scale_px = int(math.sqrt( ((self.points_step2[0][0]-self.points_step2[1][0])**2)+((self.points_step2[0][1]-self.points_step2[1][1])**2)))
 
-    def measure(self, im_path, **kwargs): #, 
+    def draw(self, image_path, length, mode, **kwargs): 
+        
         # initialize # ----------------
-        length = kwargs.get('length', 10)
-        unit = kwargs.get('unit', "mm")
-        zoom = kwargs.get('zoom', False)
-        crop = kwargs.get('crop', True)
-        image = cv2.imread(im_path)
-        if "resize" in kwargs:
-            factor = kwargs.get('resize', 0.5)
-            image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
-
+        image = cv2.imread(image_path)
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        unit = kwargs.get('unit', "mm")
+        zoom = kwargs.get('zoom', False)
+        # crop = kwargs.get('crop', True)
+        
+#        if "resize" in kwargs:
+#            factor = kwargs.get('resize', 0.5)
+#            image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
 
         # =============================================================================
         # Step 1 - draw scale outline
         # =============================================================================
-        if crop == True:
-            print("\nMark the outline of the scale by left clicking, finish by right clicking:")
-            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-            cv2.setMouseCallback("phenopype", self.on_mouse_step1)
-            temp_canvas_1 = copy.deepcopy(image)
-    
+
+        print("\nMark the outline of the scale by left clicking, finish by right clicking:")
+        cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+        cv2.setMouseCallback("phenopype", self.on_mouse_step1)
+        temp_canvas_1 = copy.deepcopy(image)
+        
+        if mode == "polygon":
             while(not self.done_step1):
                 if (len(self.points_step1) > 0):
                     cv2.polylines(temp_canvas_1, np.array([self.points_step1]), False, green, 2)
@@ -274,40 +273,44 @@ class scale_maker:
                 if (cv2.waitKey(50) & 0xff) == 27:
                     cv2.destroyWindow("phenopype")
                     break
-
             cv2.destroyWindow("phenopype")
-            
+                
+        elif mode == "box":
+            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+            (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
+            if (cv2.waitKey(10) & 0xff) == 27:
+                cv2.destroyWindow("phenopype")  
+            self.points_step1 = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
+            cv2.destroyWindow("phenopype")
+
             print("Finished, scale outline drawn. Add the scale by clicking on two points with a known distance between them:")
 
             # create colour mask to show scale outline
-            colour_mask = np.zeros(image.shape, np.uint8)
-            colour_mask[:,:,1] = 255 # all area green
-            cv2.fillPoly(colour_mask, np.array([self.points_step1]), red) # red = excluded area
-            temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
-            
-            # create image for SIFT
-            rx,ry,w,h = cv2.boundingRect(np.array(self.points_step1, dtype=np.int32))
-            self.image = image[ry:ry+h,rx:rx+w]
-            # create mask for SIFT
-            self.mask_det = np.zeros(image.shape[0:2], np.uint8)
-            cv2.fillPoly(self.mask_det, np.array([self.points_step1]), white) 
-            self.mask_det = self.mask_det[ry:ry+h,rx:rx+w]
-            
-            # zoom into drawn scale outline for better visibility
-            if zoom==True:
-                # colour mask for step 2
-                temp_canvas_1 = temp_canvas_1[ry:ry+h,rx:rx+w]
-
-        else:
+        colour_mask = np.zeros(image.shape, np.uint8)
+        colour_mask[:,:,1] = 255 # all area green
+        cv2.fillPoly(colour_mask, np.array([self.points_step1]), red) # red = excluded area
+        temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
+        
+        # create image for SIFT
+        rx,ry,w,h = cv2.boundingRect(np.array(self.points_step1, dtype=np.int32))
+        self.image = image[ry:ry+h,rx:rx+w]
+        # create mask for SIFT
+        self.mask_det = np.zeros(image.shape[0:2], np.uint8)
+        cv2.fillPoly(self.mask_det, np.array([self.points_step1]), white) 
+        self.mask_det = self.mask_det[ry:ry+h,rx:rx+w]
+        
+        # zoom into drawn scale outline for better visibility
+        if zoom==True:
+            temp_canvas_1 = temp_canvas_1[ry:ry+h,rx:rx+w]
             self.done_step1 = True
             print("Add the scale by clicking on two points with a known distance between them:")
-            temp_canvas_1 = image
+
         # =============================================================================
         # Step 2 - measure scale length
         # =============================================================================
         
-        temp_canvas_2 = copy.deepcopy(temp_canvas_1)
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+        temp_canvas_2 = copy.deepcopy(temp_canvas_1)
         cv2.setMouseCallback("phenopype", self.on_mouse_step2)
 
         while(not self.done_step2):
@@ -334,12 +337,11 @@ class scale_maker:
 
         self.measured = self.scale_px/length
         self.current = self.measured
-        
-        if crop == True:
-            (x,y),radius = cv2.minEnclosingCircle(np.array(self.points_step1))
-            self.ref = (radius * 2)
-            zeros = np.zeros(image.shape[0:2], np.uint8)
-            self.mask = cv2.fillPoly(zeros, [np.array(self.points_step1, dtype=np.int32)], white)
+
+        (x,y),radius = cv2.minEnclosingCircle(np.array(self.points_step1))
+        self.ref = (radius * 2)
+        zeros = np.zeros(image.shape[0:2], np.uint8)
+        self.mask = cv2.fillPoly(zeros, [np.array(self.points_step1, dtype=np.int32)], white)
 
 
     def find(self, im_path, **kwargs):
@@ -358,6 +360,7 @@ class scale_maker:
         # SIFT detector
         # =============================================================================
         sift = cv2.xfeatures2d.SIFT_create()
+        cv2.xfeatures2d.SIFT_create()
         kp1, des1 = sift.detectAndCompute(img1,self.mask_det)
         kp2, des2 = sift.detectAndCompute(img2,None)
         FLANN_INDEX_KDTREE = 0
@@ -420,35 +423,43 @@ class polygon_maker:
             print("Completing arena with %d points." % len(self.points))
             self.done = True
 
-    def draw(self, im_path, **kwargs):
+    def draw(self, im_path, mode,**kwargs):
         image = cv2.imread(im_path)
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish by right clicking:")
+        print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish enter:")
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         cv2.setMouseCallback("phenopype", self.on_mouse)
         temp_canvas = copy.deepcopy(image)
-
-        # =============================================================================
-        # draw polygon outline
-        # =============================================================================
-        while(not self.done):
-            if (len(self.points) > 0):
-                cv2.polylines(temp_canvas, np.array([self.points]), False, green, 3)
-                cv2.line(temp_canvas, self.points[-1], self.current, blue, 3)
-            cv2.imshow("phenopype", temp_canvas)
-            temp_canvas = copy.deepcopy(image)
+        if mode == "polygon":
+            # =============================================================================
+            # draw polygon outline
+            # =============================================================================
+            while(not self.done):
+                if (len(self.points) > 0):
+                    cv2.polylines(temp_canvas, np.array([self.points]), False, green, 3)
+                    cv2.line(temp_canvas, self.points[-1], self.current, blue, 3)
+                cv2.imshow("phenopype", temp_canvas)
+                temp_canvas = copy.deepcopy(image)
+                if (cv2.waitKey(10) & 0xff) == 27:
+                    cv2.destroyWindow("phenopype")
+                    break
+                
+        elif mode == "box":
+            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+            (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
             if (cv2.waitKey(10) & 0xff) == 27:
-                cv2.destroyWindow("phenopype")
-                break
-            
+                cv2.destroyWindow("phenopype")  
+            self.points = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
+                            
         zeros = np.zeros(image.shape[0:2], np.uint8)
         zeros.fill(255)
         self.mask = cv2.fillPoly(zeros, np.array([self.points]), black)
-
+        boo = np.array(self.mask, dtype=bool)
+        temp_canvas[boo,2] =255
+        self.drawn = temp_canvas
+        
         if kwargs.get('show', False) == True:
-            boo = np.array(self.mask, dtype=bool)
-            temp_canvas[boo,2] =255
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
             cv2.imshow("phenopype", temp_canvas)
             cv2.waitKey(0)
@@ -483,8 +494,8 @@ class standard_object_finder:
             reference gray scale value to adjust the given picture's histogram to
         iterations: int
             needs to be specified if 'adaptive' thresholding is used (default: 3)
-        min_size: int
-            minimum size (longest distance in contour) in pixels for objects to be included (default: 0)
+        min_diam: int
+            minimum diameter (longest distance in contour) in pixels for objects to be included (default: 0)
         min_area: int
             minimum contour area in pixels for objects to be included (default: 0)
         resize: in (0-1)
@@ -612,6 +623,10 @@ class standard_object_finder:
             length_idx = 0
             area_idx = 0
             df_list = []
+            self.roi_bgr_list = []
+            self.roi_gray_list = []
+            self.roi_mask_list = []
+            
             ret, self.contours, hierarchy = cv2.findContours(self.morph,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             
             # LOOP THROUGH CONTOURS 
@@ -625,7 +640,7 @@ class standard_object_finder:
                         length = int(radius * 2)
                         area = int(cv2.contourArea(cnt))
                         cont = True
-                        if not length > kwargs.get('min_size', 0):
+                        if not length > kwargs.get('min_diam', 0):
                             length_idx += 1
                             cont = False
                         if not area > kwargs.get('min_area', 0):
@@ -645,7 +660,9 @@ class standard_object_finder:
                             bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
                             bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
                             df_list.append([self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1])
-
+                            self.roi_bgr_list.append(self.image[ry:ry+rh,rx:rx+rw,])
+                            self.roi_gray_list.append(self.gray[ry:ry+rh,rx:rx+rw,])
+                            self.roi_mask_list.append(self.thresh[ry:ry+rh,rx:rx+rw])
 
                             # DRAW TO ROI
                             q=kwargs.get("roi_size",300)/2
@@ -674,7 +691,7 @@ class standard_object_finder:
                     x, y= int(x), int(y)
                     length1 = int(radius * 2)
                     area1 = int(cv2.contourArea(cnt))
-                    if length1 > kwargs.get('min_size', 0) and area1 > kwargs.get('min_area', 0):
+                    if length1 > kwargs.get('min_diam', 0) and area1 > kwargs.get('min_area', 0):
                         idx = 1
                         rx,ry,rw,rh = cv2.boundingRect(cnt)
                         
@@ -696,7 +713,7 @@ class standard_object_finder:
                         cv2.drawContours(self.drawn, [cnt], 0, blue, int(10 * resize))
                         
                     else: 
-                        print("Object not bigger than min_size or min_area")
+                        print("Object not bigger than minimum diameter or area")
             else: 
                 print("No objects found - change parameters?")
 
@@ -720,11 +737,13 @@ class standard_object_finder:
         # SHOW DF
         if "df" in show:        
             if not length_idx == 0 or not area_idx ==0:
-                mla = ", %d object(s) not bigger than min_size and %d object(s) not bigger than min_area" % (length_idx,  area_idx)
+                mla = ", %d object(s) not bigger than minimum diameter and %d object(s) not bigger than minimum area" % (length_idx,  area_idx)
             else:
                 mla = ""
             
-            self.df_short = self.df[["length1", "area1","mean1"]]
+            self.df_short = self.df[["idx", "length1", "area1","mean1"]]
+            self.df_short.set_index("idx", inplace=True)
+            
             print(self.df_short) 
             print("\n----------------------------------------------------------")
             print("Found " + str(len(self.df)) + " objects in " + self.filename +  mla)
@@ -744,11 +763,11 @@ class standard_object_finder:
             cv2.destroyAllWindows()
 
 
-    def save(self, **kwargs):
+    def save(self, save_to, **kwargs):
         # set dir and names
-        output = kwargs.get("output",os.path.join(os.getcwd(),"output")) # "out") #
-        if not os.path.exists(output):
-            os.makedirs(output)
+        out_dir = save_to
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
         if "append" in kwargs:
             app = '_' + kwargs.get('append')
         else:
@@ -756,8 +775,9 @@ class standard_object_finder:
         filename = kwargs.get('filename',self.filename)
         name = os.path.splitext(filename)[0]
         ext = os.path.splitext(filename)[1]
-        im_path=os.path.join(output , name +  app + ext)
-        df_path=os.path.join(output , name +  app + ".txt")
+        im_path=os.path.join(out_dir , name +  app + ext)
+        df_path=os.path.join(out_dir , name +  app + ".txt")
+        
         
         image = kwargs.get("image", self.drawn)
         # image
@@ -769,8 +789,8 @@ class standard_object_finder:
                 cv2.imwrite(im_path, image)
 
         # df
+        df = kwargs.get("df", self.df)
         if "df" in kwargs:
-            df = kwargs.get("df", self.df)
             df = df.fillna(-9999)
             df = df.astype(str)
             if kwargs.get('overwrite',True) == False:
