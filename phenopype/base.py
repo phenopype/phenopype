@@ -360,7 +360,7 @@ class scale_maker:
         # SIFT detector
         # =============================================================================
         sift = cv2.xfeatures2d.SIFT_create()
-        cv2.xfeatures2d.SIFT_create()
+
         kp1, des1 = sift.detectAndCompute(img1,self.mask_det)
         kp2, des2 = sift.detectAndCompute(img2,None)
         FLANN_INDEX_KDTREE = 0
