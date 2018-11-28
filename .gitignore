@@ -3,5 +3,5 @@ build
 dist
 __pycache__/
 phenopype.egg-info/
-dev.py
+*dev*
 _config.yml
