@@ -11,11 +11,16 @@ import exifread
 from collections import Counter
 
 #%%
+
+# colours
+
 green = (0, 255, 0)
 red = (0, 0, 255)
 blue = (255, 0, 0)
 black = (0,0,0)
 white = (255,255,255)
+
+
 
 #%% helper functions
 
@@ -59,3 +64,6 @@ def find_skeleton3(img):
         iters += 1
         if cv2.countNonZero(thresh) == 0:
             return (skeleton,iters)
+        
+        
+        

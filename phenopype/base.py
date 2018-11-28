@@ -4,6 +4,7 @@ Last Update: 2018/11/22
 Version 0.4.6
 @author: Moritz Lürig
 """
+#%% import 
 
 import os
 import numpy as np
@@ -11,6 +12,7 @@ import numpy.ma as ma
 import pandas as pd
 import copy
 import math
+import sys
 
 import cv2
 import datetime
@@ -19,7 +21,7 @@ from collections import Counter
 from phenopype.utils import (red, green, blue, black, white)
 from phenopype.utils import (blur, exif_date, gray_scale)
 
-#%%
+#%% classes
 class project:
     def __init__(self):
         self.name = "phenopype project"
@@ -206,7 +208,7 @@ class project:
         else:
                 self.df.astype(str).to_csv(path_or_buf=path, sep="\t", index=False, float_format = '%.12g')
 
-#%%
+
 class scale_maker:
     def __init__(self):
 
@@ -216,6 +218,8 @@ class scale_maker:
         self.current = (0, 0) 
         self.points_step1 = [] # List of points defining our polygon
         self.points_step2 = [] # List of points defining our polygon
+        
+        self.past_imgs = [] 
 
     def on_mouse_step1(self, event, x, y, buttons, user_param):
         if self.done_step1: # Nothing more to do
@@ -226,7 +230,10 @@ class scale_maker:
             print("Adding point #%d to scale outline" % (len(self.points_step1)+1))
             self.points_step1.append((x, y))
         if event == cv2.EVENT_RBUTTONDOWN:
-            self.done_step1 = True
+            if len(self.points_step1) > 0:
+                self.points_step1 = self.points_step1[:-1]
+                print("Removing point #%d from scale outline" % (len(self.points_step1)+1))
+
 
     def on_mouse_step2(self, event, x, y, buttons, user_param):
         if self.done_step2: # Nothing more to do
@@ -236,9 +243,15 @@ class scale_maker:
         if event == cv2.EVENT_LBUTTONDOWN:
             print("Adding point %s of 2 to scale" % (len(self.points_step2)+1))
             self.points_step2.append((x, y))
+        if event == cv2.EVENT_RBUTTONDOWN:
+            if len(self.points_step2) > 0:
+                self.points_step2 = self.points_step2[:-1]
+                print("Removing point %s of 2 from scale" % (len(self.points_step2)+1))
         if len(self.points_step2)==2:
             self.done_step2 = True
             self.scale_px = int(math.sqrt( ((self.points_step2[0][0]-self.points_step2[1][0])**2)+((self.points_step2[0][1]-self.points_step2[1][1])**2)))
+            cv2.destroyWindow("phenopype")
+            print("Finished, scale outline drawn. Add the scale by clicking on two points with a known distance between them:")
 
     def draw(self, image_path, length, mode, **kwargs): 
         
@@ -270,20 +283,21 @@ class scale_maker:
                     cv2.line(temp_canvas_1, self.points_step1[-1], self.current, blue, 2)
                 cv2.imshow("phenopype", temp_canvas_1)
                 temp_canvas_1 = copy.deepcopy(image)
-                if (cv2.waitKey(50) & 0xff) == 27:
+                if cv2.waitKey(50) & 0xff == 13:
+                    self.done_step1 = True
+                    cv2.destroyWindow("phenopype")
+                elif cv2.waitKey(50) & 0xff == 27:
                     cv2.destroyWindow("phenopype")
                     break
-            cv2.destroyWindow("phenopype")
+                    sys.exit("phenopype process stopped")            
                 
         elif mode == "box":
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
             (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
-            if (cv2.waitKey(10) & 0xff) == 27:
+            if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
                 cv2.destroyWindow("phenopype")  
             self.points_step1 = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
-            cv2.destroyWindow("phenopype")
 
-            print("Finished, scale outline drawn. Add the scale by clicking on two points with a known distance between them:")
 
             # create colour mask to show scale outline
         colour_mask = np.zeros(image.shape, np.uint8)
@@ -319,7 +333,7 @@ class scale_maker:
                 cv2.line(temp_canvas_2, self.points_step2[-1], self.current, blue, 2)
             cv2.imshow("phenopype", temp_canvas_2)
             temp_canvas_2 = copy.deepcopy(temp_canvas_1)
-            if (cv2.waitKey(10) & 0xff) == 27:
+            if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
                 cv2.destroyWindow("phenopype")
                 break
             
@@ -332,7 +346,7 @@ class scale_maker:
         
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         cv2.imshow("phenopype", temp_canvas_2)
-        if (cv2.waitKey(0) & 0xff) == 27:
+        if any([cv2.waitKey(0) & 0xff == 27, cv2.waitKey(0) & 0xff == 13]):
             cv2.destroyWindow("phenopype")
 
         self.measured = self.scale_px/length
@@ -441,9 +455,6 @@ class scale_maker:
             return "no current scale", "no scale mask"
 
         
-
-
-#%%
 class polygon_maker:
     def __init__(self):
 
@@ -460,15 +471,16 @@ class polygon_maker:
         if event == cv2.EVENT_LBUTTONDOWN:
             print("Adding point #%d with position(%d,%d) to arena" % (len(self.points), x, y))
             self.points.append((x, y))
-        elif event == cv2.EVENT_RBUTTONDOWN:
-            print("Completing arena with %d points." % len(self.points))
-            self.done = True
+        if event == cv2.EVENT_RBUTTONDOWN:
+            if len(self.points) > 0:
+                self.points = self.points[:-1]
+            print("Removing point #%d with position(%d,%d) from arena" % (len(self.points), x, y))
 
     def draw(self, im_path, mode,**kwargs):
         image = cv2.imread(im_path)
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish enter:")
+        print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         cv2.setMouseCallback("phenopype", self.on_mouse)
         temp_canvas = copy.deepcopy(image)
@@ -482,14 +494,19 @@ class polygon_maker:
                     cv2.line(temp_canvas, self.points[-1], self.current, blue, 3)
                 cv2.imshow("phenopype", temp_canvas)
                 temp_canvas = copy.deepcopy(image)
-                if (cv2.waitKey(10) & 0xff) == 27:
+                if cv2.waitKey(50) & 0xff == 13:
+                     self.done = True
+                     cv2.destroyWindow("phenopype")
+                     break
+                elif cv2.waitKey(50) & 0xff == 27:
                     cv2.destroyWindow("phenopype")
                     break
+                    sys.exit("phenopype process stopped")            
                 
         elif mode == "box":
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
             (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
-            if (cv2.waitKey(10) & 0xff) == 27:
+            if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
                 cv2.destroyWindow("phenopype")  
             self.points = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
                             
@@ -512,8 +529,6 @@ class polygon_maker:
 
 #        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
 #        cv2.imshow('phenopype',  img)
-
-#%%
 
 class standard_object_finder:
     def run(self,im_path, scale, **kwargs):
