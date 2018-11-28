@@ -351,7 +351,7 @@ class scale_maker:
         image = cv2.resize(copy.deepcopy(self.image_current), (0,0), fx=1*factor, fy=1*factor) 
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        min_matches = kwargs.get('min_keypoints', 10)
+        min_matches = kwargs.get('min_matches', 10)
         show = kwargs.get('show', False)
         img1 = self.image
         img2 = copy.deepcopy(image)
@@ -359,20 +359,47 @@ class scale_maker:
         # =============================================================================
         # SIFT detector
         # =============================================================================
-        sift = cv2.xfeatures2d.SIFT_create()
+        # sift = cv2.xfeatures2d.SIFT_create()
+        # kp1, des1 = sift.detectAndCompute(img1,self.mask_det)
+        # kp2, des2 = sift.detectAndCompute(img2,None)
+        
+        
+        # =============================================================================
+        # ORB detector
+        # =============================================================================
+#        orb = cv2.ORB_create()
+#        kp1, des1 = orb.detectAndCompute(img1,self.mask_det)
+#        kp2, des2 = orb.detectAndCompute(img2,None)
+#        des1 = np.asarray(des1, np.float32)
+#        des2 = np.asarray(des2, np.float32)
+        
+#        FLANN_INDEX_KDTREE = 0
+#        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+#        search_params = dict(checks = 50)
+#        flann = cv2.FlannBasedMatcher(index_params, search_params)
+#        matches = flann.knnMatch(des1,des2,k=2)
+        
+        # =============================================================================
+        # AKAZE detector
+        # =============================================================================
+        
+        akaze = cv2.AKAZE_create()
+        kp1, des1 = akaze.detectAndCompute(img1,self.mask_det)
+        kp2, des2 = akaze.detectAndCompute(img2,None)
+        matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
 
-        kp1, des1 = sift.detectAndCompute(img1,self.mask_det)
-        kp2, des2 = sift.detectAndCompute(img2,None)
-        FLANN_INDEX_KDTREE = 0
-        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-        search_params = dict(checks = 50)
-        flann = cv2.FlannBasedMatcher(index_params, search_params)
-        matches = flann.knnMatch(des1,des2,k=2)
+        matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
+        matches = matcher.knnMatch(des1, des2, 2)
+
+        # keep only good matches
         good = []
         for m,n in matches:
             if m.distance < 0.7*n.distance:
                 good.append(m)
-        if len(good)>min_matches:
+       
+        self.nkp = len(good)
+        # find and transpose coordinates of matches
+        if self.nkp>=min_matches:
             src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
             dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
             M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
@@ -384,6 +411,7 @@ class scale_maker:
             # =============================================================================
             # compare scale to original, and return adjusted ratios
             # =============================================================================
+            
             if show == True:
                 cv2.namedWindow("window", flags=cv2.WINDOW_NORMAL)
                 cv2.imshow("window", img2)
@@ -394,11 +422,24 @@ class scale_maker:
             self.current = round(self.measured * ((radius * 2)/self.ref),1)
             zeros = np.zeros(self.image_current.shape[0:2], np.uint8)
             self.mask = cv2.fillPoly(zeros, [np.array(rect, dtype=np.int32)], white)
+            
+            print("\n")
+            print("----------------------------------------------------------------")
+            print("Scale found with %d keypoint matches" % self.nkp)
+            print("----------------------------------------------------------------")
+            print("\n")
 
-            return self.current, self.mask
-
+            return self.current, self.mask      
+        
         else:
-            print("Scale not found - Only %d/%d matches" % (len(good),min_matches))
+            print("\n")
+            print("----------------------------------------------------------------")
+            print("Scale not found - only %d/%d keypoint matches" % (self.nkp, min_matches))
+            print("----------------------------------------------------------------")
+            print("\n")
+            
+            return "no current scale", "no scale mask"
+
         
 
 
@@ -620,6 +661,7 @@ class standard_object_finder:
 
         if self.mode == "multi":
             idx = 0
+            idx_noise = 0
             length_idx = 0
             area_idx = 0
             df_list = []
@@ -668,7 +710,8 @@ class standard_object_finder:
                             q=kwargs.get("roi_size",300)/2
                             cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
                             cv2.drawContours(self.drawn, [cnt], 0, blue, 4)
-                     
+                    else:
+                        idx_noise += 1
             else: 
                 print("No objects found - change parameters?")
             
@@ -736,18 +779,26 @@ class standard_object_finder:
         
         # SHOW DF
         if "df" in show:        
-            if not length_idx == 0 or not area_idx ==0:
-                mla = ", %d object(s) not bigger than minimum diameter and %d object(s) not bigger than minimum area" % (length_idx,  area_idx)
-            else:
-                mla = ""
-            
+
             self.df_short = self.df[["idx", "length1", "area1","mean1"]]
             self.df_short.set_index("idx", inplace=True)
             
+            all_pts = len(self.contours)
+            good_pts = len(self.df)
+            
             print(self.df_short) 
-            print("\n----------------------------------------------------------")
-            print("Found " + str(len(self.df)) + " objects in " + self.filename +  mla)
-            print("----------------------------------------------------------")
+            
+            print("\n")
+            print("----------------------------------------------------------------")
+            print("Found " + str(all_pts) + " objects in " + self.filename + ":")
+            print("  ==> %d are valid objects" % good_pts)
+            if not idx_noise == 0:
+                print("    - %d are noise" % idx_noise)
+            if not length_idx == 0:
+                print("    - %d are not bigger than minimum diameter" % length_idx)
+            if not area_idx ==0:
+                print("    - %d are not bigger than minimum area" % area_idx)
+            print("----------------------------------------------------------------")
 
                 
         # SHOW IMAGE
