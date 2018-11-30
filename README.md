@@ -15,8 +15,6 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 
 # installation
 
-Currently, only windows 10 is tested and running stable:
-
 ## windows
 
 1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, download and install 
