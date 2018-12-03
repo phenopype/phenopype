@@ -9,10 +9,10 @@ Version 0.4.7
 #%% import
 
 import copy
+import cv2
 import numpy as np
 import pandas as pd
 import sys
-import cv2
 
 from phenopype.utils import (blue, green, red, black)
 
