@@ -10,9 +10,7 @@ import numpy as np
 import exifread
 from collections import Counter
 
-#%%
-
-# colours
+#%% colours
 
 green = (0, 255, 0)
 red = (0, 0, 255)
@@ -21,8 +19,7 @@ black = (0,0,0)
 white = (255,255,255)
 
 
-
-#%% helper functions
+#%% modules
 
 def exif_date(path): 
     f = open(path, 'rb')
