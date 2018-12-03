@@ -13,7 +13,10 @@ import math
 import numpy as np
 import sys
 
+import pytesseract
+
 from phenopype.utils import (red, green, blue, white)
+from phenopype.utils import (blur)
 
 #%% modules
 
@@ -84,16 +87,18 @@ class label_finder:
         cv2.fillPoly(colour_mask, np.array([self.points]), red) # red = excluded area
         temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
         
-        self.contour = np.array(self.points).reshape((-1,1,2)).astype(np.int32)
         
         # create template image for SIFT
         rx,ry,w,h = cv2.boundingRect(np.array(self.points, dtype=np.int32))
         self.image_original_template = image[ry:ry+h,rx:rx+w]
         
-        # create mask for SIFT
-        self.mask_original_template = np.zeros(image.shape[0:2], np.uint8)
-        cv2.fillPoly(self.mask_original_template, np.array([self.points]), white) 
-        self.mask_original_template = self.mask_original_template[ry:ry+h,rx:rx+w]
+        # create template contour for SIFT
+        cnt = np.array(self.points).reshape((-1,1,2)).astype(np.int32)
+        self.box_original_template = cnt - cnt[0]
+
+#        self.mask_original_template = np.zeros(image.shape[0:2], np.uint8)
+#        cv2.fillPoly(self.mask_original_template, np.array([self.points]), white) 
+#        self.mask_original_template = self.mask_original_template[ry:ry+h,rx:rx+w]
 
         if kwargs.get('show', True):
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
@@ -111,6 +116,7 @@ class label_finder:
         
         show = kwargs.get('show', False)
         min_matches = kwargs.get('min_matches', 10)
+        ret = kwargs.get('ret', False)
 
         if (image_target.shape[0] + image_target.shape[1])/2 > 2000:
             factor = kwargs.get('resize', 0.5)
@@ -150,7 +156,7 @@ class label_finder:
         # =============================================================================
         
         akaze = cv2.AKAZE_create()
-        kp1, des1 = akaze.detectAndCompute(image_original,self.mask_original_template)
+        kp1, des1 = akaze.detectAndCompute(image_original,None)
         kp2, des2 = akaze.detectAndCompute(image_target,None)       
         matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
         matches = matcher.knnMatch(des1, des2, 2)
@@ -168,36 +174,28 @@ class label_finder:
             dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
             
             M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-            ret, contours, hierarchy = cv2.findContours(self.mask_original_template,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_TC89_L1)
-            box = contours[0].astype(np.float32)
             
-            self.M = M
+            self.box_target = cv2.perspectiveTransform(self.box_original_template.astype(np.float32),M).astype(np.int32)
             
-            cnt = lf.contour - lf.contour[0]
-            cnt = cnt.astype(np.float32)
-
-            rect = cv2.perspectiveTransform(cnt,lf.M).astype(np.int32)
+            image_target = cv2.polylines(image_target,[self.box_target],True,red,5, cv2.LINE_AA)
             
-            image_target = cv2.polylines(image_target,[rect],True,red,5, cv2.LINE_AA)
-            
-            if show == True:
+            if show:
                 cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
                 cv2.imshow("phenopype", image_target)
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
                 
-            self.rect = rect
-                
             if self.resized:
-                rect = rect/factor               
+                self.box_target = self.box_target/factor                
+            self.box_target = self.box_target.astype(np.int32)
             
-            # MASK
+            # MASK TARGET IMAGE
             zeros = np.zeros(self.image_target.shape[0:2], np.uint8)
-            self.mask = cv2.fillPoly(zeros, [np.array(rect, dtype=np.int32)], white)
+            self.image_mask = cv2.fillPoly(zeros, [np.array(self.box_target, dtype=np.int32)], white)
 
-            # TARGET SNIPPET
-            (rx,ry,w,h) = cv2.boundingRect(rect)
-            self.image_found = self.image_target[ry:ry+h,rx:rx+w]
+            # SNIPPET FROM TARGET 
+            (rx,ry,w,h) = cv2.boundingRect(self.box_target)
+            self.label_image = self.image_target[ry:ry+h,rx:rx+w]
 
             
             print("\n")
@@ -206,7 +204,8 @@ class label_finder:
             print("--------------------------------------")
             print("\n")
 
-            return self.image_found, self.mask      
+            if ret:
+                return self.label_image, self.image_mask      
         
         else:
             print("\n")
@@ -215,26 +214,128 @@ class label_finder:
             print("----------------------------------------------")
             print("\n")
             
-            return "no current label", "no label mask"
+            if ret:
+                return "no current label", "no label mask"
 
 
 
-def rotate_image(image, angle, **kwargs):
-      
-    height, width = image.shape[:2]
-    image_center = (width / 2, height / 2)
 
-    rotation_matrix = cv2.getRotationMatrix2D(image_center, angle, 1)
+    def get_angle(self, **kwargs):
+        
+        # initialize -----
+        contour = kwargs.get("contour", self.box_target)
+        ret = kwargs.get('ret', False)
 
-    radians = math.radians(angle)
-    sin = math.sin(radians)
-    cos = math.cos(radians)
+        # GET ANGLE OF CONTOUR
+        self.angle = abs(cv2.minAreaRect(contour)[-1])
+        if self.angle < -45:
+        	self.angle = -(90 + self.angle)
+        else:
+            self.angle = -self.angle
+            
+        if ret:
+            return self.angle
+
+
+
+
+    def rotate_image(self, **kwargs):
+        
+        # initialize -----
+        image = kwargs.get("image", self.label_image)
+        angle = kwargs.get("angle", self.angle)
+        offset = kwargs.get("offset", 25)
+        
+        ret = kwargs.get('ret', False)
+        show = kwargs.get("show", False)
+        
+        
+
+        # ROTATE IMAGE AND FILL MISSING WITH WHITE
+        height, width = image.shape[:2]
+        image_center = (width / 2, height / 2)
+        
+        rotation_matrix = cv2.getRotationMatrix2D(image_center, angle, 1)
+        
+        radians = math.radians(angle)
+        sin = math.sin(radians)
+        cos = math.cos(radians)
+        
+        bound_w = int((height * abs(sin)) + (width * abs(cos)))
+        bound_h = int((height * abs(cos)) + (width * abs(sin)))
+        
+        rotation_matrix[0, 2] += ((bound_w / 2) - image_center[0])
+        rotation_matrix[1, 2] += ((bound_h / 2) - image_center[1])        
+              
+        self.rotated = cv2.warpAffine(image, rotation_matrix, (bound_w, bound_h), borderValue = white)
+        
+        
+        
+        # BOX AROUND CONTOUR
+        image = lf.rotated
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        image = blur(image, 15)
+        ret, image = cv2.threshold(image,0,255,cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        coords = np.column_stack(np.where(image < 255))
+        angle = cv2.minAreaRect(coords)[-1]
+        
+        rx = int((cv2.minAreaRect(coords)[0][0]-cv2.minAreaRect(coords)[1][0]/2)-offset)
+        ry = int((cv2.minAreaRect(coords)[0][1]-cv2.minAreaRect(coords)[1][1]/2)-offset)
+        w = int(cv2.minAreaRect(coords)[1][0]+2*offset)
+        h = int(cv2.minAreaRect(coords)[1][1]+2*offset)
+
+        lf.rotated_label_image = lf.rotated[ry:ry+h,rx:rx+w]
+
+#        # ORGIGINAL TEMPLATE 
+#        box_center = cv2.minAreaRect(box)[0]
+#        dist = np.subtract(image_center, box_center)
+#        
+#        (rx, ry, w, h) =  cv2.boundingRect(box)
+#        rx = int(rx + dist[0])
+#        ry = int(ry + dist[1])
+#        
+#        self.rotated_label_image = self.rotated[ry:ry+h,rx:rx+w]
+        
+        
+        if show:
+            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+            cv2.imshow("phenopype", lf.label_image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
     
-    bound_w = int((height * abs(sin)) + (width * abs(cos)))
-    bound_h = int((height * abs(cos)) + (width * abs(sin)))
-    
-    rotation_matrix[0, 2] += ((bound_w / 2) - image_center[0])
-    rotation_matrix[1, 2] += ((bound_h / 2) - image_center[1])
+        if ret:
+            return self.rotated_label_image
+        
+        cv2.imwrite(image_path, image)
 
-    rotated_image = cv2.warpAffine(image, rotation_matrix, (bound_w, bound_h), borderValue = white)
-    return rotated_image
+        
+        
+    def ocr(self, **kwargs):
+        
+        # initialize -----
+        image = kwargs.get("image", self.rotated_label_image)
+        treat = kwargs.get("treat", "thresh, blur")
+        config = kwargs.get("config", "tessedit_char_whitelist=0123456789")
+        show = kwargs.get("show", False)
+
+        ret = kwargs.get('ret', False)
+        
+        if "thresh" in treat:    
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            ret, image = cv2.threshold(image,0,255,cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        if "blur" in treat:   
+            image = blur(image, 20)
+            
+        self.treated_label_image = image
+        
+        if show:
+            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+            cv2.imshow("phenopype", image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+    
+        self.label_string = pytesseract.image_to_string(image, config=config)
+        
+        if ret:
+            print(self.label_string)
+            return self.label_string
