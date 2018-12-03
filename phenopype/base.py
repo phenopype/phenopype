@@ -26,7 +26,7 @@ class project:
     def __init__(self):
         self.name = "phenopype project"
         
-    def project_maker(self, project_name, image_dir, save_dir, mode="walk", **kwargs):
+    def project_maker(self, project_name, image_dir, mode="walk", **kwargs):
         
         # initialize ----
         self.name = project_name
@@ -212,15 +212,13 @@ class project:
 class scale_maker:
     def __init__(self):
 
-        # setting up temporary variables
+        # initialize -----
         self.done_step1 = False 
         self.done_step2 = False
         self.current = (0, 0) 
-        self.points_step1 = [] # List of points defining our polygon
-        self.points_step2 = [] # List of points defining our polygon
+        self.points_step1 = [] 
+        self.points_step2 = []
         
-        self.past_imgs = [] 
-
     def on_mouse_step1(self, event, x, y, buttons, user_param):
         if self.done_step1: # Nothing more to do
             return
@@ -299,19 +297,20 @@ class scale_maker:
             self.points_step1 = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
 
 
-            # create colour mask to show scale outline
+        # create colour mask to show scale outline
         colour_mask = np.zeros(image.shape, np.uint8)
         colour_mask[:,:,1] = 255 # all area green
         cv2.fillPoly(colour_mask, np.array([self.points_step1]), red) # red = excluded area
         temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
         
-        # create image for SIFT
+        # create template image for SIFT
         rx,ry,w,h = cv2.boundingRect(np.array(self.points_step1, dtype=np.int32))
-        self.image = image[ry:ry+h,rx:rx+w]
+        self.image_original_template = image[ry:ry+h,rx:rx+w]
+        
         # create mask for SIFT
-        self.mask_det = np.zeros(image.shape[0:2], np.uint8)
-        cv2.fillPoly(self.mask_det, np.array([self.points_step1]), white) 
-        self.mask_det = self.mask_det[ry:ry+h,rx:rx+w]
+        self.mask_original_template = np.zeros(image.shape[0:2], np.uint8)
+        cv2.fillPoly(self.mask_original_template, np.array([self.points_step1]), white) 
+        self.mask_original_template = self.mask_original_template[ry:ry+h,rx:rx+w]
         
         # zoom into drawn scale outline for better visibility
         if zoom==True:
@@ -335,57 +334,62 @@ class scale_maker:
             temp_canvas_2 = copy.deepcopy(temp_canvas_1)
             if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
                 cv2.destroyWindow("phenopype")
-                break
-            
-        print("Finished, scale drawn. your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
+                break           
+                print("Finished, scale drawn. your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
 
-        # =============================================================================
-        # give per pixel ratios
-        # =============================================================================
-        cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, black, 2)
-        
-        cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-        cv2.imshow("phenopype", temp_canvas_2)
-        if any([cv2.waitKey(0) & 0xff == 27, cv2.waitKey(0) & 0xff == 13]):
-            cv2.destroyWindow("phenopype")
+        if kwargs.get('show', True):
+            cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, black, 2)    
+            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+            cv2.imshow("phenopype", temp_canvas_2)    
+            if any([cv2.waitKey(0) & 0xff == 27, cv2.waitKey(0) & 0xff == 13]):
+                cv2.destroyWindow("phenopype")
 
+        # SCALE
         self.measured = self.scale_px/length
         self.current = self.measured
 
+        # REFERENCE
         (x,y),radius = cv2.minEnclosingCircle(np.array(self.points_step1))
         self.ref = (radius * 2)
+        
+        # MASK
         zeros = np.zeros(image.shape[0:2], np.uint8)
         self.mask = cv2.fillPoly(zeros, [np.array(self.points_step1, dtype=np.int32)], white)
 
 
-    def find(self, im_path, **kwargs):
+    def find(self, image_path, **kwargs):
+        
         # initialize ------------------
-        self.image_current = cv2.imread(im_path)
-        factor = kwargs.get('resize', 0.5)
-        image = cv2.resize(copy.deepcopy(self.image_current), (0,0), fx=1*factor, fy=1*factor) 
-        if not len(image.shape)==3:
-            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        min_matches = kwargs.get('min_matches', 10)
+        self.image_target = cv2.imread(image_path)
+        image_target = self.image_target 
+        image_original = self.image_original_template
+        
         show = kwargs.get('show', False)
-        img1 = self.image
-        img2 = copy.deepcopy(image)
+        min_matches = kwargs.get('min_matches', 10)
 
+        if (image_target.shape[0] + image_target.shape[1])/2 > 2000:
+            factor = kwargs.get('resize', 0.5)
+            image_target = cv2.resize(image_target, (0,0), fx=1*factor, fy=1*factor) 
+        
+        if not len(image_target.shape)==3:
+            image_target = cv2.cvtColor(image_target, cv2.COLOR_GRAY2BGR)
+            
+    
         # =============================================================================
         # SIFT detector
         # =============================================================================
         # sift = cv2.xfeatures2d.SIFT_create()
-        # kp1, des1 = sift.detectAndCompute(img1,self.mask_det)
+        # kp1, des1 = sift.detectAndCompute(img1,self.mask_original_template)
         # kp2, des2 = sift.detectAndCompute(img2,None)
-        
-        
+         
         # =============================================================================
         # ORB detector
         # =============================================================================
 #        orb = cv2.ORB_create()
-#        kp1, des1 = orb.detectAndCompute(img1,self.mask_det)
+#        kp1, des1 = orb.detectAndCompute(img1,self.mask_original_template)
 #        kp2, des2 = orb.detectAndCompute(img2,None)
 #        des1 = np.asarray(des1, np.float32)
-#        des2 = np.asarray(des2, np.float32)
+#       des2 = np.asarray(des2, np.float32)
         
 #        FLANN_INDEX_KDTREE = 0
 #        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
@@ -398,10 +402,8 @@ class scale_maker:
         # =============================================================================
         
         akaze = cv2.AKAZE_create()
-        kp1, des1 = akaze.detectAndCompute(img1,self.mask_det)
-        kp2, des2 = akaze.detectAndCompute(img2,None)
-        matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
-
+        kp1, des1 = akaze.detectAndCompute(image_original,self.mask_original_template)
+        kp2, des2 = akaze.detectAndCompute(image_target,None)       
         matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
         matches = matcher.knnMatch(des1, des2, 2)
 
@@ -410,46 +412,60 @@ class scale_maker:
         for m,n in matches:
             if m.distance < 0.7*n.distance:
                 good.append(m)
-       
         self.nkp = len(good)
+        
         # find and transpose coordinates of matches
-        if self.nkp>=min_matches:
+        if self.nkp >= min_matches:
             src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
             dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+            
             M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-            ret, contours, hierarchy = cv2.findContours(self.mask_det,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_TC89_L1)
+            ret, contours, hierarchy = cv2.findContours(self.mask_original_template,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_TC89_L1)
             box = contours[0].astype(np.float32)
+
             rect  = cv2.perspectiveTransform(box,M).astype(np.int32)
-            img2 = cv2.polylines(img2,[rect],True,red,5, cv2.LINE_AA)
-    
+            image_target = cv2.polylines(image_target,[rect],True,red,5, cv2.LINE_AA)
+            
             # =============================================================================
             # compare scale to original, and return adjusted ratios
             # =============================================================================
             
             if show == True:
-                cv2.namedWindow("window", flags=cv2.WINDOW_NORMAL)
-                cv2.imshow("window", img2)
+                cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+                cv2.imshow("phenopype", image_target)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
+                
             if kwargs.get("convert",True) == True:
                 rect = rect/factor
+                
+            # SCALE
             rect = np.array(rect, dtype=np.int32)
             (x,y),radius = cv2.minEnclosingCircle(rect)
             self.current = round(self.measured * ((radius * 2)/self.ref),1)
-            zeros = np.zeros(self.image_current.shape[0:2], np.uint8)
+            
+            # MASK
+            zeros = np.zeros(image_target.shape[0:2], np.uint8)
             self.mask = cv2.fillPoly(zeros, [np.array(rect, dtype=np.int32)], white)
+
+            # TARGET SNIPPET
+            (rx,ry,w,h) = cv2.boundingRect(rect)
+            self.image_found = self.image_target[ry:ry+h,rx:rx+w]
+
             
             print("\n")
-            print("----------------------------------------------------------------")
+            print("--------------------------------------")
             print("Scale found with %d keypoint matches" % self.nkp)
-            print("----------------------------------------------------------------")
+            print("--------------------------------------")
             print("\n")
 
             return self.current, self.mask      
         
         else:
             print("\n")
-            print("----------------------------------------------------------------")
+            print("----------------------------------------------")
             print("Scale not found - only %d/%d keypoint matches" % (self.nkp, min_matches))
-            print("----------------------------------------------------------------")
+            print("----------------------------------------------")
             print("\n")
             
             return "no current scale", "no scale mask"
@@ -462,6 +478,7 @@ class polygon_maker:
         self.done = False # Flag signalling we're done
         self.current = (0, 0) # Current position, so we can draw the line-in-progress
         self.points = [] # List of points defining our polygon
+        self.idx = 0
 
     def on_mouse(self, event, x, y, buttons, user_param):
         if self.done: # Nothing more to do
@@ -469,15 +486,20 @@ class polygon_maker:
         if event == cv2.EVENT_MOUSEMOVE:
             self.current = (x, y)
         if event == cv2.EVENT_LBUTTONDOWN:
-            print("Adding point #%d with position(%d,%d) to arena" % (len(self.points), x, y))
             self.points.append((x, y))
+            self.idx += 1
+            print("Adding point #%d with position(%d,%d) to arena" % (self.idx, x, y))
+
         if event == cv2.EVENT_RBUTTONDOWN:
             if len(self.points) > 0:
                 self.points = self.points[:-1]
-            print("Removing point #%d with position(%d,%d) from arena" % (len(self.points), x, y))
-
-    def draw(self, im_path, mode,**kwargs):
-        image = cv2.imread(im_path)
+                self.idx -= 1
+                print("Removing point #%d with position(%d,%d) from arena" % (self.idx, x, y))
+            else:
+                print("No points to delete")
+                
+    def draw(self, image_path, mode,**kwargs):
+        image = cv2.imread(image_path)
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
