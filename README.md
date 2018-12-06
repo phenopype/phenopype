@@ -35,6 +35,8 @@ Under ubuntu I encountered some issues with the opencv-GUI - you can still try (
 
 Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. Simply run `spyder` from the shell, and, after you have cloned the repository, open `example.py` from the example folder.
 
+JUPYTER NOTEBOOK VERSION COMING SOON
+
 
 # development
 
