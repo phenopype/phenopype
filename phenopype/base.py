@@ -445,7 +445,7 @@ class scale_maker:
             self.current = round(self.measured * ((radius * 2)/self.ref),1)
             
             # MASK
-            zeros = np.zeros(image_target.shape[0:2], np.uint8)
+            zeros = np.zeros(self.image_target.shape[0:2], np.uint8)
             self.mask = cv2.fillPoly(zeros, [np.array(rect, dtype=np.int32)], white)
 
             # TARGET SNIPPET
