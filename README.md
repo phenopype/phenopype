@@ -15,51 +15,21 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 
 # installation
 
+(tested for `Python 3.7` with `opencv 3.4.4`)
+
 ## windows
 
-1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, download and install 
+1. install python3 with anaconda: https://www.anaconda.com/download/ chose python 3.x for your OS, download and install 
 2. if you have not done so during the installation, [add "conda" to your PATH](https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10) 
-3. open cmd/powershell and enter:
+3. Install phenopype to your local python environment directly from github using `git` (dependencies will be installed on the fly):
 ```
-conda update conda
-conda config --add channels conda-forge 
-conda install exifread
-conda install -c conda-forge opencv 
-conda install -c soft-matter trackpy
-```
-(if you have trouble installing opencv check [this](https://stackoverflow.com/questions/23119413/how-do-i-install-python-opencv-through-conda))
-4. Install phenopype to your local python environment directly from github using `git` and `pip`:
-```
-conda install git pip
+conda install git
 pip install git+https://github.com/mluerig/phenopype
 ```
 
 ## ubuntu 18.04
 
-Under ubuntu I encountered some issues with the opencv-GUI - you can still try yourself (need a working gtk installation and a python 3.6 environment):
-
-1. install python3 (anaconda is highly recommended: https://www.anaconda.com/download/ chose python 3.x for your OS, install, 
-2. if you have not done so during the installation add "conda" to your PATH:
-```
-export PATH="~/anaconda3/bin:$PATH"
-```
-3. create a python 3.6 environment: 
-```
-conda create -n p36 python=3.6`
-conda activate p36`
-```
-4. install dependencies:
-```
-conda update conda
-conda install exifread
-conda install -c menpo opencv3
-conda install -c soft-matter trackpy
-```
-5. Install phenopype to your local python environment directly from github using `git` and `pip`:
-```
-conda install git pip
-pip install git+https://github.com/mluerig/phenopype
-```
+Under ubuntu I encountered some issues with the opencv-GUI - you can still try (need a working gtk installation).
 
 # quickstart
 
@@ -73,7 +43,6 @@ Planned featues include
 - hdf5-implementation (original image > processed image (+ data) > image for ML-training-dataset >> hdf5)
 - localized feature extraction (e.g. stickleback armour-plates, amount of pigments in leafs,...)
 - shape detection (contour of objects)
-- landmark tool (analagours to tpsDig, but faster)
 
 If you have ideas for other functionality, let me know!
 
