@@ -26,6 +26,11 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 conda install git
 pip install git+https://github.com/mluerig/phenopype
 ```
+If you have difficulties installing opencv, try it manually:
+
+```
+pip install opencv-contrib-python
+```
 
 ## ubuntu 18.04
 
