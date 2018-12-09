@@ -1,2 +1,0 @@
-include versioneer.py
-include phenopype/_version.py

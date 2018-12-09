@@ -552,7 +552,7 @@ class polygon_maker:
 #        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
 #        cv2.imshow('phenopype',  img)
 
-class object_finder:
+class standard_object_finder:
     def run(self,im_path, scale, **kwargs):
         """ find objects in image via thresholding
         Parameters
