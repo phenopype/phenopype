@@ -1,7 +1,7 @@
 from setuptools import setup
 
 import re
-VERSIONFILE="myniftyapp/_version.py"
+VERSIONFILE="phenopype/_version.py"
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)
