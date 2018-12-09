@@ -10,6 +10,10 @@ __all__ = []
 import pkgutil
 import inspect
 
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
+
 #__path__="E:\\Python1\\phenopype\\"
 
 for loader, name, is_pkg in pkgutil.walk_packages(__path__):
@@ -24,3 +28,4 @@ for loader, name, is_pkg in pkgutil.walk_packages(__path__):
         
 #from phenopype import utils, base, custom
 #pp.__all__ + ["utils", "base", "custom"]
+
