@@ -17,9 +17,12 @@ setup(
     author='Moritz Luerig',
     author_email='moritz.luerig@eawag.ch',
     packages=['phenopype'],
-    install_requires=['setuptools-git-version', "pandas", "opencv-contrib-python>=3.4.4", "exifread", "Pillow", "pytesseract", "trackpy"], 
+    install_requires=["pandas", "opencv-contrib-python>=3.4.4", "exifread"], 
     version=verstr,
     license='LGPL',
     description='a phenotyping pipeline for python',
     long_description=open('README.md').read(),
 )
+
+# to come
+# "Pillow", "pytesseract", "trackpy"
