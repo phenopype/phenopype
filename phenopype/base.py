@@ -302,7 +302,9 @@ class scale_maker:
         colour_mask[:,:,1] = 255 # all area green
         cv2.fillPoly(colour_mask, np.array([self.points_step1]), red) # red = excluded area
         temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
-        
+        self.image_overlay = temp_canvas_1
+
+
         # create template image for SIFT
         rx,ry,w,h = cv2.boundingRect(np.array(self.points_step1, dtype=np.int32))
         self.image_original_template = image[ry:ry+h,rx:rx+w]
@@ -325,7 +327,7 @@ class scale_maker:
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         temp_canvas_2 = copy.deepcopy(temp_canvas_1)
         cv2.setMouseCallback("phenopype", self.on_mouse_step2)
-
+        
         while(not self.done_step2):
             if (len(self.points_step2) > 0):
                 cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, green, 2)
@@ -337,12 +339,16 @@ class scale_maker:
                 break           
                 print("Finished, scale drawn. your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
 
+
         if kwargs.get('show', True):
-            cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, black, 2)    
+            cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, red, 4)    
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
             cv2.imshow("phenopype", temp_canvas_2)    
             if any([cv2.waitKey(0) & 0xff == 27, cv2.waitKey(0) & 0xff == 13]):
                 cv2.destroyWindow("phenopype")
+              
+        self.image_zoomed = temp_canvas_2
+
 
         # SCALE
         self.measured = self.scale_px/length
