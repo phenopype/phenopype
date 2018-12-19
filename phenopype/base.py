@@ -518,8 +518,9 @@ class polygon_maker:
             else:
                 print("No points to delete")
                 
-    def draw(self, image_path, mode,**kwargs):
+    def draw(self, image_path,**kwargs):
         image = cv2.imread(image_path)
+        mode = kwargs.get("mode","box")
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
@@ -722,6 +723,9 @@ class object_finder:
             length_idx = 0
             area_idx = 0
             df_list = []
+            
+            label = kwargs.get("label", True)
+            
             self.roi_bgr_list = []
             self.roi_gray_list = []
             self.roi_mask_list = []
@@ -765,7 +769,8 @@ class object_finder:
 
                             # DRAW TO ROI
                             q=kwargs.get("roi_size",300)/2
-                            cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
+                            if label==True:
+                                cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
                             cv2.drawContours(self.drawn, [cnt], 0, blue, 4)
                     else:
                         idx_noise += 1
@@ -877,43 +882,64 @@ class object_finder:
             cv2.imshow('phenopype', self.drawn)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
-
+            
+        if "image_zoomed" in show:
+            
+            if "exclude" in kwargs:
+                zoom_mask = sum(kwargs.get('exclude'))
+                if "resize" in kwargs:
+                    zoom_mask = cv2.resize(cv2.bitwise_not(zoom_mask), (0,0), fx=1*resize, fy=1*resize)
+                else:
+                    zoom_mask = cv2.bitwise_not(zoom_mask)
+                ret, contours, hierarchy = cv2.findContours(zoom_mask,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_TC89_L1)
+                rx,ry,rw,rh = cv2.boundingRect(contours[0])
+                self.zoomed = self.drawn[ry:ry+rh,rx:rx+rw]
+            else:
+                self.zoomed = self.drawn
+            
+            cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
+            cv2.imshow('phenopype', self.zoomed)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+                        
+                        # GET VALUES FROM MASKED ROI
 
     def save(self, save_to, **kwargs):
+        
         # set dir and names
-        out_dir = save_to
+        out_dir = save_to     
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
+            
         if "append" in kwargs:
             app = '_' + kwargs.get('append')
         else:
             app = ""
-        filename = kwargs.get('filename',self.filename)
+            
+        filename = kwargs.get('filename',self.filename)      
         name = os.path.splitext(filename)[0]
         ext = os.path.splitext(filename)[1]
+        
         im_path=os.path.join(out_dir , name +  app + ext)
         df_path=os.path.join(out_dir , name +  app + ".txt")
-        
-        
-        image = kwargs.get("image", self.drawn)
+             
         # image
-        if "image" in kwargs:
-            if kwargs.get('overwrite',True) == False:
-                if not os.path.exists(im_path):
-                    cv2.imwrite(im_path, image)
-            else:
+        image = kwargs.get("image", self.drawn)
+        if kwargs.get('overwrite',True) == False:
+            if not os.path.exists(im_path):
                 cv2.imwrite(im_path, image)
+        else:
+            cv2.imwrite(im_path, image)
 
         # df
         df = kwargs.get("df", self.df)
-        if "df" in kwargs:
-            df = df.fillna(-9999)
-            df = df.astype(str)
-            if kwargs.get('overwrite',True) == False:
-                if not os.path.exists(df_path):
-                    df.to_csv(path_or_buf=df_path, sep="\t", index=False)
-            else:
-                    df.to_csv(path_or_buf=df_path, sep="\t", index=False)
+        df = df.fillna(-9999)
+        df = df.astype(str)
+        if kwargs.get('overwrite',True) == False:
+            if not os.path.exists(df_path):
+                df.to_csv(path_or_buf=df_path, sep="\t", index=False)
+        else:
+                df.to_csv(path_or_buf=df_path, sep="\t", index=False)
                     
                     
 
