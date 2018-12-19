@@ -22,85 +22,104 @@ from phenopype.utils import (red, green, blue, black, white)
 from phenopype.utils import (blur, exif_date, gray_scale)
 
 #%% classes
-class project:
-    def __init__(self):
-        self.name = "phenopype project"
-        
-    def project_maker(self, project_name, image_dir, mode="walk", **kwargs):
-        
+class project:      
+    def project_maker(self, project_name, image_dir, **kwargs):
+        """ 
+        create project object where the results of the image analysis are saved
+        Parameters
+        ----------
+        project_name: str
+            name of your project
+        image_dir: str 
+            path to directory with images
+            
+        Parameters (optional)
+        ---------------------
+        exclude: list with str
+            single or multiple string patterns to exclude certain files
+        mode: str ("tree", "dir")
+            tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory
+        resize: int (>0 - 1)
+            global resizing of images to increase performance (1=original size)      
+        save_dir: str
+            path to directory where processed images and measurements are saved
+      
+        """
         # initialize ----
         self.name = project_name
         self.in_dir = image_dir
-        out = os.path.join(os.path.split(self.in_dir)[0], os.path.split(self.in_dir)[1] + "_out")
-        self.save_dir = kwargs.get("save_dir",out)
+        self.save_dir = kwargs.get("save_dir", os.path.normpath(self.in_dir) + "_out")   
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-        self.mode = kwargs.get("mode","dir") 
-        self.filepaths = []
-        self.filenames = []
         
-        if "filetype" in kwargs:
-            self.file_type = kwargs.get("filetype")
-        if "exclude" in kwargs:
-            self.exclude = kwargs.get("exclude")
+        self.mode = kwargs.get("mode","tree")         
         self.resize = kwargs.get("resize",1)
-
-        # =============================================================================
-        # MAKE FILELIST AND PATHLIST
-        # =============================================================================
         
-        # WALK THROUGH ALL SUBDIRS OF TREE
-        if self.mode == "walk":
+        self.filetypes = kwargs.get("filetypes", [])
+        self.exclude = kwargs.get("exclude", [])
+        self.include = kwargs.get("include", [])
+
+
+        # MAKE FILELISTS
+        filepaths1 = []
+        filenames1 = []
+        if self.mode == "tree":
             for root, dirs, files in os.walk(self.in_dir):
                 for i in os.listdir(root):
                     path = os.path.join(root,i)
-                    if os.path.isfile(path):
-                        if hasattr(self,'file_type'):
-                            if self.in_dir.endswith(self.file_type):
-                                if hasattr(self,'exclude'):
-                                    if not any([j in i for j in self.exclude]):
-                                        self.filepaths.append(path)
-                                        self.filenames.append(i)
-                                else:
-                                    self.filepaths.append(path)
-                                    self.filenames.append(i)
-                        else: 
-                            if hasattr(self,'exclude'):
-                                if not any([j in i for j in self.exclude]):
-                                    self.filepaths.append(path)
-                                    self.filenames.append(i)
-                            else:
-                                self.filepaths.append(path)
-                                self.filenames.append(i)
-                   
-        # STAY IN CURRENT FOLDER ONLY
+                    if os.path.isfile(path):      
+                        filepaths1.append(path)
+                        filenames1.append(i)
+                        
         elif self.mode == "dir":
             for i in os.listdir(self.in_dir):
                 path = os.path.join(self.in_dir,i)
-                if os.path.isfile(path):
-                    if hasattr(self,'file_type'):
-                        if self.in_dir.endswith(self.file_type):
-                            if hasattr(self,'exclude'):
-                                if not any([j in i for j in self.exclude]):
-                                    self.filepaths.append(path)
-                                    self.filenames.append(i)
-                            else:
-                                self.filepaths.append(path)
-                                self.filenames.append(i)
-                    else: 
-                        if hasattr(self,'exclude'):
-                            if not any([j in i for j in self.exclude]):
-                                self.filepaths.append(path)
-                                self.filenames.append(i)
-                        else:
-                            self.filepaths.append(path)
-                            self.filenames.append(i)
-                    
-        # LOAD SINGLE IMAGE FROM PATH
-        elif self.mode == "single":
-            self.filepaths.append(self.in_dir)
-            self.filenames.append(os.path.basename(self.in_dir))
+                if os.path.isfile(path):      
+                    filepaths1.append(path)
+                    filenames1.append(i)
+                     
+        # INCLUDE        
+        filepaths2 = []
+        filenames2 = []
+        if self.include:
+            for name, path in zip(filenames1, filepaths1):   
+                for inc in self.include:
+                    if inc in name:
+                        filepaths2.append(path)
+                        filenames2.append(name)
+        else:
+            filepaths2 = filepaths1
+            filenames2 = filenames1
 
+        # EXCLUDE  
+        filepaths3 = []
+        filenames3 = []
+        if self.exclude:
+            for name, path in zip(filenames2, filepaths2):   
+                for exc in self.exclude:
+                    if exc not in name:
+                        filepaths3.append(path)
+                        filenames3.append(name)
+        else:
+            filepaths3 = filepaths2
+            filenames3 = filenames2
+
+        # FILETYPE        
+        filepaths4 = []
+        filenames4 = []
+        if self.filetypes:
+            for name, path in zip(filenames3, filepaths3):   
+                for ext in self.filetypes:
+                    if name.endswith(ext):
+                        filepaths4.append(path)
+                        filenames4.append(name)
+        else:
+            filepaths4 = filepaths3
+            filenames4 = filenames3
+
+        self.filenames = filenames4
+        self.filepaths = filepaths4
+                    
         # =============================================================================
         # BUILD PROJECT DF
         # =============================================================================
@@ -112,72 +131,62 @@ class project:
         self.filenames = self.df['filename'].tolist()
         self.df.drop(columns='filepath', inplace=True)
         
-
+    
     def update_list(self):
         
-        # MAKE NEW TEMPORARY LISTS
-        self.filepaths = []
-        self.filenames = []
+        # =============================================================================
+        # MAKE FILELIST AND PATHLIST
+        # =============================================================================
+        filepaths1 = []
+        filenames1 = []
         
-        # WALK THROUGH ALL SUBDIRS OF TREE
-        if self.mode == "walk":
+        if self.mode == "tree":
             for root, dirs, files in os.walk(self.in_dir):
                 for i in os.listdir(root):
                     path = os.path.join(root,i)
-                    if os.path.isfile(path):
-                        if hasattr(self,'file_type'):
-                            if self.in_dir.endswith(self.file_type):
-                                if hasattr(self,'exclude'):
-                                    if not any([j in i for j in self.exclude]):
-                                        self.filepaths.append(path)
-                                        self.filenames.append(i)
-                                else:
-                                    self.filepaths.append(path)
-                                    self.filenames.append(i)
-                        else: 
-                            if hasattr(self,'exclude'):
-                                if not any([j in i for j in self.exclude]):
-                                    self.filepaths.append(path)
-                                    self.filenames.append(i)
-                            else:
-                                self.filepaths.append(path)
-                                self.filenames.append(i)
-                                
-        # STAY IN CURRENT FOLDER ONLY
+                    if os.path.isfile(path):      
+                        filepaths1.append(path)
+                        filenames1.append(i)
+                        
         elif self.mode == "dir":
             for i in os.listdir(self.in_dir):
-                path = os.path.join(self.in_dir,i)
-                if os.path.isfile(path):
-                    if hasattr(self,'file_type'):
-                        if self.in_dir.endswith(self.file_type):
-                            if hasattr(self,'exclude'):
-                                if not any([j in i for j in self.exclude]):
-                                    self.filepaths.append(path)
-                                    self.filenames.append(i)
-                            else:
-                                self.filepaths.append(path)
-                                self.filenames.append(i)
-                    else: 
-                        if hasattr(self,'exclude'):
-                            if not any([j in i for j in self.exclude]):
-                                self.filepaths.append(path)
-                                self.filenames.append(i)
-                        else:
-                            self.filepaths.append(path)
-                            self.filenames.append(i)
-    
-        # LOAD SINGLE IMAGE FROM PATH     
-        elif self.mode == "single":
-            self.filepaths.append(self.in_dir)
-            self.filenames.append(os.path.basename(self.in_dir))
+                path = os.path.join(root,i)
+                if os.path.isfile(path):      
+                    filepaths1.append(path)
+                    filenames1.append(i)
+                      
+        filepaths2 = []
+        filenames2 = []
+        for name, path in zip(filenames1, filepaths1):   
+            for inc in self.include:
+                if inc in name:
+                    filepaths2.append(path)
+                    filenames2.append(name)
+
+        filepaths3 = []
+        filenames3 = []
+        for name, path in zip(filenames2, filepaths2):   
+            for exc in self.exclude:
+                if exc not in name:
+                    filepaths3.append(path)
+                    filenames3.append(name)
+
+        filepaths4 = []
+        filenames4 = []
+        for name, path in zip(filenames3, filepaths3):   
+            if name.endswith in self.file_type:
+                filepaths4.append(path)
+                filenames4.append(name)
+
+        self.filenames = filenames4
+        self.filepaths = filepaths4
             
-        # =============================================================================
-        # UPADE PROJECT DF: REMOVE OR ADD MISSING FILES
-        # =============================================================================
-        self.df = self.df[self.df["filename"].isin(self.filenames)]
-
-
-
+        # UPDATE DF
+        if kwargs.get("update_df", True):
+            self.df = self.df[self.df["filename"].isin(self.filenames)]
+    
+    
+    
     def gray_scale_finder(self, resize=0.25, write=False):
         self.gray_scale_list = []
         for filepath, filename in zip(self.filepaths, self.filenames):
@@ -193,8 +202,8 @@ class project:
         print("\nMean grayscale in directory: " + str(int(np.mean(self.gray_scale_list))))
         if write == True:
             self.df["gray_scale"] = self.gray_scale_list
-
-
+    
+    
     def save(self, **kwargs):
         output = kwargs.get("save_dir",self.save_dir) # "out") #
         if "append" in kwargs:
@@ -218,6 +227,7 @@ class scale_maker:
         self.current = (0, 0) 
         self.points_step1 = [] 
         self.points_step2 = []
+        self.scale_px = 0
         
     def on_mouse_step1(self, event, x, y, buttons, user_param):
         if self.done_step1: # Nothing more to do
@@ -249,9 +259,9 @@ class scale_maker:
             self.done_step2 = True
             self.scale_px = int(math.sqrt( ((self.points_step2[0][0]-self.points_step2[1][0])**2)+((self.points_step2[0][1]-self.points_step2[1][1])**2)))
             cv2.destroyWindow("phenopype")
-            print("Finished, scale outline drawn. Add the scale by clicking on two points with a known distance between them:")
 
-    def draw(self, image_path, length, mode, **kwargs): 
+
+    def grab(self, image_path, length, mode, **kwargs): 
         
         # initialize # ----------------
         image = cv2.imread(image_path)
@@ -269,7 +279,7 @@ class scale_maker:
         # Step 1 - draw scale outline
         # =============================================================================
 
-        print("\nMark the outline of the scale by left clicking, finish by right clicking:")
+        print("\nMark the outline of the scale by left clicking, remove points by right clicking, finish with enter.")
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         cv2.setMouseCallback("phenopype", self.on_mouse_step1)
         temp_canvas_1 = copy.deepcopy(image)
@@ -287,7 +297,8 @@ class scale_maker:
                 elif cv2.waitKey(50) & 0xff == 27:
                     cv2.destroyWindow("phenopype")
                     break
-                    sys.exit("phenopype process stopped")            
+                    sys.exit("phenopype process stopped")     
+            print("Finished, scale outline drawn. Now add the scale by clicking on two points with a known distance between them:")
                 
         elif mode == "box":
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
@@ -295,7 +306,7 @@ class scale_maker:
             if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
                 cv2.destroyWindow("phenopype")  
             self.points_step1 = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
-
+            print("Finished, scale outline drawn. Now dd the scale by clicking on two points with a known distance between them:")
 
         # create colour mask to show scale outline
         colour_mask = np.zeros(image.shape, np.uint8)
@@ -316,9 +327,8 @@ class scale_maker:
         
         # zoom into drawn scale outline for better visibility
         if zoom==True:
-            temp_canvas_1 = temp_canvas_1[ry:ry+h,rx:rx+w]
+            temp_canvas_1 = image[ry:ry+h,rx:rx+w]
             self.done_step1 = True
-            print("Add the scale by clicking on two points with a known distance between them:")
 
         # =============================================================================
         # Step 2 - measure scale length
@@ -336,9 +346,13 @@ class scale_maker:
             temp_canvas_2 = copy.deepcopy(temp_canvas_1)
             if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
                 cv2.destroyWindow("phenopype")
-                break           
-                print("Finished, scale drawn. your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
-
+                break    
+            
+        print("\n")
+        print("------------------------------------------------")
+        print("Finished - your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
+        print("------------------------------------------------")
+        print("\n")
 
         if kwargs.get('show', True):
             cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, red, 4)    
@@ -363,7 +377,7 @@ class scale_maker:
         self.mask = cv2.fillPoly(zeros, [np.array(self.points_step1, dtype=np.int32)], white)
 
 
-    def find(self, image_path, **kwargs):
+    def detect(self, image_path, **kwargs):
         
         # initialize ------------------
         self.image_target = cv2.imread(image_path)
@@ -558,8 +572,8 @@ class polygon_maker:
 #        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
 #        cv2.imshow('phenopype',  img)
 
-class standard_object_finder:
-    def run(self,im_path, scale, **kwargs):
+class object_finder:
+    def run(self,im_path, scale=1, **kwargs):
         """ find objects in image via thresholding
         Parameters
         ----------
@@ -829,21 +843,29 @@ class standard_object_finder:
             all_pts = len(self.contours)
             good_pts = len(self.df)
             
-            print(self.df_short) 
             
-            print("\n")
-            print("----------------------------------------------------------------")
-            print("Found " + str(all_pts) + " objects in " + self.filename + ":")
-            print("  ==> %d are valid objects" % good_pts)
-            if not idx_noise == 0:
-                print("    - %d are noise" % idx_noise)
-            if not length_idx == 0:
-                print("    - %d are not bigger than minimum diameter" % length_idx)
-            if not area_idx ==0:
-                print("    - %d are not bigger than minimum area" % area_idx)
-            print("----------------------------------------------------------------")
-
+            if self.mode == "multi":
                 
+                print(self.df_short)
+                
+                print("\n")
+                print("----------------------------------------------------------------")
+                print("Found " + str(all_pts) + " objects in " + self.filename + ":")
+                print("  ==> %d are valid objects" % good_pts)
+                if not idx_noise == 0:
+                    print("    - %d are noise" % idx_noise)
+                if not length_idx == 0:
+                    print("    - %d are not bigger than minimum diameter" % length_idx)
+                if not area_idx ==0:
+                    print("    - %d are not bigger than minimum area" % area_idx)
+                print("----------------------------------------------------------------")
+            else:
+                print("----------------------------------------------------------------")
+                print("Found following object in " + self.filename + ":")
+                print("----------------------------------------------------------------")
+                
+                print(self.df_short)
+
         # SHOW IMAGE
         if hasattr(self,'mask'):
             boo = np.array(self.mask, dtype=bool)

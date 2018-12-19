@@ -5,3 +5,4 @@ __pycache__/
 phenopype.egg-info/
 *dev*
 _config.yml
+.ipynb_checkpoints
