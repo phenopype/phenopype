@@ -31,20 +31,30 @@ The program is still in alpha stage and development progresses slow - this is [m
 
 1. install python3 with anaconda: https://www.anaconda.com/download/ chose python 3.x for your OS, download and install 
 2. if you have not done so during the installation, [add "conda" to your PATH](https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10) 
+
+If you have difficulties with these steps refer to these tutorials:
+
+https://conda.io/docs/user-guide/install/windows.html
+https://medium.com/@GalarnykMichael/install-python-on-windows-anaconda-c63c7c3d1444
+
+
 3. Install phenopype to your local python environment directly from github using `git` (dependencies will be installed on the fly):
 ```
 conda install git
 pip install git+https://github.com/mluerig/phenopype
 ```
-If you have difficulties installing opencv, try it manually:
+If you have difficulties installing the dependencies, try it manually...:
 
 ```
-pip install opencv-contrib-python
+pip install opencv-contrib-python 
 ```
+... and refer to the module site: https://pypi.org/project/opencv-contrib-python/
+
+
 
 # quickstart
 
-**DISCLAIMER: WORK IN PROGRESS**
+**WORK IN PROGRESS**
 
 Download this repository, open a command line /bash terminal, and cd to the example folder inside the repo. Assuming you have phenopype, it's dependencies and jupyter notebook installed (comes with scientific python distributions like Anaconda, see [above](#installation)), type `jupyter notebook` and open one of the tutorials:  
 
