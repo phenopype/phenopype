@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Last Update: 2018/11/22
-Version 0.4.6
+Last Update: 2019/01/14
+Version 0.4.9
 @author: Moritz Lürig
 """
 #%% import 
@@ -132,59 +132,59 @@ class project:
         self.df.drop(columns='filepath', inplace=True)
         
     
-    def update_list(self):
-        
-        # =============================================================================
-        # MAKE FILELIST AND PATHLIST
-        # =============================================================================
-        filepaths1 = []
-        filenames1 = []
-        
-        if self.mode == "tree":
-            for root, dirs, files in os.walk(self.in_dir):
-                for i in os.listdir(root):
-                    path = os.path.join(root,i)
-                    if os.path.isfile(path):      
-                        filepaths1.append(path)
-                        filenames1.append(i)
-                        
-        elif self.mode == "dir":
-            for i in os.listdir(self.in_dir):
-                path = os.path.join(root,i)
-                if os.path.isfile(path):      
-                    filepaths1.append(path)
-                    filenames1.append(i)
-                      
-        filepaths2 = []
-        filenames2 = []
-        for name, path in zip(filenames1, filepaths1):   
-            for inc in self.include:
-                if inc in name:
-                    filepaths2.append(path)
-                    filenames2.append(name)
-
-        filepaths3 = []
-        filenames3 = []
-        for name, path in zip(filenames2, filepaths2):   
-            for exc in self.exclude:
-                if exc not in name:
-                    filepaths3.append(path)
-                    filenames3.append(name)
-
-        filepaths4 = []
-        filenames4 = []
-        for name, path in zip(filenames3, filepaths3):   
-            if name.endswith in self.file_type:
-                filepaths4.append(path)
-                filenames4.append(name)
-
-        self.filenames = filenames4
-        self.filepaths = filepaths4
-            
-        # UPDATE DF
-        if kwargs.get("update_df", True):
-            self.df = self.df[self.df["filename"].isin(self.filenames)]
-    
+#    def update_list(self, **kwargs):
+#        
+#        # =============================================================================
+#        # MAKE FILELIST AND PATHLIST
+#        # =============================================================================
+#        filepaths1 = []
+#        filenames1 = []
+#        
+#        if self.mode == "tree":
+#            for root, dirs, files in os.walk(self.in_dir):
+#                for i in os.listdir(root):
+#                    path = os.path.join(root,i)
+#                    if os.path.isfile(path):      
+#                        filepaths1.append(path)
+#                        filenames1.append(i)
+#                        
+#        elif self.mode == "dir":
+#            for i in os.listdir(self.in_dir):
+#                path = os.path.join(self.in_dir,i)
+#                if os.path.isfile(path):      
+#                    filepaths1.append(path)
+#                    filenames1.append(i)
+#                      
+#        filepaths2 = []
+#        filenames2 = []
+#        for name, path in zip(filenames1, filepaths1):   
+#            for inc in self.include:
+#                if inc in name:
+#                    filepaths2.append(path)
+#                    filenames2.append(name)
+#
+#        filepaths3 = []
+#        filenames3 = []
+#        for name, path in zip(filenames2, filepaths2):   
+#            for exc in self.exclude:
+#                if exc not in name:
+#                    filepaths3.append(path)
+#                    filenames3.append(name)
+#
+#        filepaths4 = []
+#        filenames4 = []
+#        for name, path in zip(filenames3, filepaths3):   
+#            if name.endswith in self.file_type:
+#                filepaths4.append(path)
+#                filenames4.append(name)
+#
+#        self.filenames = filenames4
+#        self.filepaths = filepaths4
+#            
+#        # UPDATE DF
+#        if kwargs.get("update_df", True):
+#            self.df = self.df[self.df["filename"].isin(self.filenames)]
+#    
     
     
     def gray_scale_finder(self, resize=0.25, write=False):
@@ -651,10 +651,12 @@ class object_finder:
             self.gray_corrected = np.array(copy.deepcopy(self.gray) + self.gray_corr_factor, dtype="uint8")
             self.drawn = self.gray_corrected
         else:
-             self.drawn = copy.deepcopy(self.gray)            
+             self.drawn = copy.deepcopy(self.gray)     
+             
+        self.drawn1 = self.drawn
 
         self.drawn = cv2.cvtColor(self.drawn,cv2.COLOR_GRAY2BGR)
-
+        
 
         # =============================================================================
         # BLUR1 > THRESHOLDING > MORPHOLOGY > BLUR2
@@ -705,13 +707,13 @@ class object_finder:
             if corr_factor[0] > 0:
                 self.morph = cv2.dilate(self.morph, kernel, iterations = iterations)
 
+    
         # APPLY ARENA MASK
         if "exclude" in kwargs:
             self.mask = sum(kwargs.get('exclude'))
             self.mask = cv2.resize(self.mask, (0,0), fx=1*resize, fy=1*resize) 
             self.morph = cv2.subtract(self.morph,self.mask)
             self.morph[self.morph==1] = 0
-
 
         # =============================================================================
         # MULTI-MODE
@@ -782,7 +784,7 @@ class object_finder:
         # =============================================================================
         # SINGLE-MODE
         # =============================================================================
-        
+                
         elif self.mode =="single":
             df_list = []
             ret, self.contours, hierarchy = cv2.findContours(self.morph,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
@@ -791,34 +793,36 @@ class object_finder:
             if self.contours:
                 areas = [cv2.contourArea(cnt) for cnt in self.contours]                
                 cnt = self.contours[np.argmax(areas)]
-                if len(cnt) > 5:
-                    (x,y),radius = cv2.minEnclosingCircle(cnt)
-                    x, y= int(x), int(y)
-                    length1 = int(radius * 2)
-                    area1 = int(cv2.contourArea(cnt))
-                    if length1 > kwargs.get('min_diam', 0) and area1 > kwargs.get('min_area', 0):
-                        idx = 1
-                        rx,ry,rw,rh = cv2.boundingRect(cnt)
-                        
-                        # GET VALUES FROM MASKED ROI
-                        grayscale =  ma.array(data=self.gray[ry:ry+rh,rx:rx+rw], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                        b =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,0], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                        g =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,1], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                        r =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,2], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                        mean1 = int(np.mean(grayscale)) # mean grayscale value
-                        sd1 = int(np.std(grayscale)) # standard deviation of grayscale values
-                        bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
-                        bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
-                        df_list = [[self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length1, area1, mean1, sd1, bgr1, bgr_sd1]]
+                (x,y),radius = cv2.minEnclosingCircle(cnt)
+                x, y= int(x), int(y)
+                length1 = int(radius * 2)
+                area1 = int(cv2.contourArea(cnt))
+                if length1 > kwargs.get('min_diam', 0) and area1 > kwargs.get('min_area', 0):
+                    # return contour
+                    self.contour = cnt
+                    
+                    idx = 1
+                    rx,ry,rw,rh = cv2.boundingRect(cnt)
+                    
+                    # GET VALUES FROM MASKED ROI
+                    grayscale =  ma.array(data=self.gray[ry:ry+rh,rx:rx+rw], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                    b =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,0], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                    g =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,1], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                    r =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,2], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                    mean1 = int(np.mean(grayscale)) # mean grayscale value
+                    sd1 = int(np.std(grayscale)) # standard deviation of grayscale values
+                    bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
+                    bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
+                    df_list = [[self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length1, area1, mean1, sd1, bgr1, bgr_sd1]]
 
-                        # DRAW TO ROI
-                        if "roi_size" in kwargs:
-                            q=kwargs.get("roi_size",300)/2
-                            cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
-                        cv2.drawContours(self.drawn, [cnt], 0, blue, int(10 * resize))
-                        
-                    else: 
-                        print("Object not bigger than minimum diameter or area")
+                    # DRAW TO ROI
+                    if "roi_size" in kwargs:
+                        q=kwargs.get("roi_size",300)/2
+                        cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
+                    cv2.drawContours(self.drawn, [cnt], 0, blue, int(10 * resize))
+                    
+                else: 
+                    print("Object not bigger than minimum diameter or area")
             else: 
                 print("No objects found - change parameters?")
 
