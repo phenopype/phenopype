@@ -11,11 +11,10 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 
 | | |
 |:---:|:---:|
-|<img src="assets/doc/object_detection.gif" width="150%" />|Automatic **object detection** via multistep thresholding in a predefined area. Useful if your images have borders or irregular features. Accurracy can be increased with custom modules, e.g. for colour or shape|
-|<img src="assets/doc/object_tracking.gif" width="150%" />|Automatic **object tracking** that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes.|
-| <img src="assets/doc/scale_detection.gif" width="150%" />|**Automatic scale detection** and pixel-size ratios adjustments. Performance depends on image size| 
-| <img src="assets/doc/label_detection.gif" width="150%" />|**Automatic label detection** that can detect in images, read them, and mask the label from object detection. Performance depends on image size| 
-| <img src="assets/doc/landmarking.gif" width="150%" />|Basic **landmarking** functionality| 
+|<img src="assets/object_detection.gif" width="150%" />|Automatic **object detection** via multistep thresholding in a predefined area. Useful if your images have borders or irregular features. Accurracy can be increased with custom modules, e.g. for colour or shape|
+|<img src="assets/object_tracking.gif" width="150%" />|Automatic **object tracking** that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes.|
+| <img src="assets/scale_detection.gif" width="150%" />|**Automatic scale detection** and pixel-size ratios adjustments. Performance depends on image size| 
+| <img src="assets/landmarks.gif" width="150%" />|Basic **landmarking** functionality| 
 | <img src="assets/doc/local_features.gif" width="150%" />|Extract **local features** like stickleback body armour or organelles| 
 
 
