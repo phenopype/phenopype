@@ -21,9 +21,7 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 
 # installation
 
-(tested for `Python 3.7` with `opencv 3.4.4`)
-
-## windows
+(tested for windows with `Python 3.7` and `opencv 3.4.4`)
 
 1. install python3 with anaconda: https://www.anaconda.com/download/ chose python 3.x for your OS, download and install 
 2. if you have not done so during the installation, [add "conda" to your PATH](https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10) 
@@ -37,15 +35,6 @@ If you have difficulties installing opencv, try it manually:
 ```
 pip install opencv-contrib-python
 ```
-
-## ubuntu 18.04
-
-Under ubuntu I encountered some issues with the opencv-GUI - you can still try (need a working gtk installation).
-
-## Mac OS
-
-Not tested yet
-
 
 # quickstart
 
@@ -65,8 +54,8 @@ Download this repository, open a command line /bash terminal, and cd to the exam
 Planned featues include
 
 - hdf5-implementation (original image > processed image (+ data) > image for ML-training-dataset >> hdf5)
-- localized feature extraction (e.g. stickleback armour-plates, amount of pigments in leafs,...)
-- shape detection (contour of objects)
+- build your own training data for deep learning algorithms using hdf5 framework
+- add Mask R-CNN deep learning algorithm using the opencv implementation (https://github.com/opencv/opencv/tree/master/samples/dnn) 
 
 If you have ideas for other functionality, let me know!
 
