@@ -34,8 +34,8 @@ The program is still in alpha stage and development progresses slow - this is [m
 
 If you have difficulties with these steps refer to these tutorials:
 
-https://conda.io/docs/user-guide/install/windows.html
-https://medium.com/@GalarnykMichael/install-python-on-windows-anaconda-c63c7c3d1444
+- https://conda.io/docs/user-guide/install/windows.html
+- https://medium.com/@GalarnykMichael/install-python-on-windows-anaconda-c63c7c3d1444
 
 
 3. Install phenopype to your local python environment directly from github using `git` (dependencies will be installed on the fly):
@@ -45,10 +45,11 @@ pip install git+https://github.com/mluerig/phenopype
 ```
 If you have difficulties installing the dependencies, try it manually...:
 
+- https://pypi.org/project/opencv-contrib-python/
+
 ```
 pip install opencv-contrib-python 
 ```
-... and refer to the module site: https://pypi.org/project/opencv-contrib-python/
 
 
 
