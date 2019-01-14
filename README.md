@@ -9,7 +9,7 @@
 ***
 **DISCLAIMER**
 
-phenopype is developed by [me](https://luerig.net) and builds on a collection of scripts ([iso_cv](https://github.com/mluerig/iso_cv), [iso_track](https://github.com/mluerig/iso_track)) that I wrote for my PhD at [Eawag](https://www.eawag.ch/en/department/eco/) and [ETH Zürich](http://www.adaptation.ethz.ch/). it is still in alpha stage and under heavy construction. A few core features like blob-counting, object detection or videotracking work ([see below](#features)), more detailed documentation is in the making. Please contact me if you need bugfixing, or have requests for features.
+phenopype development is run by [me](https://luerig.net) and currently progressing slow because I am finishing my PhD at [Eawag](https://www.eawag.ch/en/department/eco/) and [ETH Zürich](http://www.adaptation.ethz.ch/). The program is still in alpha stage and under heavy construction. A few core features like blob-counting, object detection or videotracking work ([see below](#features)), more detailed documentation is in the making. Please contact me if you need bugfixing, or have requests for features.
 
 ***
 
