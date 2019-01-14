@@ -9,12 +9,13 @@ phenopype is currently alpha, and still under heavy construction. A few core fea
 
 # features
 
-|Object detection|Object tracking| Scale detection|
-|:--:|:--:|:--:|
-|<img src="assets/doc/object_detection.gif" width="90%" />|<img src="assets/doc/object_tracking.gif" width="80%" />| <img src="assets/doc/scale_detection.gif" width="100%" />|
-|Automatic object detection via multistep thresholding in a predefined area. Useful if your images have borders or irregular features. Accurracy can be increased with custom modules, e.g. for colour or shape|Automatic object tracking that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes.|A scale that is once identified and measured can be found in all following pictures. Automatically corrects pixel-size ratios. Performance depends on image size| 
-|<img src="assets/doc/object_detection.JPG" width="80%" />|<img src="assets/doc/object_tracking.png" width="80%" />| <img src="assets/doc/scale_detection.png" width="100%" />|
-|||| 
+
+|<img src="assets/doc/object_detection.gif" width="90%" />|<img src="assets/doc/object_detection.JPG" width="80%" />|Automatic object detection via multistep thresholding in a predefined area. Useful if your images have borders or irregular features. Accurracy can be increased with custom modules, e.g. for colour or shape|
+
+|<img src="assets/doc/object_tracking.gif" width="80%" />|<img src="assets/doc/object_tracking.png" width="80%" />|Automatic object tracking that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes.|
+
+|<img src="assets/doc/scale_detection.gif" width="100%" />| <img src="assets/doc/scale_detection.png" width="100%" />|A scale that is once identified and measured can be found in all following pictures. Automatically corrects pixel-size ratios. Performance depends on image size| 
+
 
 # installation
 
@@ -43,11 +44,18 @@ Under ubuntu I encountered some issues with the opencv-GUI - you can still try (
 
 Not tested yet
 
+
 # quickstart
 
-Download the repository to use the provided examples in an IDE. Anaconda distributions come with the [spyder IDE](https://www.spyder-ide.org/), which is a great scientific python environment. Simply run `spyder` from the shell, and, after you have cloned the repository, open `example.py` from the example folder.
+Download this repository, open a command line /bash terminal, and cd to the example folder inside the repo. Assuming you have phenopype, it's dependencies and jupyter notebook installed (comes with scientific python distributions like Anaconda, see [above](#installation)), type `jupyter notebook` and open one of the tutorials:  
 
-JUPYTER NOTEBOOK VERSION COMING SOON
+* [0_python_intro.ipynb](examples/0_python_intro.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
+
+* [1_basic_functions.ipynb](examples/1_basic_functions.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
+
+* [2_object_detection.ipynb](examples/2_object_detection.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
+
+* [3_landmarks_and_local_features.ipynb](examples/3_landmarks_and_local_features.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
 
 
 # development
