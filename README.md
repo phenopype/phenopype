@@ -7,9 +7,9 @@
 
 
 ***
-**DISCLAIMER**
+**DISCLAIMER: ONGOING DEVELOPMENT**
 
-The program is still in alpha stage and under heavy construction - a few core features like blob-counting, object detection or videotracking work ([see below](#features)), more detailed documentation is in the making. Please contact me if you need bugfixing, or have requests for features.
+The program is still in alpha stage and under slow, but heavy construction - this is [me](www.luerig.net) trying to write a program, learn python, and finishing a PhD. A few core features like blob-counting, object detection or videotracking work ([see below](#features)), more detailed documentation is in the making. Please feel free contact me if you need bugfixing, or have requests for features, and I will get back to you as soon as I can.
 
 ***
 
@@ -44,15 +44,17 @@ pip install opencv-contrib-python
 
 # quickstart
 
+**DISCLAIMER: WORK IN PROGRESS**
+
 Download this repository, open a command line /bash terminal, and cd to the example folder inside the repo. Assuming you have phenopype, it's dependencies and jupyter notebook installed (comes with scientific python distributions like Anaconda, see [above](#installation)), type `jupyter notebook` and open one of the tutorials:  
 
 * [0_python_intro.ipynb](examples/0_python_intro.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
 
-* [1_basic_functions.ipynb](examples/1_basic_functions.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
+* [1_basic_functions.ipynb](examples/1_basic_functions.ipynb) This tutorial demonstrates basic workflow with phenopype: the creation of a project, directories and how to use the functions alone and within a programmed loop.
 
-* [2_object_detection.ipynb](examples/2_object_detection.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
+* [2_object_detection.ipynb](examples/2_object_detection.ipynb) This tutorial demonstrates how single or multiple objects can be detected and phenotyped in images. 
 
-* [3_landmarks_and_local_features.ipynb](examples/3_landmarks_and_local_features.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
+* [3_landmarks_and_local_features.ipynb](examples/3_landmarks_and_local_features.ipynb)
 
 
 # development
