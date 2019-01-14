@@ -261,13 +261,14 @@ class scale_maker:
             cv2.destroyWindow("phenopype")
 
 
-    def grab(self, image_path, length, mode, **kwargs): 
+    def grab(self, image_path, length, **kwargs): 
         
         # initialize # ----------------
         image = cv2.imread(image_path)
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         unit = kwargs.get('unit', "mm")
+        mode = kwargs.get('mode', "box")
         zoom = kwargs.get('zoom', False)
         # crop = kwargs.get('crop', True)
         
