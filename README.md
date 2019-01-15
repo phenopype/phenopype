@@ -9,7 +9,7 @@
 ***
 **DISCLAIMER: ONGOING DEVELOPMENT**
 
-The program is still in alpha stage and development progresses slow - this is [me](https://luerig.net) trying to write a program, while learing programming and finishing a PhD. A few core features like blob-counting, object detection or videotracking work ([see below](#features)), more detailed documentation is in the making. Please feel free contact me if you need bugfixing, or have requests for features, and I will get back to you as soon as I can.
+The program is still in alpha stage and development progresses slow - this is [me](https://luerig.net) trying to write a program, while learning python and finishing a PhD. A few core features like blob-counting, object detection or videotracking work ([see below](#features)), more detailed documentation is in the making. Please feel free contact me if you need bugfixing, or have requests for features, and I will get back to you as soon as I can.
 
 ***
 
