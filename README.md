@@ -2,13 +2,7 @@
 <img src="assets/phenopype_header.png" width="100%" />
 </p>
 
-phenopype is a phenotyping pipeline for python. It is designed to extract phenotypic data from digital images or video material with minimal user input. Like other scientific python packages it is designed to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/) or [pycharm](https://www.jetbrains.com/pycharm/). phenopype is developed by [me](https://luerig.net) and builds on a collection of scripts ([iso_cv](https://github.com/mluerig/iso_cv), [iso_track](https://github.com/mluerig/iso_track)) that I wrote for my PhD at [Eawag](https://www.eawag.ch/en/department/eco/) and [ETH Zürich](http://www.adaptation.ethz.ch/).
-
-phenopype is currently alpha, and still under heavy construction. A few core features like blob-counting, object detection or videotracking work ([see below](#features)), more are planned. If you are interested in using phenopype, check the installation guide and quickstart, or [contact me](https://www.eawag.ch/en/aboutus/portrait/organisation/staff/profile/moritz-luerig/show/) directly. Some python knowledge is necessary, but most of the heavy lifting is done in the background. Feel free to get in touch of you have requests or ideas for further use cases (e.g. for your own study system) that you think could be solved with phenopype. 
-
-=======
 **phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input. Like other scientific python packages it is designed to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/) or [pycharm](https://www.jetbrains.com/pycharm/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, check [installation](#installation) and [quickstart](#quickstart). 
-
 
 
 ***
