@@ -50,26 +50,10 @@ If you have difficulties installing the dependencies, try it manually...:
 pip install opencv-contrib-python 
 ```
 
-
-
 # quickstart
 
 **WORK IN PROGRESS**
 
-<<<<<<< HEAD
-
-# quickstart
-
-Download this repository, open a command line /bash terminal, and cd to the example folder inside the repo. Assuming you have phenopype, it's dependencies and jupyter notebook installed (comes with scientific python distributions like Anaconda, see [above](#installation)), type `jupyter notebook` and open one of the tutorials:  
-
-* [0_python_intro.ipynb](examples/0_python_intro.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
-
-* [1_basic_functions.ipynb](examples/1_basic_functions.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
-
-* [2_object_detection.ipynb](examples/2_object_detection.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
-
-* [3_landmarks_and_local_features.ipynb](examples/3_landmarks_and_local_features.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
-=======
 Download this repository, open a command line /bash terminal, and cd to the example folder inside the repo. Assuming you have phenopype, it's dependencies and jupyter notebook installed (comes with scientific python distributions like Anaconda, see [above](#installation)), type `jupyter notebook` and open one of the tutorials:  
 
 * [0_python_intro.ipynb](examples/0_python_intro.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
@@ -79,7 +63,6 @@ Download this repository, open a command line /bash terminal, and cd to the exam
 * [2_object_detection.ipynb](examples/2_object_detection.ipynb) This tutorial demonstrates how single or multiple objects can be detected and phenotyped in images. 
 
 * [3_landmarks_and_local_features.ipynb](examples/3_landmarks_and_local_features.ipynb)
->>>>>>> b5724041b776eeefe9bb1115867eafac5e04b7cc
 
 
 # development
