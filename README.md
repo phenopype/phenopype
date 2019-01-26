@@ -1,8 +1,8 @@
 <p align="center">
-<img src="assets/phenopype_header.png" width="100%" />
+<img src="https://github.com/mluerig/phenopype/blob/master/assets/phenopype_header.png" width="100%" />
 </p>
 
-**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input. Like other scientific python packages it is designed to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/) or [pycharm](https://www.jetbrains.com/pycharm/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, check [installation](#installation) and [quickstart](#quickstart). 
+**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input. Like other scientific python packages it is designed to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/) or [pycharm](https://www.jetbrains.com/pycharm/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, install [install](https://pypi.org/project/phenopype/) it from the Python Package Index using `pip install phenopype` and check the [tutorials](#tutorials) to get started.  
 
 
 ***
@@ -24,37 +24,9 @@ The program is still in alpha stage and development progresses slow - this is [m
 | <img src="assets/local_features.gif" width="150%" />|Extract **local features** like stickleback body armour or organelles| 
 
 
-# installation
+# tutorials
 
-(tested for windows with `Python 3.7` and `opencv 3.4.4`)
-
-1. install python3 with anaconda: https://www.anaconda.com/download/ chose python 3.x for your OS, download and install 
-2. if you have not done so during the installation, [add "conda" to your PATH](https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10) 
-
-If you have difficulties with these steps refer to these tutorials:
-
-- https://conda.io/docs/user-guide/install/windows.html
-- https://medium.com/@GalarnykMichael/install-python-on-windows-anaconda-c63c7c3d1444
-
-
-3. Install phenopype to your local python environment directly from github using `git` (dependencies will be installed on the fly):
-```
-conda install git
-pip install git+https://github.com/mluerig/phenopype
-```
-If you have difficulties installing the dependencies, try it manually...:
-
-- https://pypi.org/project/opencv-contrib-python/
-
-```
-pip install opencv-contrib-python 
-```
-
-# quickstart
-
-**WORK IN PROGRESS**
-
-Download this repository, open a command line /bash terminal, and cd to the example folder inside the repo. Assuming you have phenopype, it's dependencies and jupyter notebook installed (comes with scientific python distributions like Anaconda, see [above](#installation)), type `jupyter notebook` and open one of the [tutorials](tutorials):  
+Download and unpack this repository, open a command line /bash terminal, and cd to the example folder inside the repo. Assuming you have phenopype, it's dependencies and jupyter notebook installed (comes with scientific python distributions like Anaconda, see [above](#installation)), type `jupyter notebook` and open one of the [tutorials](tutorials):  
 
 * [0_python_intro.ipynb](tutorials/0_python_intro.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
 
