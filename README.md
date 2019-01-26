@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://github.com/mluerig/phenopype/blob/master/assets/phenopype_header.png" width="100%" />
+<img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/phenopype_header.png" />
 </p>
 
 **phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input. Like other scientific python packages it is designed to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/) or [pycharm](https://www.jetbrains.com/pycharm/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, install [install](https://pypi.org/project/phenopype/) it from the Python Package Index using `pip install phenopype` and check the [tutorials](#tutorials) to get started.  
