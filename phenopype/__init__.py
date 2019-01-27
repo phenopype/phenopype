@@ -1,18 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__all__ = []
+from ._version import __version__
 
-import pkgutil
-import inspect
-
-for loader, name, is_pkg in pkgutil.walk_packages(__path__):
-    module = loader.find_module(name).load_module(name)
-
-    for name, value in inspect.getmembers(module):
-        if name.startswith('__'):
-            continue
-
-        globals()[name] = value
-        __all__.append(name)
-
-from _version import __version__
+from .base import *
+from .utils import *

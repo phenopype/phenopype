@@ -8,7 +8,7 @@ Version 0.4.0
 import cv2
 import numpy as np
 import exifread
-from collections import Counter
+import collections as col
 
 #%% colours
 
@@ -37,7 +37,7 @@ def gray_scale(source, **kwargs):
     if "resize" in kwargs:
         img = cv2.resize(img, (0,0), fx=1*kwargs.get("resize"), fy=1*kwargs.get("resize")) 
     vec = np.ravel(img)
-    mc = Counter(vec).most_common(9)
+    mc = col.Counter(vec).most_common(9)
     g = [item[0] for item in mc]
     return int(np.median(g))
 

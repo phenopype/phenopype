@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Last Update: 2019/01/14
-Version 0.4.9
-@author: Moritz Lürig
-"""
+
 #%% import 
 
 import os
@@ -16,34 +12,38 @@ import sys
 
 import cv2
 import datetime
-from collections import Counter
+import collections as col
 
 from phenopype.utils import (red, green, blue, black, white)
 from phenopype.utils import (blur, exif_date, gray_scale)
 
 #%% classes
 class project:      
+    def __init__(self):
+
+        """
+        TEST
+        
+        """
+        
+        
     def project_maker(self, project_name, image_dir, **kwargs):
-        """ 
-        create project object where the results of the image analysis are saved
-        Parameters
-        ----------
-        project_name: str
-            name of your project
-        image_dir: str 
-            path to directory with images
-            
-        Parameters (optional)
-        ---------------------
-        exclude: list with str
-            single or multiple string patterns to exclude certain files
-        mode: str ("tree", "dir")
-            tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory
-        resize: int (>0 - 1)
-            global resizing of images to increase performance (1=original size)      
-        save_dir: str
-            path to directory where processed images and measurements are saved
-      
+        """ Create project object where the results of the image analysis are saved.
+        
+        Parameters:
+            project_name: str
+                name of your project
+            image_dir: str 
+                path to directory with images
+            exclude: list with str
+                single or multiple string patterns to exclude certain files
+            mode: str ("tree", "dir")
+                tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory
+            resize: int (>0 - 1)
+                global resizing of images to increase performance (1=original size)      
+            save_dir: str
+                path to directory where processed images and measurements are saved
+          
         """
         # initialize ----
         self.name = project_name
@@ -194,7 +194,7 @@ class project:
             if resize:
                 img = cv2.resize(img, (0,0), fx=1*resize, fy=1*resize) 
             vec = np.ravel(img)
-            mc = Counter(vec).most_common(9)
+            mc = col.Counter(vec).most_common(9)
             g = [item[0] for item in mc]
             med = int(np.median(g))
             self.gray_scale_list.append(med)
@@ -219,8 +219,13 @@ class project:
 
 
 class scale_maker:
+    """
+    Makes the scale
+    
+    """
+    
+    
     def __init__(self):
-
         # initialize -----
         self.done_step1 = False 
         self.done_step2 = False
@@ -230,6 +235,12 @@ class scale_maker:
         self.scale_px = 0
         
     def on_mouse_step1(self, event, x, y, buttons, user_param):
+        """controls mouse events.
+        
+        Parameters
+        ----------
+        
+        """
         if self.done_step1: # Nothing more to do
             return
         if event == cv2.EVENT_MOUSEMOVE:
@@ -576,16 +587,14 @@ class polygon_maker:
 
 class object_finder:
     def run(self,im_path, scale=1, **kwargs):
-        """ find objects in image via thresholding
+        """Find objects in image via thresholding.
+        
         Parameters
         ----------
         image: array_like
             image that contains your objects
         mode: str("single", "multi")
             detection of single largest object or multiple
-
-        Parameters (optional)
-        ---------------------
         blur_kern: int
             kernel size, bigger kernels remove small structures (default: 99)
         corr_factor: int
@@ -608,8 +617,8 @@ class object_finder:
             needs to be specified if 'binary' thresholding is used (default: 127)
 
 
-        Returns (optional)
-        ------------------
+        Returns 
+        -------
         image: array_like
             original input image (for further referencing)
         gray: array_like
@@ -621,6 +630,7 @@ class object_finder:
         contours: list
             list of contours (lists)
         """
+        
         # =============================================================================
         # INITIALIZE
         # =============================================================================
