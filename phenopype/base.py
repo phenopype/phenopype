@@ -13,28 +13,25 @@ import collections as col
 from phenopype.utils import (red, green, blue, black, white)
 from phenopype.utils import (blur, exif_date, gray_scale)
 
+
 #%% classes
+
 class project:      
     def __init__(self):
-
         """
-        TEST
-        
         """
-        
-        
-    def project_maker(self, project_name, image_dir, **kwargs):
-        """ Create project object where the results of the image analysis are saved.
+    def project_maker(self, project_name="my_project", image_dir="my_directory", **kwargs):
+        """Create project object where information from multiple image-analyses can be stored.
         
         Parameters:
-            project_name: str
-                name of your project
-            image_dir: str 
-                path to directory with images
             exclude: list with str
                 single or multiple string patterns to exclude certain files
+            image_dir: str 
+                path to directory with images
             mode: str ("tree", "dir")
                 tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory
+            project_name: str
+                name of your project
             resize: int (>0 - 1)
                 global resizing of images to increase performance (1=original size)      
             save_dir: str
