@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Last Update: 2018/10/02
-Version 0.4.0
-@author: Moritz Lürig
-"""
-
 import cv2
 import numpy as np
 import exifread

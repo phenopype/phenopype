@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-
-#%% import 
-
 import os
 import numpy as np
 import numpy.ma as ma
