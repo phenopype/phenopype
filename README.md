@@ -30,7 +30,7 @@ Download and unpack this repository, open a command line /bash terminal, and cd 
 
 * [0_python_intro.ipynb](tutorials/0_python_intro.ipynb) This tutorial is meant to provide a very short overview of the python code needed for basic phenopype workflow. This is useful if you have never used python before, but would like to be able to explore phenopype functionality on your own.
 
-* [1_basic_functions.ipynb](tutorials/1_basic_functions.ipynb) This tutorial demonstrates basic workflow with phenopype: the creation of a project, directories and how to use the functions alone and within a programmed loop.
+* [1_basic_functions.ipynb](tutorials/1_basic_workflow.ipynb) This tutorial demonstrates basic workflow with phenopype: the creation of a project, directories and how to use the functions alone and within a programmed loop.
 
 * [2_object_detection.ipynb](tutorials/2_object_detection.ipynb) This tutorial demonstrates how single or multiple objects can be detected and phenotyped in images. 
 
