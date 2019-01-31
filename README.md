@@ -2,7 +2,7 @@
 <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/phenopype_header.png" />
 </p>
 
-**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input. Like other scientific python packages it is designed to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, install [install](https://pypi.org/project/phenopype/) it from the Python Package Index using `pip install phenopype` and check the [tutorials](#tutorials) to get started.  
+**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input. Like other scientific python packages it is designed to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, [install](#installation) it from the Python Package Index using `pip install phenopype` and check the [tutorials](#tutorials) to get started.  
 
 
 ***
@@ -21,8 +21,25 @@ The program is still in alpha stage and development progresses slow - this is [m
 |<img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/object_tracking.gif" width="150%" />|Automatic **object tracking** that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes.|
 | <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/scale_detection.gif" width="150%" />|**Automatic scale detection** and pixel-size ratios adjustments. Performance depends on image size| 
 | <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/landmarks.gif" width="150%" />|Basic **landmarking** functionality - high throughput.| 
-| <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/local_features.gif" width="150%" />|Extract **local features** like stickleback body armour or organelles| 
+| <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/local_features.gif" width="150%" />|Extract **local features** like stickleback body armour| 
 
+
+# installation
+
+1. install python3 with anaconda: https://www.anaconda.com/download/ chose python 3.x for your OS, download and install 
+
+2. if you have not done so during the installation, [add "conda" to your PATH](https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10) 
+
+If you have difficulties with these steps refer to these tutorials:
+
+- https://conda.io/docs/user-guide/install/windows.html
+- https://medium.com/@GalarnykMichael/install-python-on-windows-anaconda-c63c7c3d1444
+
+3. Install phenopype using `pip`:
+
+```
+pip install phenopype
+```
 
 # tutorials
 
