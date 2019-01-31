@@ -16,38 +16,37 @@ from phenopype.utils import (blur, exif_date, gray_scale)
 
 #%% classes
 
-class project:      
-    def __init__(self):
-        """
-        """
-    def project_maker(self, project_name="my_project", image_dir="my_directory", **kwargs):
-        """Create project object where information from multiple image-analyses can be stored.
+class project_maker: 
+    """Create project object where information from multiple image-analyses can be stored. 
+    Also creates project dataframe where information from single images can be stored."""             
+    def run(self, project_name="my_project", image_dir="my_directory", **kwargs):
+        """Initialize project maker.
         
-        Parameters:
-            exclude: list with str
-                single or multiple string patterns to exclude certain files
-            image_dir: str 
-                path to directory with images
-            mode: str ("tree", "dir")
-                tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory
+        Parameters
+        ----------
             project_name: str
                 name of your project
-            resize: int (>0 - 1)
-                global resizing of images to increase performance (1=original size)      
+            image_dir: str 
+                path to directory with images
             save_dir: str
-                path to directory where processed images and measurements are saved
-          
+                path to directory where processed images and measurements are saved   
+            mode: str ("tree", "dir")
+                tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory 
+            include: 
+                single or multiple string patterns to target certain files to include - can be used together with exclude
+            exclude: list with str
+                single or multiple string patterns to target certain files to include - can be used together with include
+
+     
         """
+        
         # initialize ----
         self.name = project_name
         self.in_dir = image_dir
         self.save_dir = kwargs.get("save_dir", os.path.normpath(self.in_dir) + "_out")   
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-        
-        self.mode = kwargs.get("mode","tree")         
-        self.resize = kwargs.get("resize",1)
-        
+        self.mode = kwargs.get("mode","tree")                 
         self.filetypes = kwargs.get("filetypes", [])
         self.exclude = kwargs.get("exclude", [])
         self.include = kwargs.get("include", [])
@@ -180,7 +179,18 @@ class project:
 #    
     
     
-    def gray_scale_finder(self, resize=0.25, write=False):
+    def grayscale_finder(self, resize=0.25, write=False):
+        """Returns median grayscale value from all images inside the project image directory.
+        
+        Parameters
+        -----------
+        
+        resize: in (0.1-1)
+            resize image to increase speed 
+        write: bool, default False
+            write median grayscale to project dataframe
+            
+        """
         self.gray_scale_list = []
         for filepath, filename in zip(self.filepaths, self.filenames):
             img = cv2.imread(filepath,0)
@@ -196,8 +206,20 @@ class project:
         if write == True:
             self.df["gray_scale"] = self.gray_scale_list
     
+
     
     def save(self, **kwargs):
+        """Save project dataframe as .txt to directory. 
+        
+        Parameters
+        -----------
+        
+        append: str
+            append given project name with suffix
+        overwrite: bool, default False
+            overwrite an existing .txt-file
+            
+        """
         output = kwargs.get("save_dir",self.save_dir) # "out") #
         if "append" in kwargs:
             app = '_' + kwargs.get('append')
@@ -212,12 +234,7 @@ class project:
 
 
 class scale_maker:
-    """
-    Makes the scale
-    
-    """
-    
-    
+    """Define a colour or millimeter scale inside an image by grabbing it from the image, and automatically retrieve it in the following images."""
     def __init__(self):
         # initialize -----
         self.done_step1 = False 
@@ -227,13 +244,7 @@ class scale_maker:
         self.points_step2 = []
         self.scale_px = 0
         
-    def on_mouse_step1(self, event, x, y, buttons, user_param):
-        """controls mouse events.
-        
-        Parameters
-        ----------
-        
-        """
+    def _on_mouse_step1(self, event, x, y, buttons, user_param):
         if self.done_step1: # Nothing more to do
             return
         if event == cv2.EVENT_MOUSEMOVE:
@@ -246,8 +257,7 @@ class scale_maker:
                 self.points_step1 = self.points_step1[:-1]
                 print("Removing point #%d from scale outline" % (len(self.points_step1)+1))
 
-
-    def on_mouse_step2(self, event, x, y, buttons, user_param):
+    def _on_mouse_step2(self, event, x, y, buttons, user_param):
         if self.done_step2: # Nothing more to do
             return
         if event == cv2.EVENT_MOUSEMOVE:
@@ -265,7 +275,22 @@ class scale_maker:
             cv2.destroyWindow("phenopype")
 
 
-    def grab(self, image_path, length, **kwargs): 
+    def grab(self, image_path="path_to_image", length=10, unit="mm", **kwargs): 
+        """Make a template of a colour or mm scale by drawing into an image. 
+        
+        Parameters
+        ----------
+            image_path: str
+                absolute or relative path to your image containing the template
+            length: in 
+                distance to measure between two points
+            unit: str 
+                unit that the scale should be in
+            mode: str ("box" or "polygon")
+                grab the scale with a polygon or a box
+            zoom: bool (default: False)
+                zoom into the scale after drawin it for higher accuracy
+        """
         
         # initialize # ----------------
         image = cv2.imread(image_path)
@@ -286,7 +311,7 @@ class scale_maker:
 
         print("\nMark the outline of the scale by left clicking, remove points by right clicking, finish with enter.")
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback("phenopype", self.on_mouse_step1)
+        cv2.setMouseCallback("phenopype", self._on_mouse_step1)
         temp_canvas_1 = copy.deepcopy(image)
         
         if mode == "polygon":
@@ -341,7 +366,7 @@ class scale_maker:
         
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         temp_canvas_2 = copy.deepcopy(temp_canvas_1)
-        cv2.setMouseCallback("phenopype", self.on_mouse_step2)
+        cv2.setMouseCallback("phenopype", self._on_mouse_step2)
         
         while(not self.done_step2):
             if (len(self.points_step2) > 0):
@@ -368,7 +393,6 @@ class scale_maker:
               
         self.image_zoomed = temp_canvas_2
 
-
         # SCALE
         self.measured = self.scale_px/length
         self.current = self.measured
@@ -383,7 +407,17 @@ class scale_maker:
 
 
     def detect(self, image_path, **kwargs):
+        """Find scale from a defined template inside an image and update pixel ratio. Feature detection is run by the AKAZE algorithm (http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf).  
         
+        Parameters
+        -----------
+        image_path: str
+            absolute or relative path to your image containing the template
+        show: bool
+            show result of scale detection procedure on current image   
+        resize: in (0.1-1)
+            resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)
+        """
         # initialize ------------------
         self.image_target = cv2.imread(image_path)
         image_target = self.image_target 
@@ -497,15 +531,15 @@ class scale_maker:
 
         
 class polygon_maker:
+    """Draw a rectangle or polygon space onto an image to mark an area to be included."""        
     def __init__(self):
-
         # initialize # ----------------
         self.done = False # Flag signalling we're done
         self.current = (0, 0) # Current position, so we can draw the line-in-progress
         self.points = [] # List of points defining our polygon
         self.idx = 0
 
-    def on_mouse(self, event, x, y, buttons, user_param):
+    def _on_mouse(self, event, x, y, buttons, user_param):
         if self.done: # Nothing more to do
             return
         if event == cv2.EVENT_MOUSEMOVE:
@@ -523,14 +557,25 @@ class polygon_maker:
             else:
                 print("No points to delete")
                 
-    def draw(self, image_path,**kwargs):
+    def draw(self, image_path="path_to_image", **kwargs):
+        """Initialize polygon_maker.
+        
+        Parameters
+        ----------
+
+        image_path: str
+            absolute or relative path to your image containing the template
+        mode: str ("box" or "polygon")
+            draw the scale with a polygon or a box
+        """
         image = cv2.imread(image_path)
         mode = kwargs.get("mode","box")
+        
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback("phenopype", self.on_mouse)
+        cv2.setMouseCallback("phenopype", self._on_mouse)
         temp_canvas = copy.deepcopy(image)
         if mode == "polygon":
             # =============================================================================
@@ -575,53 +620,36 @@ class polygon_maker:
             cv2.waitKey(1)
             cv2.destroyAllWindows()
 
-#        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
-#        cv2.imshow('phenopype',  img)
-
 class object_finder:
-    def run(self,im_path, scale=1, **kwargs):
+    def run(self, image_path, scale, **kwargs):
         """Find objects in image via thresholding.
         
         Parameters
         ----------
-        image: array_like
-            image that contains your objects
+
+        image_path: str
+            absolute or relative path to your image containing the objects
         mode: str("single", "multi")
             detection of single largest object or multiple
-        blur_kern: int
-            kernel size, bigger kernels remove small structures (default: 99)
+        thresholding: list 
+            type of thresholding: 
+                - "binary" needs an interger for the threshold value (default 127), 
+                - "adaptive" needs odd integer for blocksize (default: 99) and constant to be subtracted (default 1) 
+                - for more info see https://docs.opencv.org/3.4.4/d7/d4d/tutorial_py_thresholding.html
+        resize: in (0.1-1)
+            resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)  
+        blur1: int
+            first pass blurring kernel size (before thresholding)
+        blur2: list
+            second pass blurring kernel size (after thresholding) and binary thresholding value (default 127)   
         corr_factor: int
             factor (in px) to add to (positive int) or subtract from (negative int) object (default: 0)
         gray_value_ref: int (0-255)
             reference gray scale value to adjust the given picture's histogram to
-        iterations: int
-            needs to be specified if 'adaptive' thresholding is used (default: 3)
         min_diam: int
             minimum diameter (longest distance in contour) in pixels for objects to be included (default: 0)
         min_area: int
             minimum contour area in pixels for objects to be included (default: 0)
-        resize: in (0-1)
-            resize image to speed up detection process(WARNING: may result in poor detection results)
-        sensitivity: int (odd)
-            needs to be specified if 'adaptive' thresholding is used (default: 99)
-        thresholding: {'binary', 'adaptive', 'otsu'}
-            type of thresholding (default: binary)
-        thresh_val: int (0-255)
-            needs to be specified if 'binary' thresholding is used (default: 127)
-
-
-        Returns 
-        -------
-        image: array_like
-            original input image (for further referencing)
-        gray: array_like
-            input image as grayscale
-        blurred: array_like
-            blurred grayscale image
-        thresh: array_like (binary)
-            thresholded grayscale image
-        contours: list
-            list of contours (lists)
         """
         
         # =============================================================================
@@ -630,15 +658,16 @@ class object_finder:
         
         # LOAD 
         self.mode =  kwargs.get('mode', "multi")
-        self.image = cv2.imread(im_path)
+        self.image = cv2.imread(image_path)
         self.image_copy = self.image
         resize = kwargs.get("resize", 1)
         self.image = cv2.resize(self.image, (0,0), fx=1*resize, fy=1*resize) 
-        self.filename = os.path.basename(im_path)
-        
+        self.filename = os.path.basename(image_path)
+        self.operations = kwargs.get('operations', ["area", "diameter","grayscale"])
+        self.scale = scale
         # GET IMAGE DATE
         try:
-            self.date_taken = exif_date(im_path)
+            self.date_taken = exif_date(image_path)
         except:
             self.date_taken = "NA"
         self.date_analyzed = str(datetime.datetime.now())[:19]
@@ -675,14 +704,24 @@ class object_finder:
             
         # THRESHOLDING   
         method = kwargs.get('method', ("otsu",""))
-        thresholding = method[0]
-        
+        if isinstance(method, list):
+            thresholding = method[0]
+            self.thresholding = method[0]
+        else:
+            sys.exit("Error - list expected for thresholding-method")
+            
         if thresholding == "otsu":
             ret, self.thresh = cv2.threshold(self.blurred,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         elif thresholding == "adaptive":
+            if not method[1]:
+                method[1] = 99
+            if not method[2]:
+                method[2] = 1
             self.thresh = cv2.adaptiveThreshold(self.blurred,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,method[1], method[2])
         elif thresholding == "binary":
-            ret, self.thresh = cv2.threshold(self.blurred,method[1], 255,cv2.THRESH_BINARY_INV)
+            if not method[1]:
+                method[1] = 127
+            ret, self.thresh = cv2.threshold(self.blurred,method[1], 255,cv2.THRESH_BINARY_INV)  
         self.morph = self.thresh
                    
         # BLUR 2ND PASS
@@ -695,20 +734,21 @@ class object_finder:
         # BORDER CORRECTION FACTOR
         if "corr_factor" in kwargs:
             corr_factor = kwargs.get("corr_factor")
-            size = abs(corr_factor[0])
-            iterations = corr_factor[1]
             
-            if corr_factor[2] == "cross":
+            size = abs(corr_factor[1])
+            iterations = corr_factor[2]
+            
+            if corr_factor[0] == "cross":
                 kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(size,size))
-            elif corr_factor[2] == "ellipse":
+            elif corr_factor[0] == "ellipse":
                 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(size,size))
             else:
                 kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(size,size))
-            
+                       
             corr_factor = kwargs.get('corr_factor', 0)
-            if corr_factor[0] < 0:
+            if corr_factor[1] < 0:
                 self.morph = cv2.erode(self.morph, kernel, iterations = iterations)
-            if corr_factor[0] > 0:
+            if corr_factor[1] > 0:
                 self.morph = cv2.dilate(self.morph, kernel, iterations = iterations)
 
     
@@ -719,22 +759,26 @@ class object_finder:
             self.morph = cv2.subtract(self.morph,self.mask)
             self.morph[self.morph==1] = 0
 
+
+        df_list = []
+        df_column_names = []
+        label = kwargs.get("label", True)
+
+
         # =============================================================================
         # MULTI-MODE
         # =============================================================================
+
 
         if self.mode == "multi":
             idx = 0
             idx_noise = 0
             length_idx = 0
-            area_idx = 0
-            df_list = []
-            
-            label = kwargs.get("label", True)
-            
-            self.roi_bgr_list = []
-            self.roi_gray_list = []
-            self.roi_mask_list = []
+            area_idx = 0       
+           
+#            self.roi_bgr_list = []
+#            self.roi_gray_list = []
+#            self.roi_mask_list = []
             
             ret, self.contours, hierarchy = cv2.findContours(self.morph,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             
@@ -746,10 +790,10 @@ class object_finder:
                         # SIZE / AREA CHECK
                         (x,y),radius = cv2.minEnclosingCircle(cnt)
                         x, y= int(x), int(y)
-                        length = int(radius * 2)
+                        diameter = int(radius * 2)
                         area = int(cv2.contourArea(cnt))
                         cont = True
-                        if not length > kwargs.get('min_diam', 0):
+                        if not diameter > kwargs.get('min_diam', 0):
                             length_idx += 1
                             cont = False
                         if not area > kwargs.get('min_area', 0):
@@ -759,38 +803,74 @@ class object_finder:
                             idx += 1
                             rx,ry,rw,rh = cv2.boundingRect(cnt)
                             
-                            # GET VALUES FROM MASKED ROI
-                            grayscale =  ma.array(data=self.gray[ry:ry+rh,rx:rx+rw], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                            b =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,0], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                            g =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,1], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                            r =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,2], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                            mean1 = int(np.mean(grayscale)) # mean grayscale value
-                            sd1 = int(np.std(grayscale)) # standard deviation of grayscale values
-                            bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
-                            bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
-                            df_list.append([self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length, area, mean1, sd1, bgr1, bgr_sd1])
-                            self.roi_bgr_list.append(self.image[ry:ry+rh,rx:rx+rw,])
-                            self.roi_gray_list.append(self.gray[ry:ry+rh,rx:rx+rw,])
-                            self.roi_mask_list.append(self.thresh[ry:ry+rh,rx:rx+rw])
+                            cnt_list = []
+                            cnt_list = cnt_list + ([self.filename, self.date_taken, self.date_analyzed, idx, x, y, self.scale])
+                            df_column_names = []          
+                            df_column_names = df_column_names + ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale"]    
+                            
+                            # =============================================================================
+                            # OPERATIONS TO PERFORM ON MASKED IMAGE                            
+                            # =============================================================================
+
+                            if any("diameter" in o for o in self.operations):
+                                cnt_list.append(diameter)
+                                df_column_names.append("diameter")
+
+                            if any("skeletonize" in o for o in self.operations):
+                                cnt_mask = np.zeros(self.gray.shape, np.uint8)
+                                img_cnt = cv2.drawContours(cnt_mask, [cnt], 0, white,-1)
+                                skeleton=cv2.ximgproc.thinning(img_cnt)                                
+                                skel_ret, skel_contour, skel_hierarchy = cv2.findContours(skeleton,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)  
+                                skel_contour = skel_contour[0]
+                                skeleton_dist = int(cv2.arcLength(skel_contour, closed=False)/2/self.scale)
+                                cnt_list.append(skeleton_dist)
+                                df_column_names.append("skeleton_dist")                               
+
+                            if any("area" in o for o in self.operations):
+                                cnt_list.append(area)                                
+                                df_column_names.append("area")
+        
+                            if any("grayscale" in o for o in self.operations):
+                                grayscale =  ma.array(data=self.gray[ry:ry+rh,rx:rx+rw], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                                grayscale_mean = int(np.mean(grayscale)) 
+                                grayscale_sd = int(np.std(grayscale)) 
+                                cnt_list = cnt_list + [grayscale_mean, grayscale_sd]
+                                df_column_names = df_column_names + ["grayscale_mean","grayscale_sd"]
+        
+                            if any("bgr" in o for o in self.operations):
+                                b =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,0], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                                g =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,1], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                                r =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,2], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                                bgr_mean = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
+                                bgr_sd = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
+                                cnt_list = cnt_list + [bgr_mean, bgr_sd]
+                                df_column_names = df_column_names + ["bgr_mean","bgr_sd"]
+                                
+                            df_list.append(cnt_list)    
+                              
+#                            self.roi_bgr_list.append(self.image[ry:ry+rh,rx:rx+rw,])
+#                            self.roi_gray_list.append(self.gray[ry:ry+rh,rx:rx+rw,])
+#                            self.roi_mask_list.append(self.thresh[ry:ry+rh,rx:rx+rw])
 
                             # DRAW TO ROI
                             q=kwargs.get("roi_size",300)/2
                             if label==True:
                                 cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
                             cv2.drawContours(self.drawn, [cnt], 0, blue, 4)
+                            if any("skeletonize" in o for o in self.operations):                    
+                                cv2.drawContours(self.drawn, [skel_contour], 0, green, 2)
+
                     else:
                         idx_noise += 1
             else: 
                 print("No objects found - change parameters?")
             
-
-
+                        
         # =============================================================================
         # SINGLE-MODE
         # =============================================================================
                 
         elif self.mode =="single":
-            df_list = []
             ret, self.contours, hierarchy = cv2.findContours(self.morph,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)
             
             # LOOP THROUGH CONTOURS AND PICK LARGEST
@@ -799,32 +879,64 @@ class object_finder:
                 cnt = self.contours[np.argmax(areas)]
                 (x,y),radius = cv2.minEnclosingCircle(cnt)
                 x, y= int(x), int(y)
-                length1 = int(radius * 2)
-                area1 = int(cv2.contourArea(cnt))
-                if length1 > kwargs.get('min_diam', 0) and area1 > kwargs.get('min_area', 0):
+                diameter = int(radius * 2)
+                area = int(cv2.contourArea(cnt))
+                if diameter > kwargs.get('min_diam', 0) and area > kwargs.get('min_area', 0):
                     # return contour
                     self.contour = cnt
-                    
                     idx = 1
                     rx,ry,rw,rh = cv2.boundingRect(cnt)
                     
-                    # GET VALUES FROM MASKED ROI
-                    grayscale =  ma.array(data=self.gray[ry:ry+rh,rx:rx+rw], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                    b =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,0], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                    g =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,1], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                    r =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,2], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                    mean1 = int(np.mean(grayscale)) # mean grayscale value
-                    sd1 = int(np.std(grayscale)) # standard deviation of grayscale values
-                    bgr1 = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
-                    bgr_sd1 = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
-                    df_list = [[self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale, length1, area1, mean1, sd1, bgr1, bgr_sd1]]
+                    df_list = df_list + [self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale]
+                    df_column_names = df_column_names + ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale"]    
+                    
+                    # =============================================================================
+                    # OPERATIONS TO PERFORM ON MASKED IMAGE                            
+                    # =============================================================================
+
+
+                    if any("diameter" in o for o in self.operations):
+                        df_list.append(diameter)
+                        df_column_names.append("diameter")
+                        
+                    if any("skeletonize" in o for o in self.operations):
+                        cnt_mask = np.zeros(self.gray.shape, np.uint8)
+                        img_cnt = cv2.drawContours(cnt_mask, [cnt], 0, white,-1)
+                        skeleton=cv2.ximgproc.thinning(img_cnt)                                
+                        skel_ret, skel_contour, skel_hierarchy = cv2.findContours(skeleton,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)  
+                        skel_contour = skel_contour[0]
+                        skeleton_dist = int(cv2.arcLength(skel_contour, closed=False)/2/self.scale)
+                        df_list.append(skeleton_dist)
+                        df_column_names.append("skeleton_dist")                
+                
+                    if any("area" in o for o in self.operations):
+                        df_list.append(area)                                
+                        df_column_names.append("area")
+
+                    if any("grayscale" in o for o in self.operations):
+                        grayscale =  ma.array(data=self.gray[ry:ry+rh,rx:rx+rw], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                        grayscale_mean = int(np.mean(grayscale)) 
+                        grayscale_sd = int(np.std(grayscale)) 
+                        df_list = df_list + [grayscale_mean, grayscale_sd]
+                        df_column_names = df_column_names + ["grayscale_mean","grayscale_sd"]
+
+                    if any("bgr" in o for o in self.operations):
+                        b =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,0], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                        g =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,1], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                        r =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,2], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
+                        bgr_mean = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
+                        bgr_sd = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
+                        df_list = df_list + [bgr_mean, bgr_sd]
+                        df_column_names = df_column_names + ["bgr_mean","bgr_sd"]
 
                     # DRAW TO ROI
                     if "roi_size" in kwargs:
                         q=kwargs.get("roi_size",300)/2
                         cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
                     cv2.drawContours(self.drawn, [cnt], 0, blue, int(10 * resize))
-                    
+                    if any("skeletonize" in o for o in self.operations):                    
+                        cv2.drawContours(self.drawn, [skel_contour], 0, green, 2)
+
                 else: 
                     print("Object not bigger than minimum diameter or area")
             else: 
@@ -833,12 +945,15 @@ class object_finder:
         # =============================================================================
         # RETURN DF AND IMAGE
         # =============================================================================    
-
+        
         # CREATE DF
-        if len(df_list)>0:
-            self.df = pd.DataFrame(data=df_list, columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
+        
+        if any(isinstance(el, list) for el in df_list):
+            self.df = pd.DataFrame(data=df_list, columns = df_column_names)
+        elif len(df_list)>0:
+            self.df = pd.DataFrame(data=[df_list], columns = df_column_names)
         else: 
-            self.df = pd.DataFrame(data=[["NA"] * 13], columns = ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale","length1", "area1", "mean1", "sd1", "bgr1", "bgr_sd1"])
+            self.df = pd.DataFrame(data=[["NA"] * len(df_column_names)], columns = df_column_names)
         self.df.set_index('filename', drop=True, inplace=True)
         
         if hasattr(self,'gray_corr_factor'):
@@ -850,7 +965,7 @@ class object_finder:
         # SHOW DF
         if "df" in show:        
 
-            self.df_short = self.df[["idx", "length1", "area1","mean1"]]
+            self.df_short = self.df[["idx", "diameter", "area"]]
             self.df_short.set_index("idx", inplace=True)
             
             all_pts = len(self.contours)
