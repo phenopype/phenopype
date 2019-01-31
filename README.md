@@ -2,13 +2,13 @@
 <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/phenopype_header.png" />
 </p>
 
-**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input. Like other scientific python packages it is designed to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, [install](#installation) it from the Python Package Index using `pip install phenopype` and check the [tutorials](#tutorials) to get started.  
+**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input in a semi, or fully automated fashion. At the moment it is set up to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, [install](#installation) it from the Python Package Index using `pip install phenopype`. You also may want to clone this repository so you can use the [tutorials](#tutorials) to get started.  
 
 
 ***
 **DISCLAIMER: ONGOING DEVELOPMENT**
 
-The program is still in alpha stage and development progresses slow - this is [me](https://luerig.net) trying to write a program, while learning python and finishing a PhD. A few core features like blob-counting, object detection or videotracking work ([see below](#features)), more detailed documentation is in the making. Please feel free contact me if you need bugfixing, or have requests for features, and I will get back to you as soon as I can.
+The program is still in alpha stage and development progresses slow - this is [me](https://luerig.net) trying to write a program, while learning to code properly in the first place, next to my everyday work. A few core features like blob-counting, object detection or videotracking work ([see below](#features)), more detailed documentation is in the making. If things are not working as expect, please do get in touch and I will try my best to help. 
 
 ***
 
