@@ -26,20 +26,21 @@ The program is still in alpha stage and development progresses slow - this is [m
 
 # installation
 
-1. install python3 with anaconda: https://www.anaconda.com/download/ chose python 3.x for your OS, download and install 
+1. install python3 with anaconda: go to https://www.anaconda.com/download/, chose python 3.x for your OS, download install it 
 
 2. if you have not done so during the installation, [add "conda" to your PATH](https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10) 
 
-If you have difficulties with these steps refer to these tutorials:
-
-- https://conda.io/docs/user-guide/install/windows.html
-- https://medium.com/@GalarnykMichael/install-python-on-windows-anaconda-c63c7c3d1444
-
-3. Install phenopype using `pip`:
-
+3. Install phenopype using `pip` in your terminal or command line:
 ```
 pip install phenopype
 ```
+
+If you are having difficulties refer to these tutorials:
+
+   - https://conda.io/docs/user-guide/install/windows.html
+   - https://medium.com/@GalarnykMichael/install-python-on-windows-anaconda-c63c7c3d1444
+   - https://datatofish.com/install-package-python-using-pip/
+
 
 # tutorials
 
