@@ -19,7 +19,7 @@ from phenopype.utils import (blur, exif_date, gray_scale)
 class project_maker: 
     """Create project object where information from multiple image-analyses can be stored. 
     Also creates project dataframe where information from single images can be stored."""             
-    def run(self, project_name="my_project", image_dir="my_directory", **kwargs):
+    def run(self, project_name, image_dir, **kwargs):
         """Initialize project maker.
         
         Parameters
@@ -40,7 +40,10 @@ class project_maker:
      
         """
         
-        # initialize ----
+        # =============================================================================
+        # INITIALIZE
+        # =============================================================================
+        
         self.name = project_name
         self.in_dir = image_dir
         self.save_dir = kwargs.get("save_dir", os.path.normpath(self.in_dir) + "_out")   
@@ -179,7 +182,7 @@ class project_maker:
 #    
     
     
-    def grayscale_finder(self, resize=0.25, write=False):
+    def grayscale_finder(self, write, **kwargs):
         """Returns median grayscale value from all images inside the project image directory.
         
         Parameters
@@ -191,21 +194,28 @@ class project_maker:
             write median grayscale to project dataframe
             
         """
+        
+        write = kwargs.get('write', False)
+
+        
         self.gray_scale_list = []
         for filepath, filename in zip(self.filepaths, self.filenames):
-            img = cv2.imread(filepath,0)
-            if resize:
-                img = cv2.resize(img, (0,0), fx=1*resize, fy=1*resize) 
-            vec = np.ravel(img)
+            image = cv2.imread(filepath,0)
+            
+            if (image.shape[0] + image.shape[1])/2 > 2000:
+                factor = kwargs.get('resize', 0.5)
+                image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
+
+            vec = np.ravel(image)
             mc = col.Counter(vec).most_common(9)
             g = [item[0] for item in mc]
             med = int(np.median(g))
             self.gray_scale_list.append(med)
             print(filename + ": " + str(med))
         print("\nMean grayscale in directory: " + str(int(np.mean(self.gray_scale_list))))
+        
         if write == True:
             self.df["gray_scale"] = self.gray_scale_list
-    
 
     
     def save(self, **kwargs):
@@ -275,14 +285,14 @@ class scale_maker:
             cv2.destroyWindow("phenopype")
 
 
-    def grab(self, image_path="path_to_image", length=10, unit="mm", **kwargs): 
+    def grab(self, image, **kwargs): 
         """Make a template of a colour or mm scale by drawing into an image. 
         
         Parameters
         ----------
-            image_path: str
-                absolute or relative path to your image containing the template
-            length: in 
+            image: str or array
+                absolute or relative path to OR numpy array of image containing the template 
+            value: int 
                 distance to measure between two points
             unit: str 
                 unit that the scale should be in
@@ -292,14 +302,20 @@ class scale_maker:
                 zoom into the scale after drawin it for higher accuracy
         """
         
-        # initialize # ----------------
-        image = cv2.imread(image_path)
+        # =============================================================================
+        # INITIALIZE
+        # =============================================================================
+        
+        if isinstance(image, str):
+            image = cv2.imread(image)        
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         unit = kwargs.get('unit', "mm")
         mode = kwargs.get('mode', "box")
-        zoom = kwargs.get('zoom', False)
-        # crop = kwargs.get('crop', True)
+        zoom = kwargs.get('zoom', False)        
+        value = kwargs.get("value", 10)
+        if not "value" in kwargs:
+            print("Warning - no value for scale specified. Defaulting to 10 mm")
         
 #        if "resize" in kwargs:
 #            factor = kwargs.get('resize', 0.5)
@@ -380,7 +396,7 @@ class scale_maker:
             
         print("\n")
         print("------------------------------------------------")
-        print("Finished - your scale has %s pixel per %s %s." % (self.scale_px, length, unit))
+        print("Finished - your scale has %s pixel per %s %s." % (self.scale_px, value, unit))
         print("------------------------------------------------")
         print("\n")
 
@@ -394,7 +410,7 @@ class scale_maker:
         self.image_zoomed = temp_canvas_2
 
         # SCALE
-        self.measured = self.scale_px/length
+        self.measured = self.scale_px/value
         self.current = self.measured
 
         # REFERENCE
@@ -406,20 +422,27 @@ class scale_maker:
         self.mask = cv2.fillPoly(zeros, [np.array(self.points_step1, dtype=np.int32)], white)
 
 
-    def detect(self, image_path, **kwargs):
+    def detect(self, image, **kwargs):
         """Find scale from a defined template inside an image and update pixel ratio. Feature detection is run by the AKAZE algorithm (http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf).  
         
         Parameters
         -----------
-        image_path: str
-            absolute or relative path to your image containing the template
+        image: str or array
+            absolute or relative path to OR numpy array of image containing the scale 
         show: bool
             show result of scale detection procedure on current image   
         resize: in (0.1-1)
             resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)
         """
-        # initialize ------------------
-        self.image_target = cv2.imread(image_path)
+        
+        # =============================================================================
+        # INITIALIZE
+        # =============================================================================
+        
+        if isinstance(image, str):
+            self.image_target = cv2.imread(image)
+        self.image_target = image
+
         image_target = self.image_target 
         image_original = self.image_original_template
         
@@ -458,8 +481,7 @@ class scale_maker:
         
         # =============================================================================
         # AKAZE detector
-        # =============================================================================
-        
+        # =============================================================================     
         akaze = cv2.AKAZE_create()
         kp1, des1 = akaze.detectAndCompute(image_original,self.mask_original_template)
         kp2, des2 = akaze.detectAndCompute(image_target,None)       
@@ -557,30 +579,36 @@ class polygon_maker:
             else:
                 print("No points to delete")
                 
-    def draw(self, image_path="path_to_image", **kwargs):
+    def draw(self, image, **kwargs):
         """Initialize polygon_maker.
         
         Parameters
         ----------
 
-        image_path: str
-            absolute or relative path to your image containing the template
-        mode: str ("box" or "polygon")
+        image: str or array
+            absolute or relative path to OR numpy array of image 
+        mode: str ("rectangle" or "polygon")
             draw the scale with a polygon or a box
         """
-        image = cv2.imread(image_path)
-        mode = kwargs.get("mode","box")
         
+        if isinstance(image, str):
+            image = cv2.imread(image)
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
+            
+        mode = kwargs.get("mode","rectangle")
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         cv2.setMouseCallback("phenopype", self._on_mouse)
         temp_canvas = copy.deepcopy(image)
+        
+        print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
+
+        
+        # =============================================================================
+        # draw polygon 
+        # =============================================================================
+        
         if mode == "polygon":
-            # =============================================================================
-            # draw polygon outline
-            # =============================================================================
             while(not self.done):
                 if (len(self.points) > 0):
                     cv2.polylines(temp_canvas, np.array([self.points]), False, green, 3)
@@ -594,9 +622,14 @@ class polygon_maker:
                 elif cv2.waitKey(50) & 0xff == 27:
                     cv2.destroyWindow("phenopype")
                     break
-                    sys.exit("phenopype process stopped")            
+                    sys.exit("phenopype process stopped") 
+                    
+                    
+        # =============================================================================
+        # draw rectangle 
+        # =============================================================================             
                 
-        elif mode == "box":
+        elif mode == "rectangle":
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
             (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
             if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
@@ -621,14 +654,14 @@ class polygon_maker:
             cv2.destroyAllWindows()
 
 class object_finder:
-    def run(self, image_path, scale, **kwargs):
+    def run(self, image, **kwargs):
         """Find objects in image via thresholding.
         
         Parameters
         ----------
 
-        image_path: str
-            absolute or relative path to your image containing the objects
+            image: str or array
+                absolute or relative path to OR numpy array of image containing the objects 
         mode: str("single", "multi")
             detection of single largest object or multiple
         thresholding: list 
@@ -655,23 +688,29 @@ class object_finder:
         # =============================================================================
         # INITIALIZE
         # =============================================================================
-        
-        # LOAD 
-        self.mode =  kwargs.get('mode', "multi")
-        self.image = cv2.imread(image_path)
-        self.image_copy = self.image
+
+        if isinstance(image, str):
+            self.image = cv2.imread(image)
+            self.filename = os.path.basename(image)
+            try:
+                self.date_taken = exif_date(image)
+            except:
+                self.date_taken = "NA"       
+        elif isinstance(image, (list, tuple, np.ndarray)):
+            self.image = image
+
         resize = kwargs.get("resize", 1)
         self.image = cv2.resize(self.image, (0,0), fx=1*resize, fy=1*resize) 
-        self.filename = os.path.basename(image_path)
+        
+        if not "scale" in kwargs:
+            print("Warning - no scale specified")
+        self.scale = kwargs.get("scale", 1)
+        
+        self.mode =  kwargs.get('mode', "multi")
         self.operations = kwargs.get('operations', ["area", "diameter","grayscale"])
-        self.scale = scale
-        # GET IMAGE DATE
-        try:
-            self.date_taken = exif_date(image_path)
-        except:
-            self.date_taken = "NA"
         self.date_analyzed = str(datetime.datetime.now())[:19]
-            
+
+
         # APPLY GRAY-CORRECTION FACTOR TO GRAYSCALE IMAGE AND ROI
         self.gray = cv2.cvtColor(self.image,cv2.COLOR_BGR2GRAY)
         if 'gray_value_ref' in kwargs:
@@ -887,13 +926,12 @@ class object_finder:
                     idx = 1
                     rx,ry,rw,rh = cv2.boundingRect(cnt)
                     
-                    df_list = df_list + [self.filename, self.date_taken, self.date_analyzed, idx, x, y, scale]
+                    df_list = df_list + [self.filename, self.date_taken, self.date_analyzed, idx, x, y, self.scale]
                     df_column_names = df_column_names + ["filename","date_taken", "date_analyzed", "idx", "x", "y", "scale"]    
                     
                     # =============================================================================
                     # OPERATIONS TO PERFORM ON MASKED IMAGE                            
                     # =============================================================================
-
 
                     if any("diameter" in o for o in self.operations):
                         df_list.append(diameter)

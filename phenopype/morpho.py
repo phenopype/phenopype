@@ -54,11 +54,14 @@ class landmark_module:
             else:
                 print("No landmarks to delete")
 
-    def draw(self, image_path, **kwargs):
+    def draw(self, image, **kwargs):
         
-        # initialize -----
-        self.image = cv2.imread(image_path)
-        self.filename = kwargs.get("image_name", os.path.basename(image_path))
+        if isinstance(image, str):
+            self.image = cv2.imread(image)
+            self.filename = os.path.basename(image)
+        elif isinstance(image, (list, tuple, np.ndarray)):
+            self.image = image
+            
         size = kwargs.get("size", int(((self.image.shape[0]+self.image.shape[1])/2)/150))
         col = kwargs.get("col", green)
         
