@@ -1101,9 +1101,4 @@ class object_finder:
                 df.to_csv(path_or_buf=df_path, sep="\t", index=False)
         else:
                 df.to_csv(path_or_buf=df_path, sep="\t", index=False)
-                    
-                    
-
-
-
 
