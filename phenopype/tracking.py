@@ -95,8 +95,8 @@ class motion_tracker(object):
 
         self.skip = kwargs.get("skip", 5)
         self.wait = kwargs.get("start_after", 15)
-        if "finish_after" in kwargs:
-            self.finish = kwargs.get("finish_after")
+        self.finish = kwargs.get("finish_after", 0)
+
         history = kwargs.get("history", 60)
         backgr_thresh = kwargs.get("backgr_thresh", 10)        
         self.detect_shadows = kwargs.get("detect_shadows", True)
@@ -111,7 +111,7 @@ class motion_tracker(object):
         print("\n")
         print("----------------------------------------------------------------")
         print("Motion detection settings - \"" + self.name + "\":\n")
-        print("\n\"History\"-parameter: " + str(history) + " seconds" + "\nSensitivity: " + str(backgr_thresh) + "\nRead every nth frame: " + str(self.skip) + "\nDetect shadows: " + str(self.detect_shadows) + "\nStart after n seconds: " + str(self.wait) + "\nFinish after n seconds: " + str(self.finish if self.finish else " - ")) 
+        print("\n\"History\"-parameter: " + str(history) + " seconds" + "\nSensitivity: " + str(backgr_thresh) + "\nRead every nth frame: " + str(self.skip) + "\nDetect shadows: " + str(self.detect_shadows) + "\nStart after n seconds: " + str(self.wait) + "\nFinish after n seconds: " + str(self.finish if self.finish > 0 else " - ")) 
         print("----------------------------------------------------------------")
               
          
@@ -126,7 +126,7 @@ class motion_tracker(object):
         self.idx1, self.idx2 = (0,0)
         self.capture = cv2.VideoCapture(self.path)        
         self.wait_frame = self.wait * self.fps
-        if self.finish:
+        if self.finish > 0:
             self.finish_frame = self.finish * self.fps
             
 
@@ -143,7 +143,7 @@ class motion_tracker(object):
             self.idx1, self.idx2 = (self.idx1 + 1,  self.idx2 + 1)    
             if self.idx2 == self.skip:
                 self.idx2 = 0    
-            if self.finish_frame:
+            if self.finish > 0:
                 if self.idx1 >= self.finish_frame:
                     break
                              
@@ -324,7 +324,14 @@ class tracking_method(object):
                         
                     if any("grayscale_background" in o for o in self.operations):
                         grayscale_background =  ma.array(data=frame_roi_gray, mask = mask_roi)
-                        list_grayscale_background.append(int(np.mean(grayscale_background)) )
+                        if not grayscale_background.mask.all():
+                            list_grayscale_background.append(int(np.mean(grayscale_background)))
+                        else:
+                            list_grayscale_background.append(9999)
+                            
+                        
+                        
+                        
     
                     if any("bgr" in o for o in self.operations):
                         b = ma.array(data=frame_roi[:,:,0], mask = np.logical_not(mask_roi))
@@ -385,95 +392,3 @@ class tracking_method(object):
         
         
 
-
-
-## =============================================================================
-## FISH MODULE
-## =============================================================================
-#fish = fish_module(frame, fgmask, shadows_fish, blur_kern_fish, blur_thresh_fish, min_length_fish)   
-#if not fish.empty :
-#    f = pd.DataFrame(data=fish.center, columns = list("xy"))
-#    if skip > 0:
-#        f["frame"] = idx1/skip         
-#    else:
-#        f["frame"] = idx1        
-#    df_fish=df_fish.append(f)      
-#frame_out = fish.draw(frame_out, ["contour", "ellipse", "text"])
-#
-#
-## =============================================================================
-## ISOPOD MODULE
-## =============================================================================
-#if not fish.empty:
-#    fgmask = np.bitwise_and(fgmask, fish.box) # exclude fish area
-#
-#isopod = isopod_module(frame, fgmask, shadows_isopod, blur_kern_iso, blur_thresh_iso, min_length_iso, max_length_iso, arena.mask_gray)  
-#if not isopod.empty:
-#    f = pd.DataFrame(data=isopod.center, columns = list("xy"))
-#    if skip > 0:
-#        f["frame"] = idx1/skip         
-#    else:
-#        f["frame"] = idx1        
-#    df_isopod=df_isopod.append(f)      
-#frame_out = isopod.draw(frame_out, ["contour", "ellipse", "text"]) #, 
-
-        
-#if len(self.ellipses) > 0:
-#
-#self.contour = contours[np.argmax(ellipses_l)]
-#self.ellipse = ellipses[np.argmax(ellipses_l)]
-#self.center = np.array([self.ellipse[0]])
-#
-## draw fish mask
-#self.mask = np.zeros_like(self.frame_out) # Create mask where white is what we want, black otherwise
-#self.contour_drawn = cv2.drawContours(self.mask, [self.contour], 0,red , -1) # Draw filled contour in mask     
-#
-## make extended box to mask for isopod detection
-#box = cv2.minAreaRect(self.contour)
-#box = tuple([box[0], (box[1][0] + 200, box[1][1] + 150), box[2]])
-#
-#gray = cv2.cvtColor(self.frame_out, cv2.COLOR_BGR2GRAY)
-#self.box = np.full_like(gray, 255)
-#self.box = cv2.drawContours(self.box,[np.int0(cv2.boxPoints(box))],0,0,-1)
-#
-#self.frame_out = cv2.addWeighted(self.frame_out, 1, self.contour_drawn, 0.5, 0)
-#self.frame_out = cv2.ellipse(self.frame_out, tuple(self.ellipse[0:3]), red, 3)
-#self.frame_out = cv2.putText(self.frame_out, self.label, (int(self.center[0,0]), int(self.center[0,1])), cv2.FONT_HERSHEY_SIMPLEX, 1,red,2,cv2.LINE_AA)  
-#
-#self.frame_out = cv2.resize(self.frame_out, (0,0), fx=1*resize_factor, fy=1*resize_factor) 
-#
-            
-        
-        
-        #        # turn blobs to ellipses
-#        if contours:
-#            ellipses = []
-#            for contour in contours:
-#                if contour.shape[0] > 4:
-#                    center,axes,orientation = cv2.fitEllipse(contour)
-#                    length = np.mean([math.sqrt(axes[1]*axes[0]*math.pi),max(axes)])
-#                    ellipses.append([center,axes,orientation,length])   
-#                else:
-#                    ellipses.append([0,0,0,0])
-#            ellipses_l = [l[3] for l in ellipses] 
-        
-#return self.frame_out
-        
-#                # check ellipses against min length
-#        if "min_length" in vars(self):
-#            if ellipses_l[np.argmax(ellipses_l)] < self.min_length:
-#                str_small_check = "too small"
-#                exceptions.append(True)
-#            else:
-#                str_small_check =""
-#                exceptions.append(False)
-#        if "max_length" in vars(self):
-#            if ellipses_l[np.argmax(ellipses_l)] > self.max_length:
-#                str_big_check = "too big"
-#                exceptions.append(True)
-#            else:
-#                str_big_check =""
-#                exceptions.append(False)               
-#        if any(exceptions):
-#            self.frame_out = cv2.putText(self.frame_out, str_small_check + " " + str_big_check, (int(self.frame_out.shape[0]/20),int(self.frame_out.shape[1]/20)), cv2.FONT_HERSHEY_SIMPLEX, 1,red ,2,cv2.LINE_AA)                
-#            return self.frame_out
