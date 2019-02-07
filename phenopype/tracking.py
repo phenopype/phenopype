@@ -152,11 +152,11 @@ class motion_tracker(object):
                 
             if self.capture_frame == True:    
 
-                        
+                self.frame_overlay = self.frame    
                 if "methods" in vars(self):
                     for m in self.methods:
                         self.overlay = m._run(frame=self.frame, fgmask=self.fgmask)
-                        self.frame_overlay = cv2.addWeighted(self.frame, 1, self.overlay, weight, 0)
+                        self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, weight, 0)
                 
                 if show_seletor == "overlay":
                     self.show = self.frame_overlay
@@ -245,7 +245,7 @@ class tracking_method(object):
                     center,axes,orientation = cv2.fitEllipse(cnt)
                     length = np.mean([math.sqrt(axes[1]*axes[0]*math.pi),max(axes)])
                     if length < self.max_length and length > self.min_length:
-                        self.list_ellipses = self.list_ellipses + [center,axes,orientation,length] 
+                        self.list_ellipses.append([center,axes,orientation,length]) 
                         self.list_length.append(length)                         
                         self.list_coordinates.append(center) 
                         self.list_contours.append(cnt) 
@@ -256,14 +256,14 @@ class tracking_method(object):
                         if len(self.list_contours)==1:
                             pass
                         elif len(self.list_contours)>1:
-                            max_idx = np.argmax(self.list_length)
-                            self.list_contours = self.list_contours[max_idx]
-                            self.list_ellipses = self.list_ellipses[max_idx]
-                            self.list_coordinates = self.list_coordinates[max_idx]               
+                            self.max_idx = np.argmax(self.list_length)
+                            self.list_contours = [self.list_contours[self.max_idx]]
+                            self.list_ellipses = [self.list_ellipses[self.max_idx]]
+                            self.list_coordinates = [self.list_coordinates[self.max_idx]]              
                                         
                 for contour in self.list_contours:
                     self.overlay = cv2.drawContours(self.overlay, [contour], 0, self.overlay_colour, -1) # Draw filled contour in mask     
-                for ellipse in [self.list_ellipses]:   
+                for ellipse in self.list_ellipses:   
                     self.overlay = cv2.ellipse(self.overlay, tuple(ellipse[0:3]), self.overlay_colour, 3)
                 for coordinate in self.list_coordinates:    
                     self.overlay = cv2.putText(self.overlay, self.label, (int(coordinate[0]), int(coordinate[1])), cv2.FONT_HERSHEY_SIMPLEX,  1,self.overlay_colour,1,cv2.LINE_AA)  
