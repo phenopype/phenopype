@@ -1,8 +1,9 @@
 from __future__ import division, unicode_literals, print_function  # for compatibility with Python 2 and 3
 
 import numpy as np
+import numpy.ma as ma
+import pandas as pd
 import cv2
-import math
 import os
 import pprint
 
@@ -72,6 +73,7 @@ class motion_tracker(object):
         fourcc_out = cv2.VideoWriter_fourcc(*fourcc_str_out)
         save_colour = kwargs.get("save_colour", self.is_colour)
         
+        self.save_video = kwargs.get("save_video","True")
         self.writer = cv2.VideoWriter(path_out, fourcc_out, fps_out, dimensions_out, save_colour) 
 
 
@@ -80,6 +82,14 @@ class motion_tracker(object):
         print("Output video settings - \"" + self.name + "\":\n")
         print("Save name: " + name_out + "\nSave dir: " + dir_out + "\nFrames per second: " + str(fps_out) + "\nDimensions: " + str(dimensions_out) + res_msg +  "\nColour video: " + str(save_colour) + "\nFormat (FourCC code): " + fourcc_str_out) 
         print("----------------------------------------------------------------")
+        
+        
+        
+        
+    def arena_selector(self, **kwargs):
+        """
+        """
+        
         
     def motion_detection(self, **kwargs):
 
@@ -110,8 +120,9 @@ class motion_tracker(object):
     def run_tracking(self, **kwargs):
         
         weight = kwargs.get("weight", 0.5)
-        show_seletor = kwargs.get("show","overlay")
+        show_selector = kwargs.get("show","overlay")
         
+        self.df = pd.DataFrame()
         self.idx1, self.idx2 = (0,0)
         self.capture = cv2.VideoCapture(self.path)        
         self.wait_frame = self.wait * self.fps
@@ -146,31 +157,46 @@ class motion_tracker(object):
                 self.capture_frame = True
                            
             # feedback
-            self.mins = str(int((self.idx1 / self.fps)/60)).zfill(2)
-            self.secs = str(int((((self.idx1 / self.fps)/60)-int(self.mins))*60)).zfill(2)    
-            self.time_stamp = "Time: " + self.mins + ":" + self.secs + "/" + self.length + " - Frames: " + str(self.idx1) + "/" + str(int(self.nframes))
-                
+            mins = str(int((self.idx1 / self.fps)/60)).zfill(2)
+            secs = str(int((((self.idx1 / self.fps)/60)-int(mins))*60)).zfill(2)    
+            self.time_stamp = "Time: " + mins + ":" + secs + "/" + self.length + " - Frames: " + str(self.idx1) + "/" + str(int(self.nframes))
+            
+            
+            # CAPTURE FRAME
             if self.capture_frame == True:    
 
                 self.frame_overlay = self.frame    
                 if "methods" in vars(self):
                     for m in self.methods:
-                        self.overlay = m._run(frame=self.frame, fgmask=self.fgmask)
-                        self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, weight, 0)
+                        self.overlay, self.fgmask_processed, self.frame_df = m._run(frame=self.frame, fgmask=self.fgmask)
+                        self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, weight, 0)    
+                        
+                        # DATA FRAME
+                        self.frame_df.insert(0, 'frame_abs',  self.idx1)
+                        self.frame_df.insert(1, 'frame_rel',  int((self.idx1-self.wait_frame)/self.skip))
+                        self.frame_df.insert(2, 'mins',  mins)
+                        self.frame_df.insert(3, 'secs',  secs)
+                        self.df = self.df.append(self.frame_df, ignore_index=True, sort=False)                     
                 
-                if show_seletor == "overlay":
+                # SHOW OUTPUT
+                if show_selector == "overlay":
                     self.show = self.frame_overlay
-                elif show_seletor == "mask":
-                    self.show = self.fgmask               
+                elif show_selector == "mask":
+                    self.show = self.fgmask    
+                elif show_selector == "mask_processed":
+                    self.show = self.fgmask_processed
                 else:
                     self.show = self.frame
-            
                 self.show = cv2.resize(self.show, (0,0), fx=self.resize_factor, fy=self.resize_factor) 
-                self.writer.write(self.show)
                 
                 cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
-                cv2.imshow('phenopype', self.show)    
+                cv2.imshow('phenopype', self.show)   
+                                
+                # SAVE OUTPUT
+                if self.save_video == True:
+                    self.writer.write(self.show)
                 
+     
                 print(self.time_stamp + " - captured")                
             else:
                 print(self.time_stamp)
@@ -199,6 +225,10 @@ class tracking_method(object):
             self.max_length = 1000           
         if not "overlay_colour" in vars(self):
             self.overlay_colour = red
+        if not "mode" in vars(self):
+            self.mode = "multiple"
+        if not "operations" in vars(self):
+            self.operations = []
             
     def print_settings(self, **kwargs):
         """Prints the settings of the tracking method. 
@@ -216,7 +246,7 @@ class tracking_method(object):
         """
         self.frame = frame
         self.fgmask = fgmask
-        self.overlay = np.zeros_like(self.frame) 
+        overlay = np.zeros_like(self.frame) 
         
         if "remove_shadows" in vars(self):
             if self.remove_shadows==True:
@@ -225,55 +255,132 @@ class tracking_method(object):
         if "blur" in vars(self):
             blur_kernel, thresh_val = (self.blur)
             self.fgmask = blur(self.fgmask, blur_kernel)            
-            ret, self.fgmask = cv2.threshold(self.fgmask, thresh_val, 255, cv2.THRESH_BINARY)
-                    
+            ret, self.fgmask = cv2.threshold(self.fgmask, thresh_val, 255, cv2.THRESH_BINARY)  
+
+        self.fgmask_processed = self.fgmask             
 
         # =============================================================================
         # find objects
         # =============================================================================
         
-        ret, self.contours, hierarchy = cv2.findContours(self.fgmask, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1) #CHAIN_APPROX_NONE
-
-        if self.contours:
-            self.list_ellipses = [] 
-            self.list_coordinates = [] 
-            self.list_length = [] 
-            self.list_contours = []
+        ret, contours, hierarchy = cv2.findContours(self.fgmask_processed, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1) #CHAIN_APPROX_NONE
+        
+        if len(contours) > 0:      
+        
+            list_contours = []
+            list_length = []         
+            list_coordinates = [] 
             
-            for cnt in self.contours:
-                if cnt.shape[0] > 4:
-                    center,axes,orientation = cv2.fitEllipse(cnt)
-                    length = np.mean([math.sqrt(axes[1]*axes[0]*math.pi),max(axes)])
+            df_list = []
+            df_column_names = []
+            
+            # check if contour matches min/max length provided
+            for contour in contours:
+                if contour.shape[0] > 4:
+                    center,radius = cv2.minEnclosingCircle(contour)
+                    length = int(radius * 2)     
                     if length < self.max_length and length > self.min_length:
-                        self.list_ellipses.append([center,axes,orientation,length]) 
-                        self.list_length.append(length)                         
-                        self.list_coordinates.append(center) 
-                        self.list_contours.append(cnt) 
-                        
-            if len(self.list_contours) > 0:                                   
-                if "mode" in vars(self):  
-                    if self.mode == "single":
-                        if len(self.list_contours)==1:
-                            pass
-                        elif len(self.list_contours)>1:
-                            self.max_idx = np.argmax(self.list_length)
-                            self.list_contours = [self.list_contours[self.max_idx]]
-                            self.list_ellipses = [self.list_ellipses[self.max_idx]]
-                            self.list_coordinates = [self.list_coordinates[self.max_idx]]              
-                                        
-                for contour in self.list_contours:
-                    self.overlay = cv2.drawContours(self.overlay, [contour], 0, self.overlay_colour, -1) # Draw filled contour in mask     
-                for ellipse in self.list_ellipses:   
-                    self.overlay = cv2.ellipse(self.overlay, tuple(ellipse[0:3]), self.overlay_colour, 3)
-                for coordinate in self.list_coordinates:    
-                    self.overlay = cv2.putText(self.overlay, self.label, (int(coordinate[0]), int(coordinate[1])), cv2.FONT_HERSHEY_SIMPLEX,  1,self.overlay_colour,1,cv2.LINE_AA)  
+                        list_length.append(length)      
+                        list_contours.append(contour) 
+                        list_coordinates.append(center) 
+
+            # if single biggest organism:
+            if len(list_contours) > 0:      
+
+                if self.mode == "single":
+                    if len(contours)==1:
+                        pass
+                    elif len(contours)>1:
+                        max_idx = np.argmax(list_length)
+                        list_contours = [list_contours[max_idx]]
+                        list_length = [list_length[max_idx]]
+                        list_coordinates = [list_coordinates[max_idx]]
+    
+
+    
+                list_area, list_x, list_y = [],[],[]
+                list_grayscale, list_grayscale_background = [],[]
+                list_b, list_g, list_r = [],[],[] 
                 
-                return self.overlay
-     
+                for contour, coordinate in zip(list_contours, list_coordinates):
+                    
+                    # operations    
+                    x=int(coordinate[0])
+                    y=int(coordinate[1])
+                    list_x.append(x)
+                    list_y.append(y)
+
+                    rx,ry,rw,rh = cv2.boundingRect(contour)
+                    frame_roi = self.frame[ry:ry+rh,rx:rx+rw]
+                    frame_roi_gray = cv2.cvtColor(frame_roi, cv2.COLOR_BGR2GRAY)
+                    mask_roi = self.fgmask_processed[ry:ry+rh,rx:rx+rw]               
+                    
+                    if any("area" in o for o in self.operations):
+                        list_area.append(int(cv2.contourArea(contour)))
+            
+                    if any("grayscale" in o for o in self.operations):
+                        grayscale =  ma.array(data=frame_roi_gray, mask = np.logical_not(mask_roi))
+                        list_grayscale.append(int(np.mean(grayscale)))
+                        
+                    if any("grayscale_background" in o for o in self.operations):
+                        grayscale_background =  ma.array(data=frame_roi_gray, mask = mask_roi)
+                        list_grayscale_background.append(int(np.mean(grayscale_background)) )
+    
+                    if any("bgr" in o for o in self.operations):
+                        b = ma.array(data=frame_roi[:,:,0], mask = np.logical_not(mask_roi))
+                        list_b.append(int(np.mean(b)))
+                        g = ma.array(data=frame_roi[:,:,1], mask = np.logical_not(mask_roi))
+                        list_g.append(int(np.mean(g)))
+                        r = ma.array(data=frame_roi[:,:,2], mask = np.logical_not(mask_roi))
+                        list_r.append(int(np.mean(r)))                       
+                                                                
+                    # drawing 
+                    overlay = cv2.drawContours(overlay, [contour], 0, self.overlay_colour, -1) # Draw filled contour in mask     
+                    overlay = cv2.putText(overlay, self.label, (x, y), cv2.FONT_HERSHEY_SIMPLEX,  1,self.overlay_colour,1,cv2.LINE_AA)  
+                    overlay = cv2.rectangle(overlay,(rx,ry),(int(rx+rw),int(ry+rh)),self.overlay_colour,2)
+    
+                df_list = df_list + [list_x]  
+                df_list = df_list + [list_y]  
+                df_column_names = df_column_names + ["x","y"]
+
+                if any("diameter" in o for o in self.operations):               
+                    df_list = df_list + [list_length] 
+                    df_column_names.append("diameter")                    
+    
+                if any("area" in o for o in self.operations):               
+                    df_list = df_list + [list_area] 
+                    df_column_names.append("area")                    
+
+                if any("grayscale" in o for o in self.operations):
+                    df_list = df_list + [list_grayscale] 
+                    df_column_names.append("grayscale")
+    
+                if any("grayscale_background" in o for o in self.operations):
+                    df_list = df_list + [list_grayscale_background] 
+                    df_column_names.append("grayscale_background")
+
+                if any("bgr" in o for o in self.operations):
+                    df_list = df_list + [list_b]  
+                    df_list = df_list + [list_g]  
+                    df_list = df_list + [list_r]              
+                    df_column_names = df_column_names + ["b", "g", "r"]
+                    
+                frame_df = pd.DataFrame(data=df_list)
+                frame_df = frame_df.transpose()                        
+                frame_df.columns = df_column_names
+                frame_df["label"] = self.label
+                
+                self.frame_df = frame_df
+                
+                return overlay, self.fgmask, frame_df
+
             else:
-                return self.overlay
+                frame_df = pd.DataFrame()
+                return overlay, self.fgmask, frame_df
+        
         else:
-            return self.overlay
+            frame_df = pd.DataFrame()
+            return overlay, self.fgmask, frame_df
         
         
         
@@ -341,9 +448,9 @@ class tracking_method(object):
         #        # turn blobs to ellipses
 #        if contours:
 #            ellipses = []
-#            for cnt in contours:
-#                if cnt.shape[0] > 4:
-#                    center,axes,orientation = cv2.fitEllipse(cnt)
+#            for contour in contours:
+#                if contour.shape[0] > 4:
+#                    center,axes,orientation = cv2.fitEllipse(contour)
 #                    length = np.mean([math.sqrt(axes[1]*axes[0]*math.pi),max(axes)])
 #                    ellipses.append([center,axes,orientation,length])   
 #                else:
