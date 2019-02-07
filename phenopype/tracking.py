@@ -7,7 +7,9 @@ import os
 import pprint
 
 from phenopype.utils import (blur)
+from phenopype.utils import (red)
 
+#%% classes
 
 
 def avgit(x):
@@ -106,7 +108,10 @@ class motion_tracker(object):
         
         
     def run_tracking(self, **kwargs):
-                
+        
+        weight = kwargs.get("weight", 0.5)
+        show_seletor = kwargs.get("show","overlay")
+        
         self.idx1, self.idx2 = (0,0)
         self.capture = cv2.VideoCapture(self.path)        
         self.wait_frame = self.wait * self.fps
@@ -144,18 +149,29 @@ class motion_tracker(object):
             self.mins = str(int((self.idx1 / self.fps)/60)).zfill(2)
             self.secs = str(int((((self.idx1 / self.fps)/60)-int(self.mins))*60)).zfill(2)    
             self.time_stamp = "Time: " + self.mins + ":" + self.secs + "/" + self.length + " - Frames: " + str(self.idx1) + "/" + str(int(self.nframes))
-
-
                 
             if self.capture_frame == True:    
-                for m in self.methods:
-                    self.show = m._run(self.frame, self.fgmask, self.resize_factor)
-                print(self.time_stamp + " - captured")
+
+                        
+                if "methods" in vars(self):
+                    for m in self.methods:
+                        self.overlay = m._run(frame=self.frame, fgmask=self.fgmask)
+                        self.frame_overlay = cv2.addWeighted(self.frame, 1, self.overlay, weight, 0)
                 
+                if show_seletor == "overlay":
+                    self.show = self.frame_overlay
+                elif show_seletor == "mask":
+                    self.show = self.fgmask               
+                else:
+                    self.show = self.frame
+            
+                self.show = cv2.resize(self.show, (0,0), fx=self.resize_factor, fy=self.resize_factor) 
                 self.writer.write(self.show)
+                
                 cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
                 cv2.imshow('phenopype', self.show)    
                 
+                print(self.time_stamp + " - captured")                
             else:
                 print(self.time_stamp)
 
@@ -176,6 +192,13 @@ class tracking_method(object):
         for key, value in kwargs.items():
             if key in kwargs:
                 setattr(self, key, value)
+                
+        if not "min_length" in vars(self):
+            self.min_length = 1
+        if not "max_length" in vars(self):
+            self.max_length = 1000           
+        if not "overlay_colour" in vars(self):
+            self.overlay_colour = red
             
     def print_settings(self, **kwargs):
         """Prints the settings of the tracking method. 
@@ -188,16 +211,16 @@ class tracking_method(object):
         pretty.pprint(vars(self))
         
             
-    def _run(self, frame_in, fgmask, resize_factor, **kwargs):
+    def _run(self, frame, fgmask, **kwargs):
         """Run tracking method on current frame. Internal reference - don't call this directly.
         """
-        
-        self.frame_out = frame_in
+        self.frame = frame
         self.fgmask = fgmask
+        self.overlay = np.zeros_like(self.frame) 
         
         if "remove_shadows" in vars(self):
             if self.remove_shadows==True:
-                ret, self.mask = cv2.threshold(self.fgmask, 128, 255, cv2.THRESH_BINARY)
+                ret, self.fgmask = cv2.threshold(self.fgmask, 128, 255, cv2.THRESH_BINARY)
          
         if "blur" in vars(self):
             blur_kernel, thresh_val = (self.blur)
@@ -205,121 +228,145 @@ class tracking_method(object):
             ret, self.fgmask = cv2.threshold(self.fgmask, thresh_val, 255, cv2.THRESH_BINARY)
                     
 
-
         # =============================================================================
         # find objects
         # =============================================================================
         
-        ret, contours, hierarchy = cv2.findContours(self.fgmask, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1) #CHAIN_APPROX_NONE
+        ret, self.contours, hierarchy = cv2.findContours(self.fgmask, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1) #CHAIN_APPROX_NONE
 
-        # turn blobs to ellipses
-        if contours:
-            ellipses = []
-            for cnt in contours:
+        if self.contours:
+            self.list_ellipses = [] 
+            self.list_coordinates = [] 
+            self.list_length = [] 
+            self.list_contours = []
+            
+            for cnt in self.contours:
                 if cnt.shape[0] > 4:
                     center,axes,orientation = cv2.fitEllipse(cnt)
                     length = np.mean([math.sqrt(axes[1]*axes[0]*math.pi),max(axes)])
-                    ellipses.append([center,axes,orientation,length])   
-                else:
-                    ellipses.append([0,0,0,0])
-            ellipses_l = [l[3] for l in ellipses] 
-            
-        # check ellipses against min length
-        if "min_length" in vars(self):
-            if ellipses_l[np.argmax(ellipses_l)] < self.min_length:
-                self.frame_out = cv2.putText(self.frame_out, "too small", (int(self.frame_out.shape[0]/20),int(self.frame_out.shape[1]/20)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),2,cv2.LINE_AA)                
-                return self.frame_out
-        else:
-            if len(ellipses_l) > 0:
-            
-                self.contour = contours[np.argmax(ellipses_l)]
-                self.ellipse = ellipses[np.argmax(ellipses_l)]
-                self.center = np.array([self.ellipse[0]])
-    
-                # draw fish mask
-                self.mask = np.zeros_like(self.frame_out) # Create mask where white is what we want, black otherwise
-                self.contour_drawn = cv2.drawContours(self.mask, [self.contour], 0,(0,0, 255), -1) # Draw filled contour in mask     
+                    if length < self.max_length and length > self.min_length:
+                        self.list_ellipses = self.list_ellipses + [center,axes,orientation,length] 
+                        self.list_length.append(length)                         
+                        self.list_coordinates.append(center) 
+                        self.list_contours.append(cnt) 
+                        
+            if len(self.list_contours) > 0:                                   
+                if "mode" in vars(self):  
+                    if self.mode == "single":
+                        if len(self.list_contours)==1:
+                            pass
+                        elif len(self.list_contours)>1:
+                            max_idx = np.argmax(self.list_length)
+                            self.list_contours = self.list_contours[max_idx]
+                            self.list_ellipses = self.list_ellipses[max_idx]
+                            self.list_coordinates = self.list_coordinates[max_idx]               
+                                        
+                for contour in self.list_contours:
+                    self.overlay = cv2.drawContours(self.overlay, [contour], 0, self.overlay_colour, -1) # Draw filled contour in mask     
+                for ellipse in [self.list_ellipses]:   
+                    self.overlay = cv2.ellipse(self.overlay, tuple(ellipse[0:3]), self.overlay_colour, 3)
+                for coordinate in self.list_coordinates:    
+                    self.overlay = cv2.putText(self.overlay, self.label, (int(coordinate[0]), int(coordinate[1])), cv2.FONT_HERSHEY_SIMPLEX,  1,self.overlay_colour,1,cv2.LINE_AA)  
                 
-                # make extended box to mask for isopod detection
-                box = cv2.minAreaRect(self.contour)
-                box = tuple([box[0], (box[1][0] + 200, box[1][1] + 150), box[2]])
-                
-                gray = cv2.cvtColor(self.frame_out, cv2.COLOR_BGR2GRAY)
-                self.box = np.full_like(gray, 255)
-                self.box = cv2.drawContours(self.box,[np.int0(cv2.boxPoints(box))],0,0,-1)
-    
-                self.frame_out = cv2.addWeighted(self.frame_out, 1, self.contour_drawn, 0.5, 0)
-                self.frame_out = cv2.ellipse(self.frame_out, tuple(self.ellipse[0:3]), (0,0,255), 3)
-                self.frame_out = cv2.putText(self.frame_out, self.label, (int(self.center[0,0]), int(self.center[0,1])), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),2,cv2.LINE_AA)  
-        
-                self.frame_out = cv2.resize(self.frame_out, (0,0), fx=1*resize_factor, fy=1*resize_factor) 
-
-                return self.frame_out
-            
+                return self.overlay
+     
             else:
-                
-                self.frame_out = cv2.putText(self.frame_out, "no " + self.label + " found", (int(self.frame_out.shape[0]/10),int(self.frame_out.shape[1]/10)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),2,cv2.LINE_AA)   
-                return self.frame_out
+                return self.overlay
+        else:
+            return self.overlay
+        
         
         
 
-        
 
-class isopod_module(object):
-    def __init__(self, frame, fgmask, shadows, blur_kern, blur_thresh, min_length, max_length, arena_mask):
+
+## =============================================================================
+## FISH MODULE
+## =============================================================================
+#fish = fish_module(frame, fgmask, shadows_fish, blur_kern_fish, blur_thresh_fish, min_length_fish)   
+#if not fish.empty :
+#    f = pd.DataFrame(data=fish.center, columns = list("xy"))
+#    if skip > 0:
+#        f["frame"] = idx1/skip         
+#    else:
+#        f["frame"] = idx1        
+#    df_fish=df_fish.append(f)      
+#frame_out = fish.draw(frame_out, ["contour", "ellipse", "text"])
+#
+#
+## =============================================================================
+## ISOPOD MODULE
+## =============================================================================
+#if not fish.empty:
+#    fgmask = np.bitwise_and(fgmask, fish.box) # exclude fish area
+#
+#isopod = isopod_module(frame, fgmask, shadows_isopod, blur_kern_iso, blur_thresh_iso, min_length_iso, max_length_iso, arena.mask_gray)  
+#if not isopod.empty:
+#    f = pd.DataFrame(data=isopod.center, columns = list("xy"))
+#    if skip > 0:
+#        f["frame"] = idx1/skip         
+#    else:
+#        f["frame"] = idx1        
+#    df_isopod=df_isopod.append(f)      
+#frame_out = isopod.draw(frame_out, ["contour", "ellipse", "text"]) #, 
+
         
-        # crop non-arena-area
-        fgmask = np.bitwise_and(fgmask, arena_mask)
+#if len(self.ellipses) > 0:
+#
+#self.contour = contours[np.argmax(ellipses_l)]
+#self.ellipse = ellipses[np.argmax(ellipses_l)]
+#self.center = np.array([self.ellipse[0]])
+#
+## draw fish mask
+#self.mask = np.zeros_like(self.frame_out) # Create mask where white is what we want, black otherwise
+#self.contour_drawn = cv2.drawContours(self.mask, [self.contour], 0,red , -1) # Draw filled contour in mask     
+#
+## make extended box to mask for isopod detection
+#box = cv2.minAreaRect(self.contour)
+#box = tuple([box[0], (box[1][0] + 200, box[1][1] + 150), box[2]])
+#
+#gray = cv2.cvtColor(self.frame_out, cv2.COLOR_BGR2GRAY)
+#self.box = np.full_like(gray, 255)
+#self.box = cv2.drawContours(self.box,[np.int0(cv2.boxPoints(box))],0,0,-1)
+#
+#self.frame_out = cv2.addWeighted(self.frame_out, 1, self.contour_drawn, 0.5, 0)
+#self.frame_out = cv2.ellipse(self.frame_out, tuple(self.ellipse[0:3]), red, 3)
+#self.frame_out = cv2.putText(self.frame_out, self.label, (int(self.center[0,0]), int(self.center[0,1])), cv2.FONT_HERSHEY_SIMPLEX, 1,red,2,cv2.LINE_AA)  
+#
+#self.frame_out = cv2.resize(self.frame_out, (0,0), fx=1*resize_factor, fy=1*resize_factor) 
+#
             
-        if shadows == True:
-            ret, fgmask = cv2.threshold(fgmask, 128, 255, cv2.THRESH_BINARY)
         
-        # fish contours and centerpoint
-        self.blurred = blur(fgmask, blur_kern)
-        ret, self.thresh = cv2.threshold( self.blurred, blur_thresh, 255, cv2.THRESH_BINARY)
-        ret, contours, hierarchy = cv2.findContours(self.thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE) #CHAIN_APPROX_TC89_L1
-    
-        # isopod ellipse, length, and center
-        if contours:
-            self.ellipses = [] 
-            self.contours_good = [] 
-            self.contours_noise = []
-            for cnt in contours:
-                if cnt.shape[0] > 4:
-                    center,axes,orientation = cv2.fitEllipse(cnt)
-                    length = np.mean([math.sqrt(axes[1]*axes[0]*math.pi),max(axes)])
-                    if length < max_length and length > min_length:
-                        self.ellipses.append([center,axes,orientation,length]) #self.
-                        self.contours_good.append(cnt) #self.
-                    else:
-                        self.contours_noise.append(cnt)
-             
-                    self.center = [ellipse[0] for ellipse in self.ellipses]
-                    
-                    self.contour_drawn = np.zeros_like(frame) # Create mask where white is what we want, black otherwise
-                    for contour in self.contours_good:
-                        self.contour_drawn = cv2.drawContours(self.contour_drawn, [contour], 0,(0,255, 0), -1) # Draw filled contour in mask                
-            if len(self.contours_good) > 0:
-                self.empty = False   
-            else:
-                self.empty = True
-        else:
-            self.empty = True
-            
-            
-    def draw(self, frame, arguments):
-        frame_out = frame
         
-        if not self.empty:
-            if "contour" in arguments:
-                frame_out = cv2.addWeighted(frame_out, 1, self.contour_drawn, 0.5, 0)
-            if "ellipse" in arguments:
-                for ellipse in self.ellipses:   
-                    frame_out = cv2.ellipse(frame_out, tuple(ellipse[0:3]), (0,255,0), 1)
-            if "text" in arguments:
-                for center in self.center:    
-                    frame_out = cv2.putText(frame_out, "Isopod", (int(center[0]), int(center[1])), cv2.FONT_HERSHEY_SIMPLEX,  1,(0,255,0),1,cv2.LINE_AA)  
-            return frame_out
+        #        # turn blobs to ellipses
+#        if contours:
+#            ellipses = []
+#            for cnt in contours:
+#                if cnt.shape[0] > 4:
+#                    center,axes,orientation = cv2.fitEllipse(cnt)
+#                    length = np.mean([math.sqrt(axes[1]*axes[0]*math.pi),max(axes)])
+#                    ellipses.append([center,axes,orientation,length])   
+#                else:
+#                    ellipses.append([0,0,0,0])
+#            ellipses_l = [l[3] for l in ellipses] 
         
-        else:
-            return frame_out          
+#return self.frame_out
+        
+#                # check ellipses against min length
+#        if "min_length" in vars(self):
+#            if ellipses_l[np.argmax(ellipses_l)] < self.min_length:
+#                str_small_check = "too small"
+#                exceptions.append(True)
+#            else:
+#                str_small_check =""
+#                exceptions.append(False)
+#        if "max_length" in vars(self):
+#            if ellipses_l[np.argmax(ellipses_l)] > self.max_length:
+#                str_big_check = "too big"
+#                exceptions.append(True)
+#            else:
+#                str_big_check =""
+#                exceptions.append(False)               
+#        if any(exceptions):
+#            self.frame_out = cv2.putText(self.frame_out, str_small_check + " " + str_big_check, (int(self.frame_out.shape[0]/20),int(self.frame_out.shape[1]/20)), cv2.FONT_HERSHEY_SIMPLEX, 1,red ,2,cv2.LINE_AA)                
+#            return self.frame_out
