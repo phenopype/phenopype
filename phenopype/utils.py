@@ -20,6 +20,13 @@ def exif_date(path):
     t = str(tags["EXIF DateTimeOriginal"])
     return t[0:4] + "-" + t[5:7] + "-" + t[8:10] + " " + t[11:20]
 
+def avgit(x):
+    return x.sum(axis=0)/np.shape(x)[0]
+
+
+def decode_fourcc(cc):
+    return "".join([chr((int(cc) >> 8 * i) & 0xFF) for i in range(4)])
+
 def blur(image, blur_kern):
     kern = np.ones((blur_kern,blur_kern))/(blur_kern**2)
     ddepth = -1
@@ -54,6 +61,14 @@ def find_skeleton3(img):
         iters += 1
         if cv2.countNonZero(thresh) == 0:
             return (skeleton,iters)
+        
+        
+def find_centroid(arr):
+    length = arr.shape[0]
+    sum_x = np.sum(arr[:, 0])
+    sum_y = np.sum(arr[:, 1])
+    return int(sum_y/length), int(sum_x/length)
+
         
         
         

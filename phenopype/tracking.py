@@ -6,20 +6,13 @@ import pandas as pd
 import cv2
 import os
 import pprint
+import copy
 
-from phenopype.utils import (blur)
+from phenopype.utils import (blur, decode_fourcc)
 from phenopype.utils import (red)
 
 #%% classes
-
-
-def avgit(x):
-    return x.sum(axis=0)/np.shape(x)[0]
-
-
-def decode_fourcc(cc):
-    return "".join([chr((int(cc) >> 8 * i) & 0xFF) for i in range(4)])
-              
+             
        
 class motion_tracker(object):
     def __init__(self, video_path, **kwargs): 
@@ -28,11 +21,11 @@ class motion_tracker(object):
         if isinstance(video_path, str):
             cap = cv2.VideoCapture(video_path)
             ret, frame = cap.read()
-            
 
         else:
             print("Error - full or relative path of video-file needed")
         
+        self.frame = frame
         self.path = video_path       
         self.name = os.path.basename(self.path)
         self.nframes = cap.get(cv2.CAP_PROP_FRAME_COUNT) 
@@ -83,14 +76,7 @@ class motion_tracker(object):
         print("Save name: " + name_out + "\nSave dir: " + dir_out + "\nFrames per second: " + str(fps_out) + "\nDimensions: " + str(dimensions_out) + res_msg +  "\nColour video: " + str(save_colour) + "\nFormat (FourCC code): " + fourcc_str_out) 
         print("----------------------------------------------------------------")
         
-        
-        
-        
-    def arena_selector(self, **kwargs):
-        """
-        """
-        
-        
+
     def motion_detection(self, **kwargs):
 
         self.skip = kwargs.get("skip", 5)
@@ -107,6 +93,26 @@ class motion_tracker(object):
             self.methods = kwargs.get("methods")
             for m in self.methods:
                 m.print_settings()
+                
+
+        include = kwargs.get("mask_include", [])
+        self.layers = include
+        self.layer_names = kwargs.get("mask_names", [])
+
+        exclude = kwargs.get("mask_exclude", [])
+               
+        
+        in_mask = np.zeros(self.frame.shape[0:2], dtype=bool)
+        for i in include:
+            in_mask = np.logical_or(in_mask, i)
+            
+        ex_mask = np.zeros(self.frame.shape[0:2], dtype=bool)
+        for i in exclude:
+            ex_mask = np.logical_or(ex_mask, i)
+        
+        self.mask = np.add(in_mask.astype(np.uint8), ex_mask.astype(np.uint8))
+        self.mask[self.mask==2]=0
+        self.mask[self.mask==1]=255
         
         print("\n")
         print("----------------------------------------------------------------")
@@ -114,14 +120,14 @@ class motion_tracker(object):
         print("\n\"History\"-parameter: " + str(history) + " seconds" + "\nSensitivity: " + str(backgr_thresh) + "\nRead every nth frame: " + str(self.skip) + "\nDetect shadows: " + str(self.detect_shadows) + "\nStart after n seconds: " + str(self.wait) + "\nFinish after n seconds: " + str(self.finish if self.finish > 0 else " - ")) 
         print("----------------------------------------------------------------")
               
-         
-        
+
         
     def run_tracking(self, **kwargs):
         
         weight = kwargs.get("weight", 0.5)
         show_selector = kwargs.get("show","overlay")
-        
+        return_df = kwargs.get("return_df","False")
+
         self.df = pd.DataFrame()
         self.idx1, self.idx2 = (0,0)
         self.capture = cv2.VideoCapture(self.path)        
@@ -166,9 +172,16 @@ class motion_tracker(object):
             if self.capture_frame == True:    
 
                 self.frame_overlay = self.frame    
+                
+                if len(self.layers) > 0:
+                    self.fgmask = np.bitwise_and(self.mask, self.fgmask)
+                else:
+                    self.layers = []
+                    self.layer_names = []
+                    
                 if "methods" in vars(self):
                     for m in self.methods:
-                        self.overlay, self.fgmask_processed, self.frame_df = m._run(frame=self.frame, fgmask=self.fgmask)
+                        self.overlay, self.fgmask_processed, self.frame_df = m._run(frame=self.frame, fgmask=self.fgmask, layers=self.layers, layer_names=self.layer_names)
                         self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, weight, 0)    
                         
                         # DATA FRAME
@@ -210,6 +223,9 @@ class motion_tracker(object):
         self.writer.release()
         cv2.destroyAllWindows()
         
+        if return_df == True:
+            return self.df
+        
         
 class tracking_method(object):
     def __init__(self, **kwargs):
@@ -247,7 +263,9 @@ class tracking_method(object):
         self.frame = frame
         self.fgmask = fgmask
         overlay = np.zeros_like(self.frame) 
-        
+        layers = kwargs.get("layers", [])
+        layer_names = kwargs.get("layer_names", [])
+
         if "remove_shadows" in vars(self):
             if self.remove_shadows==True:
                 ret, self.fgmask = cv2.threshold(self.fgmask, 128, 255, cv2.THRESH_BINARY)
@@ -301,7 +319,7 @@ class tracking_method(object):
                 list_area, list_x, list_y = [],[],[]
                 list_grayscale, list_grayscale_background = [],[]
                 list_b, list_g, list_r = [],[],[] 
-                
+                list_layers = []
                 for contour, coordinate in zip(list_contours, list_coordinates):
                     
                     # operations    
@@ -309,6 +327,12 @@ class tracking_method(object):
                     y=int(coordinate[1])
                     list_x.append(x)
                     list_y.append(y)
+                    
+                    if len(layers)>0:
+                        temp_list = []
+                        for i in layers:
+                            temp_list.append(i[y,x])                        
+                        list_layers.append(temp_list)
 
                     rx,ry,rw,rh = cv2.boundingRect(contour)
                     frame_roi = self.frame[ry:ry+rh,rx:rx+rw]
@@ -329,10 +353,6 @@ class tracking_method(object):
                         else:
                             list_grayscale_background.append(9999)
                             
-                        
-                        
-                        
-    
                     if any("bgr" in o for o in self.operations):
                         b = ma.array(data=frame_roi[:,:,0], mask = np.logical_not(mask_roi))
                         list_b.append(int(np.mean(b)))
@@ -349,6 +369,8 @@ class tracking_method(object):
                 df_list = df_list + [list_x]  
                 df_list = df_list + [list_y]  
                 df_column_names = df_column_names + ["x","y"]
+                
+                  
 
                 if any("diameter" in o for o in self.operations):               
                     df_list = df_list + [list_length] 
@@ -376,6 +398,10 @@ class tracking_method(object):
                 frame_df = frame_df.transpose()                        
                 frame_df.columns = df_column_names
                 frame_df["label"] = self.label
+                
+                if len(layers)>0:
+                    layer_df = pd.DataFrame(list_layers,columns=layer_names)
+                    frame_df = pd.concat([frame_df.reset_index(drop=True), layer_df], axis=1)
                 
                 self.frame_df = frame_df
                 

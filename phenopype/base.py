@@ -10,8 +10,8 @@ import cv2
 import datetime
 import collections as col
 
-from phenopype.utils import (red, green, blue, black, white)
-from phenopype.utils import (blur, exif_date, gray_scale)
+from phenopype.utils import (red, green, blue, white, black)
+from phenopype.utils import (blur, exif_date, gray_scale, find_centroid)
 
 
 #%% classes
@@ -553,14 +553,32 @@ class scale_maker:
 
         
 class polygon_maker:
-    """Draw a rectangle or polygon space onto an image to mark an area to be included."""        
-    def __init__(self):
+    """Draw a rectangle or polygon space onto an image to mark an area to be included or excluded.
+    
+    Parameters
+    ----------
+
+    image: str or array
+        absolute or relative path to OR numpy array of image 
+    
+    """        
+    def __init__(self, image):
         # initialize # ----------------
+        
+        if isinstance(image, str):
+            image = cv2.imread(image)
+        if not len(image.shape)==3:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        
+        self.image = image
         self.done = False # Flag signalling we're done
         self.current = (0, 0) # Current position, so we can draw the line-in-progress
         self.points = [] # List of points defining our polygon
         self.idx = 0
-
+        
+        self.overlay = np.zeros(self.image.shape, np.uint8) # make overlay
+        self.overlay[:,:,2] = 200 # start with all-red overlay
+        
     def _on_mouse(self, event, x, y, buttons, user_param):
         if self.done: # Nothing more to do
             return
@@ -579,28 +597,30 @@ class polygon_maker:
             else:
                 print("No points to delete")
                 
-    def draw(self, image, **kwargs):
-        """Initialize polygon_maker.
+    def draw(self, include, **kwargs):
+        """Draw polygon onto image.
         
-        Parameters
-        ----------
-
-        image: str or array
-            absolute or relative path to OR numpy array of image 
-        mode: str ("rectangle" or "polygon")
+        include: bool
+            determine whether resulting mask is to include or exclude objects within
+        mode: str ("rectangle" or "polygon". default: "rectangle")
             draw the scale with a polygon or a box
-        """
-        
-        if isinstance(image, str):
-            image = cv2.imread(image)
-        if not len(image.shape)==3:
-            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
             
+        """
+
         mode = kwargs.get("mode","rectangle")
+        label = kwargs.get("label","area 1")
+        
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         cv2.setMouseCallback("phenopype", self._on_mouse)
-        temp_canvas = copy.deepcopy(image)
         
+        if not "show" in vars(self):
+            temp_canvas1 = copy.deepcopy(self.image)
+            temp_canvas2 = copy.deepcopy(self.image)
+
+        else:
+            temp_canvas1 = copy.deepcopy(self.show)
+            temp_canvas2 = copy.deepcopy(self.show)
+
         print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
 
         
@@ -611,10 +631,10 @@ class polygon_maker:
         if mode == "polygon":
             while(not self.done):
                 if (len(self.points) > 0):
-                    cv2.polylines(temp_canvas, np.array([self.points]), False, green, 3)
-                    cv2.line(temp_canvas, self.points[-1], self.current, blue, 3)
-                cv2.imshow("phenopype", temp_canvas)
-                temp_canvas = copy.deepcopy(image)
+                    cv2.polylines(temp_canvas1, np.array([self.points]), False, green, 3)
+                    cv2.line(temp_canvas1, self.points[-1], self.current, blue, 3)
+                cv2.imshow("phenopype", temp_canvas1)
+                temp_canvas1 = copy.deepcopy(temp_canvas2)
                 if cv2.waitKey(50) & 0xff == 13:
                      self.done = True
                      cv2.destroyWindow("phenopype")
@@ -631,27 +651,54 @@ class polygon_maker:
                 
         elif mode == "rectangle":
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-            (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
+            (x,y,w,h) = cv2.selectROI("phenopype", temp_canvas1, fromCenter=False)
             if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
                 cv2.destroyWindow("phenopype")  
             self.points = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
-                            
-        zeros = np.zeros(image.shape[0:2], np.uint8)
-        zeros.fill(255)
-        self.mask = cv2.fillPoly(zeros, np.array([self.points]), black)
-        boo = np.array(self.mask, dtype=bool)
-        temp_canvas[boo,2] =255
-        self.drawn = temp_canvas
+                              
+        zeros = np.zeros(self.image.shape[0:2], np.uint8)
+        mask = cv2.fillPoly(zeros, np.array([self.points]), white)
+        
+        if include == True:
+            mask_bool = np.array(mask, dtype=bool)
+            self.overlay[mask_bool,1] = 200   
+            self.overlay[mask_bool,2] = 0   
+            line_col = green
+
+        if include == False:
+            mask_bool = np.array(mask, dtype=bool)
+            self.overlay[mask_bool,2] = 200   
+            self.overlay[mask_bool,1] = 0   
+            line_col = red
+
+        if mode == "polygon":
+            cv2.polylines(self.overlay, np.array([self.points]), True, line_col, 10)            
+        elif mode == "rectangle":
+            cv2.rectangle(self.overlay,(int(self.points[0][0]),int(self.points[0][1])),(int(self.points[2][0]),int(self.points[2][1])),line_col,10)
+            
+        cv2.putText(self.overlay ,label ,self.points[0] ,cv2.FONT_HERSHEY_SIMPLEX, 4, line_col,4 ,cv2.LINE_AA)
+        self.show = cv2.addWeighted(self.image, .7, self.overlay, 0.5, 0) # combine
+
+        # reset
+        self.done = False 
+        self.current = (0, 0) 
+        self.points = [] 
+        self.idx = 0
         
         if kwargs.get('show', False) == True:
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-            cv2.imshow("phenopype", temp_canvas)
+            cv2.imshow("phenopype", self.show)
             cv2.waitKey(0)
             cv2.destroyWindow("phenopype")
 
         else:
             cv2.waitKey(1)
             cv2.destroyAllWindows()
+            
+        return mask_bool
+    
+    
+    
 
 class object_finder:
     def run(self, image, **kwargs):
