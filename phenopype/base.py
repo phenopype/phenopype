@@ -695,11 +695,9 @@ class polygon_maker:
             cv2.waitKey(1)
             cv2.destroyAllWindows()
             
-        return mask_bool
+        return mask_bool, label, include
     
     
-    
-
 class object_finder:
     def run(self, image, **kwargs):
         """Find objects in image via thresholding.

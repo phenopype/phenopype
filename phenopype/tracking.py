@@ -6,10 +6,9 @@ import pandas as pd
 import cv2
 import os
 import pprint
-import copy
 
 from phenopype.utils import (blur, decode_fourcc)
-from phenopype.utils import (red)
+from phenopype.utils import (red, white)
 
 #%% classes
              
@@ -94,25 +93,8 @@ class motion_tracker(object):
             for m in self.methods:
                 m.print_settings()
                 
-
-        include = kwargs.get("mask_include", [])
-        self.layers = include
-        self.layer_names = kwargs.get("mask_names", [])
-
-        exclude = kwargs.get("mask_exclude", [])
-               
-        
-        in_mask = np.zeros(self.frame.shape[0:2], dtype=bool)
-        for i in include:
-            in_mask = np.logical_or(in_mask, i)
-            
-        ex_mask = np.zeros(self.frame.shape[0:2], dtype=bool)
-        for i in exclude:
-            ex_mask = np.logical_or(ex_mask, i)
-        
-        self.mask = np.add(in_mask.astype(np.uint8), ex_mask.astype(np.uint8))
-        self.mask[self.mask==2]=0
-        self.mask[self.mask==1]=255
+        if "consecutive_masking" in kwargs:
+            self.consecutive = kwargs.get("consecutive_masking")                
         
         print("\n")
         print("----------------------------------------------------------------")
@@ -172,21 +154,30 @@ class motion_tracker(object):
             if self.capture_frame == True:    
 
                 self.frame_overlay = self.frame    
-                
-                if len(self.layers) > 0:
-                    self.fgmask = np.bitwise_and(self.mask, self.fgmask)
-                else:
-                    self.layers = []
-                    self.layer_names = []
-                    
+                                   
                 if "methods" in vars(self):
                     for m in self.methods:
-                        self.overlay, self.fgmask_processed, self.frame_df = m._run(frame=self.frame, fgmask=self.fgmask, layers=self.layers, layer_names=self.layer_names)
+                        self.overlay, self.method_contours, self.frame_df = m._run(frame=self.frame, fgmask=self.fgmask)
+                        if "consecutive" in vars(self):
+                            self.method_mask = np.zeros_like(self.fgmask)
+                            for contour in self.method_contours:
+                                if self.consecutive[0] == "contour":
+                                    self.method_mask = cv2.drawContours(self.method_mask, [contour], 0, white, -1) # Draw filled contour in mask   
+                                elif self.consecutive[0] == "ellipse":
+                                    self.method_mask = cv2.ellipse(self.method_mask, cv2.fitEllipse(contour), white, -1)                                    
+                                elif self.consecutive[0] == "rectangle":
+                                    rx,ry,rw,rh = cv2.boundingRect(contour)
+                                    cv2.rectangle(self.method_mask,(int(rx),int(ry)),(int(rx+rw),int(ry+rh)),white,-1)
+                                kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(self.consecutive[1],self.consecutive[1]))
+                                self.method_mask = cv2.dilate(self.method_mask, kernel, iterations = 1)
+                                
+                        self.fgmask = cv2.subtract(self.fgmask, self.method_mask)
+                        
                         self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, weight, 0)    
                         
                         # DATA FRAME
                         self.frame_df.insert(0, 'frame_abs',  self.idx1)
-                        self.frame_df.insert(1, 'frame_rel',  int((self.idx1-self.wait_frame)/self.skip))
+                        self.frame_df.insert(1, 'frame',  int((self.idx1-self.wait_frame)/self.skip))
                         self.frame_df.insert(2, 'mins',  mins)
                         self.frame_df.insert(3, 'secs',  secs)
                         self.df = self.df.append(self.frame_df, ignore_index=True, sort=False)                     
@@ -194,10 +185,8 @@ class motion_tracker(object):
                 # SHOW OUTPUT
                 if show_selector == "overlay":
                     self.show = self.frame_overlay
-                elif show_selector == "mask":
+                elif show_selector == "fgmask":
                     self.show = self.fgmask    
-                elif show_selector == "mask_processed":
-                    self.show = self.fgmask_processed
                 else:
                     self.show = self.frame
                 self.show = cv2.resize(self.show, (0,0), fx=self.resize_factor, fy=self.resize_factor) 
@@ -235,17 +224,16 @@ class tracking_method(object):
             if key in kwargs:
                 setattr(self, key, value)
                 
-        if not "min_length" in vars(self):
-            self.min_length = 1
-        if not "max_length" in vars(self):
-            self.max_length = 1000           
-        if not "overlay_colour" in vars(self):
-            self.overlay_colour = red
-        if not "mode" in vars(self):
-            self.mode = "multiple"
-        if not "operations" in vars(self):
-            self.operations = []
+        self.mode = kwargs.get("mode", "multiple")
+        self.operations = kwargs.get("operations", [])
             
+        self.min_length = kwargs.get("min_length", 1)
+        self.max_length = kwargs.get("max_length", 1000)
+        self.overlay_colour = kwargs.get("overlay_colour", red)
+        
+        if "mask" in kwargs:
+            self.mask_objects = kwargs.get("mask")
+
     def print_settings(self, **kwargs):
         """Prints the settings of the tracking method. 
         """ 
@@ -262,9 +250,10 @@ class tracking_method(object):
         """
         self.frame = frame
         self.fgmask = fgmask
-        overlay = np.zeros_like(self.frame) 
-        layers = kwargs.get("layers", [])
-        layer_names = kwargs.get("layer_names", [])
+        self.overlay = np.zeros_like(self.frame) 
+        self.overlay_bin = np.zeros(self.frame.shape[0:2], dtype=np.uint8) 
+        self.frame_df = pd.DataFrame()
+
 
         if "remove_shadows" in vars(self):
             if self.remove_shadows==True:
@@ -274,14 +263,37 @@ class tracking_method(object):
             blur_kernel, thresh_val = (self.blur)
             self.fgmask = blur(self.fgmask, blur_kernel)            
             ret, self.fgmask = cv2.threshold(self.fgmask, thresh_val, 255, cv2.THRESH_BINARY)  
-
-        self.fgmask_processed = self.fgmask             
-
+            
+        if "mask_objects" in vars(self):
+            
+            mask_dummy1 = np.zeros(self.frame.shape[0:2], dtype=bool)
+            mask_list = []
+            mask_label_names = []
+            
+            for obj in self.mask_objects:
+                mask, label, include = obj
+                if include == True:
+                    mask_list.append(mask)
+                    mask_label_names.append(label)
+                    mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
+                    mask_dummy2[mask] = 1
+                    mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
+                if include == False:
+                    mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
+                    mask_dummy2[mask] = -100
+                    mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
+                    
+            mask_dummy1[mask_dummy1<0]=0
+            mask_dummy1[mask_dummy1>0]=255
+            
+            self.mask = mask_dummy1
+            self.fgmask = np.bitwise_and(self.mask, self.fgmask)
+        
         # =============================================================================
         # find objects
         # =============================================================================
         
-        ret, contours, hierarchy = cv2.findContours(self.fgmask_processed, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1) #CHAIN_APPROX_NONE
+        ret, contours, hierarchy = cv2.findContours(self.fgmask, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1) #CHAIN_APPROX_NONE
         
         if len(contours) > 0:      
         
@@ -302,9 +314,8 @@ class tracking_method(object):
                         list_contours.append(contour) 
                         list_coordinates.append(center) 
 
-            # if single biggest organism:
             if len(list_contours) > 0:      
-
+                # if single biggest contour:
                 if self.mode == "single":
                     if len(contours)==1:
                         pass
@@ -319,7 +330,8 @@ class tracking_method(object):
                 list_area, list_x, list_y = [],[],[]
                 list_grayscale, list_grayscale_background = [],[]
                 list_b, list_g, list_r = [],[],[] 
-                list_layers = []
+                list_mask_check = []
+                
                 for contour, coordinate in zip(list_contours, list_coordinates):
                     
                     # operations    
@@ -328,26 +340,26 @@ class tracking_method(object):
                     list_x.append(x)
                     list_y.append(y)
                     
-                    if len(layers)>0:
+                    if "mask_objects" in vars(self):
                         temp_list = []
-                        for i in layers:
+                        for i in mask_list:
                             temp_list.append(i[y,x])                        
-                        list_layers.append(temp_list)
+                        list_mask_check.append(temp_list)
 
                     rx,ry,rw,rh = cv2.boundingRect(contour)
                     frame_roi = self.frame[ry:ry+rh,rx:rx+rw]
                     frame_roi_gray = cv2.cvtColor(frame_roi, cv2.COLOR_BGR2GRAY)
-                    mask_roi = self.fgmask_processed[ry:ry+rh,rx:rx+rw]               
+                    mask_roi = self.fgmask[ry:ry+rh,rx:rx+rw]               
                     
                     if any("area" in o for o in self.operations):
                         list_area.append(int(cv2.contourArea(contour)))
             
                     if any("grayscale" in o for o in self.operations):
-                        grayscale =  ma.array(data=frame_roi_gray, mask = np.logical_not(mask_roi))
+                        grayscale = ma.array(data=frame_roi_gray, mask = np.logical_not(mask_roi))
                         list_grayscale.append(int(np.mean(grayscale)))
                         
                     if any("grayscale_background" in o for o in self.operations):
-                        grayscale_background =  ma.array(data=frame_roi_gray, mask = mask_roi)
+                        grayscale_background = ma.array(data=frame_roi_gray, mask = mask_roi)
                         if not grayscale_background.mask.all():
                             list_grayscale_background.append(int(np.mean(grayscale_background)))
                         else:
@@ -362,16 +374,14 @@ class tracking_method(object):
                         list_r.append(int(np.mean(r)))                       
                                                                 
                     # drawing 
-                    overlay = cv2.drawContours(overlay, [contour], 0, self.overlay_colour, -1) # Draw filled contour in mask     
-                    overlay = cv2.putText(overlay, self.label, (x, y), cv2.FONT_HERSHEY_SIMPLEX,  1,self.overlay_colour,1,cv2.LINE_AA)  
-                    overlay = cv2.rectangle(overlay,(rx,ry),(int(rx+rw),int(ry+rh)),self.overlay_colour,2)
+                    self.overlay = cv2.drawContours(self.overlay, [contour], 0, self.overlay_colour, -1) # Draw filled contour in mask     
+                    self.overlay = cv2.putText(self.overlay, self.label, (x, y), cv2.FONT_HERSHEY_SIMPLEX,  1,self.overlay_colour,1,cv2.LINE_AA)  
+                    self.overlay = cv2.rectangle(self.overlay,(rx,ry),(int(rx+rw),int(ry+rh)),self.overlay_colour,2)
     
                 df_list = df_list + [list_x]  
                 df_list = df_list + [list_y]  
                 df_column_names = df_column_names + ["x","y"]
                 
-                  
-
                 if any("diameter" in o for o in self.operations):               
                     df_list = df_list + [list_length] 
                     df_column_names.append("diameter")                    
@@ -398,22 +408,23 @@ class tracking_method(object):
                 frame_df = frame_df.transpose()                        
                 frame_df.columns = df_column_names
                 frame_df["label"] = self.label
-                
-                if len(layers)>0:
-                    layer_df = pd.DataFrame(list_layers,columns=layer_names)
-                    frame_df = pd.concat([frame_df.reset_index(drop=True), layer_df], axis=1)
-                
                 self.frame_df = frame_df
                 
-                return overlay, self.fgmask, frame_df
+                if "mask_objects" in vars(self):
+                    mask_df = pd.DataFrame(list_mask_check, columns=mask_label_names)
+                    self.frame_df = pd.concat([frame_df.reset_index(drop=True), mask_df], axis=1)
+                    
+                self.contours = list_contours
+                          
+                return self.overlay, self.contours, self.frame_df
 
             else:
                 frame_df = pd.DataFrame()
-                return overlay, self.fgmask, frame_df
+                return self.overlay, [], self.frame_df
         
         else:
             frame_df = pd.DataFrame()
-            return overlay, self.fgmask, frame_df
+            return self.overlay, [], self.frame_df
         
         
         

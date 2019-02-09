@@ -69,6 +69,13 @@ def find_centroid(arr):
     sum_y = np.sum(arr[:, 1])
     return int(sum_y/length), int(sum_x/length)
 
+def show_img(image):
+    cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
+    cv2.imshow('phenopype', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+                
+
         
         
         
