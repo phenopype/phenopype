@@ -22,10 +22,12 @@ setup(
 	license='LGPL',
 	description='a phenotyping pipeline for python',
 	long_description=open('README.md').read(), 
-	long_description_content_type='text/markdown',
-	test_suite='nose.collector',
-    tests_require=['nose'],
+	long_description_content_type='text/markdown'
 )
+
+,
+	# test_suite='nose.collector',
+    # tests_require=['nose'],
 
 # to come
 # "Pillow", "pytesseract", "trackpy"

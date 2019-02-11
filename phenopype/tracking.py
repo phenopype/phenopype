@@ -12,7 +12,6 @@ from phenopype.utils import (red, white)
 
 #%% classes
              
-       
 class motion_tracker(object):
     def __init__(self, video_path, **kwargs): 
         """Read properties of input video file.
@@ -171,7 +170,7 @@ class motion_tracker(object):
                                 kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(self.consecutive[1],self.consecutive[1]))
                                 self.method_mask = cv2.dilate(self.method_mask, kernel, iterations = 1)
                                 
-                        self.fgmask = cv2.subtract(self.fgmask, self.method_mask)
+                            self.fgmask = cv2.subtract(self.fgmask, self.method_mask)
                         
                         self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, weight, 0)    
                         

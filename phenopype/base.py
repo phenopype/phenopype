@@ -8,26 +8,27 @@ import sys
 
 import cv2
 import datetime
-import collections as col
 
 from phenopype.utils import (red, green, blue, white, black)
-from phenopype.utils import (blur, exif_date, gray_scale, find_centroid)
+from phenopype.utils import (blur, exif_date, get_median_grayscale)
 
 
 #%% classes
 
+
 class project_maker: 
-    """Create project object where information from multiple image-analyses can be stored. 
-    Also creates project dataframe where information from single images can be stored."""             
-    def run(self, project_name, image_dir, **kwargs):
-        """Initialize project maker.
+    def __init__(self, image_dir, **kwargs):
+        
+        """Create project object where information from multiple image-analyses can be stored. 
+        Also creates project dataframe where information from single images can be stored.
         
         Parameters
         ----------
-            project_name: str
-                name of your project
+
             image_dir: str 
                 path to directory with images
+            project_name: str
+                name of your project
             save_dir: str
                 path to directory where processed images and measurements are saved   
             mode: str ("tree", "dir")
@@ -36,15 +37,15 @@ class project_maker:
                 single or multiple string patterns to target certain files to include - can be used together with exclude
             exclude: list with str
                 single or multiple string patterns to target certain files to include - can be used together with include
-
-     
         """
         
         # =============================================================================
         # INITIALIZE
         # =============================================================================
         
-        self.name = project_name
+        proj_dummy_name = "My project, " + datetime.datetime.today().strftime('%Y-%m-%d')
+        
+        self.name = kwargs.get("name",proj_dummy_name)           
         self.in_dir = image_dir
         self.save_dir = kwargs.get("save_dir", os.path.normpath(self.in_dir) + "_out")   
         if not os.path.exists(self.save_dir):
@@ -53,8 +54,8 @@ class project_maker:
         self.filetypes = kwargs.get("filetypes", [])
         self.exclude = kwargs.get("exclude", [])
         self.include = kwargs.get("include", [])
-
-
+    
+    
         # MAKE FILELISTS
         filepaths1 = []
         filenames1 = []
@@ -85,7 +86,7 @@ class project_maker:
         else:
             filepaths2 = filepaths1
             filenames2 = filenames1
-
+    
         # EXCLUDE  
         filepaths3 = []
         filenames3 = []
@@ -98,7 +99,7 @@ class project_maker:
         else:
             filepaths3 = filepaths2
             filenames3 = filenames2
-
+    
         # FILETYPE        
         filepaths4 = []
         filenames4 = []
@@ -111,7 +112,7 @@ class project_maker:
         else:
             filepaths4 = filepaths3
             filenames4 = filenames3
-
+    
         self.filenames = filenames4
         self.filepaths = filepaths4
                     
@@ -126,63 +127,62 @@ class project_maker:
         self.filenames = self.df['filename'].tolist()
         self.df.drop(columns='filepath', inplace=True)
         
+
+    def project_update_filelist(self, **kwargs):
+        
+        # =============================================================================
+        # MAKE FILELIST AND PATHLIST
+        # =============================================================================
+        filepaths1 = []
+        filenames1 = []
+        
+        if self.mode == "tree":
+            for root, dirs, files in os.walk(self.in_dir):
+                for i in os.listdir(root):
+                    path = os.path.join(root,i)
+                    if os.path.isfile(path):      
+                        filepaths1.append(path)
+                        filenames1.append(i)
+                        
+        elif self.mode == "dir":
+            for i in os.listdir(self.in_dir):
+                path = os.path.join(self.in_dir,i)
+                if os.path.isfile(path):      
+                    filepaths1.append(path)
+                    filenames1.append(i)
+                      
+        filepaths2 = []
+        filenames2 = []
+        for name, path in zip(filenames1, filepaths1):   
+            for inc in self.include:
+                if inc in name:
+                    filepaths2.append(path)
+                    filenames2.append(name)
+
+        filepaths3 = []
+        filenames3 = []
+        for name, path in zip(filenames2, filepaths2):   
+            for exc in self.exclude:
+                if exc not in name:
+                    filepaths3.append(path)
+                    filenames3.append(name)
+
+        filepaths4 = []
+        filenames4 = []
+        for name, path in zip(filenames3, filepaths3):   
+            if name.endswith in self.file_type:
+                filepaths4.append(path)
+                filenames4.append(name)
+
+        self.filenames = filenames4
+        self.filepaths = filepaths4
+            
+        # UPDATE DF
+        if kwargs.get("update_df", True):
+            self.df = self.df[self.df["filename"].isin(self.filenames)]
+            
     
-#    def update_list(self, **kwargs):
-#        
-#        # =============================================================================
-#        # MAKE FILELIST AND PATHLIST
-#        # =============================================================================
-#        filepaths1 = []
-#        filenames1 = []
-#        
-#        if self.mode == "tree":
-#            for root, dirs, files in os.walk(self.in_dir):
-#                for i in os.listdir(root):
-#                    path = os.path.join(root,i)
-#                    if os.path.isfile(path):      
-#                        filepaths1.append(path)
-#                        filenames1.append(i)
-#                        
-#        elif self.mode == "dir":
-#            for i in os.listdir(self.in_dir):
-#                path = os.path.join(self.in_dir,i)
-#                if os.path.isfile(path):      
-#                    filepaths1.append(path)
-#                    filenames1.append(i)
-#                      
-#        filepaths2 = []
-#        filenames2 = []
-#        for name, path in zip(filenames1, filepaths1):   
-#            for inc in self.include:
-#                if inc in name:
-#                    filepaths2.append(path)
-#                    filenames2.append(name)
-#
-#        filepaths3 = []
-#        filenames3 = []
-#        for name, path in zip(filenames2, filepaths2):   
-#            for exc in self.exclude:
-#                if exc not in name:
-#                    filepaths3.append(path)
-#                    filenames3.append(name)
-#
-#        filepaths4 = []
-#        filenames4 = []
-#        for name, path in zip(filenames3, filepaths3):   
-#            if name.endswith in self.file_type:
-#                filepaths4.append(path)
-#                filenames4.append(name)
-#
-#        self.filenames = filenames4
-#        self.filepaths = filepaths4
-#            
-#        # UPDATE DF
-#        if kwargs.get("update_df", True):
-#            self.df = self.df[self.df["filename"].isin(self.filenames)]
-#    
-    
-    
-    def grayscale_finder(self, write, **kwargs):
+    def project_grayscale_finder(self, **kwargs):
         """Returns median grayscale value from all images inside the project image directory.
         
         Parameters
@@ -201,24 +201,17 @@ class project_maker:
         self.gray_scale_list = []
         for filepath, filename in zip(self.filepaths, self.filenames):
             image = cv2.imread(filepath,0)
-            
-            if (image.shape[0] + image.shape[1])/2 > 2000:
-                factor = kwargs.get('resize', 0.5)
-                image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
-
-            vec = np.ravel(image)
-            mc = col.Counter(vec).most_common(9)
-            g = [item[0] for item in mc]
-            med = int(np.median(g))
+            med = get_median_grayscale(image)
             self.gray_scale_list.append(med)
             print(filename + ": " + str(med))
+            
         print("\nMean grayscale in directory: " + str(int(np.mean(self.gray_scale_list))))
         
         if write == True:
             self.df["gray_scale"] = self.gray_scale_list
 
     
-    def save(self, **kwargs):
+    def project_save(self, **kwargs):
         """Save project dataframe as .txt to directory. 
         
         Parameters
@@ -244,49 +237,7 @@ class project_maker:
 
 
 class scale_maker:
-    """Define a colour or millimeter scale inside an image by grabbing it from the image, and automatically retrieve it in the following images."""
-    def __init__(self):
-        # initialize -----
-        self.done_step1 = False 
-        self.done_step2 = False
-        self.current = (0, 0) 
-        self.points_step1 = [] 
-        self.points_step2 = []
-        self.scale_px = 0
-        
-    def _on_mouse_step1(self, event, x, y, buttons, user_param):
-        if self.done_step1: # Nothing more to do
-            return
-        if event == cv2.EVENT_MOUSEMOVE:
-            self.current = (x, y)
-        if event == cv2.EVENT_LBUTTONDOWN:
-            print("Adding point #%d to scale outline" % (len(self.points_step1)+1))
-            self.points_step1.append((x, y))
-        if event == cv2.EVENT_RBUTTONDOWN:
-            if len(self.points_step1) > 0:
-                self.points_step1 = self.points_step1[:-1]
-                print("Removing point #%d from scale outline" % (len(self.points_step1)+1))
-
-    def _on_mouse_step2(self, event, x, y, buttons, user_param):
-        if self.done_step2: # Nothing more to do
-            return
-        if event == cv2.EVENT_MOUSEMOVE:
-            self.current = (x, y)
-        if event == cv2.EVENT_LBUTTONDOWN:
-            print("Adding point %s of 2 to scale" % (len(self.points_step2)+1))
-            self.points_step2.append((x, y))
-        if event == cv2.EVENT_RBUTTONDOWN:
-            if len(self.points_step2) > 0:
-                self.points_step2 = self.points_step2[:-1]
-                print("Removing point %s of 2 from scale" % (len(self.points_step2)+1))
-        if len(self.points_step2)==2:
-            self.done_step2 = True
-            self.scale_px = int(math.sqrt( ((self.points_step2[0][0]-self.points_step2[1][0])**2)+((self.points_step2[0][1]-self.points_step2[1][1])**2)))
-            cv2.destroyWindow("phenopype")
-
-
-    def grab(self, image, **kwargs): 
-        """Make a template of a colour or mm scale by drawing into an image. 
+    """Define a colour or millimeter scale inside an image by grabbing it from the image, and automatically retrieve it in the following images. Make a template of a colour or mm scale by drawing into an image. 
         
         Parameters
         ----------
@@ -302,9 +253,16 @@ class scale_maker:
                 zoom into the scale after drawin it for higher accuracy
         """
         
-        # =============================================================================
-        # INITIALIZE
-        # =============================================================================
+    def __init__(self, image, **kwargs):
+        
+        # initialize -----
+        self.done_step1 = False 
+        self.done_step2 = False
+        self.current = (0, 0) 
+        self.points_step1 = [] 
+        self.points_step2 = []
+        self.scale_px = 0
+        
         
         if isinstance(image, str):
             image = cv2.imread(image)        
@@ -420,6 +378,36 @@ class scale_maker:
         # MASK
         zeros = np.zeros(image.shape[0:2], np.uint8)
         self.mask = cv2.fillPoly(zeros, [np.array(self.points_step1, dtype=np.int32)], white)
+
+    def _on_mouse_step1(self, event, x, y, buttons, user_param):
+        if self.done_step1: # Nothing more to do
+            return
+        if event == cv2.EVENT_MOUSEMOVE:
+            self.current = (x, y)
+        if event == cv2.EVENT_LBUTTONDOWN:
+            print("Adding point #%d to scale outline" % (len(self.points_step1)+1))
+            self.points_step1.append((x, y))
+        if event == cv2.EVENT_RBUTTONDOWN:
+            if len(self.points_step1) > 0:
+                self.points_step1 = self.points_step1[:-1]
+                print("Removing point #%d from scale outline" % (len(self.points_step1)+1))
+
+    def _on_mouse_step2(self, event, x, y, buttons, user_param):
+        if self.done_step2: # Nothing more to do
+            return
+        if event == cv2.EVENT_MOUSEMOVE:
+            self.current = (x, y)
+        if event == cv2.EVENT_LBUTTONDOWN:
+            print("Adding point %s of 2 to scale" % (len(self.points_step2)+1))
+            self.points_step2.append((x, y))
+        if event == cv2.EVENT_RBUTTONDOWN:
+            if len(self.points_step2) > 0:
+                self.points_step2 = self.points_step2[:-1]
+                print("Removing point %s of 2 from scale" % (len(self.points_step2)+1))
+        if len(self.points_step2)==2:
+            self.done_step2 = True
+            self.scale_px = int(math.sqrt( ((self.points_step2[0][0]-self.points_step2[1][0])**2)+((self.points_step2[0][1]-self.points_step2[1][1])**2)))
+            cv2.destroyWindow("phenopype")
 
 
     def detect(self, image, **kwargs):
@@ -760,9 +748,9 @@ class object_finder:
         self.gray = cv2.cvtColor(self.image,cv2.COLOR_BGR2GRAY)
         if 'gray_value_ref' in kwargs:
             if resize < 1:
-                ret = gray_scale(source=self.gray)
+                ret = get_median_grayscale(source=self.gray)
             else: 
-                ret = gray_scale(source=self.gray,  resize=0.25)
+                ret = get_median_grayscale(source=self.gray,  resize=0.25)
             ref = kwargs.get('gray_value_ref', ret)
             self.gray_corr_factor = int(ref - ret)
             self.gray_corrected = np.array(copy.deepcopy(self.gray) + self.gray_corr_factor, dtype="uint8")

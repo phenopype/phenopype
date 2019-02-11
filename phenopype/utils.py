@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import exifread
-import collections as col
+from collections import Counter
 
 #%% colours
 
@@ -23,7 +23,6 @@ def exif_date(path):
 def avgit(x):
     return x.sum(axis=0)/np.shape(x)[0]
 
-
 def decode_fourcc(cc):
     return "".join([chr((int(cc) >> 8 * i) & 0xFF) for i in range(4)])
 
@@ -32,16 +31,17 @@ def blur(image, blur_kern):
     ddepth = -1
     return cv2.filter2D(image,ddepth,kern)
 
-def gray_scale(source, **kwargs):
-    img = source
-    if "resize" in kwargs:
-        img = cv2.resize(img, (0,0), fx=1*kwargs.get("resize"), fy=1*kwargs.get("resize")) 
-    vec = np.ravel(img)
-    mc = col.Counter(vec).most_common(9)
-    g = [item[0] for item in mc]
+def get_median_grayscale(image, **kwargs):
+    if (image.shape[0] + image.shape[1])/2 > 2000:
+        factor = kwargs.get('resize', 0.5)
+        image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
+        
+    vector = np.ravel(image)
+    vector_mc = Counter(vector).most_common(9)
+    g = [item[0] for item in vector_mc]
     return int(np.median(g))
 
-def find_skeleton3(img):
+def find_skeleton(img):
     skeleton = np.zeros(img.shape,np.uint8)
     eroded = np.zeros(img.shape,np.uint8)
     temp = np.zeros(img.shape,np.uint8)
