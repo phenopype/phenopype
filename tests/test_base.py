@@ -1,10 +1,9 @@
 #%% test header
 import os
-os.chdir("E:\\git_repos\\phenopype")
-import random
 import cv2
-import sys
+import random
 
+os.chdir("E:\\git_repos\\phenopype")
 from phenopype import base
 
 import pytest

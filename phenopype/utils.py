@@ -31,16 +31,6 @@ def blur(image, blur_kern):
     ddepth = -1
     return cv2.filter2D(image,ddepth,kern)
 
-def get_median_grayscale(image, **kwargs):
-    if (image.shape[0] + image.shape[1])/2 > 2000:
-        factor = kwargs.get('resize', 0.5)
-        image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
-        
-    vector = np.ravel(image)
-    vector_mc = Counter(vector).most_common(9)
-    g = [item[0] for item in vector_mc]
-    return int(np.median(g))
-
 def find_skeleton(img):
     skeleton = np.zeros(img.shape,np.uint8)
     eroded = np.zeros(img.shape,np.uint8)
@@ -69,12 +59,57 @@ def find_centroid(arr):
     sum_y = np.sum(arr[:, 1])
     return int(sum_y/length), int(sum_x/length)
 
-def show_img(image):
+def show_img(img):
+    if isinstance(img, str):
+        image = cv2.imread(img)  
+    else:
+        image = img
     cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
     cv2.imshow('phenopype', image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-                
+    
+    
+#%% grayscale
+    
+    
+def get_median_grayscale(image, **kwargs):
+    if (image.shape[0] + image.shape[1])/2 > 2000:
+        factor = kwargs.get('resize', 0.5)
+        image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
+        
+    vector = np.ravel(image)
+    vector_mc = Counter(vector).most_common(9)
+    g = [item[0] for item in vector_mc]
+    return int(np.median(g))
+    
+#        def project_grayscale_finder(self, **kwargs):
+#        """Returns median grayscale value from all images inside the project image directory.
+#        
+#        Parameters
+#        -----------
+#        
+#        resize: in (0.1-1)
+#            resize image to increase speed 
+#        write: bool, default False
+#            write median grayscale to project dataframe
+#            
+#        """
+#        
+#        write = kwargs.get('write', False)
+#
+#        
+#        self.gray_scale_list = []
+#        for filepath, filename in zip(self.filepaths, self.filenames):
+#            image = cv2.imread(filepath,0)
+#            med = get_median_grayscale(image)
+#            self.gray_scale_list.append(med)
+#            print(filename + ": " + str(med))
+#            
+#        print("\nMean grayscale in directory: " + str(int(np.mean(self.gray_scale_list))))
+#        
+#        if write == True:
+#            self.df["gray_scale"] = self.gray_scale_list
 
         
         

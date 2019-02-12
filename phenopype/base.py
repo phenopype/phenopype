@@ -15,7 +15,6 @@ from phenopype.utils import (blur, exif_date, get_median_grayscale)
 
 #%% classes
 
-
 class project_maker: 
     def __init__(self, image_dir, **kwargs):
         
@@ -27,11 +26,12 @@ class project_maker:
 
             image_dir: str 
                 path to directory with images
-            project_name: str
+                
+            project_name: str 
                 name of your project
             save_dir: str
                 path to directory where processed images and measurements are saved   
-            mode: str ("tree", "dir")
+            mode: str 
                 tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory 
             include: 
                 single or multiple string patterns to target certain files to include - can be used together with exclude
@@ -45,16 +45,67 @@ class project_maker:
         
         proj_dummy_name = "My project, " + datetime.datetime.today().strftime('%Y-%m-%d')
         
-        self.name = kwargs.get("name",proj_dummy_name)           
+        self.name = kwargs.get("name", proj_dummy_name)           
         self.in_dir = image_dir
         self.save_dir = kwargs.get("save_dir", os.path.normpath(self.in_dir) + "_out")   
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
+            save_dir_made = " (created)"
+        else:
+            save_dir_made = ""
         self.mode = kwargs.get("mode","tree")                 
         self.filetypes = kwargs.get("filetypes", [])
         self.exclude = kwargs.get("exclude", [])
         self.include = kwargs.get("include", [])
+        
+        show_filenames = kwargs.get("show_filenames", False)
+        show_filepaths = kwargs.get("show_filepaths", False)
+
+        print("\n")
+        print("----------------------------------------------------------------")
+        print("Project settings - \"" + self.name + "\":\n")
+        print("\nImage directory: " + str(self.in_dir)  + "\nOutput directory: " + str(self.save_dir) + save_dir_made + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
+        print("----------------------------------------------------------------")
+        
+        self._get_filelists()
+        if show_filenames==True:
+            print("Filenames: \n" + str(self.filenames))
+        if show_filepaths==True:
+            print("Filepaths: \n" + str(self.filepaths))
+        
+    def update_list(self, **kwargs):
     
+        self.name = kwargs.get("name",self.name)           
+        self.in_dir = kwargs.get("image_dir",self.in_dir)           
+        self.save_dir = kwargs.get("save_dir",self.save_dir)   
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+            save_dir_made = " (created)"
+        else:
+            save_dir_made = ""
+        self.mode = kwargs.get("mode",self.mode)                 
+        self.filetypes = kwargs.get("filetypes", self.filetypes)
+        self.exclude = kwargs.get("exclude", self.exclude)
+        self.include = kwargs.get("include", self.include)
+        
+        show_filenames = kwargs.get("show_filenames", False)
+        show_filepaths = kwargs.get("show_filepaths", False)
+   
+        print("\n")
+        print("----------------------------------------------------------------")
+        print("Project settings - \"" + self.name + "\" - (UPDATED):\n")
+        print("\nImage directory: " + str(self.in_dir)  + "\nOutput directory: " + str(self.save_dir) + save_dir_made + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
+        print("----------------------------------------------------------------")
+        
+        self._get_filelists()
+        
+        if show_filenames==True:
+            print("Filenames: \n" + str(self.filenames))
+        if show_filepaths==True:
+            print("Filepaths: \n" + str(self.filepaths))
+            
+          
+    def _get_filelists(self):
     
         # MAKE FILELISTS
         filepaths1 = []
@@ -116,102 +167,19 @@ class project_maker:
         self.filenames = filenames4
         self.filepaths = filepaths4
                     
-        # =============================================================================
-        # BUILD PROJECT DF
-        # =============================================================================
-        self.df = pd.DataFrame(data=list(zip(self.filepaths, self.filenames)), columns = ["filepath", "filename"])
-        self.df.index = self.filenames
-        self.df.insert(0, "project", self.name)
-        self.df.drop_duplicates(subset="filename", inplace=True)
-        self.filepaths = self.df['filepath'].tolist()
-        self.filenames = self.df['filename'].tolist()
-        self.df.drop(columns='filepath', inplace=True)
-        
-
-    def project_update_filelist(self, **kwargs):
-        
-        # =============================================================================
-        # MAKE FILELIST AND PATHLIST
-        # =============================================================================
-        filepaths1 = []
-        filenames1 = []
-        
-        if self.mode == "tree":
-            for root, dirs, files in os.walk(self.in_dir):
-                for i in os.listdir(root):
-                    path = os.path.join(root,i)
-                    if os.path.isfile(path):      
-                        filepaths1.append(path)
-                        filenames1.append(i)
-                        
-        elif self.mode == "dir":
-            for i in os.listdir(self.in_dir):
-                path = os.path.join(self.in_dir,i)
-                if os.path.isfile(path):      
-                    filepaths1.append(path)
-                    filenames1.append(i)
-                      
-        filepaths2 = []
-        filenames2 = []
-        for name, path in zip(filenames1, filepaths1):   
-            for inc in self.include:
-                if inc in name:
-                    filepaths2.append(path)
-                    filenames2.append(name)
-
-        filepaths3 = []
-        filenames3 = []
-        for name, path in zip(filenames2, filepaths2):   
-            for exc in self.exclude:
-                if exc not in name:
-                    filepaths3.append(path)
-                    filenames3.append(name)
-
-        filepaths4 = []
-        filenames4 = []
-        for name, path in zip(filenames3, filepaths3):   
-            if name.endswith in self.file_type:
-                filepaths4.append(path)
-                filenames4.append(name)
-
-        self.filenames = filenames4
-        self.filepaths = filepaths4
-            
-        # UPDATE DF
-        if kwargs.get("update_df", True):
-            self.df = self.df[self.df["filename"].isin(self.filenames)]
-            
+#        # =============================================================================
+#        # BUILD PROJECT DF
+#        # =============================================================================
+#        self.df = pd.DataFrame(data=list(zip(self.filepaths, self.filenames)), columns = ["filepath", "filename"])
+#        self.df.index = self.filenames
+#        self.df.insert(0, "project", self.name)
+#        self.df.drop_duplicates(subset="filename", inplace=True)
+#        self.filepaths = self.df['filepath'].tolist()
+#        self.filenames = self.df['filename'].tolist()
+#        self.df.drop(columns='filepath', inplace=True)
+#                                
     
-    def project_grayscale_finder(self, **kwargs):
-        """Returns median grayscale value from all images inside the project image directory.
-        
-        Parameters
-        -----------
-        
-        resize: in (0.1-1)
-            resize image to increase speed 
-        write: bool, default False
-            write median grayscale to project dataframe
-            
-        """
-        
-        write = kwargs.get('write', False)
-
-        
-        self.gray_scale_list = []
-        for filepath, filename in zip(self.filepaths, self.filenames):
-            image = cv2.imread(filepath,0)
-            med = get_median_grayscale(image)
-            self.gray_scale_list.append(med)
-            print(filename + ": " + str(med))
-            
-        print("\nMean grayscale in directory: " + str(int(np.mean(self.gray_scale_list))))
-        
-        if write == True:
-            self.df["gray_scale"] = self.gray_scale_list
-
-    
-    def project_save(self, **kwargs):
+    def save(self, **kwargs):
         """Save project dataframe as .txt to directory. 
         
         Parameters

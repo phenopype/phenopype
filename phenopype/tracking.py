@@ -7,7 +7,7 @@ import cv2
 import os
 import pprint
 
-from phenopype.utils import (blur, decode_fourcc)
+from phenopype.utils import (blur, decode_fourcc, show_img)
 from phenopype.utils import (red, white)
 
 #%% classes
