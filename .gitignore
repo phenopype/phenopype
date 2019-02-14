@@ -8,3 +8,5 @@ _config.yml
 doctrees/
 .buildinfo
 build
+images_out
+videos_out

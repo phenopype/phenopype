@@ -16,25 +16,37 @@ class motion_tracker(object):
     def __init__(self, video_path, **kwargs): 
         """Read properties of input video file.
         """
-        if isinstance(video_path, str):
-            cap = cv2.VideoCapture(video_path)
-            ret, frame = cap.read()
+        at_frame = kwargs.get("at_frame",  1)  
 
+        if isinstance(video_path, str):
+            capture = cv2.VideoCapture(video_path)                  
+            idx = 0
+            while(capture.isOpened()):
+                idx += 1
+                if idx == at_frame:
+                    ret, frame = capture.read()
+                    break
+                else:
+                    capture.grab()
+                if cv2.waitKey(1) & 0xff == 27:
+                    break
+
+                    
         else:
             print("Error - full or relative path of video-file needed")
         
         self.frame = frame
         self.path = video_path       
         self.name = os.path.basename(self.path)
-        self.nframes = cap.get(cv2.CAP_PROP_FRAME_COUNT) 
-        self.fps = cap.get(cv2.CAP_PROP_FPS)
-        self.fourcc_str = decode_fourcc(cap.get(cv2.CAP_PROP_FOURCC))
+        self.nframes = capture.get(cv2.CAP_PROP_FRAME_COUNT) 
+        self.fps = capture.get(cv2.CAP_PROP_FPS)
+        self.fourcc_str = decode_fourcc(capture.get(cv2.CAP_PROP_FOURCC))
         self.length = str(int(( self.nframes / self.fps)/60)).zfill(2) + ":" +str(int((((self.nframes / self.fps)/60)-int((self.nframes / self.fps)/60))*60)).zfill(2)
         self.dimensions = tuple(reversed(frame.shape[0:2]))
         if frame.shape[2] == 3:
             self.is_colour = True
             
-        cap.release()
+        capture.release()
         
         print("\n")
         print("----------------------------------------------------------------")
@@ -62,16 +74,16 @@ class motion_tracker(object):
             res_msg = ""
         fourcc_str_out = kwargs.get("fourcc_string", "DIVX")
         fourcc_out = cv2.VideoWriter_fourcc(*fourcc_str_out)
-        save_colour = kwargs.get("save_colour", self.is_colour)
+        self.save_colour = kwargs.get("save_colour", self.is_colour)
         
         self.save_video = kwargs.get("save_video",True)
-        self.writer = cv2.VideoWriter(path_out, fourcc_out, fps_out, dimensions_out, save_colour) 
+        self.writer = cv2.VideoWriter(path_out, fourcc_out, fps_out, dimensions_out, self.save_colour) 
 
 
         print("\n")
         print("----------------------------------------------------------------")
         print("Output video settings - \"" + self.name + "\":\n")
-        print("Save name: " + name_out + "\nSave dir: " + dir_out + "\nFrames per second: " + str(fps_out) + "\nDimensions: " + str(dimensions_out) + res_msg +  "\nColour video: " + str(save_colour) + "\nFormat (FourCC code): " + fourcc_str_out) 
+        print("Save name: " + name_out + "\nSave dir: " + dir_out + "\nFrames per second: " + str(fps_out) + "\nDimensions: " + str(dimensions_out) + res_msg +  "\nColour video: " + str(self.save_colour) + "\nFormat (FourCC code): " + fourcc_str_out) 
         print("----------------------------------------------------------------")
         
 
@@ -85,7 +97,14 @@ class motion_tracker(object):
         backgr_thresh = kwargs.get("backgr_thresh", 10)        
         self.detect_shadows = kwargs.get("detect_shadows", True)
 
-        self.fgbg_subtractor = cv2.createBackgroundSubtractorMOG2(history = int(history * (self.fps / self.skip)), varThreshold = int(backgr_thresh), detectShadows = self.detect_shadows)
+        mode = kwargs.get("mode", "MOG")
+        if mode == "MOG":
+            self.fgbg_subtractor = cv2.createBackgroundSubtractorMOG2( int(history * (self.fps / self.skip)),  int(backgr_thresh),  self.detect_shadows)
+        elif mode == "KNN":
+            self.fgbg_subtractor = cv2.createBackgroundSubtractorKNN( int(history * (self.fps / self.skip)),  int(backgr_thresh),  self.detect_shadows)
+
+        if "mask" in kwargs:
+            self.mask_objects = kwargs.get("mask")
         
         if "methods" in kwargs:
             self.methods = kwargs.get("methods")
@@ -106,9 +125,15 @@ class motion_tracker(object):
     def run_tracking(self, **kwargs):
         
         weight = kwargs.get("weight", 0.5)
-        show_selector = kwargs.get("show","overlay")
-        return_df = kwargs.get("return_df","False")
-
+        if "show" in kwargs:
+            show_selector = kwargs.get("show")
+            show = True
+        else:
+            show_selector = "overlay"
+            show = False
+            
+        return_df = kwargs.get("return_df","True")
+                   
         self.df = pd.DataFrame()
         self.idx1, self.idx2 = (0,0)
         self.capture = cv2.VideoCapture(self.path)        
@@ -116,49 +141,75 @@ class motion_tracker(object):
         if self.finish > 0:
             self.finish_frame = self.finish * self.fps
             
-
         #methods_out = []
         while(self.capture.isOpened()):
             
-            # read video 
-            self.ret, self.frame = self.capture.read()  
+            # =============================================================================
+            # INDEXING AND CONTROL
+            # =============================================================================
             
-            # indexing
             self.idx1, self.idx2 = (self.idx1 + 1,  self.idx2 + 1)    
             if self.idx2 == self.skip:
                 self.idx2 = 0 
                 
-            # end-control     
-            if self.ret==False:
-                continue
-            
-            if self.idx1 == self.nframes:
+            mins = str(int((self.idx1 / self.fps)/60)).zfill(2)
+            secs = str(int((((self.idx1 / self.fps)/60)-int(mins))*60)).zfill(2)    
+            self.time_stamp = "Time: " + mins + ":" + secs + "/" + self.length + " - Frames: " + str(self.idx1) + "/" + str(int(self.nframes))  
+        
+
+            # end-control              
+            if self.idx1 == self.nframes-1: 
                 self.capture.release()
                 self.writer.release()
-                break
-            
-            if self.idx1 >= self.finish_frame:
+                break            
+            if self.idx1 == self.finish_frame-1:
                 self.capture.release()
                 self.writer.release()
                 break                             
           
-        
-            # feedback
-            mins = str(int((self.idx1 / self.fps)/60)).zfill(2)
-            secs = str(int((((self.idx1 / self.fps)/60)-int(mins))*60)).zfill(2)    
-            self.time_stamp = "Time: " + mins + ":" + secs + "/" + self.length + " - Frames: " + str(self.idx1) + "/" + str(int(self.nframes))
-            
-            
+            # check if frame is empty and if it should be captured
+            if self.idx1 > self.wait_frame - (3*self.fps) and self.idx2 == 0:
+                self.ret, self.frame = self.capture.read()  
+                if self.ret==False: # skip empty frames
+                    continue  
+                else:
+                    capture_frame = True
+                    print(self.time_stamp + " - captured")       
+
+            else:
+                self.capture.grab() 
+                print(self.time_stamp)
+                continue
+
             # =============================================================================
             # CAPTURE FRAME 
             # =============================================================================
-
-            # warmup fgbg-algorithm shortly before capturing 
-            if self.idx1 > self.wait_frame - (3*self.fps) and self.idx2 == 0:
-                self.fgmask = self.fgbg_subtractor.apply(self.frame)     
+            if capture_frame == True:                   
                 
-            # initiate tracking    
-            if self.idx1 > self.wait_frame and self.idx2 == 0:
+                # apply mask, if present
+                if "mask_objects" in vars(self):
+                
+                    mask_dummy1 = np.zeros(self.frame.shape[0:2], dtype=bool)
+                    mask_list = []
+                    mask_label_names = []
+                    
+                    for obj in self.mask_objects:
+                        mask, label, include = obj
+                        if include == True:
+                            mask_list.append(mask)
+                            mask_label_names.append(label)
+                            mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
+                            mask_dummy2[mask] = 1
+                            mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
+                        if include == False:
+                            mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
+                            mask_dummy2[mask] = -100
+                            mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
+                            
+                    self.frame[mask_dummy1<=0]=0
+    
+                # initiate tracking    
+                self.fgmask = self.fgbg_subtractor.apply(self.frame)     
                 self.frame_overlay = self.frame    
                                 
                 # apply methods
@@ -190,35 +241,36 @@ class motion_tracker(object):
                         self.frame_df.insert(2, 'mins',  mins)
                         self.frame_df.insert(3, 'secs',  secs)
                         self.df = self.df.append(self.frame_df, ignore_index=True, sort=False)                     
-                
-                # show output
-                if show_selector == "overlay":
-                    self.show = self.frame_overlay
-                elif show_selector == "fgmask":
-                    self.show = self.fgmask    
-                else:
-                    self.show = self.frame
                     
-                self.show = cv2.resize(self.show, (0,0), fx=self.resize_factor, fy=self.resize_factor)       
-                cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
-                cv2.imshow('phenopype', self.show)   
-                                
-                # save output
-                if self.save_video == True:
-                    self.writer.write(self.show)
+                    # =============================================================================
+                    # SAVE
+                    # =============================================================================
                     
-                print(self.time_stamp + " - captured")                
-
-
-            else:
-                print(self.time_stamp)
+                    # show output
+                    if show_selector == "overlay":
+                        self.show = self.frame_overlay
+                    elif show_selector == "fgmask":
+                        self.show = self.fgmask    
+                    else:
+                        self.show = self.frame
+                        
+                    self.show = cv2.resize(self.show, (0,0), fx=self.resize_factor, fy=self.resize_factor)       
+                    if show == True:
+                        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
+                        cv2.imshow('phenopype', self.show)   
+                                    
+                    # save output
+                    if self.save_video == True:
+                        if self.save_colour and len(self.show.shape)<3:
+                            self.show = cv2.cvtColor(self.show, cv2.COLOR_GRAY2BGR)
+                        self.writer.write(self.show)
 
             # keep stream open
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xff == 27:
                 self.capture.release()
                 self.writer.release()
                 break
-            
+
         # cleanup
         self.capture.release()
         self.writer.release()

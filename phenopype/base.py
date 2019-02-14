@@ -58,7 +58,7 @@ class project_maker:
         self.exclude = kwargs.get("exclude", [])
         self.include = kwargs.get("include", [])
         
-        show_filenames = kwargs.get("show_filenames", False)
+        show_filenames = kwargs.get("show_filenames", True)
         show_filepaths = kwargs.get("show_filepaths", False)
 
         print("\n")
@@ -255,6 +255,8 @@ class scale_maker:
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         cv2.setMouseCallback("phenopype", self._on_mouse_step1)
         temp_canvas_1 = copy.deepcopy(image)
+        
+        #if create_mask == True:
         
         if mode == "polygon":
             while(not self.done_step1):
@@ -553,7 +555,7 @@ class polygon_maker:
             else:
                 print("No points to delete")
                 
-    def draw(self, include, **kwargs):
+    def draw(self, **kwargs):
         """Draw polygon onto image.
         
         include: bool
@@ -562,7 +564,7 @@ class polygon_maker:
             draw the scale with a polygon or a box
             
         """
-
+        include = kwargs.get("include",True)
         mode = kwargs.get("mode","rectangle")
         label = kwargs.get("label","area 1")
         
@@ -621,7 +623,7 @@ class polygon_maker:
             self.overlay[mask_bool,2] = 0   
             line_col = green
 
-        if include == False:
+        elif include == False:
             mask_bool = np.array(mask, dtype=bool)
             self.overlay[mask_bool,2] = 200   
             self.overlay[mask_bool,1] = 0   
