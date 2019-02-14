@@ -64,7 +64,7 @@ class motion_tracker(object):
         fourcc_out = cv2.VideoWriter_fourcc(*fourcc_str_out)
         save_colour = kwargs.get("save_colour", self.is_colour)
         
-        self.save_video = kwargs.get("save_video","True")
+        self.save_video = kwargs.get("save_video",True)
         self.writer = cv2.VideoWriter(path_out, fourcc_out, fps_out, dimensions_out, save_colour) 
 
 
@@ -78,8 +78,8 @@ class motion_tracker(object):
     def motion_detection(self, **kwargs):
 
         self.skip = kwargs.get("skip", 5)
-        self.wait = kwargs.get("start_after", 15)
-        self.finish = kwargs.get("finish_after", 0)
+        self.wait = kwargs.get("start_after", 0)
+        self.finish = kwargs.get("finish_after", self.nframes)
 
         history = kwargs.get("history", 60)
         backgr_thresh = kwargs.get("backgr_thresh", 10)        
@@ -93,7 +93,7 @@ class motion_tracker(object):
                 m.print_settings()
                 
         if "consecutive_masking" in kwargs:
-            self.consecutive = kwargs.get("consecutive_masking")                
+            self.consecutive = kwargs.get("consecutive_masking")                 
         
         print("\n")
         print("----------------------------------------------------------------")
@@ -121,42 +121,52 @@ class motion_tracker(object):
         while(self.capture.isOpened()):
             
             # read video 
-            ret, self.frame = self.capture.read()     
-            self.capture_frame = False
-            if ret==False:
-                break
+            self.ret, self.frame = self.capture.read()  
             
-            # indexing 
+            # indexing
             self.idx1, self.idx2 = (self.idx1 + 1,  self.idx2 + 1)    
             if self.idx2 == self.skip:
-                self.idx2 = 0    
-            if self.finish > 0:
-                if self.idx1 >= self.finish_frame:
-                    break
-                             
+                self.idx2 = 0 
                 
-            # warmup fgbg-algorithm shortly before capturing 
-            if self.idx1 > self.wait_frame - (3*self.fps) and self.idx2 == 0:
-                self.fgmask = self.fgbg_subtractor.apply(self.frame)               
-                
-            # start modules after x seconds
-            if self.idx1 > self.wait_frame and self.idx2 == 0:
-                self.capture_frame = True
-                           
+            # end-control     
+            if self.ret==False:
+                continue
+            
+            if self.idx1 == self.nframes:
+                self.capture.release()
+                self.writer.release()
+                break
+            
+            if self.idx1 >= self.finish_frame:
+                self.capture.release()
+                self.writer.release()
+                break                             
+          
+        
             # feedback
             mins = str(int((self.idx1 / self.fps)/60)).zfill(2)
             secs = str(int((((self.idx1 / self.fps)/60)-int(mins))*60)).zfill(2)    
             self.time_stamp = "Time: " + mins + ":" + secs + "/" + self.length + " - Frames: " + str(self.idx1) + "/" + str(int(self.nframes))
             
             
-            # CAPTURE FRAME
-            if self.capture_frame == True:    
+            # =============================================================================
+            # CAPTURE FRAME 
+            # =============================================================================
 
+            # warmup fgbg-algorithm shortly before capturing 
+            if self.idx1 > self.wait_frame - (3*self.fps) and self.idx2 == 0:
+                self.fgmask = self.fgbg_subtractor.apply(self.frame)     
+                
+            # initiate tracking    
+            if self.idx1 > self.wait_frame and self.idx2 == 0:
                 self.frame_overlay = self.frame    
-                                   
+                                
+                # apply methods
                 if "methods" in vars(self):
                     for m in self.methods:
                         self.overlay, self.method_contours, self.frame_df = m._run(frame=self.frame, fgmask=self.fgmask)
+                        
+                        # "shadowing of methods
                         if "consecutive" in vars(self):
                             self.method_mask = np.zeros_like(self.fgmask)
                             for contour in self.method_contours:
@@ -168,42 +178,45 @@ class motion_tracker(object):
                                     rx,ry,rw,rh = cv2.boundingRect(contour)
                                     cv2.rectangle(self.method_mask,(int(rx),int(ry)),(int(rx+rw),int(ry+rh)),white,-1)
                                 kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(self.consecutive[1],self.consecutive[1]))
-                                self.method_mask = cv2.dilate(self.method_mask, kernel, iterations = 1)
-                                
+                                self.method_mask = cv2.dilate(self.method_mask, kernel, iterations = 1)   
                             self.fgmask = cv2.subtract(self.fgmask, self.method_mask)
                         
+                        # create overlay for each method
                         self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, weight, 0)    
                         
-                        # DATA FRAME
+                        # make data.frame
                         self.frame_df.insert(0, 'frame_abs',  self.idx1)
                         self.frame_df.insert(1, 'frame',  int((self.idx1-self.wait_frame)/self.skip))
                         self.frame_df.insert(2, 'mins',  mins)
                         self.frame_df.insert(3, 'secs',  secs)
                         self.df = self.df.append(self.frame_df, ignore_index=True, sort=False)                     
                 
-                # SHOW OUTPUT
+                # show output
                 if show_selector == "overlay":
                     self.show = self.frame_overlay
                 elif show_selector == "fgmask":
                     self.show = self.fgmask    
                 else:
                     self.show = self.frame
-                self.show = cv2.resize(self.show, (0,0), fx=self.resize_factor, fy=self.resize_factor) 
-                
+                    
+                self.show = cv2.resize(self.show, (0,0), fx=self.resize_factor, fy=self.resize_factor)       
                 cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
                 cv2.imshow('phenopype', self.show)   
                                 
-                # SAVE OUTPUT
+                # save output
                 if self.save_video == True:
                     self.writer.write(self.show)
-                
-     
+                    
                 print(self.time_stamp + " - captured")                
+
+
             else:
                 print(self.time_stamp)
 
             # keep stream open
             if cv2.waitKey(1) & 0xFF == ord('q'):
+                self.capture.release()
+                self.writer.release()
                 break
             
         # cleanup
