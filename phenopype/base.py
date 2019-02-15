@@ -33,8 +33,8 @@ class project_maker:
                 
             project_name: str 
                 name of your project
-            save_dir: str
-                path to directory where processed images and measurements are saved   
+#            save_dir: str
+#                path to directory where processed images and measurements are saved   
             mode: str 
                 tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory 
             include: 
@@ -51,12 +51,12 @@ class project_maker:
         
         self.name = kwargs.get("name", proj_dummy_name)           
         self.in_dir = image_dir
-        self.save_dir = kwargs.get("save_dir", os.path.normpath(self.in_dir) + "_out")   
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-            save_dir_made = " (created)"
-        else:
-            save_dir_made = ""
+#        self.save_dir = kwargs.get("save_dir", os.path.normpath(self.in_dir) + "_out")   
+#        if not os.path.exists(self.save_dir):
+#            os.makedirs(self.save_dir)
+#            save_dir_made = " (created)"
+#        else:
+#            save_dir_made = ""
         self.mode = kwargs.get("mode","dir")                 
         self.filetypes = kwargs.get("filetypes", [])
         self.exclude = kwargs.get("exclude", [])
@@ -68,9 +68,10 @@ class project_maker:
         print("\n")
         print("----------------------------------------------------------------")
         print("Project settings - \"" + self.name + "\":\n")
-        print("\nImage directory: " + str(self.in_dir)  + "\nOutput directory: " + str(self.save_dir) + save_dir_made + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
+        print("\nImage directory: " + str(self.in_dir)  + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
         print("----------------------------------------------------------------")
         
+        # Output directory: " + str(self.save_dir) + save_dir_made
         self._get_filelists()
         if show_filenames==True:
             print("Filenames: \n" + str(self.filenames))
@@ -81,12 +82,12 @@ class project_maker:
     
         self.name = kwargs.get("name",self.name)           
         self.in_dir = kwargs.get("image_dir",self.in_dir)           
-        self.save_dir = kwargs.get("save_dir",self.save_dir)   
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-            save_dir_made = " (created)"
-        else:
-            save_dir_made = ""
+#        self.save_dir = kwargs.get("save_dir",self.save_dir)   
+#        if not os.path.exists(self.save_dir):
+#            os.makedirs(self.save_dir)
+#            save_dir_made = " (created)"
+#        else:
+#            save_dir_made = ""
         self.mode = kwargs.get("mode",self.mode)                 
         self.filetypes = kwargs.get("filetypes", self.filetypes)
         self.exclude = kwargs.get("exclude", self.exclude)
@@ -98,7 +99,7 @@ class project_maker:
         print("\n")
         print("----------------------------------------------------------------")
         print("Project settings - \"" + self.name + "\" - (UPDATED):\n")
-        print("\nImage directory: " + str(self.in_dir)  + "\nOutput directory: " + str(self.save_dir) + save_dir_made + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
+        print("\nImage directory: " + str(self.in_dir)  + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
         print("----------------------------------------------------------------")
         
         self._get_filelists()
@@ -183,29 +184,29 @@ class project_maker:
 #        self.df.drop(columns='filepath', inplace=True)
 #                                
     
-    def save(self, **kwargs):
-        """Save project dataframe as .txt to directory. 
-        
-        Parameters
-        -----------
-        
-        append: str
-            append given project name with suffix
-        overwrite: bool, default False
-            overwrite an existing .txt-file
-            
-        """
-        output = kwargs.get("save_dir",self.save_dir) # "out") #
-        if "append" in kwargs:
-            app = '_' + kwargs.get('append')
-        else:
-            app = ""
-        path=os.path.join(output , self.name +  app + ".txt")
-        if kwargs.get('overwrite',True) == False:
-            if not os.path.exists(path):
-                self.df.astype(str).to_csv(path_or_buf=path, sep="\t", index=False, float_format = '%.12g')
-        else:
-                self.df.astype(str).to_csv(path_or_buf=path, sep="\t", index=False, float_format = '%.12g')
+#    def save(self, **kwargs):
+#        """Save project dataframe as .txt to directory. 
+#        
+#        Parameters
+#        -----------
+#        
+#        append: str
+#            append given project name with suffix
+#        overwrite: bool, default False
+#            overwrite an existing .txt-file
+#            
+#        """
+#        output = kwargs.get("save_dir",self.save_dir) # "out") #
+#        if "append" in kwargs:
+#            app = '_' + kwargs.get('append')
+#        else:
+#            app = ""
+#        path=os.path.join(output , self.name +  app + ".txt")
+#        if kwargs.get('overwrite',True) == False:
+#            if not os.path.exists(path):
+#                self.df.astype(str).to_csv(path_or_buf=path, sep="\t", index=False, float_format = '%.12g')
+#        else:
+#                self.df.astype(str).to_csv(path_or_buf=path, sep="\t", index=False, float_format = '%.12g')
 
 
 class scale_maker:
