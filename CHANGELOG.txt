@@ -1,8 +1,22 @@
 Unreleased 
 ==========
 
-- testing environment for package release (tox?)
-- call object_finder functions from external script
+- internal: decluttering of base module / outhousing of classes and methods 
+- no cropping for scale possible
+- project management globally acessible through base functions
+- a quick-thresholding method in marked area for single images 
+- object_finder returns histogram of length, area and grayscale of all objects
+
+0.6.0
+------
+- integration with opencv-contrib-python==3.4.5.20
+- tracking functionality added, integration with trackpy
+- testing environment in place, integration with pytest
+- initialize classes directly with image
+- tutorials included for basic python (1) and object finding (2)
+Known bugs:
+- base "fillyPoly" sometimes breaks - culprit numpy datatype?
+- base.polygon_maker "include=False" excludes everything
 
 
 0.5.1

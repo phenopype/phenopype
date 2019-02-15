@@ -17,15 +17,21 @@ setup(
 	author='Moritz Luerig',
 	author_email='moritz.luerig@eawag.ch',
 	packages=['phenopype'],
-	install_requires=["pandas", "opencv-contrib-python==3.*", "exifread", "datetime"], 
+	install_requires=[
+		"exifread==2.1.2",
+		"jupyter notebook",
+		"numpy==1.16.1",
+		"pandas==0.24.1",
+		"pytesseract==0.2.6",
+		"pytest==4.2.0",
+		"opencv-contrib-python==3.4.5.20",
+		"trackpy==0.4.1"
+],
 	version=verstr,
 	license='LGPL',
 	description='a phenotyping pipeline for python',
 	long_description=open('README.md').read(), 
 	long_description_content_type='text/markdown',
-	test_suite='nose.collector',
-    tests_require=['nose'],
+	tests_require=["pytest"],
+	setup_requires=["pytest-runner"]
 )
-
-# to come
-# "Pillow", "pytesseract", "trackpy"
