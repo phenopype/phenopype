@@ -20,28 +20,25 @@ pd.options.display.max_rows = 10
 #%% classes
 
 class project_maker: 
-    def __init__(self, image_dir, **kwargs):
-        
-        """Create project object where information from multiple image-analyses can be stored. 
-        Also creates project dataframe where information from single images can be stored.
+    """Create project object where lists of filenames and filepaths are stored.
         
         Parameters
         ----------
 
             image_dir: str 
-                path to directory with images
-                
-            project_name: str 
+                path to directory with images           
+            project_name: str (optional)
                 name of your project
-#            save_dir: str
-#                path to directory where processed images and measurements are saved   
-            mode: str 
+            mode: str (optional, default: "dir")
                 tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory 
-            include: 
+            include: list (optional)
                 single or multiple string patterns to target certain files to include - can be used together with exclude
-            exclude: list with str
+            exclude: list (optional)
                 single or multiple string patterns to target certain files to include - can be used together with include
         """
+    def __init__(self, image_dir, **kwargs):
+        
+
         
         # =============================================================================
         # INITIALIZE
@@ -78,36 +75,36 @@ class project_maker:
         if show_filepaths==True:
             print("Filepaths: \n" + str(self.filepaths))
         
-    def update_list(self, **kwargs):
-    
-        self.name = kwargs.get("name",self.name)           
-        self.in_dir = kwargs.get("image_dir",self.in_dir)           
-#        self.save_dir = kwargs.get("save_dir",self.save_dir)   
-#        if not os.path.exists(self.save_dir):
-#            os.makedirs(self.save_dir)
-#            save_dir_made = " (created)"
-#        else:
-#            save_dir_made = ""
-        self.mode = kwargs.get("mode",self.mode)                 
-        self.filetypes = kwargs.get("filetypes", self.filetypes)
-        self.exclude = kwargs.get("exclude", self.exclude)
-        self.include = kwargs.get("include", self.include)
-        
-        show_filenames = kwargs.get("show_filenames", False)
-        show_filepaths = kwargs.get("show_filepaths", False)
-   
-        print("\n")
-        print("----------------------------------------------------------------")
-        print("Project settings - \"" + self.name + "\" - (UPDATED):\n")
-        print("\nImage directory: " + str(self.in_dir)  + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
-        print("----------------------------------------------------------------")
-        
-        self._get_filelists()
-        
-        if show_filenames==True:
-            print("Filenames: \n" + str(self.filenames))
-        if show_filepaths==True:
-            print("Filepaths: \n" + str(self.filepaths))
+#    def update_list(self, **kwargs):
+#    
+#        self.name = kwargs.get("name",self.name)           
+#        self.in_dir = kwargs.get("image_dir",self.in_dir)           
+##        self.save_dir = kwargs.get("save_dir",self.save_dir)   
+##        if not os.path.exists(self.save_dir):
+##            os.makedirs(self.save_dir)
+##            save_dir_made = " (created)"
+##        else:
+##            save_dir_made = ""
+#        self.mode = kwargs.get("mode",self.mode)                 
+#        self.filetypes = kwargs.get("filetypes", self.filetypes)
+#        self.exclude = kwargs.get("exclude", self.exclude)
+#        self.include = kwargs.get("include", self.include)
+#        
+#        show_filenames = kwargs.get("show_filenames", False)
+#        show_filepaths = kwargs.get("show_filepaths", False)
+#   
+#        print("\n")
+#        print("----------------------------------------------------------------")
+#        print("Project settings - \"" + self.name + "\" - (UPDATED):\n")
+#        print("\nImage directory: " + str(self.in_dir)  + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
+#        print("----------------------------------------------------------------")
+#        
+#        self._get_filelists()
+#        
+#        if show_filenames==True:
+#            print("Filenames: \n" + str(self.filenames))
+#        if show_filepaths==True:
+#            print("Filepaths: \n" + str(self.filepaths))
             
           
     def _get_filelists(self):
@@ -210,28 +207,23 @@ class project_maker:
 
 
 class scale_maker:
-    """Initialize scale maker class to measure the pixel-mm ratio of an image.
+    """Scale maker class, measures the pixel-mm ratio of an image, creates objects and stores relevant information there that can be inherited to the "detect" method.
         
         Parameters
         ----------
         image: str or array
             absolute or relative path to OR numpy array of image containing the template 
-        """
-        
-    def __init__(self, image, **kwargs):
-        """Scale maker method to extract the pixel-mm ratio from an image.
-        Parameters
-        -----------
-        
-        value: int 
+        value: int (default: 10)
             distance to measure between two points
-        unit: str 
+        unit: str (default: "mm")
             unit that the scale should be in
-        mode: str ("box" or "polygon")
+        mode: str (default: "rectangle")
             grab the scale with a polygon or a box
         zoom: bool (default: False)
             zoom into the scale after drawin it for higher accuracy
         """
+    def __init__(self, image, **kwargs):
+
         # initialize -----
         self.done_step1 = False 
         self.done_step2 = False
@@ -396,9 +388,9 @@ class scale_maker:
         -----------
         image: str or array
             absolute or relative path to OR numpy array of image containing the scale 
-        show: bool
+        show: bool (optional, default: False)
             show result of scale detection procedure on current image   
-        resize: in (0.1-1)
+        resize: (optional, default: 1)
             resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)
         """
         
@@ -522,14 +514,13 @@ class scale_maker:
 
         
 class polygon_maker:
-    """Intialize polygon maker to mask images.
+    """Intialize polygon maker, loads image.
     
     Parameters
     ----------
 
     image: str or array
         absolute or relative path to OR numpy array of image 
-    
     """        
     def __init__(self, image):
         # initialize # ----------------
@@ -673,7 +664,7 @@ class polygon_maker:
     
     
 class object_finder:
-    """Initialize object finder class.
+    """Initialize object finder class, loads image.
         
         Parameters
         ----------

@@ -115,6 +115,19 @@ def get_median_grayscale(image, **kwargs):
     
 def save_csv(df, name, save_dir, **kwargs):
     """Save a pandas dataframe to csv. 
+    
+    Parameters
+    ----------
+    df: df
+        object_finder outpur (pandas data frame) to save
+    name: str
+        name for saved df
+    save_dir: str
+        location to save df
+    append: str (optional)
+        append df name with string to prevent overwriting
+    overwrite: bool (optional, default: False)
+        overwrite df if name exists
     """
     out_dir = save_dir     
     if not os.path.exists(out_dir):
@@ -138,6 +151,19 @@ def save_csv(df, name, save_dir, **kwargs):
 
 def save_img(image, name, save_dir, **kwargs):
     """Save an image (array) to jpg.
+    
+    Parameters
+    ----------
+    image: array
+        image to save
+    name: str
+        name for saved image
+    save_dir: str
+        location to save image
+    append: str (optional)
+        append image name with string to prevent overwriting
+    overwrite: bool (optional, default: False)
+        overwrite images if name exists
     """
     # set dir and names
     out_dir = save_dir     
