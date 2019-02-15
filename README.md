@@ -34,6 +34,11 @@ The program is still in alpha stage and development progresses slow - this is [m
 ```
 pip install phenopype
 ```
+4. Run the [tutorials](tutorials) with `jupyter notebook`:
+```
+pip install jupyter notebook
+jupyter notebook
+```
 
 If you are having difficulties refer to these tutorials:
 
