@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 import exifread
@@ -110,7 +111,54 @@ def get_median_grayscale(image, **kwargs):
 #        
 #        if write == True:
 #            self.df["gray_scale"] = self.gray_scale_list
+#%% save functions
+    
+def save_csv(df, name, save_dir, **kwargs):
+    """Save a pandas dataframe to csv. 
+    """
+    out_dir = save_dir     
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+        
+    if "append" in kwargs:
+        app = '_' + kwargs.get('append',"objects")
+    else:
+        app = ""
+        
+    df_path=os.path.join(out_dir , name +  app + ".txt")
+    df = df.fillna(-9999)
+    df = df.astype(str)
+    if kwargs.get('overwrite',True) == False:
+        if not os.path.exists(df_path):
+            df.to_csv(path_or_buf=df_path, sep=",")
 
+    else:
+            df.to_csv(path_or_buf=df_path, sep=",")
+
+
+def save_img(image, name, save_dir, **kwargs):
+    """Save an image (array) to jpg.
+    """
+    # set dir and names
+    out_dir = save_dir     
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
         
+    if "append" in kwargs:
+        app = '_' + kwargs.get('append',"processed")
+    else:
+        app = ""
         
-        
+    im_path=os.path.join(out_dir , name +  app + ".jpg")
+    
+    if "resize" in kwargs:
+        factor = kwargs.get('resize')
+        image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
+    
+    if kwargs.get('overwrite',True) == False:
+        if not os.path.exists(im_path):
+            cv2.imwrite(im_path, image)
+    else:
+        cv2.imwrite(im_path, image)
+
+

@@ -184,12 +184,12 @@ class motion_tracker(object):
             # =============================================================================
             # CAPTURE FRAME 
             # =============================================================================
-            if capture_frame == True:                   
-                
+            if capture_frame == True:              
+                                
                 # apply mask, if present
                 if "mask_objects" in vars(self):
                 
-                    mask_dummy1 = np.zeros(self.frame.shape[0:2], dtype=bool)
+                    mask_dummy1 = np.zeros(self.frame.shape[0:2], dtype=np.int8)
                     mask_list = []
                     mask_label_names = []
                     
@@ -198,11 +198,11 @@ class motion_tracker(object):
                         if include == True:
                             mask_list.append(mask)
                             mask_label_names.append(label)
-                            mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
+                            mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.int8)
                             mask_dummy2[mask] = 1
                             mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
                         if include == False:
-                            mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
+                            mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.int8)
                             mask_dummy2[mask] = -100
                             mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
                             

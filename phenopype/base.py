@@ -10,8 +10,12 @@ import cv2
 import datetime
 
 from phenopype.utils import (red, green, blue, white, black)
-from phenopype.utils import (blur, exif_date, get_median_grayscale)
+from phenopype.utils import (blur, exif_date, get_median_grayscale, show_img)
 
+
+#%% settings
+
+pd.options.display.max_rows = 10
 
 #%% classes
 
@@ -53,7 +57,7 @@ class project_maker:
             save_dir_made = " (created)"
         else:
             save_dir_made = ""
-        self.mode = kwargs.get("mode","tree")                 
+        self.mode = kwargs.get("mode","dir")                 
         self.filetypes = kwargs.get("filetypes", [])
         self.exclude = kwargs.get("exclude", [])
         self.include = kwargs.get("include", [])
@@ -205,24 +209,28 @@ class project_maker:
 
 
 class scale_maker:
-    """Define a colour or millimeter scale inside an image by grabbing it from the image, and automatically retrieve it in the following images. Make a template of a colour or mm scale by drawing into an image. 
+    """Initialize scale maker class to measure the pixel-mm ratio of an image.
         
         Parameters
         ----------
-            image: str or array
-                absolute or relative path to OR numpy array of image containing the template 
-            value: int 
-                distance to measure between two points
-            unit: str 
-                unit that the scale should be in
-            mode: str ("box" or "polygon")
-                grab the scale with a polygon or a box
-            zoom: bool (default: False)
-                zoom into the scale after drawin it for higher accuracy
+        image: str or array
+            absolute or relative path to OR numpy array of image containing the template 
         """
         
     def __init__(self, image, **kwargs):
+        """Scale maker method to extract the pixel-mm ratio from an image.
+        Parameters
+        -----------
         
+        value: int 
+            distance to measure between two points
+        unit: str 
+            unit that the scale should be in
+        mode: str ("box" or "polygon")
+            grab the scale with a polygon or a box
+        zoom: bool (default: False)
+            zoom into the scale after drawin it for higher accuracy
+        """
         # initialize -----
         self.done_step1 = False 
         self.done_step2 = False
@@ -399,7 +407,8 @@ class scale_maker:
         
         if isinstance(image, str):
             self.image_target = cv2.imread(image)
-        self.image_target = image
+        else:
+            self.image_target = image
 
         image_target = self.image_target 
         image_original = self.image_original_template
@@ -485,7 +494,8 @@ class scale_maker:
             
             # MASK
             zeros = np.zeros(self.image_target.shape[0:2], np.uint8)
-            self.mask = cv2.fillPoly(zeros, [np.array(rect, dtype=np.int32)], white)
+            mask_bin = cv2.fillPoly(zeros, [np.array(rect)], white)       
+            self.mask = np.array(mask_bin, dtype=bool)
 
             # TARGET SNIPPET
             (rx,ry,w,h) = cv2.boundingRect(rect)
@@ -498,7 +508,7 @@ class scale_maker:
             print("--------------------------------------")
             print("\n")
 
-            return self.current, self.mask      
+            return (self.mask, "scale", False), self.current       
         
         else:
             print("\n")
@@ -511,7 +521,7 @@ class scale_maker:
 
         
 class polygon_maker:
-    """Draw a rectangle or polygon space onto an image to mark an area to be included or excluded.
+    """Intialize polygon maker to mask images.
     
     Parameters
     ----------
@@ -556,12 +566,17 @@ class polygon_maker:
                 print("No points to delete")
                 
     def draw(self, **kwargs):
-        """Draw polygon onto image.
+        """Polygon maker method to draw rectangle or polygon mask onto image.
         
-        include: bool
+        Parameters
+        ----------        
+        
+        include: bool (default: True)
             determine whether resulting mask is to include or exclude objects within
-        mode: str ("rectangle" or "polygon". default: "rectangle")
-            draw the scale with a polygon or a box
+        label: (default: "area1")
+            passes a label to the mask
+        mode: str (default: "rectangle")
+            zoom into the scale with "rectangle" or "polygon".
             
         """
         include = kwargs.get("include",True)
@@ -657,40 +672,16 @@ class polygon_maker:
     
     
 class object_finder:
-    def run(self, image, **kwargs):
-        """Find objects in image via thresholding.
+    """Initialize object finder class.
         
         Parameters
         ----------
 
-            image: str or array
-                absolute or relative path to OR numpy array of image containing the objects 
-        mode: str("single", "multi")
-            detection of single largest object or multiple
-        thresholding: list 
-            type of thresholding: 
-                - "binary" needs an interger for the threshold value (default 127), 
-                - "adaptive" needs odd integer for blocksize (default: 99) and constant to be subtracted (default 1) 
-                - for more info see https://docs.opencv.org/3.4.4/d7/d4d/tutorial_py_thresholding.html
-        resize: in (0.1-1)
-            resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)  
-        blur1: int
-            first pass blurring kernel size (before thresholding)
-        blur2: list
-            second pass blurring kernel size (after thresholding) and binary thresholding value (default 127)   
-        corr_factor: int
-            factor (in px) to add to (positive int) or subtract from (negative int) object (default: 0)
-        gray_value_ref: int (0-255)
-            reference gray scale value to adjust the given picture's histogram to
-        min_diam: int
-            minimum diameter (longest distance in contour) in pixels for objects to be included (default: 0)
-        min_area: int
-            minimum contour area in pixels for objects to be included (default: 0)
+        image: str or array
+            absolute or relative path to OR numpy array of image containing the objects 
+
         """
-        
-        # =============================================================================
-        # INITIALIZE
-        # =============================================================================
+    def __init__(self, image):
 
         if isinstance(image, str):
             self.image = cv2.imread(image)
@@ -699,18 +690,63 @@ class object_finder:
                 self.date_taken = exif_date(image)
             except:
                 self.date_taken = "NA"       
-        elif isinstance(image, (list, tuple, np.ndarray)):
+        else: 
             self.image = image
+            self.date_taken = "NA"      
+            
+    def find_objects(self, **kwargs):    
+        """Method in object finder class: find objects in colour or grayscale images using thresholding
+        
+        Parameters
+        ----------
+        thresholding: list (default: ["otsu"])
+            determines the type of thresholding: 
+                - "binary" needs an interger for the threshold value (default: 127), 
+                - "adaptive" needs odd integer for blocksize (default: 99) and constant to be subtracted (default 1) 
+                - for more info see https://docs.opencv.org/3.4.4/d7/d4d/tutorial_py_thresholding.html
+        operations: list (default: ["diameter", "area"])
+            determines the type of operations to be performed on the detected objects:
+                - "diameter" of the bounding circle of our object
+                - "area" | inside the contour of our object
+                - "grayscale" mean and standard deviation of grayscale pixel values inside the object contours
+                - "bgr" mean and standard deviation of blue, green and red pixel values inside the object contours
+                - "skeletonize" attempts to transform object into a skeleton form using the technique of Zhang-Suen. WARNING: can be slow for large objects
+        mode: str (default: "multiple")
+            detect all, or only ["single"] largest object or multiple 
+        mask: list
+            phenoype mask-objects (lists of boolean mask, label, and include-argument) to include or exclude an area from the procedure
+        show: bool (default: True)
+            display the detection results
+        blur1: int
+            first pass blurring kernel size (before thresholding)
+        blur2: list
+            second pass blurring kernel size (after thresholding) and binary thresholding value (default 127)   
+        min_diam: int
+            minimum diameter (longest distance in contour) in pixels for objects to be included (default: 0)
+        min_area: int
+            minimum contour area in pixels for objects to be included (default: 0)
+        corr_factor: int
+            factor (in px) to add to (positive int) or subtract from (negative int) object (default: 0)
+        resize: in (0.1-1)
+            resize image to speed up detection process - usually not recommended
+        gray_value_ref: int (0-255)
+            reference gray scale value to adjust the given picture's histogram to
+            
+        """
 
         resize = kwargs.get("resize", 1)
+        show = kwargs.get('show', True)
+        mask_objects = kwargs.get('mask', [])
+
         self.image = cv2.resize(self.image, (0,0), fx=1*resize, fy=1*resize) 
         
         if not "scale" in kwargs:
             print("Warning - no scale specified")
         self.scale = kwargs.get("scale", 1)
         
-        self.mode =  kwargs.get('mode', "multi")
-        self.operations = kwargs.get('operations', ["area", "diameter","grayscale"])
+        self.mode =  kwargs.get('mode', "multiple")
+        self.operations =  ["area", "diameter"]
+        self.operations = self.operations + kwargs.get('operations', [])
         self.date_analyzed = str(datetime.datetime.now())[:19]
 
 
@@ -724,15 +760,14 @@ class object_finder:
             ref = kwargs.get('gray_value_ref', ret)
             self.gray_corr_factor = int(ref - ret)
             self.gray_corrected = np.array(copy.deepcopy(self.gray) + self.gray_corr_factor, dtype="uint8")
-            self.drawn = self.gray_corrected
+            self.image_processed = self.gray_corrected
         else:
-             self.drawn = copy.deepcopy(self.gray)     
+             self.image_processed = copy.deepcopy(self.gray)     
              
-        self.drawn1 = self.drawn
-
-        self.drawn = cv2.cvtColor(self.drawn,cv2.COLOR_GRAY2BGR)
+        self.image_processed1 = self.image_processed
+        self.image_processed = cv2.cvtColor(self.image_processed,cv2.COLOR_GRAY2BGR)
         
-
+        
         # =============================================================================
         # BLUR1 > THRESHOLDING > MORPHOLOGY > BLUR2
         # =============================================================================
@@ -745,7 +780,7 @@ class object_finder:
             self.blurred = self.gray
             
         # THRESHOLDING   
-        method = kwargs.get('method', ("otsu",""))
+        method = kwargs.get('method', ["otsu"])
         if isinstance(method, list):
             thresholding = method[0]
             self.thresholding = method[0]
@@ -764,7 +799,7 @@ class object_finder:
             if not method[1]:
                 method[1] = 127
             ret, self.thresh = cv2.threshold(self.blurred,method[1], 255,cv2.THRESH_BINARY_INV)  
-        self.morph = self.thresh
+        self.morph = copy.deepcopy(self.thresh)
                    
         # BLUR 2ND PASS
         if "blur2" in kwargs:
@@ -794,25 +829,46 @@ class object_finder:
                 self.morph = cv2.dilate(self.morph, kernel, iterations = iterations)
 
     
-        # APPLY ARENA MASK
-        if "exclude" in kwargs:
-            self.mask = sum(kwargs.get('exclude'))
-            self.mask = cv2.resize(self.mask, (0,0), fx=1*resize, fy=1*resize) 
-            self.morph = cv2.subtract(self.morph,self.mask)
-            self.morph[self.morph==1] = 0
+#        # APPLY ARENA MASK
+#        if "exclude" in kwargs:
+#            self.mask = sum(kwargs.get('exclude'))
+#            self.mask = cv2.resize(self.mask, (0,0), fx=1*resize, fy=1*resize) 
+#            self.morph = cv2.subtract(self.morph,self.mask)
+#            self.morph[self.morph==1] = 0
+#            
 
+        
+        # =============================================================================
+        # masking
+        # =============================================================================
+        
+        if len(mask_objects)>0:
+                
+            mask_dummy1 = np.zeros(self.morph.shape, dtype=np.int8)
+            
+            for obj in mask_objects:
+                mask, label, include = obj
+                if include == True:
+                    mask_dummy2 = np.zeros(self.morph.shape, dtype=np.int8)
+                    mask_dummy2[mask] = 1
+                    mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
+                if include == False:
+                    mask_dummy2 = np.zeros(self.morph.shape, dtype=np.int8)
+                    mask_dummy2[mask] = -100
+                    mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
 
-        df_list = []
-        df_column_names = []
-        label = kwargs.get("label", True)
+            self.morph[mask_dummy1<=0]=0
 
 
         # =============================================================================
         # MULTI-MODE
         # =============================================================================
 
+        df_list = []
+        df_column_names = []
+        label = kwargs.get("label", True)
 
-        if self.mode == "multi":
+        if self.mode == "multiple":
             idx = 0
             idx_noise = 0
             length_idx = 0
@@ -897,10 +953,10 @@ class object_finder:
                             # DRAW TO ROI
                             q=kwargs.get("roi_size",300)/2
                             if label==True:
-                                cv2.putText(self.drawn,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
-                            cv2.drawContours(self.drawn, [cnt], 0, blue, 4)
+                                cv2.putText(self.image_processed,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
+                            cv2.drawContours(self.image_processed, [cnt], 0, blue, int(5 * resize))
                             if any("skeletonize" in o for o in self.operations):                    
-                                cv2.drawContours(self.drawn, [skel_contour], 0, green, 2)
+                                cv2.drawContours(self.image_processed, [skel_contour], 0, green, 2)
 
                     else:
                         idx_noise += 1
@@ -973,10 +1029,10 @@ class object_finder:
                     # DRAW TO ROI
                     if "roi_size" in kwargs:
                         q=kwargs.get("roi_size",300)/2
-                        cv2.rectangle(self.drawn,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
-                    cv2.drawContours(self.drawn, [cnt], 0, blue, int(10 * resize))
+                        cv2.rectangle(self.image_processed,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
+                    cv2.drawContours(self.image_processed, [cnt], 0, blue, int(5 * resize))
                     if any("skeletonize" in o for o in self.operations):                    
-                        cv2.drawContours(self.drawn, [skel_contour], 0, green, 2)
+                        cv2.drawContours(self.image_processed, [skel_contour], 0, green, 2)
 
                 else: 
                     print("Object not bigger than minimum diameter or area")
@@ -1001,107 +1057,47 @@ class object_finder:
             self.df.insert(3, "gray_corr_factor", self.gray_corr_factor)
         self.df.insert(3, "resize_factor", resize)
         
-        show = kwargs.get('show', "")
-        
-        # SHOW DF
-        if "df" in show:        
-
-            self.df_short = self.df[["idx", "diameter", "area"]]
-            self.df_short.set_index("idx", inplace=True)
-            
-            all_pts = len(self.contours)
-            good_pts = len(self.df)
-            
-            
-            if self.mode == "multi":
-                
-                print(self.df_short)
-                
-                print("\n")
-                print("----------------------------------------------------------------")
-                print("Found " + str(all_pts) + " objects in " + self.filename + ":")
-                print("  ==> %d are valid objects" % good_pts)
-                if not idx_noise == 0:
-                    print("    - %d are noise" % idx_noise)
-                if not length_idx == 0:
-                    print("    - %d are not bigger than minimum diameter" % length_idx)
-                if not area_idx ==0:
-                    print("    - %d are not bigger than minimum area" % area_idx)
-                print("----------------------------------------------------------------")
-            else:
-                print("----------------------------------------------------------------")
-                print("Found following object in " + self.filename + ":")
-                print("----------------------------------------------------------------")
-                
-                print(self.df_short)
-
+    
         # SHOW IMAGE
         if hasattr(self,'mask'):
             boo = np.array(self.mask, dtype=bool)
-            #self.drawn = copy.deepcopy(self.image)
-            self.drawn[boo,2] = 255
+            #self.image_processed = copy.deepcopy(self.image)
+            self.image_processed[boo,2] = 255
 
-        if "image" in show:
-            cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
-            cv2.imshow('phenopype', self.drawn)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+        if show == True:
+            show_img(self.image_processed)
             
-        if "image_zoomed" in show:
-            
-            if "exclude" in kwargs:
-                zoom_mask = sum(kwargs.get('exclude'))
-                if "resize" in kwargs:
-                    zoom_mask = cv2.resize(cv2.bitwise_not(zoom_mask), (0,0), fx=1*resize, fy=1*resize)
-                else:
-                    zoom_mask = cv2.bitwise_not(zoom_mask)
-                ret, contours, hierarchy = cv2.findContours(zoom_mask,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_TC89_L1)
-                rx,ry,rw,rh = cv2.boundingRect(contours[0])
-                self.zoomed = self.drawn[ry:ry+rh,rx:rx+rw]
-            else:
-                self.zoomed = self.drawn
-            
-            cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
-            cv2.imshow('phenopype', self.zoomed)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-                        
-                        # GET VALUES FROM MASKED ROI
 
-    def save(self, save_to, **kwargs):
+        # =============================================================================
+        # FEEDBACK + RETURN
+        # =============================================================================
+                    
+        self.df_short = self.df[["idx", "diameter", "area"]]
+        self.df_short.set_index("idx", inplace=True)
         
-        # set dir and names
-        out_dir = save_to     
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-            
-        if "append" in kwargs:
-            app = '_' + kwargs.get('append')
-        else:
-            app = ""
-            
-        filename = kwargs.get('filename',self.filename)      
-        name = os.path.splitext(filename)[0]
-        ext = os.path.splitext(filename)[1]
+        all_pts = len(self.contours)
+        good_pts = len(self.df)
         
-        im_path=os.path.join(out_dir , name +  app + ext)
-        df_path=os.path.join(out_dir , name +  app + ".txt")
-             
-        # image
-        image = kwargs.get("image", self.drawn)
-        if kwargs.get('overwrite',True) == False:
-            if not os.path.exists(im_path):
-                cv2.imwrite(im_path, image)
+        if self.mode == "multiple":
+            
+            print(self.df_short)
+            print("\n")
+            print("----------------------------------------------------------------")
+            print("Found " + str(all_pts) + " objects in " + self.filename + ":")
+            print("  ==> %d are valid objects" % good_pts)
+            if not idx_noise == 0:
+                print("    - %d are noise" % idx_noise)
+            if not length_idx == 0:
+                print("    - %d are not bigger than minimum diameter" % length_idx)
+            if not area_idx ==0:
+                print("    - %d are not bigger than minimum area" % area_idx)
+            print("----------------------------------------------------------------")
+            
         else:
-            cv2.imwrite(im_path, image)
+            print("----------------------------------------------------------------")
+            print("Found following object in " + self.filename + ":")
+            print("----------------------------------------------------------------")
+            print(self.df_short)
 
-        # df
-        df = kwargs.get("df", self.df)
-        df = df.fillna(-9999)
-        df = df.astype(str)
-        if kwargs.get('overwrite',True) == False:
-            if not os.path.exists(df_path):
-                df.to_csv(path_or_buf=df_path, sep="\t", index=False)
-        else:
-                df.to_csv(path_or_buf=df_path, sep="\t", index=False)
+        return self.df
 

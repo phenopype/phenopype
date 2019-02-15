@@ -1,0 +1,7 @@
+exifread==2.1.2
+numpy==1.16.1
+pandas==0.24.1
+pytesseract==0.2.6
+pytest==4.2.0
+opencv-contrib-python==3.4.5.20
+trackpy==0.4.1
