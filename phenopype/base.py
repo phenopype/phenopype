@@ -28,9 +28,11 @@ class project_maker:
             image_dir: str 
                 path to directory with images           
             project_name: str (optional)
-                name of your project
+                name of your project               
             mode: str (optional, default: "dir")
                 tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory 
+            filetypes: list (optional)
+                single or multiple string patterns to target files with certain endings
             include: list (optional)
                 single or multiple string patterns to target certain files to include - can be used together with exclude
             exclude: list (optional)
@@ -349,7 +351,11 @@ class scale_maker:
         # MASK
         zeros = np.zeros(image.shape[0:2], np.uint8)
         self.mask = cv2.fillPoly(zeros, [np.array(self.points_step1, dtype=np.int32)], white)
-
+        
+        # create mask object to use in object finder
+        include = False
+        self.mask_obj = np.array(self.mask, dtype=bool), "scale", include
+    
     def _on_mouse_step1(self, event, x, y, buttons, user_param):
         if self.done_step1: # Nothing more to do
             return
@@ -408,10 +414,13 @@ class scale_maker:
         
         show = kwargs.get('show', False)
         min_matches = kwargs.get('min_matches', 10)
-
+        
+        # image diameter bigger than 2000 px
         if (image_target.shape[0] + image_target.shape[1])/2 > 2000:
             factor = kwargs.get('resize', 0.5)
-            image_target = cv2.resize(image_target, (0,0), fx=1*factor, fy=1*factor) 
+        else:
+            factor = kwargs.get('resize', 1)
+        image_target = cv2.resize(image_target, (0,0), fx=1*factor, fy=1*factor) 
         
         if not len(image_target.shape)==3:
             image_target = cv2.cvtColor(image_target, cv2.COLOR_GRAY2BGR)

@@ -297,6 +297,9 @@ class tracking_method(object):
         
         if "mask" in kwargs:
             self.mask_objects = kwargs.get("mask")
+                    
+
+        self.exclude = kwargs.get("exclude", True)
 
     def print_settings(self, **kwargs):
         """Prints the settings of the tracking method. 
@@ -317,7 +320,6 @@ class tracking_method(object):
         self.overlay = np.zeros_like(self.frame) 
         self.overlay_bin = np.zeros(self.frame.shape[0:2], dtype=np.uint8) 
         self.frame_df = pd.DataFrame()
-
 
         if "remove_shadows" in vars(self):
             if self.remove_shadows==True:
@@ -351,7 +353,9 @@ class tracking_method(object):
             mask_dummy1[mask_dummy1>0]=255
             
             self.mask = mask_dummy1
-            self.fgmask = np.bitwise_and(self.mask, self.fgmask)
+            
+            if self.exclude==True:
+                self.fgmask = np.bitwise_and(self.mask, self.fgmask)
         
         # =============================================================================
         # find objects
@@ -388,9 +392,7 @@ class tracking_method(object):
                         list_contours = [list_contours[max_idx]]
                         list_length = [list_length[max_idx]]
                         list_coordinates = [list_coordinates[max_idx]]
-    
-
-    
+        
                 list_area, list_x, list_y = [],[],[]
                 list_grayscale, list_grayscale_background = [],[]
                 list_b, list_g, list_r = [],[],[] 

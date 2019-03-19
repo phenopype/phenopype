@@ -3,7 +3,6 @@ import os
 import cv2
 import random
 
-os.chdir("E:\\git_repos\\phenopype")
 from phenopype import tracking
 
 import pytest

@@ -19,9 +19,8 @@ setup(
 	packages=['phenopype'],
 	install_requires=[
 		"exifread==2.1.2",
-		"jupyter notebook",
-		"numpy==1.16.1",
-		"pandas==0.24.1",
+		"numpy",
+		"pandas",
 		"pytesseract==0.2.6",
 		"pytest==4.2.0",
 		"opencv-contrib-python==3.4.5.20",
@@ -31,7 +30,6 @@ setup(
 	license='LGPL',
 	description='a phenotyping pipeline for python',
 	long_description=open('README.md').read(), 
-	long_description_content_type='text/markdown',
 	tests_require=["pytest"],
 	setup_requires=["pytest-runner"]
 )

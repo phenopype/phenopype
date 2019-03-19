@@ -7,6 +7,14 @@ _config.yml
 .ipynb_checkpoints
 doctrees/
 .buildinfo
-build
+.installed.cfg
+bin
+develop-eggs
+dist
+eggs
+parts
+src/*.egg-info
+lib
+lib64
 images_out
 videos_out

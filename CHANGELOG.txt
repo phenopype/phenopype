@@ -6,6 +6,19 @@ Unreleased
 - project management globally acessible through base functions
 - a quick-thresholding method in marked area for single images 
 - object_finder returns histogram of length, area and grayscale of all objects
+- scale_maker is initialized empty to return scale object, that can either draw or detect scales and return mask objects (tuple of 3)
+
+Known bugs
+==========
+- high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"
+
+0.6.1
+------
+- "scale_maker" can return now has attribute "mask_obj" to pass on to "object_finder" (tuple of 3)
+bugfix:
+- missing "filetypes" argument in "project_finder" help
+- default value for "factor in "scale.detect"
+
 
 0.6.0
 ------
@@ -21,16 +34,18 @@ Known bugs:
 
 0.5.1
 ------
-* functions take numpy array in addition to string with path to image
-* bugfix: opencv-contrib-python version 3.* 
+- functions take numpy array in addition to string with path to image
+- bugfix: opencv-contrib-python version 3.* 
+
 
 0.5.0
 ------
-* object_finder functions streamlined and "skeletonize" algorithm added
-* better documentation with docstrings 
-* docstring integration with sphinx 
-* __init__ rework for sphinx integration
+- object_finder functions streamlined and "skeletonize" algorithm added
+- better documentation with docstrings 
+- docstring integration with sphinx 
+- __init__ rework for sphinx integration
+
 
 0.4.11
 ------
-* first release to pypi
+- first release to pypi
