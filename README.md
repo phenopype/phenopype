@@ -46,6 +46,7 @@ If you are having difficulties refer to these tutorials:
    - https://medium.com/@GalarnykMichael/install-python-on-windows-anaconda-c63c7c3d1444
    - https://datatofish.com/install-package-python-using-pip/
 
+In windows, run everything with administrator privileges! 
 
 # tutorials
 
