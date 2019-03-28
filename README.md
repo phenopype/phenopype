@@ -18,7 +18,7 @@ The program is still in alpha stage and development progresses slow - this is [m
 | | |
 |:---:|:---:|
 |<img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/object_detection.gif" width="150%" />|Automatic **object detection** via multistep thresholding in a predefined area. Useful if your images have borders or irregular features. Accurracy can be increased with custom modules, e.g. for colour or shape|
-|<img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/object_tracking.gif" width="150%" />|Automatic **object tracking** that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes.|
+|<img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/object_tracking.gif" width="150%" />|Automatic **object tracking** that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes. An example with stickleback and isopods can be found here: https://vimeo.com/283075068|
 | <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/scale_detection.gif" width="150%" />|**Automatic scale detection** and pixel-size ratios adjustments. Performance depends on image size| 
 | <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/landmarks.gif" width="150%" />|Basic **landmarking** functionality - high throughput.| 
 | <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/local_features.gif" width="150%" />|Extract **local features** like stickleback body armour| 
