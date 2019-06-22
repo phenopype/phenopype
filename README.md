@@ -8,7 +8,7 @@
 ***
 **DISCLAIMER: ONGOING DEVELOPMENT**
 
-The program is still in alpha stage and development progresses slow - this is [me](https://luerig.net) trying to write a program, while learning to code properly in the first place, next to my everyday work. A few core features like blob-counting, object detection or videotracking work ([see below](#features)), more detailed documentation is in the making. If things are not working as expect, please do get in touch and I will try my best to help. 
+The program is still in alpha stage and development progresses slow - this is [me](https://luerig.net) trying to write a program, while learning to code properly in the first place, next to my everyday work. A few core features like blob-counting, object detection or videotracking are working ([see below](#features)), other modules like landmarking or local object-extraction are not fully implemented yet. More detailed documentation is in the making, but please do get in touch if things are not working as expected and I will try my best to help. 
 
 ***
 
@@ -21,7 +21,7 @@ The program is still in alpha stage and development progresses slow - this is [m
 |<img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/object_tracking.gif" width="150%" />|Automatic **object tracking** that uses foreground-background subtractor. High performance possible (shown example is close to real time with HD stream). Can be set to distinguish colour or shapes. An example with stickleback and isopods can be found here: https://vimeo.com/283075068|
 | <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/scale_detection.gif" width="150%" />|**Automatic scale detection** and pixel-size ratios adjustments. Performance depends on image size| 
 | <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/landmarks.gif" width="150%" />|Basic **landmarking** functionality - high throughput.| 
-| <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/local_features.gif" width="150%" />|Extract **local features** like stickleback body armour| 
+| <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/local_features.gif" width="150%" />|Extract **local objects** like stickleback body armour| 
 
 
 # installation
