@@ -27,15 +27,15 @@ class project_maker:
 
             image_dir: str 
                 path to directory with images           
-            project_name: str (optional)
+            project_name: str ("My project, -current date-")
                 name of your project               
-            mode: str (optional, default: "dir")
-                tree mode loops through all subdirectories of the tree, dir only takes valid files from upper directory 
-            filetypes: list (optional)
+            mode: str ("dir")
+                "dir" searches current directory for valid files; "tree" walks through all subdirectories
+            filetypes: list 
                 single or multiple string patterns to target files with certain endings
-            include: list (optional)
+            include: list 
                 single or multiple string patterns to target certain files to include - can be used together with exclude
-            exclude: list (optional)
+            exclude: list 
                 single or multiple string patterns to target certain files to include - can be used together with include
         """
     def __init__(self, image_dir, **kwargs):
@@ -396,7 +396,7 @@ class scale_maker:
             absolute or relative path to OR numpy array of image containing the scale 
         show: bool (optional, default: False)
             show result of scale detection procedure on current image   
-        resize: (optional, default: 1)
+        resize: num (optional, default: 1)
             resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)
         """
         
@@ -574,7 +574,7 @@ class polygon_maker:
         
         include: bool (default: True)
             determine whether resulting mask is to include or exclude objects within
-        label: (default: "area1")
+        label: str (default: "area1")
             passes a label to the mask
         mode: str (default: "rectangle")
             zoom into the scale with "rectangle" or "polygon".
@@ -598,11 +598,27 @@ class polygon_maker:
         print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
 
         
+                    
+        # =============================================================================
+        # draw rectangle 
+        # =============================================================================             
+                
+        if mode == "rectangle":
+            (x,y,w,h) = cv2.selectROI("phenopype", temp_canvas1, fromCenter=False)
+            if cv2.waitKey(50) & 0xff == 13:
+                cv2.destroyWindow("phenopype")
+                self.done = True
+            elif cv2.waitKey(50) & 0xff == 27:
+                cv2.destroyWindow("phenopype")  
+                self.done = True
+            self.points = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
+            self.done = True
+            
         # =============================================================================
         # draw polygon 
         # =============================================================================
         
-        if mode == "polygon":
+        elif mode == "polygon":
             while(not self.done):
                 if (len(self.points) > 0):
                     cv2.polylines(temp_canvas1, np.array([self.points]), False, green, 3)
@@ -610,26 +626,12 @@ class polygon_maker:
                 cv2.imshow("phenopype", temp_canvas1)
                 temp_canvas1 = copy.deepcopy(temp_canvas2)
                 if cv2.waitKey(50) & 0xff == 13:
-                     self.done = True
-                     cv2.destroyWindow("phenopype")
-                     break
-                elif cv2.waitKey(50) & 0xff == 27:
+                    self.done = True
                     cv2.destroyWindow("phenopype")
-                    break
-                    sys.exit("phenopype process stopped") 
-                    
-                    
-        # =============================================================================
-        # draw rectangle 
-        # =============================================================================             
-                
-        elif mode == "rectangle":
-            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-            (x,y,w,h) = cv2.selectROI("phenopype", temp_canvas1, fromCenter=False)
-            if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
-                cv2.destroyWindow("phenopype")  
-            self.points = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
-                              
+                elif cv2.waitKey(50) & 0xff == 27:
+                    self.done = True
+                    cv2.destroyWindow("phenopype")
+                           
         zeros = np.zeros(self.image.shape[0:2], np.uint8)
         mask = cv2.fillPoly(zeros, np.array([self.points]), white)
         
@@ -645,19 +647,24 @@ class polygon_maker:
             self.overlay[mask_bool,1] = 0   
             line_col = red
 
-        if mode == "polygon":
-            cv2.polylines(self.overlay, np.array([self.points]), True, line_col, 10)            
-        elif mode == "rectangle":
+      
+        if mode == "rectangle":
             cv2.rectangle(self.overlay,(int(self.points[0][0]),int(self.points[0][1])),(int(self.points[2][0]),int(self.points[2][1])),line_col,10)
+        elif mode == "polygon":
+            cv2.polylines(self.overlay, np.array([self.points]), True, line_col, 10)      
             
         cv2.putText(self.overlay ,label ,self.points[0] ,cv2.FONT_HERSHEY_SIMPLEX, 4, line_col,4 ,cv2.LINE_AA)
         self.show = cv2.addWeighted(self.image, .7, self.overlay, 0.5, 0) # combine
+
+        self.points1 = self.points
+
 
         # reset
         self.done = False 
         self.current = (0, 0) 
         self.points = [] 
         self.idx = 0
+        
         
         if kwargs.get('show', False) == True:
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
@@ -708,10 +715,12 @@ class object_finder:
         operations: list (default: ["diameter", "area"])
             determines the type of operations to be performed on the detected objects:
                 - "diameter" of the bounding circle of our object
-                - "area" | inside the contour of our object
+                - "area" within the contour of our object
                 - "grayscale" mean and standard deviation of grayscale pixel values inside the object contours
                 - "bgr" mean and standard deviation of blue, green and red pixel values inside the object contours
                 - "skeletonize" attempts to transform object into a skeleton form using the technique of Zhang-Suen. WARNING: can be slow for large objects
+        scale: num (1)
+            pixel to mm-ratio 
         mode: str (default: "multiple")
             detect all, or only ["single"] largest object or multiple 
         mask: list

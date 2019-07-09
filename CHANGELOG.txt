@@ -1,6 +1,8 @@
 Unreleased 
 ==========
 
+- ADD MORE TESTING (e.g. object finder)
+
 - internal: decluttering of base module / outhousing of classes and methods 
 - no cropping for scale possible
 - project management globally acessible through base functions
@@ -11,6 +13,14 @@ Unreleased
 Known bugs
 ==========
 - high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"
+- "filename not found" for "multiple" mode in object finder 
+
+0.7.0
+------
+- full landmark functionality added (refer to "landmark_maker" readme in the docs)
+- additionally: measure length of "curvy" specimens from within the landmarking function
+- generic image registration (aka feature recognition) added, will be properly introduced and documented in the next version 
+
 
 0.6.1
 ------
