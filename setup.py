@@ -29,7 +29,7 @@ setup(
 	version=verstr,
 	license='LGPL',
 	description='a phenotyping pipeline for python',
-	long_description=open('README.md').read(), 
+	long_description=open('README.rst').read(), 
 	tests_require=["pytest"],
 	setup_requires=["pytest-runner"]
 )
