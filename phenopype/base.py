@@ -1059,13 +1059,16 @@ class object_finder:
             self.df = pd.DataFrame(data=df_list, columns = df_column_names)
         elif len(df_list)>0:
             self.df = pd.DataFrame(data=[df_list], columns = df_column_names)
+            self.df.set_index('filename', drop=True, inplace=True)
+            self.df.insert(3, "resize_factor", resize)
+            if hasattr(self,'gray_corr_factor'):
+                self.df.insert(3, "gray_corr_factor", self.gray_corr_factor)
         else: 
             self.df = pd.DataFrame(data=[["NA"] * len(df_column_names)], columns = df_column_names)
-        self.df.set_index('filename', drop=True, inplace=True)
+            print("No objects found with these settings!")
+            
         
-        if hasattr(self,'gray_corr_factor'):
-            self.df.insert(3, "gray_corr_factor", self.gray_corr_factor)
-        self.df.insert(3, "resize_factor", resize)
+        
         
     
         # SHOW IMAGE
@@ -1081,33 +1084,35 @@ class object_finder:
         # =============================================================================
         # FEEDBACK + RETURN
         # =============================================================================
+        
+        if len(df_list)>0:
                     
-        self.df_short = self.df[["idx", "diameter", "area"]]
-        self.df_short.set_index("idx", inplace=True)
-        
-        all_pts = len(self.contours)
-        good_pts = len(self.df)
-        
-        if self.mode == "multiple":
+            self.df_short = self.df[["idx", "diameter", "area"]]
+            self.df_short.set_index("idx", inplace=True)
             
-            print(self.df_short)
-            print("\n")
-            print("----------------------------------------------------------------")
-            print("Found " + str(all_pts) + " objects in " + self.filename + ":")
-            print("  ==> %d are valid objects" % good_pts)
-            if not idx_noise == 0:
-                print("    - %d are noise" % idx_noise)
-            if not length_idx == 0:
-                print("    - %d are not bigger than minimum diameter" % length_idx)
-            if not area_idx ==0:
-                print("    - %d are not bigger than minimum area" % area_idx)
-            print("----------------------------------------------------------------")
+            all_pts = len(self.contours)
+            good_pts = len(self.df)
             
-        else:
-            print("----------------------------------------------------------------")
-            print("Found following object in " + self.filename + ":")
-            print("----------------------------------------------------------------")
-            print(self.df_short)
-
-        return self.df
+            if self.mode == "multiple":
+                
+                print(self.df_short)
+                print("\n")
+                print("----------------------------------------------------------------")
+                print("Found " + str(all_pts) + " objects in " + self.filename + ":")
+                print("  ==> %d are valid objects" % good_pts)
+                if not idx_noise == 0:
+                    print("    - %d are noise" % idx_noise)
+                if not length_idx == 0:
+                    print("    - %d are not bigger than minimum diameter" % length_idx)
+                if not area_idx ==0:
+                    print("    - %d are not bigger than minimum area" % area_idx)
+                print("----------------------------------------------------------------")
+                
+            else:
+                print("----------------------------------------------------------------")
+                print("Found following object in " + self.filename + ":")
+                print("----------------------------------------------------------------")
+                print(self.df_short)
+    
+            return self.df
 

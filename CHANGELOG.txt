@@ -13,7 +13,11 @@ Unreleased
 Known bugs
 ==========
 - high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"
-- "filename not found" for "multiple" mode in object finder 
+
+0.7.1
+------
+bugfix:
+- "filename not found" when no objects were found
 
 0.7.0
 ------
