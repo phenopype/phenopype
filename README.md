@@ -2,7 +2,7 @@
 <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/phenopype_header.png" />
 </p>
 
-**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input in a semi, or fully automated fashion. At the moment it is set up to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, [install](#installation) it from the Python Package Index using `pip install phenopype`. You also may want to clone this repository so you can use the [tutorials](#tutorials) to get started.  
+**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input in a semi, or fully automated fashion. At the moment it is set up to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, [install](#installation) it from the [Python Package Index (PYPI)](https://pypi.org/project/phenopype/) using `pip install phenopype`. You also may want to clone this repository so you can use the [tutorials](#tutorials) to get started.  
 
 
 ***
@@ -26,15 +26,22 @@ The program is still in alpha stage and development progresses slow - this is [m
 
 # installation
 
-1. install python3 with anaconda: go to https://www.anaconda.com/download/, chose python 3.x for your OS, download install it 
+1. Install python3 with anaconda: go to https://www.anaconda.com/download/, chose python 3.x for your OS, download install it 
 
-2. if you have not done so during the installation, [add "conda" to your PATH](https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10) 
+2. Open the anaconda prompt OR [add "conda" to your PATH](https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10) and open a regular command prompt or terminal
 
-3. Install phenopype using `pip` in your terminal or command line:
+3. Create a virtual environment to have fuller control over your python packages, and install spyder (or any other IDE)
 ```
+conda create -n "phenopype_env" python=3.7 spyder
+```
+
+4. Activate the virtual env and install phenopype using `pip` in your terminal or command line:
+```
+conda activate phenopype_env
 pip install phenopype
 ```
-4. Run the [tutorials](tutorials) with `jupyter notebook`:
+
+5. Run the [tutorials](tutorials) with `jupyter notebook`:
 ```
 pip install jupyter notebook
 jupyter notebook
@@ -46,7 +53,7 @@ If you are having difficulties refer to these tutorials:
    - https://medium.com/@GalarnykMichael/install-python-on-windows-anaconda-c63c7c3d1444
    - https://datatofish.com/install-package-python-using-pip/
 
-In windows, run everything with administrator privileges! 
+In Windows, run everything with administrator privileges! 
 
 # tutorials
 
@@ -58,7 +65,7 @@ Download and unpack this repository, open a command line /bash terminal, and cd 
 
 * [2_object_detection.ipynb](tutorials/2_object_detection.ipynb) This tutorial demonstrates how single or multiple objects can be detected and phenotyped in images. 
 
-* [3_landmarks_and_local_features.ipynb](tutorials/3_landmarks_and_local_features.ipynb)
+* [3_setting_landmarks.ipynb](tutorials/3_setting_landmarks.ipynb)
 
 
 # development
