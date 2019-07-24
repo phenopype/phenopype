@@ -45,14 +45,9 @@ def test_project_maker(project):
     
 def test_scale_maker(project):
     template = project.filepaths[0]
-    scale = base.scale_maker(template, value=10, unit="mm", show=False, zoom=False)
+    scale = base.scale_maker(template, value=10, show=False, zoom=False)
     return scale.measured
     assert len(scale.measured)>0
-
-
-
-
-
 
 
 

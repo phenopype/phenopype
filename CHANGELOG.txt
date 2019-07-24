@@ -4,15 +4,23 @@ Unreleased
 - ADD MORE TESTING (e.g. object finder)
 
 - internal: decluttering of base module / outhousing of classes and methods 
+- declutter landmark module (self.)
 - no cropping for scale possible
 - project management globally acessible through base functions
 - a quick-thresholding method in marked area for single images 
 - object_finder returns histogram of length, area and grayscale of all objects
 - scale_maker is initialized empty to return scale object, that can either draw or detect scales and return mask objects (tuple of 3)
-
+-
 Known bugs
 ==========
 - high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"
+
+
+0.7.2
+------
+- landmark_maker has now (limited) mousewheel zooming functionality, future releases will provide full gapless zooming
+- changed instructions for phenopype installation: make virtual env in conda for better package control (e.g. avoid different opencv versions)
+- 
 
 0.7.1
 ------
@@ -22,7 +30,7 @@ bugfix:
 0.7.0
 ------
 - full landmark functionality added (refer to "landmark_maker" readme in the docs)
-- additionally: measure length of "curvy" specimens from within the landmarking function
+- additionally: measure length of curvy specimens from within the landmarking function ("arc")
 - generic image registration (aka feature recognition) added, will be properly introduced and documented in the next version 
 
 

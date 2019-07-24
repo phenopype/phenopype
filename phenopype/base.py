@@ -217,8 +217,6 @@ class scale_maker:
             absolute or relative path to OR numpy array of image containing the template 
         value: int (default: 10)
             distance to measure between two points
-        unit: str (default: "mm")
-            unit that the scale should be in
         mode: str (default: "rectangle")
             grab the scale with a polygon or a box
         zoom: bool (default: False)
@@ -239,8 +237,7 @@ class scale_maker:
             image = cv2.imread(image)        
         if not len(image.shape)==3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        unit = kwargs.get('unit', "mm")
-        mode = kwargs.get('mode', "box")
+        mode = kwargs.get('mode', "rectangle")
         zoom = kwargs.get('zoom', False)        
         value = kwargs.get("value", 10)
         if not "value" in kwargs:
@@ -283,12 +280,14 @@ class scale_maker:
             if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
                 cv2.destroyWindow("phenopype")  
             self.points_step1 = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
-            print("Finished, scale outline drawn. Now dd the scale by clicking on two points with a known distance between them:")
+            print("Finished, scale outline drawn. Now add the scale by clicking on two points with a known distance between them:")
 
         # create colour mask to show scale outline
         colour_mask = np.zeros(image.shape, np.uint8)
         colour_mask[:,:,1] = 255 # all area green
-        cv2.fillPoly(colour_mask, np.array([self.points_step1]), red) # red = excluded area
+        self.colour_mask = colour_mask
+        
+        cv2.fillPoly(colour_mask, [np.array(self.points_step1)], red) # red = excluded area
         temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
         self.image_overlay = temp_canvas_1
 
@@ -299,7 +298,7 @@ class scale_maker:
         
         # create mask for SIFT
         self.mask_original_template = np.zeros(image.shape[0:2], np.uint8)
-        cv2.fillPoly(self.mask_original_template, np.array([self.points_step1]), white) 
+        cv2.fillPoly(self.mask_original_template, [np.array(self.points_step1)], white) 
         self.mask_original_template = self.mask_original_template[ry:ry+h,rx:rx+w]
         
         # zoom into drawn scale outline for better visibility
@@ -327,7 +326,7 @@ class scale_maker:
             
         print("\n")
         print("------------------------------------------------")
-        print("Finished - your scale has %s pixel per %s %s." % (self.scale_px, value, unit))
+        print("Finished - your scale has %s pixel per %s mm." % (self.scale_px, value))
         print("------------------------------------------------")
         print("\n")
 
