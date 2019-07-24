@@ -277,7 +277,7 @@ class scale_maker:
                     sys.exit("phenopype process stopped")     
             print("Finished, scale outline drawn. Now add the scale by clicking on two points with a known distance between them:")
                 
-        elif mode == "box":
+        elif mode == "rectangle":
             cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
             (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
             if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
