@@ -39,9 +39,11 @@ conda create -n "phenopype_env" python=3.7 spyder
 ```
 conda activate phenopype_env
 pip install phenopype
+
+spyder
 ```
 
-5. Run the [tutorials](tutorials) with `jupyter notebook`:
+5. Check out the [tutorials](tutorials) with `jupyter notebook`:
 ```
 pip install jupyter notebook
 jupyter notebook
