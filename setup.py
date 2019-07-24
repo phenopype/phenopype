@@ -27,6 +27,7 @@ setup(
 	license='LGPL',
 	description='a phenotyping pipeline for python',
 	long_description=open('README.md').read(), 
+	long_description_content_type='text/markdown',
 	tests_require=["pytest"],
 	setup_requires=["pytest-runner"]
 )
