@@ -1,5 +1,4 @@
 from setuptools import setup
-
 import re
 VERSIONFILE="phenopype/_version.py"
 verstrline = open(VERSIONFILE, "rt").read()
@@ -9,8 +8,6 @@ if mo:
     verstr = mo.group(1)
 else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
-    
-    
 setup(
 	name='phenopype',
 	url='https://github.com/mluerig/phenopype',
@@ -29,7 +26,7 @@ setup(
 	version=verstr,
 	license='LGPL',
 	description='a phenotyping pipeline for python',
-	long_description=open('README.rst').read(), 
+	long_description=open('README.md').read(), 
 	tests_require=["pytest"],
 	setup_requires=["pytest-runner"]
 )
