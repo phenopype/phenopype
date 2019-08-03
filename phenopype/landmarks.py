@@ -2,7 +2,6 @@ import os
 import cv2
 import numpy as np
 import copy
-import sys
 import pandas as pd 
 
 from phenopype.utils import (show_img)
@@ -16,13 +15,11 @@ blue = (255, 0, 0)
 black = (0,0,0)
 white = (255,255,255)
 
-
-
-colours = {"red": (0, 0, 255),
- "green": (0, 255, 0), 
- "blue": (255, 0, 0),
- "black":(0,0,0),
- "white":(255,255,255)}
+#colours = {"red": (0, 0, 255),
+# "green": (0, 255, 0), 
+# "blue": (255, 0, 0),
+# "black":(0,0,0),
+# "white":(255,255,255)}
 
 
 #%% modules
@@ -33,21 +30,23 @@ class landmark_maker:
     ----------
     image: str or array
         absolute or relative path to OR numpy array of image 
-    scale: num (1)
+    scale: num (default: 1)
         pixel to mm-ratio 
-    ID: str (NA)
+    ID: str (default: NA)
         specimen ID; "query" is special flag for user entry
-    point_size: num (1/300 of image diameter)
+    point_size: num (default: 1/300 of image diameter)
         size of the landmarks on the image in pixels
-    point_col: value (red)
+    point_col: value (default: red)
         colour of landmark (red, green, blue, black, white)
     label_size: num (1/1500 of image diamter)
         size of the numeric landmark label in pixels
-    label_col: value (black)
+    label_col: value (default: black)
         colour of label (red, green, blue, black, white)
-    draw_line: bool (False)
+    draw_line: bool (default: False)
         flag to draw arc and measure it's length
-        
+    zoom_factor: int (default 5)
+        magnification factor on mousewheel use
+    
     Returns
     -------
     
@@ -66,32 +65,6 @@ class landmark_maker:
         else:
             self.image = image
             self.filename = kwargs.get("filename","NA")
-            
-        self.ID = kwargs.get("ID","NA")
-        self.scale = kwargs.get("scale", 1)
-        self.zoom_fac = kwargs.get("zoom_fac", 5)
-        self.draw_line = kwargs.get("draw_line", False)
-        
-        self.image_height = self.image.shape[0]
-        self.delta_height = int((self.image_height/self.zoom_fac)/2)
-        self.image_width = self.image.shape[1]
-        self.delta_width = int((self.image_width/self.zoom_fac)/2)
-        self.image_diag = int((self.image_height + self.image_width)/2)
-        self.image_diag_fac = int(self.image_diag/10)
-        
-        self.point_size = kwargs.get("point_size", int(self.image_diag/300))
-        self.point_col = kwargs.get("point_col", red)
-        self.label_size = kwargs.get("label_size", int(self.image_diag/1750))
-        self.label_col = kwargs.get("label_col", black)
-
-        self.done = False 
-        self.current = (0, 0) 
-        self.current_zoom = []
-        self.points = []
-        self.points_zoom = []
-        self.idx = 0
-        self.idx_list = []
-        self.flag_zoom = False
                 
     def _on_mouse(self, event, x, y, flags, params):
         
@@ -126,7 +99,33 @@ class landmark_maker:
                 self.flag_zoom=False
 
                 
-    def draw(self, **kwargs):                   
+    def set_landmarks(self, **kwargs):                   
+        
+        self.ID = kwargs.get("ID","NA")
+        self.scale = kwargs.get("scale", 1)
+        self.zoom_fac = kwargs.get("zoom_factor", 5)
+        self.draw_line = kwargs.get("draw_line", False)
+        
+        self.image_height = self.image.shape[0]
+        self.delta_height = int((self.image_height/self.zoom_fac)/2)
+        self.image_width = self.image.shape[1]
+        self.delta_width = int((self.image_width/self.zoom_fac)/2)
+        self.image_diag = int((self.image_height + self.image_width)/2)
+        self.image_diag_fac = int(self.image_diag/10)
+        
+        self.point_size = kwargs.get("point_size", int(self.image_diag/300))
+        self.point_col = kwargs.get("point_col", red)
+        self.label_size = kwargs.get("label_size", int(self.image_diag/1750))
+        self.label_col = kwargs.get("label_col", black)
+
+        self.done = False 
+        self.current = (0, 0) 
+        self.current_zoom = []
+        self.points = []
+        self.points_zoom = []
+        self.idx = 0
+        self.idx_list = []
+        self.flag_zoom = False
         
         # =============================================================================
         # add landmarks
@@ -203,6 +202,34 @@ class landmark_maker:
             self.df["filename"] = self.filename
             self.df["id"] = self.ID
             self.df["scale"] = self.scale
+            
+        if self.ID == "query":
+            
+            self.i = 0
+            self.ID_in = []
+            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+            while True:
+                # Display the image
+                cv2.imshow('phenopype',self.drawn)
+                # wait for keypress
+                k = cv2.waitKey(0)
+                self.ID_in.append(chr(k))
+                print(self.ID_in)
+                # specify the font and draw the key using puttext
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(self.drawn,chr(k),(140+self.i,250), font, 50,(255,255,255),2,cv2.LINE_AA)
+                self.i+=10
+                if k == ord('q'):
+                    break
+            cv2.destroyAllWindows()
+            
+#            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+#            cv2.imshow("phenopype", self.drawn)
+#            self.ID = input("Enter specimen ID: ")
+#            cv2.waitKey(0)
+#            cv2.destroyWindow("phenopype")
+        if self.idx > 0:
+            self.df["id"] = self.ID
 
         # =============================================================================
         # add arc-points
@@ -290,12 +317,6 @@ class landmark_maker:
         # =============================================================================
         # save and return
         # =============================================================================
-            
-        if self.ID == "query":
-            self.ID = input("Enter specimen ID: ")
-        
-        if self.idx > 0:
-            self.df["id"] = self.ID
             
         if self.draw_line == True:
             self.df = self.df[["filename", "id", "idx", "x","y","scale","arc_length"]]
