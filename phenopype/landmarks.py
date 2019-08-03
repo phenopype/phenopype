@@ -31,7 +31,6 @@ class landmark_maker:
     
     Parameters
     ----------
-
     image: str or array
         absolute or relative path to OR numpy array of image 
     scale: num (1)
@@ -302,8 +301,3 @@ class landmark_maker:
             self.df = self.df[["filename", "id", "idx", "x","y","scale","arc_length"]]
         else:
             self.df = self.df[["filename", "id", "idx", "x","y","scale"]]
-
-        
-
-                    
-                

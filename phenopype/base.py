@@ -27,10 +27,10 @@ class project_maker:
 
             image_dir: str 
                 path to directory with images           
-            project_name: str ("My project, -current date-")
+            name: str (default: "My project, -current date-")
                 name of your project               
-            mode: str ("dir")
-                "dir" searches current directory for valid files; "tree" walks through all subdirectories
+            search_mode: str (default: "dir")
+                "dir" searches current directory for valid files; "recursive" walks through all subdirectories
             filetypes: list 
                 single or multiple string patterns to target files with certain endings
             include: list 
@@ -39,8 +39,6 @@ class project_maker:
                 single or multiple string patterns to target certain files to include - can be used together with include
         """
     def __init__(self, image_dir, **kwargs):
-        
-
         
         # =============================================================================
         # INITIALIZE
@@ -56,7 +54,7 @@ class project_maker:
 #            save_dir_made = " (created)"
 #        else:
 #            save_dir_made = ""
-        self.mode = kwargs.get("mode","dir")                 
+        self.mode = kwargs.get("search_mode","dir")                 
         self.filetypes = kwargs.get("filetypes", [])
         self.exclude = kwargs.get("exclude", [])
         self.include = kwargs.get("include", [])
@@ -66,16 +64,16 @@ class project_maker:
 
         print("\n")
         print("----------------------------------------------------------------")
-        print("Project settings - \"" + self.name + "\":\n")
-        print("\nImage directory: " + str(self.in_dir)  + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
+        print("Project settings\n================\n")
+        print("Project name: " + self.name + "\nImage directory: " + str(self.in_dir)  + "\nSearch mode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
         print("----------------------------------------------------------------")
         
         # Output directory: " + str(self.save_dir) + save_dir_made
         self._get_filelists()
         if show_filenames==True:
-            print("Filenames: \n" + str(self.filenames))
+            print("Search returned following files: \n" + str(self.filenames))
         if show_filepaths==True:
-            print("Filepaths: \n" + str(self.filepaths))
+            print("Paths to files: \n" + str(self.filepaths))
         
 #    def update_list(self, **kwargs):
 #    
@@ -114,7 +112,7 @@ class project_maker:
         # MAKE FILELISTS
         filepaths1 = []
         filenames1 = []
-        if self.mode == "tree":
+        if self.mode == "recursive":
             for root, dirs, files in os.walk(self.in_dir):
                 for i in os.listdir(root):
                     path = os.path.join(root,i)
