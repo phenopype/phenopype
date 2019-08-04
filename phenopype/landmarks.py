@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import copy
 import pandas as pd 
+import sys
 
 from phenopype.utils import (show_img)
 
@@ -101,10 +102,15 @@ class landmark_maker:
                 
     def set_landmarks(self, **kwargs):                   
         
-        self.ID = kwargs.get("ID","NA")
+        self.ID_flag = kwargs.get("ID","NA")
+        if self.ID_flag == "query":
+            self.ID = ""
+        else:
+            self.ID = self.ID_flag
         self.scale = kwargs.get("scale", 1)
         self.zoom_fac = kwargs.get("zoom_factor", 5)
         self.draw_line = kwargs.get("draw_line", False)
+        self.show = kwargs.get('show', True)
         
         self.image_height = self.image.shape[0]
         self.delta_height = int((self.image_height/self.zoom_fac)/2)
@@ -126,7 +132,7 @@ class landmark_maker:
         self.idx = 0
         self.idx_list = []
         self.flag_zoom = False
-        
+
         # =============================================================================
         # add landmarks
         # =============================================================================
@@ -143,15 +149,20 @@ class landmark_maker:
         self.idx = 0
         self.idx_list = []
         self.points = []
-
+        
         while(not self.done):
+            
+            ## read key input
+            k = cv2.waitKey(50)
+            
             # =============================================================================
             # if mousewheel-zoom, update coordinate-space and show different points
             # =============================================================================
             self.points_new = copy.deepcopy(self.points)
 
-            if self.flag_zoom == True:
-                               
+            ## mousewheel zoom
+            if self.flag_zoom == True:   
+                
                 ## zoom rectangle
                 x_zoom, y_zoom = self.current_zoom
                 x_res1 = max(0,x_zoom-self.delta_width)
@@ -174,18 +185,44 @@ class landmark_maker:
                 for lm, idx in zip(self.points_new, self.idx_list):
                     cv2.circle(temp_canvas2, lm[0:2], self.point_size, self.point_col, -1)
                     cv2.putText(temp_canvas2,  str(idx), lm[0:2], cv2.FONT_HERSHEY_SIMPLEX, self.label_size, self.label_col,3,cv2.LINE_AA)
+            
+            ## show typed ID on image
+            if self.ID_flag == "query":
+                if k > 0 and k != 8 and k != 13 and k != 27:
+                    self.ID = self.ID + chr(k)
+                elif k == 8:
+                    self.ID = self.ID[0:len(self.ID)-1]
+                if self.flag_zoom == False: 
+                    cv2.putText(temp_canvas2, self.ID, (int(self.image_width/10),int(self.image_height/10)), cv2.FONT_HERSHEY_SIMPLEX, self.label_size+2, black, 3, cv2.LINE_AA)
 
-            ## show image / finish on enter or esc keystroke
+                    
+            ## finish on enter
+            if k == 13:
+                if self.ID == "":
+                    warning_size=int(temp_canvas2.shape[1]/500)
+                    w_x = int(temp_canvas2.shape[1]/2)
+                    w_y = int(temp_canvas2.shape[0]/2)
+                    
+                    if self.flag_zoom == False:
+                        cv2.putText(temp_canvas2, "No ID entered", (w_x,w_y), cv2.FONT_HERSHEY_SIMPLEX, warning_size , red, warning_size*2, cv2.LINE_AA)
+                    else:
+                        cv2.putText(temp_canvas2, "No ID entered", (w_x,w_y), cv2.FONT_HERSHEY_SIMPLEX, warning_size, red, warning_size*2, cv2.LINE_AA)
+                    
+                else:
+                    cv2.destroyWindow("phenopype")
+                    self.done = True
+                    temp_canvas2 = copy.deepcopy(temp_canvas1)
+                    break
+            
+            ## show and reset canvas
             cv2.imshow("phenopype", temp_canvas2)
-            
-            if cv2.waitKey(50) & 0xff == 13:
-                self.done = True
-                cv2.destroyWindow("phenopype")
-            elif cv2.waitKey(50) & 0xff == 27:
-                cv2.destroyWindow("phenopype")
-            
-            ## reset canvas
             temp_canvas2 = copy.deepcopy(temp_canvas1)
+            
+            ## terminate with ESC
+            if k == 27:
+                cv2.destroyWindow("phenopype")
+                sys.exit("PROCESS TERMINATED")
+                break
             
         ## draw full, unzoomed image
         if self.done == True:
@@ -193,6 +230,7 @@ class landmark_maker:
             for lm, idx in zip(self.points, self.idx_list):
                 cv2.circle(self.drawn, lm[0:2], self.point_size, self.point_col, -1)
                 cv2.putText(self.drawn,  str(idx), lm[0:2], cv2.FONT_HERSHEY_SIMPLEX, self.label_size, self.label_col,3,cv2.LINE_AA)
+                cv2.putText(self.drawn, self.ID, (int(self.image_width/10),int(self.image_height/10)), cv2.FONT_HERSHEY_SIMPLEX, self.label_size+2, black, 3, cv2.LINE_AA)
             
         ## write points to df
         self.landmarks = self.points      
@@ -203,31 +241,6 @@ class landmark_maker:
             self.df["id"] = self.ID
             self.df["scale"] = self.scale
             
-        if self.ID == "query":
-            
-            self.i = 0
-            self.ID_in = []
-            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-            while True:
-                # Display the image
-                cv2.imshow('phenopype',self.drawn)
-                # wait for keypress
-                k = cv2.waitKey(0)
-                self.ID_in.append(chr(k))
-                print(self.ID_in)
-                # specify the font and draw the key using puttext
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                cv2.putText(self.drawn,chr(k),(140+self.i,250), font, 50,(255,255,255),2,cv2.LINE_AA)
-                self.i+=10
-                if k == ord('q'):
-                    break
-            cv2.destroyAllWindows()
-            
-#            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-#            cv2.imshow("phenopype", self.drawn)
-#            self.ID = input("Enter specimen ID: ")
-#            cv2.waitKey(0)
-#            cv2.destroyWindow("phenopype")
         if self.idx > 0:
             self.df["id"] = self.ID
 
@@ -321,4 +334,8 @@ class landmark_maker:
         if self.draw_line == True:
             self.df = self.df[["filename", "id", "idx", "x","y","scale","arc_length"]]
         else:
+            sys.exit("WARNING: No landmarks set!")
             self.df = self.df[["filename", "id", "idx", "x","y","scale"]]
+            
+        if self.show == True:
+            show_img(self.drawn)

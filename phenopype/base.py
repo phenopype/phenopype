@@ -792,7 +792,7 @@ class object_finder:
             thresholding = method[0]
             self.thresholding = method[0]
         else:
-            sys.exit("Error - list expected for thresholding-method")
+            sys.exit("ERROR: List type expected for \"thresholding\"")
             
         if thresholding == "otsu":
             ret, self.thresh = cv2.threshold(self.blurred,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
