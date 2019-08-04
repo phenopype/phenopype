@@ -31,29 +31,7 @@ class landmark_maker:
     ----------
     image: str or array
         absolute or relative path to OR numpy array of image 
-    scale: num (default: 1)
-        pixel to mm-ratio 
-    ID: str (default: NA)
-        specimen ID; "query" is special flag for user entry
-    point_size: num (default: 1/300 of image diameter)
-        size of the landmarks on the image in pixels
-    point_col: value (default: red)
-        colour of landmark (red, green, blue, black, white)
-    label_size: num (1/1500 of image diamter)
-        size of the numeric landmark label in pixels
-    label_col: value (default: black)
-        colour of label (red, green, blue, black, white)
-    draw_line: bool (default: False)
-        flag to draw arc and measure it's length
-    zoom_factor: int (default 5)
-        magnification factor on mousewheel use
-    
-    Returns
-    -------
-    
-    .df = pandas data frame with landmarks (and arc-length, if selected)
-    .drawn = image array with drawn landmarks (and lines)
-    .ID = provided specimen ID 
+
     
     """        
     
@@ -100,7 +78,40 @@ class landmark_maker:
                 self.flag_zoom=False
 
                 
-    def set_landmarks(self, **kwargs):                   
+    def set_landmarks(self, **kwargs): 
+
+        """Set landmarks, with option to measure length and enter specimen ID.
+        
+        Parameters
+        ----------
+        scale: num (default: 1)
+            pixel to mm-ratio 
+        ID: str (default: NA)
+            specimen ID; "query" is special flag for user entry
+        draw_line: bool (default: False)
+            flag to draw arc and measure it's length
+        zoom_factor: int (default 5)
+            magnification factor on mousewheel use
+        show: bool (default: False)
+            display the set landmarks 
+        point_size: num (default: 1/300 of image diameter)
+            size of the landmarks on the image in pixels
+        point_col: value (default: red)
+            colour of landmark (red, green, blue, black, white)
+        label_size: num (1/1500 of image diamter)
+            size of the numeric landmark label in pixels
+        label_col: value (default: black)
+            colour of label (red, green, blue, black, white)
+
+        
+        Returns
+        -------
+        
+        .df = pandas data frame with landmarks (and arc-length, if selected)
+        .drawn = image array with drawn landmarks (and lines)
+        .ID = provided specimen ID 
+        
+        """                       
         
         self.ID_flag = kwargs.get("ID","NA")
         if self.ID_flag == "query":
@@ -110,7 +121,7 @@ class landmark_maker:
         self.scale = kwargs.get("scale", 1)
         self.zoom_fac = kwargs.get("zoom_factor", 5)
         self.draw_line = kwargs.get("draw_line", False)
-        self.show = kwargs.get('show', True)
+        self.show = kwargs.get('show', False)
         
         self.image_height = self.image.shape[0]
         self.delta_height = int((self.image_height/self.zoom_fac)/2)
