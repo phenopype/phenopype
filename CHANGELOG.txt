@@ -10,7 +10,8 @@ Unreleased
 - a quick-thresholding method in marked area for single images 
 - object_finder returns histogram of length, area and grayscale of all objects
 - scale_maker is initialized empty to return scale object, that can either draw or detect scales and return mask objects (tuple of 3)
--
+- inlude/exclude function in masking not working properly global
+
 Known bugs
 ==========
 - high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"

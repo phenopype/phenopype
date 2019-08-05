@@ -519,8 +519,8 @@ class scale_maker:
             return "no current scale", "no scale mask"
 
         
-class polygon_maker:
-    """Intialize polygon maker, loads image.
+class mask_maker:
+    """Intialize mask maker, loads image.
     
     Parameters
     ----------
@@ -563,8 +563,8 @@ class polygon_maker:
             else:
                 print("No points to delete")
                 
-    def draw(self, **kwargs):
-        """Polygon maker method to draw rectangle or polygon mask onto image.
+    def draw_mask(self, **kwargs):
+        """Mask maker method to draw rectangle or polygon mask onto image.
         
         Parameters
         ----------        
@@ -643,7 +643,6 @@ class polygon_maker:
             self.overlay[mask_bool,2] = 200   
             self.overlay[mask_bool,1] = 0   
             line_col = red
-
       
         if mode == "rectangle":
             cv2.rectangle(self.overlay,(int(self.points[0][0]),int(self.points[0][1])),(int(self.points[2][0]),int(self.points[2][1])),line_col,10)

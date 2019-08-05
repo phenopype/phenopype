@@ -254,6 +254,9 @@ class landmark_maker:
             
         if self.idx > 0:
             self.df["id"] = self.ID
+            
+        else: 
+            sys.exit("WARNING: No landmarks set!")
 
         # =============================================================================
         # add arc-points
@@ -341,12 +344,12 @@ class landmark_maker:
         # =============================================================================
         # save and return
         # =============================================================================
-            
+           
         if self.draw_line == True:
             self.df = self.df[["filename", "id", "idx", "x","y","scale","arc_length"]]
         else:
-            sys.exit("WARNING: No landmarks set!")
             self.df = self.df[["filename", "id", "idx", "x","y","scale"]]
-            
         if self.show == True:
             show_img(self.drawn)
+            
+        return self.df
