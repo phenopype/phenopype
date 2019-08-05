@@ -5,6 +5,7 @@ import pandas as pd
 import copy
 import math
 import sys
+import warnings
 
 import cv2
 import datetime
@@ -20,96 +21,67 @@ pd.options.display.max_rows = 10
 #%% classes
 
 class project_maker: 
-    """Create project object where lists of filenames and filepaths are stored.
+    
+    """Initialize a phenopype project with a name.
         
         Parameters
         ----------
 
-            image_dir: str 
-                path to directory with images           
-            name: str (default: "My project, -current date-")
-                name of your project               
-            search_mode: str (default: "dir")
-                "dir" searches current directory for valid files; "recursive" walks through all subdirectories
-            filetypes: list 
-                single or multiple string patterns to target files with certain endings
-            include: list 
-                single or multiple string patterns to target certain files to include - can be used together with exclude
-            exclude: list 
-                single or multiple string patterns to target certain files to include - can be used together with include
-        """
-    def __init__(self, image_dir, **kwargs):
+        name: str (default: "My project, -current date-")
+            name of your project     
+    """
         
-        # =============================================================================
-        # INITIALIZE
-        # =============================================================================
+    def __init__(self, **kwargs):
         
         proj_dummy_name = "My project, " + datetime.datetime.today().strftime('%Y-%m-%d')
-        
         self.name = kwargs.get("name", proj_dummy_name)           
+
+                      
+    def add_files(self, image_dir, **kwargs):
+        
+        """Add files to your project from a directory, can look recursively. Optional: specify a search string for filenames or file extensions. 
+    
+        Parameters
+        ----------
+    
+        image_dir: str 
+            path to directory with images                             
+        search_mode: str (default: "dir")
+            "dir" searches current directory for valid files; "recursive" walks through all subdirectories
+        filetypes: list 
+            single or multiple string patterns to target files with certain endings
+        include: list 
+            single or multiple string patterns to target certain files to include - can be used together with exclude
+        exclude: list 
+            single or multiple string patterns to target certain files to include - can be used together with include
+
+        """
+            
         self.in_dir = image_dir
-#        self.save_dir = kwargs.get("save_dir", os.path.normpath(self.in_dir) + "_out")   
-#        if not os.path.exists(self.save_dir):
-#            os.makedirs(self.save_dir)
-#            save_dir_made = " (created)"
-#        else:
-#            save_dir_made = ""
+        
+        if "save_dir" in kwargs:
+            self.save_dir = kwargs.get("save_dir", "local")   
+            if self.save_dir == "local":
+                self.save_dir = os.path.normpath(self.in_dir) + "_out"
+            
+            if not os.path.exists(self.save_dir):
+                os.makedirs(self.save_dir)
+                save_dir_str = str(self.save_dir) + " (created)"
+            else:
+                save_dir_str = str(self.save_dir)
+        else:
+            save_dir_str = "No save directory specified."
+            
+            
         self.mode = kwargs.get("search_mode","dir")                 
         self.filetypes = kwargs.get("filetypes", [])
         self.exclude = kwargs.get("exclude", [])
         self.include = kwargs.get("include", [])
-        
-        show_filenames = kwargs.get("show_filenames", True)
-        show_filepaths = kwargs.get("show_filepaths", False)
-
-        print("\n")
-        print("----------------------------------------------------------------")
-        print("Project settings\n================\n")
-        print("Project name: " + self.name + "\nImage directory: " + str(self.in_dir)  + "\nSearch mode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
-        print("----------------------------------------------------------------")
-        
-        # Output directory: " + str(self.save_dir) + save_dir_made
-        self._get_filelists()
-        if show_filenames==True:
-            print("Search returned following files: \n" + str(self.filenames))
-        if show_filepaths==True:
-            print("Paths to files: \n" + str(self.filepaths))
-        
-#    def update_list(self, **kwargs):
-#    
-#        self.name = kwargs.get("name",self.name)           
-#        self.in_dir = kwargs.get("image_dir",self.in_dir)           
-##        self.save_dir = kwargs.get("save_dir",self.save_dir)   
-##        if not os.path.exists(self.save_dir):
-##            os.makedirs(self.save_dir)
-##            save_dir_made = " (created)"
-##        else:
-##            save_dir_made = ""
-#        self.mode = kwargs.get("mode",self.mode)                 
-#        self.filetypes = kwargs.get("filetypes", self.filetypes)
-#        self.exclude = kwargs.get("exclude", self.exclude)
-#        self.include = kwargs.get("include", self.include)
-#        
-#        show_filenames = kwargs.get("show_filenames", False)
-#        show_filepaths = kwargs.get("show_filepaths", False)
-#   
-#        print("\n")
-#        print("----------------------------------------------------------------")
-#        print("Project settings - \"" + self.name + "\" - (UPDATED):\n")
-#        print("\nImage directory: " + str(self.in_dir)  + "\nMode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude))
-#        print("----------------------------------------------------------------")
-#        
-#        self._get_filelists()
-#        
-#        if show_filenames==True:
-#            print("Filenames: \n" + str(self.filenames))
-#        if show_filepaths==True:
-#            print("Filepaths: \n" + str(self.filepaths))
-            
           
-    def _get_filelists(self):
-    
-        # MAKE FILELISTS
+        # =============================================================================
+        # make file / pathlists
+        # =============================================================================       
+        
         filepaths1 = []
         filenames1 = []
         if self.mode == "recursive":
@@ -168,222 +140,316 @@ class project_maker:
     
         self.filenames = filenames4
         self.filepaths = filepaths4
-                    
-#        # =============================================================================
-#        # BUILD PROJECT DF
-#        # =============================================================================
-#        self.df = pd.DataFrame(data=list(zip(self.filepaths, self.filenames)), columns = ["filepath", "filename"])
-#        self.df.index = self.filenames
-#        self.df.insert(0, "project", self.name)
-#        self.df.drop_duplicates(subset="filename", inplace=True)
-#        self.filepaths = self.df['filepath'].tolist()
-#        self.filenames = self.df['filename'].tolist()
-#        self.df.drop(columns='filepath', inplace=True)
-#                                
     
-#    def save(self, **kwargs):
-#        """Save project dataframe as .txt to directory. 
-#        
-#        Parameters
-#        -----------
-#        
-#        append: str
-#            append given project name with suffix
-#        overwrite: bool, default False
-#            overwrite an existing .txt-file
-#            
-#        """
-#        output = kwargs.get("save_dir",self.save_dir) # "out") #
-#        if "append" in kwargs:
-#            app = '_' + kwargs.get('append')
-#        else:
-#            app = ""
-#        path=os.path.join(output , self.name +  app + ".txt")
-#        if kwargs.get('overwrite',True) == False:
-#            if not os.path.exists(path):
-#                self.df.astype(str).to_csv(path_or_buf=path, sep="\t", index=False, float_format = '%.12g')
-#        else:
-#                self.df.astype(str).to_csv(path_or_buf=path, sep="\t", index=False, float_format = '%.12g')
-
-
+        # =============================================================================
+        # show added files
+        # =============================================================================
+        
+        n_files = len(self.filenames)
+        
+        print("Search returned " + str(n_files) + " files: \n" + str(self.filenames[0:49]) + "...")
+        print("\n")
+        print("--------------------------------------------")
+        print("Project settings\n================")
+        print("Project name: " + self.name + "\nImage directory: " + str(self.in_dir)  + "\nSave directory: " + save_dir_str + "\nSearch mode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + str(self.include) + "\nExclude: " + str(self.exclude) + "\n")
+        print("Files\n======")
+        if n_files > 10:
+            print(str(self.filenames[0:9]) + " ... " + "\n\n Print all filenames or filepaths with _project_name_.filenames / _project_name_.filepaths\n")
+        else:
+            print(str(self.filenames) + "\n Print filenames or filepaths with _project_name_.filenames / _project_name_.filepaths\n")
+        print("--------------------------------------------")
+        
+                    
 class scale_maker:
-    """Scale maker class, measures the pixel-mm ratio of an image, creates objects and stores relevant information there that can be inherited to the "detect" method.
+    
+    """Initiate scale maker with an image containing a size-reference card. Make_scale measures the pixel-mm ratio of a reference card, detect_scale can attempt to find the specified card in other images.
         
         Parameters
         ----------
         image: str or array
-            absolute or relative path to OR numpy array of image containing the template 
+            absolute or relative path to OR numpy array of image containing the reference card 
+    """
+        
+    def __init__(self, image, **kwargs):
+
+        if isinstance(image, str):
+            self.ref_image = cv2.imread(image) 
+        else:
+            self.ref_image = image
+        if not len(self.ref_image.shape)==3:
+            self.ref_image = cv2.cvtColor(self.ref_image, cv2.COLOR_GRAY2BGR)         
+            
+            
+                  
+    def _on_mouse(self, event, x, y, flags, params):
+        
+        if self.done: 
+            return       
+        if event == cv2.EVENT_MOUSEMOVE:
+            self.current = (x, y)                
+        if event == cv2.EVENT_MOUSEWHEEL:               
+            if flags > 0 and self.flag_zoom == False:
+                self.flag_zoom=True
+                self.current_zoom = (x,y)
+            if flags < 0 and self.flag_zoom == True:
+                self.flag_zoom=False                     
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if self.flag_zoom == True:
+                x_zoom, y_zoom = self.current_zoom     
+                x = x + max(0,x_zoom-self.delta_width)
+                y = y + max(0,y_zoom-self.delta_height)
+            if len(self.points) < 2 and self.flag_step=="scale":
+                self.points.append((x, y))
+                self.idx += 1  
+                self.idx_list.append(self.idx)
+                print("Point #%d with position (x=%d,y=%d) added" % (self.idx, x, y))
+            elif self.flag_step=="outline":
+                self.points.append((x, y))
+                self.idx += 1  
+                self.idx_list.append(self.idx)
+                print("Point #%d with position (x=%d,y=%d) added" % (self.idx, x, y))    
+            elif self.flag_step=="scale":
+                print("Finished - no more points to add!")
+        if event == cv2.EVENT_RBUTTONDOWN:
+            if len(self.points) > 0:
+                self.points = self.points[:-1]
+                self.idx -= 1
+                self.idx_list = self.idx_list[:-1]
+                print("Point #%d with position (x=%d,y=%d) deleted" % (self.idx, x, y))
+            else:
+                print("No point to delete")
+                
+            
+            
+    def make_scale(self, **kwargs):
+        
+        """Measure the pixel-to-mm-ratio of a reference card inside an image.
+        
+        Parameters
+        ----------
+        
         value: int (default: 10)
             distance to measure between two points
         mode: str (default: "rectangle")
             grab the scale with a polygon or a box
-        zoom: bool (default: False)
-            zoom into the scale after drawin it for higher accuracy
         """
-    def __init__(self, image, **kwargs):
-
-        # initialize -----
-        self.done_step1 = False 
-        self.done_step2 = False
+        
+        ## initialize
+        self.zoom_fac = kwargs.get("zoom_factor", 5)                       
+        self.flag_mark_scale = kwargs.get("mark_scale", False)
+        
+        self.image_height = self.ref_image.shape[0]
+        self.delta_height = int((self.image_height/self.zoom_fac)/2)
+        self.image_width = self.ref_image.shape[1]
+        self.delta_width = int((self.image_width/self.zoom_fac)/2)
+        self.image_diag = int((self.image_height + self.image_width)/2)
+        
+        ## initialize with empty lists
+        self.flag_distance_entered = False
+        self.done = False 
+        self.flag_zoom = False
+        self.flag_step = "scale"
         self.current = (0, 0) 
-        self.points_step1 = [] 
-        self.points_step2 = []
-        self.scale_px = 0
+        self.current_zoom = []
+        self.points = []
+        self.idx = 0
+        self.idx_list = []
         
+        self.distance_mm = ""
+        self.scale = 0
         
-        if isinstance(image, str):
-            image = cv2.imread(image)        
-        if not len(image.shape)==3:
-            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        mode = kwargs.get('mode', "rectangle")
-        zoom = kwargs.get('zoom', False)        
-        value = kwargs.get("value", 10)
-        if not "value" in kwargs:
-            print("Warning - no value for scale specified. Defaulting to 10 mm")
-        
-#        if "resize" in kwargs:
-#            factor = kwargs.get('resize', 0.5)
-#            image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
-
-        # =============================================================================
-        # Step 1 - draw scale outline
-        # =============================================================================
-
-        print("\nMark the outline of the scale by left clicking, remove points by right clicking, finish with enter.")
+        print("\nMeasure pixel-to-mm-ratio by clicking on two points, and type the distance in mm between them.")
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback("phenopype", self._on_mouse_step1)
-        temp_canvas_1 = copy.deepcopy(image)
+        cv2.setMouseCallback("phenopype", self._on_mouse)
         
-        #if create_mask == True:
+        temp_canvas1 = copy.deepcopy(self.ref_image)
+        temp_canvas2 = copy.deepcopy(self.ref_image)
         
-        if mode == "polygon":
-            while(not self.done_step1):
-                if (len(self.points_step1) > 0):
-                    cv2.polylines(temp_canvas_1, np.array([self.points_step1]), False, green, 2)
-                    cv2.line(temp_canvas_1, self.points_step1[-1], self.current, blue, 2)
-                cv2.imshow("phenopype", temp_canvas_1)
-                temp_canvas_1 = copy.deepcopy(image)
-                if cv2.waitKey(50) & 0xff == 13:
-                    self.done_step1 = True
-                    cv2.destroyWindow("phenopype")
-                elif cv2.waitKey(50) & 0xff == 27:
-                    cv2.destroyWindow("phenopype")
-                    break
-                    sys.exit("phenopype process stopped")     
-            print("Finished, scale outline drawn. Now add the scale by clicking on two points with a known distance between them:")
+        while(not self.done):
+
+            ## read key input
+            k = cv2.waitKey(50)
+            
+            # =============================================================================
+            # if mousewheel-zoom, update coordinate-space and show different points
+            # =============================================================================
+            self.points_new = copy.deepcopy(self.points)
+
+            ## mousewheel zoom
+            if self.flag_zoom == True:   
                 
-        elif mode == "rectangle":
-            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-            (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
-            if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
-                cv2.destroyWindow("phenopype")  
-            self.points_step1 = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
-            print("Finished, scale outline drawn. Now add the scale by clicking on two points with a known distance between them:")
-
-        # create colour mask to show scale outline
-        colour_mask = np.zeros(image.shape, np.uint8)
-        colour_mask[:,:,1] = 255 # all area green
-        self.colour_mask = colour_mask
+                ## zoom rectangle
+                x_zoom, y_zoom = self.current_zoom
+                x_res1 = max(0,x_zoom-self.delta_width)
+                x_res2 = x_zoom+self.delta_width
+                y_res1 = max(0,y_zoom-self.delta_height)
+                y_res2 = y_zoom+self.delta_height
+                temp_canvas2 = temp_canvas2[y_res1:y_res2,x_res1:x_res2]
+                
+                ## update points to draw in zoom rectangle                
+                idx = -1
+                for i in self.points_new:
+                    idx += 1
+                    x, y = i
+                    x = x - x_res1
+                    y = y - y_res1
+                    self.points_new[idx] = (x,y)
+                
+            ## type distance onto image; accept only digits
+            if k > 0 and k != 8 and k != 13 and k != 27:
+                if chr(k).isdigit():
+                    self.distance_mm = self.distance_mm + chr(k)
+            elif k == 8:
+                self.distance_mm = self.distance_mm[0:len(self.distance_mm)-1]
+            
+            ## adjust text size and line width to canvas size            
+            text_y = int(temp_canvas2.shape[0]/15)
+            text_x = int(temp_canvas2.shape[1]/20)       
+            text_size = int(((temp_canvas2.shape[0] + temp_canvas2.shape[1])/2)/500)
+            text_thickness = int(((temp_canvas2.shape[0] + temp_canvas2.shape[1])/2)/1000)
+            linewidth = int(((temp_canvas2.shape[0] + temp_canvas2.shape[1])/2)/500)
+                       
+            ## draw lines
+            if len(self.points) > 0:
+                cv2.polylines(temp_canvas2, np.array([self.points_new]), False, green, linewidth)
+                cv2.line(temp_canvas2, self.points_new[-1], self.current, blue, linewidth)
+                
+            ## write text
+            if self.flag_step=="scale":
+                cv2.putText(temp_canvas2, "Enter distance: " + self.distance_mm, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, text_size, black, text_thickness, cv2.LINE_AA)
+            elif self.flag_step=="outline":
+                cv2.putText(temp_canvas2, "Mark scale-outline", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, text_size, black, text_thickness, cv2.LINE_AA)
+                        
+            ## finish or next (outline step) on enter
+            if k == 13:
+                if len(self.distance_mm) == 0 and self.flag_step == "scale":                  
+                    cv2.putText(temp_canvas2, "No distance entered", (text_x,text_y+text_y), cv2.FONT_HERSHEY_SIMPLEX, text_size , red, text_thickness, cv2.LINE_AA)
+                elif len(self.distance_mm) > 0 and self.flag_mark_scale==True and self.flag_step == "scale":
+                    self.flag_distance_entered = True
+                elif len(self.distance_mm) > 0 and self.flag_mark_scale==False and self.flag_step == "scale":
+                    cv2.destroyWindow("phenopype")
+                    self.done = True
+                    self.distance_px = int(math.sqrt( ((self.points[0][0]-self.points[1][0])**2)+((self.points[0][1]-self.points[1][1])**2)))
+                    temp_canvas2 = copy.deepcopy(temp_canvas1)
+                    break
+                elif len(self.points) < 3 and self.flag_step=="outline" and self.flag_distance_entered == True:
+                    cv2.putText(temp_canvas2, "No scale selected", (text_x,text_y+text_y), cv2.FONT_HERSHEY_SIMPLEX, text_size , red, text_thickness, cv2.LINE_AA)
+                elif self.flag_step=="outline":
+                    cv2.destroyWindow("phenopype")
+                    self.done = True
+                    temp_canvas2 = copy.deepcopy(temp_canvas1)
+                    break
+                
+            ## reset if scale markup is selected
+            if len(self.points) == 2 and self.flag_mark_scale == True and self.flag_step=="scale" and self.flag_distance_entered==True:
+                print("Finished - now mark scale.")
+                self.flag_step = "outline"
+                self.distance_px = int(math.sqrt( ((self.points[0][0]-self.points[1][0])**2)+((self.points[0][1]-self.points[1][1])**2)))
+                self.points = []
+                self.idx = 0
+                self.idx_list = []
+                self.flag_zoom = False
+                
+            ## show and reset canvas
+            cv2.imshow("phenopype", temp_canvas2)
+            temp_canvas2 = copy.deepcopy(temp_canvas1) 
+            
+            ## terminate with ESC
+            if k == 27:
+                cv2.destroyWindow("phenopype")
+                sys.exit("PROCESS TERMINATED")
+                break
+                
+        self.distance_mm = int(self.distance_mm)
+        self.scale = self.distance_px/self.distance_mm
         
-        cv2.fillPoly(colour_mask, [np.array(self.points_step1)], red) # red = excluded area
-        temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
-        self.image_overlay = temp_canvas_1
-
-
-        # create template image for SIFT
-        rx,ry,w,h = cv2.boundingRect(np.array(self.points_step1, dtype=np.int32))
-        self.image_original_template = image[ry:ry+h,rx:rx+w]
+        print(self.scale, flush=True)
         
-        # create mask for SIFT
-        self.mask_original_template = np.zeros(image.shape[0:2], np.uint8)
-        cv2.fillPoly(self.mask_original_template, [np.array(self.points_step1)], white) 
-        self.mask_original_template = self.mask_original_template[ry:ry+h,rx:rx+w]
+        return self.scale
         
-        # zoom into drawn scale outline for better visibility
-        if zoom==True:
-            temp_canvas_1 = image[ry:ry+h,rx:rx+w]
-            self.done_step1 = True
+#        elif mode == "rectangle":
+#            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+#            (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
+#            if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
+#                cv2.destroyWindow("phenopype")  
+#            self.points_step1 = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
+#            print("Finished, scale outline drawn. Now add the scale by clicking on two points with a known distance between them:")     
+#            self.scale_mode = False
+
+#        # create colour mask to show scale outline
+#        colour_mask = np.zeros(self.ref_image.shape, np.uint8)
+#        colour_mask[:,:,1] = 255 # all area green
+#        self.colour_mask = colour_mask
+#        
+#        cv2.fillPoly(colour_mask, [np.array(self.points_step1)], red) # red = excluded area
+#        temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
+#        self.image_overlay = temp_canvas_1
+#
+#
+#        # create template image for SIFT
+#        rx,ry,w,h = cv2.boundingRect(np.array(self.points_step1, dtype=np.int32))
+#        self.image_original_template = image[ry:ry+h,rx:rx+w]
+#        
+#        # create mask for SIFT
+#        self.mask_original_template = np.zeros(image.shape[0:2], np.uint8)
+#        cv2.fillPoly(self.mask_original_template, [np.array(self.points_step1)], white) 
+#        self.mask_original_template = self.mask_original_template[ry:ry+h,rx:rx+w]
+#        
+#        # zoom into drawn scale outline for better visibility
+#        if zoom==True:
+#            temp_canvas_1 = image[ry:ry+h,rx:rx+w]
+#            self.done_step1 = True
 
         # =============================================================================
         # Step 2 - measure scale length
         # =============================================================================
         
-        cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-        temp_canvas_2 = copy.deepcopy(temp_canvas_1)
-        cv2.setMouseCallback("phenopype", self._on_mouse_step2)
-        
-        while(not self.done_step2):
-            if (len(self.points_step2) > 0):
-                cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, green, 2)
-                cv2.line(temp_canvas_2, self.points_step2[-1], self.current, blue, 2)
-            cv2.imshow("phenopype", temp_canvas_2)
-            temp_canvas_2 = copy.deepcopy(temp_canvas_1)
-            if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
-                cv2.destroyWindow("phenopype")
-                break    
-            
-        print("\n")
-        print("------------------------------------------------")
-        print("Finished - your scale has %s pixel per %s mm." % (self.scale_px, value))
-        print("------------------------------------------------")
-        print("\n")
+#        cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+#        temp_canvas_2 = copy.deepcopy(temp_canvas_1)
+#        cv2.setMouseCallback("phenopype", self._on_mouse_step2)
+#        
+#        while(not self.done_step2):
+#            if (len(self.points_step2) > 0):
+#                cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, green, 2)
+#                cv2.line(temp_canvas_2, self.points_step2[-1], self.current, blue, 2)
+#            cv2.imshow("phenopype", temp_canvas_2)
+#            temp_canvas_2 = copy.deepcopy(temp_canvas_1)
+#            if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
+#                cv2.destroyWindow("phenopype")
+#                break    
+#            
+#        print("\n")
+#        print("------------------------------------------------")
+#        print("Finished - your scale has %s pixel per %s mm." % (self.scale_px, value))
+#        print("------------------------------------------------")
+#        print("\n")
+#
+#        if kwargs.get('show', True):
+#            cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, red, 4)    
+#            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+#            cv2.imshow("phenopype", temp_canvas_2)    
+#            if any([cv2.waitKey(0) & 0xff == 27, cv2.waitKey(0) & 0xff == 13]):
+#                cv2.destroyWindow("phenopype")
+#              
+#        self.image_zoomed = temp_canvas_2
 
-        if kwargs.get('show', True):
-            cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, red, 4)    
-            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-            cv2.imshow("phenopype", temp_canvas_2)    
-            if any([cv2.waitKey(0) & 0xff == 27, cv2.waitKey(0) & 0xff == 13]):
-                cv2.destroyWindow("phenopype")
-              
-        self.image_zoomed = temp_canvas_2
-
-        # SCALE
-        self.measured = self.scale_px/value
-        self.current = self.measured
-
-        # REFERENCE
-        (x,y),radius = cv2.minEnclosingCircle(np.array(self.points_step1))
-        self.ref = (radius * 2)
-        
-        # MASK
-        zeros = np.zeros(image.shape[0:2], np.uint8)
-        self.mask = cv2.fillPoly(zeros, [np.array(self.points_step1, dtype=np.int32)], white)
-        
-        # create mask object to use in object finder
-        include = False
-        self.mask_obj = np.array(self.mask, dtype=bool), "scale", include
+#        # SCALE
+#        self.measured = self.scale_px/value
+#        self.current = self.measured
+#
+#        # REFERENCE
+#        (x,y),radius = cv2.minEnclosingCircle(np.array(self.points_step1))
+#        self.ref = (radius * 2)
+#        
+#        # MASK
+#        zeros = np.zeros(image.shape[0:2], np.uint8)
+#        self.mask = cv2.fillPoly(zeros, [np.array(self.points_step1, dtype=np.int32)], white)
+#        
+#        # create mask object to use in object finder
+#        include = False
+#        self.mask_obj = np.array(self.mask, dtype=bool), "scale", include
     
-    def _on_mouse_step1(self, event, x, y, buttons, user_param):
-        if self.done_step1: # Nothing more to do
-            return
-        if event == cv2.EVENT_MOUSEMOVE:
-            self.current = (x, y)
-        if event == cv2.EVENT_LBUTTONDOWN:
-            print("Adding point #%d to scale outline" % (len(self.points_step1)+1))
-            self.points_step1.append((x, y))
-        if event == cv2.EVENT_RBUTTONDOWN:
-            if len(self.points_step1) > 0:
-                self.points_step1 = self.points_step1[:-1]
-                print("Removing point #%d from scale outline" % (len(self.points_step1)+1))
-
-    def _on_mouse_step2(self, event, x, y, buttons, user_param):
-        if self.done_step2: # Nothing more to do
-            return
-        if event == cv2.EVENT_MOUSEMOVE:
-            self.current = (x, y)
-        if event == cv2.EVENT_LBUTTONDOWN:
-            print("Adding point %s of 2 to scale" % (len(self.points_step2)+1))
-            self.points_step2.append((x, y))
-        if event == cv2.EVENT_RBUTTONDOWN:
-            if len(self.points_step2) > 0:
-                self.points_step2 = self.points_step2[:-1]
-                print("Removing point %s of 2 from scale" % (len(self.points_step2)+1))
-        if len(self.points_step2)==2:
-            self.done_step2 = True
-            self.scale_px = int(math.sqrt( ((self.points_step2[0][0]-self.points_step2[1][0])**2)+((self.points_step2[0][1]-self.points_step2[1][1])**2)))
-            cv2.destroyWindow("phenopype")
-
-
+    
     def detect(self, image, **kwargs):
         """Find scale from a defined template inside an image and update pixel ratio. Feature detection is run by the AKAZE algorithm (http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf).  
         
@@ -684,7 +750,7 @@ class object_finder:
         image: str or array
             absolute or relative path to OR numpy array of image containing the objects 
 
-        """
+    """
     def __init__(self, image):
 
         if isinstance(image, str):
