@@ -43,7 +43,7 @@ pip install phenopype
 spyder
 ```
 
-5. Check out the [tutorials](tutorials) with `jupyter notebook`:
+5. Check out the [tutorials](tutorials): download this repository (green button "Clone or download" at the top), run `jupyter notebook` cmd/terminal/anaconda console, and, inside jupyter, go to the tutorial folder:
 ```
 pip install jupyter notebook
 jupyter notebook
