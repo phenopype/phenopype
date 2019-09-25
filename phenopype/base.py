@@ -363,9 +363,15 @@ class scale_maker:
         self.distance_mm = int(self.distance_mm)
         self.scale = self.distance_px/self.distance_mm
         
-        print(self.scale, flush=True)
+        print("\n")
+        print("------------------------------------------------")
+        print("Finished - your scale has %s pixel per mm." % (self.scale))
+        print("------------------------------------------------")
+        print("\n")
         
         return self.scale
+
+#
         
 #        elif mode == "rectangle":
 #            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
@@ -418,12 +424,7 @@ class scale_maker:
 #                cv2.destroyWindow("phenopype")
 #                break    
 #            
-#        print("\n")
-#        print("------------------------------------------------")
-#        print("Finished - your scale has %s pixel per %s mm." % (self.scale_px, value))
-#        print("------------------------------------------------")
-#        print("\n")
-#
+
 #        if kwargs.get('show', True):
 #            cv2.polylines(temp_canvas_2, np.array([self.points_step2]), False, red, 4)    
 #            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
@@ -834,10 +835,10 @@ class object_finder:
             self.gray_corrected = np.array(copy.deepcopy(self.gray) + self.gray_corr_factor, dtype="uint8")
             self.image_processed = self.gray_corrected
         else:
-             self.image_processed = copy.deepcopy(self.gray)     
+             self.image_processed = copy.deepcopy(self.image)     
              
-        self.image_processed1 = self.image_processed
-        self.image_processed = cv2.cvtColor(self.image_processed,cv2.COLOR_GRAY2BGR)
+       
+        #self.image_processed = cv2.cvtColor(self.image_processed,cv2.COLOR_GRAY2BGR)
         
         
         # =============================================================================
@@ -1102,7 +1103,7 @@ class object_finder:
                     if "roi_size" in kwargs:
                         q=kwargs.get("roi_size",300)/2
                         cv2.rectangle(self.image_processed,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
-                    cv2.drawContours(self.image_processed, [cnt], 0, blue, int(5 * resize))
+                    cv2.drawContours(self.image_processed, [cnt], 0, red, int(5 * resize))
                     if any("skeletonize" in o for o in self.operations):                    
                         cv2.drawContours(self.image_processed, [skel_contour], 0, green, 2)
 
