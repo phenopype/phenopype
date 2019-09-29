@@ -661,8 +661,7 @@ class mask_maker:
 
         print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
 
-        
-                    
+                            
         # =============================================================================
         # draw rectangle 
         # =============================================================================             
@@ -770,7 +769,7 @@ class object_finder:
         
         Parameters
         ----------
-        thresholding: list (default: ["otsu"])
+        method: list (default: ["otsu"])
             determines the type of thresholding: 
                 - "binary" needs an interger for the threshold value (default: 127), 
                 - "adaptive" needs odd integer for blocksize (default: 99) and constant to be subtracted (default 1) 

@@ -192,7 +192,7 @@ def save_img(image, name, save_dir, **kwargs):
         factor = kwargs.get('resize')
         image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
     
-    if kwargs.get('overwrite',True) == False:
+    if kwargs.get('overwrite',False) == False:
         if not os.path.exists(im_path):
             cv2.imwrite(im_path, image)
     else:
