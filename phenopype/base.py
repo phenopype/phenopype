@@ -162,7 +162,9 @@ class project_maker:
                     
 class scale_maker:
     
-    """Initiate scale maker with an image containing a size-reference card. Make_scale measures the pixel-mm ratio of a reference card, detect_scale can attempt to find the specified card in other images.
+    """Initiate scale maker with an image containing a size-reference card. Make_scale measures 
+       the pixel-mm ratio of a reference card, detect_scale can attempt to find the specified card 
+       in other images.
         
         Parameters
         ----------
@@ -171,18 +173,14 @@ class scale_maker:
     """
         
     def __init__(self, image, **kwargs):
-
         if isinstance(image, str):
-            self.ref_image = cv2.imread(image) 
+            self.template_image = cv2.imread(image) 
         else:
-            self.ref_image = image
-        if not len(self.ref_image.shape)==3:
-            self.ref_image = cv2.cvtColor(self.ref_image, cv2.COLOR_GRAY2BGR)         
-            
-            
+            self.template_image = image
+        if not len(self.template_image.shape)==3:
+            self.template_image = cv2.cvtColor(self.template_image, cv2.COLOR_GRAY2BGR)         
                   
-    def _on_mouse(self, event, x, y, flags, params):
-        
+    def _on_mouse_scale(self, event, x, y, flags, params):      
         if self.done: 
             return       
         if event == cv2.EVENT_MOUSEMOVE:
@@ -198,29 +196,22 @@ class scale_maker:
                 x_zoom, y_zoom = self.current_zoom     
                 x = x + max(0,x_zoom-self.delta_width)
                 y = y + max(0,y_zoom-self.delta_height)
-            if len(self.points) < 2 and self.flag_step=="scale":
+            if len(self.points) < 2:
                 self.points.append((x, y))
                 self.idx += 1  
                 self.idx_list.append(self.idx)
-                print("Point #%d with position (x=%d,y=%d) added" % (self.idx, x, y))
-            elif self.flag_step=="outline":
-                self.points.append((x, y))
-                self.idx += 1  
-                self.idx_list.append(self.idx)
-                print("Point #%d with position (x=%d,y=%d) added" % (self.idx, x, y))    
-            elif self.flag_step=="scale":
+                print("Point %d/2 with position (x=%d,y=%d) added" % (self.idx, x, y))         
+            elif len(self.points) == 2:
                 print("Finished - no more points to add!")
         if event == cv2.EVENT_RBUTTONDOWN:
             if len(self.points) > 0:
                 self.points = self.points[:-1]
                 self.idx -= 1
                 self.idx_list = self.idx_list[:-1]
-                print("Point #%d with position (x=%d,y=%d) deleted" % (self.idx, x, y))
+                print("Point #%d/2 with position (x=%d,y=%d) deleted" % (self.idx, x, y))
             else:
                 print("No point to delete")
-                
-            
-            
+
     def make_scale(self, **kwargs):
         
         """Measure the pixel-to-mm-ratio of a reference card inside an image.
@@ -234,36 +225,37 @@ class scale_maker:
             grab the scale with a polygon or a box
         """
         
-        ## initialize
+        ## kwargs 
         self.zoom_fac = kwargs.get("zoom_factor", 5)                       
         self.flag_mark_scale = kwargs.get("mark_scale", False)
-        
-        self.image_height = self.ref_image.shape[0]
-        self.delta_height = int((self.image_height/self.zoom_fac)/2)
-        self.image_width = self.ref_image.shape[1]
-        self.delta_width = int((self.image_width/self.zoom_fac)/2)
-        self.image_diag = int((self.image_height + self.image_width)/2)
-        
-        ## initialize with empty lists
-        self.flag_distance_entered = False
+               
+        ## initialize with empty lists / parameters
         self.done = False 
-        self.flag_zoom = False
-        self.flag_step = "scale"
         self.current = (0, 0) 
         self.current_zoom = []
         self.points = []
         self.idx = 0
         self.idx_list = []
-        
         self.distance_mm = ""
-        self.scale = 0
+        self.flag_zoom = False
+        
+        ## for zoom
+        self.image_height = self.template_image.shape[0]
+        self.delta_height = int((self.image_height/self.zoom_fac)/2)
+        self.image_width = self.template_image.shape[1]
+        self.delta_width = int((self.image_width/self.zoom_fac)/2)
+        self.image_diag = int((self.image_height + self.image_width)/2)
+        
+        # =============================================================================
+        # measure pixel-to-mm ratio
+        # =============================================================================
         
         print("\nMeasure pixel-to-mm-ratio by clicking on two points, and type the distance in mm between them.")
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback("phenopype", self._on_mouse)
+        cv2.setMouseCallback("phenopype", self._on_mouse_scale)
         
-        temp_canvas1 = copy.deepcopy(self.ref_image)
-        temp_canvas2 = copy.deepcopy(self.ref_image)
+        temp_canvas1 = copy.deepcopy(self.template_image)
+        temp_canvas2 = copy.deepcopy(self.template_image)
         
         while(not self.done):
 
@@ -293,7 +285,11 @@ class scale_maker:
                     x, y = i
                     x = x - x_res1
                     y = y - y_res1
-                    self.points_new[idx] = (x,y)
+                    self.points_new[idx] = (x,y)                   
+                    
+            # =============================================================================
+            # text feedback
+            # =============================================================================
                 
             ## type distance onto image; accept only digits
             if k > 0 and k != 8 and k != 13 and k != 27:
@@ -301,55 +297,53 @@ class scale_maker:
                     self.distance_mm = self.distance_mm + chr(k)
             elif k == 8:
                 self.distance_mm = self.distance_mm[0:len(self.distance_mm)-1]
+              
+            ## measure distance in pixel
+            if len(self.points) == 2:
+                self.distance_px = int(math.sqrt( ((self.points[0][0]-self.points[1][0])**2)+((self.points[0][1]-self.points[1][1])**2)))
             
             ## adjust text size and line width to canvas size            
-            text_y = int(temp_canvas2.shape[0]/15)
-            text_x = int(temp_canvas2.shape[1]/20)       
             text_size = int(((temp_canvas2.shape[0] + temp_canvas2.shape[1])/2)/500)
             text_thickness = int(((temp_canvas2.shape[0] + temp_canvas2.shape[1])/2)/1000)
             linewidth = int(((temp_canvas2.shape[0] + temp_canvas2.shape[1])/2)/500)
                        
+            ## text position
+            text_mm_y = int(temp_canvas2.shape[0]/10)
+            text_mm_x = int(temp_canvas2.shape[1]/50)      
+            text_px_y = text_mm_y + text_mm_y
+            text_px_x = text_mm_x            
+            
             ## draw lines
-            if len(self.points) > 0:
-                cv2.polylines(temp_canvas2, np.array([self.points_new]), False, green, linewidth)
+            if len(self.points) == 1:
                 cv2.line(temp_canvas2, self.points_new[-1], self.current, blue, linewidth)
+            elif len(self.points) == 2:
+                cv2.polylines(temp_canvas2, np.array([self.points_new]), False, green, linewidth)
                 
-            ## write text
-            if self.flag_step=="scale":
-                cv2.putText(temp_canvas2, "Enter distance: " + self.distance_mm, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, text_size, black, text_thickness, cv2.LINE_AA)
-            elif self.flag_step=="outline":
-                cv2.putText(temp_canvas2, "Mark scale-outline", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, text_size, black, text_thickness, cv2.LINE_AA)
-                        
-            ## finish or next (outline step) on enter
+            ## text: length in mm
+            if len(self.distance_mm) == 0:
+                cv2.putText(temp_canvas2, "Enter distance (mm): ", (text_mm_x, text_mm_y), cv2.FONT_HERSHEY_SIMPLEX, text_size, black, text_thickness, cv2.LINE_AA)
+            elif len(self.distance_mm) > 0:
+                cv2.putText(temp_canvas2, "Entered distance: " + self.distance_mm + " mm", (text_mm_x, text_mm_y), cv2.FONT_HERSHEY_SIMPLEX, text_size, green, int(text_thickness * 2), cv2.LINE_AA)
+            
+            ## text: scale measured
+            if len(self.points) < 2:
+                cv2.putText(temp_canvas2, "Mark scale (2 points): ", (text_px_x, text_px_y), cv2.FONT_HERSHEY_SIMPLEX, text_size, black, text_thickness, cv2.LINE_AA)
+            elif len(self.points) == 2:
+                cv2.putText(temp_canvas2, "Mark scale: " + str(self.distance_px) + " pixel", (text_px_x, text_px_y), cv2.FONT_HERSHEY_SIMPLEX, text_size, green, int(text_thickness * 2), cv2.LINE_AA)
+
+            ## finish on enter
             if k == 13:
-                if len(self.distance_mm) == 0 and self.flag_step == "scale":                  
-                    cv2.putText(temp_canvas2, "No distance entered", (text_x,text_y+text_y), cv2.FONT_HERSHEY_SIMPLEX, text_size , red, text_thickness, cv2.LINE_AA)
-                elif len(self.distance_mm) > 0 and self.flag_mark_scale==True and self.flag_step == "scale":
-                    self.flag_distance_entered = True
-                elif len(self.distance_mm) > 0 and self.flag_mark_scale==False and self.flag_step == "scale":
+                ## Warning if data needs to be entered
+                if len(self.points) < 2:                  
+                    cv2.putText(temp_canvas2, "No scale marked!", (int(temp_canvas2.shape[0]/5),int(temp_canvas2.shape[1]/3.5)), cv2.FONT_HERSHEY_SIMPLEX, text_size , red, int(text_thickness * 2), cv2.LINE_AA)
+                if len(self.distance_mm) == 0:                  
+                    cv2.putText(temp_canvas2, "No distance entered!", (int(temp_canvas2.shape[0]/5),int(temp_canvas2.shape[1]/2.5)), cv2.FONT_HERSHEY_SIMPLEX, text_size , red, int(text_thickness * 2), cv2.LINE_AA)               
+                else:
                     cv2.destroyWindow("phenopype")
-                    self.done = True
-                    self.distance_px = int(math.sqrt( ((self.points[0][0]-self.points[1][0])**2)+((self.points[0][1]-self.points[1][1])**2)))
                     temp_canvas2 = copy.deepcopy(temp_canvas1)
-                    break
-                elif len(self.points) < 3 and self.flag_step=="outline" and self.flag_distance_entered == True:
-                    cv2.putText(temp_canvas2, "No scale selected", (text_x,text_y+text_y), cv2.FONT_HERSHEY_SIMPLEX, text_size , red, text_thickness, cv2.LINE_AA)
-                elif self.flag_step=="outline":
-                    cv2.destroyWindow("phenopype")
                     self.done = True
-                    temp_canvas2 = copy.deepcopy(temp_canvas1)
                     break
-                
-            ## reset if scale markup is selected
-            if len(self.points) == 2 and self.flag_mark_scale == True and self.flag_step=="scale" and self.flag_distance_entered==True:
-                print("Finished - now mark scale.")
-                self.flag_step = "outline"
-                self.distance_px = int(math.sqrt( ((self.points[0][0]-self.points[1][0])**2)+((self.points[0][1]-self.points[1][1])**2)))
-                self.points = []
-                self.idx = 0
-                self.idx_list = []
-                self.flag_zoom = False
-                
+             
             ## show and reset canvas
             cv2.imshow("phenopype", temp_canvas2)
             temp_canvas2 = copy.deepcopy(temp_canvas1) 
@@ -361,40 +355,230 @@ class scale_maker:
                 break
                 
         self.distance_mm = int(self.distance_mm)
-        self.scale = self.distance_px/self.distance_mm
+        self.scale_ratio = round(self.distance_px/self.distance_mm,3)
         
         print("\n")
         print("------------------------------------------------")
-        print("Finished - your scale has %s pixel per mm." % (self.scale))
+        print("Finished - your scale has %s pixel per mm." % (self.scale_ratio))
         print("------------------------------------------------")
         print("\n")
         
-        return self.scale
+        return self.scale_ratio
 
-#
+    def _on_mouse_scale_template(self, event, x, y, flags, params):      
+        if self.done: 
+            return       
+        if event == cv2.EVENT_MOUSEMOVE:
+            self.current = (x, y)                
+        if event == cv2.EVENT_MOUSEWHEEL:               
+            if flags > 0 and self.flag_zoom == False:
+                self.flag_zoom=True
+                self.current_zoom = (x,y)
+            if flags < 0 and self.flag_zoom == True:
+                self.flag_zoom=False           
+        if self.mode == "polygon":
+            if event == cv2.EVENT_LBUTTONDOWN:
+                if self.flag_zoom == True:
+                    x_zoom, y_zoom = self.current_zoom     
+                    x = x + max(0,x_zoom-self.delta_width)
+                    y = y + max(0,y_zoom-self.delta_height)
+                self.points.append((x, y))
+                self.idx += 1  
+                self.idx_list.append(self.idx)
+                print("Adding point #%d with position(%d,%d) to polygon" % (self.idx, x, y))
+            if event == cv2.EVENT_RBUTTONDOWN:
+                if len(self.points) > 0:
+                    self.points = self.points[:-1]
+                    self.idx -= 1
+                    self.idx_list = self.idx_list[:-1]
+                    print("Removing point #%d with position(%d,%d) from polygon" % (self.idx, x, y))
+                else:
+                    print("No point to delete")
+        if self.mode == "rectangle":
+            if event == cv2.EVENT_LBUTTONDOWN:
+                if self.flag_zoom == True:
+                    x_zoom, y_zoom = self.current_zoom     
+                    x = x + max(0,x_zoom-self.delta_width)
+                    y = y + max(0,y_zoom-self.delta_height)
+                if len(self.points) < 2:
+                    self.points.append((x, y))
+                    self.idx += 1  
+                    self.idx_list.append(self.idx)
+                    print("Adding point %d/2 with position(%d,%d) to rectangle" % (self.idx, x, y))
+                elif len(self.points) == 2:
+                    print("Finished - no more points to add!")
+            if event == cv2.EVENT_RBUTTONDOWN:
+                if len(self.points) > 0:
+                    self.points = self.points[:-1]
+                    self.idx -= 1
+                    self.idx_list = self.idx_list[:-1]
+                    print("Removing point %d with position(%d,%d) from rectangle" % (self.idx, x, y))
+                else:
+                    print("No point to delete")
+                     
+                      
+            
         
-#        elif mode == "rectangle":
-#            cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-#            (x,y,w,h) = cv2.selectROI("phenopype", image, fromCenter=False)
-#            if any([cv2.waitKey(50) & 0xff == 27, cv2.waitKey(50) & 0xff == 13]):
-#                cv2.destroyWindow("phenopype")  
-#            self.points_step1 = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
-#            print("Finished, scale outline drawn. Now add the scale by clicking on two points with a known distance between them:")     
-#            self.scale_mode = False
+    def make_scale_template(self, **kwargs):
+    
+        """Make a template of a reference card inside an image for automatic detection and colour-correction.
+        
+        Parameters
+        ----------
+        
+        value: int (default: 10)
+            distance to measure between two points
+        mode: str (default: "rectangle")
+            grab the scale with a polygon or a box
+        """
+        
+        ## kwargs 
+        self.zoom_fac = kwargs.get("zoom_factor", 5)                       
+        self.mode = kwargs.get("mode", "rectangle")                       
+        self.show = kwargs.get("show", "True")          
 
-#        # create colour mask to show scale outline
-#        colour_mask = np.zeros(self.ref_image.shape, np.uint8)
-#        colour_mask[:,:,1] = 255 # all area green
-#        self.colour_mask = colour_mask
-#        
-#        cv2.fillPoly(colour_mask, [np.array(self.points_step1)], red) # red = excluded area
-#        temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
-#        self.image_overlay = temp_canvas_1
-#
-#
-#        # create template image for SIFT
-#        rx,ry,w,h = cv2.boundingRect(np.array(self.points_step1, dtype=np.int32))
-#        self.image_original_template = image[ry:ry+h,rx:rx+w]
+        ## initialize with empty lists / parameters
+        self.done = False 
+        self.current = (0, 0) 
+        self.current_zoom = []
+        self.points = []
+        self.idx = 0
+        self.idx_list = []
+        self.distance_mm = ""
+        self.flag_zoom = False
+        
+        ## for zoom
+        self.image_height = self.template_image.shape[0]
+        self.delta_height = int((self.image_height/self.zoom_fac)/2)
+        self.image_width = self.template_image.shape[1]
+        self.delta_width = int((self.image_width/self.zoom_fac)/2)
+        self.image_diag = int((self.image_height + self.image_width)/2)
+            
+        print("\nMark outline of scale-template in image, either by drawin polygon outline or by dragging a rectangle over it.")
+         
+        temp_canvas1 = copy.deepcopy(self.template_image)
+        temp_canvas2 = copy.deepcopy(self.template_image)
+        
+        cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+        cv2.setMouseCallback("phenopype", self._on_mouse_scale_template)
+
+                
+        while(not self.done):
+        
+            ## read key input
+            k = cv2.waitKey(50)
+            
+            # =============================================================================
+            # if mousewheel-zoom, update coordinate-space and show different points
+            # =============================================================================
+            self.points_new = copy.deepcopy(self.points)
+
+            ## mousewheel zoom
+            if self.flag_zoom == True:   
+                
+                ## zoom rectangle
+                x_zoom, y_zoom = self.current_zoom
+                x_res1 = max(0,x_zoom-self.delta_width)
+                x_res2 = x_zoom+self.delta_width
+                y_res1 = max(0,y_zoom-self.delta_height)
+                y_res2 = y_zoom+self.delta_height
+                temp_canvas2 = temp_canvas2[y_res1:y_res2,x_res1:x_res2]
+                
+                
+                ## update points to draw in zoom rectangle                
+                idx = -1
+                for i in self.points_new:
+                    idx += 1
+                    x, y = i
+                    x = x - x_res1
+                    y = y - y_res1
+                    self.points_new[idx] = (x,y)    
+                    
+            ## adjust text size and line width to canvas size            
+            text_size = max(int(((temp_canvas2.shape[0] + temp_canvas2.shape[1])/2)/1000),2)
+            text_thickness = int(((temp_canvas2.shape[0] + temp_canvas2.shape[1])/2)/1000)
+            linewidth = int(((temp_canvas2.shape[0] + temp_canvas2.shape[1])/2)/500)
+            
+            self.temp_canvas2 = temp_canvas2
+                    
+            if self.mode == "polygon":
+                    
+                ## draw lines
+                if len(self.points)>0:
+                    cv2.line(temp_canvas2, self.points_new[-1], self.current, blue, linewidth)
+                    cv2.polylines(temp_canvas2, np.array([self.points_new]), False, green, linewidth)
+    
+                ## finish on enter
+                if k == 13:
+                    ## Warning if data needs to be entered
+                    if len(self.points) < 3:                  
+                        cv2.putText(temp_canvas2, "At least three points needed to draw polygon!", (int(temp_canvas2.shape[0]/2.5),int(temp_canvas2.shape[1]/3.5)), cv2.FONT_HERSHEY_SIMPLEX, text_size, red, int(text_thickness * 2), cv2.LINE_AA)
+                    else:
+                        cv2.destroyWindow("phenopype")
+                        temp_canvas2 = copy.deepcopy(temp_canvas1)
+                        self.done = True
+                        break
+                               
+            elif self.mode == "rectangle":
+                                   
+                ## draw rectangle
+                if len(self.points)==1:
+                    cv2.rectangle(temp_canvas2, self.points_new[0], self.current, blue, linewidth)
+                if len(self.points)==2:
+                    cv2.rectangle(temp_canvas2, self.points_new[0], self.points_new[1], blue, linewidth)
+                
+                ## finish on enter
+                if k == 13:
+                    ## Warning if data needs to be entered
+                    if len(self.points) < 2:                  
+                        cv2.putText(temp_canvas2, "At least two points needed to draw rectangle!", (int(temp_canvas2.shape[0]/2.5),int(temp_canvas2.shape[1]/3.5)), cv2.FONT_HERSHEY_SIMPLEX, text_size, red, int(text_thickness * 2), cv2.LINE_AA)
+                    else:                      
+#                        (x1,y1) = self.points[0]
+#                        (x2,y2) = self.points[1]
+#                        self.points_poly = [(x1,y1), (x2,y1), (x2,y2), (x1,y2)]
+                        
+                        cv2.destroyWindow("phenopype")
+                        temp_canvas2 = copy.deepcopy(temp_canvas1)
+                        self.done = True
+                        break
+                
+            ## show and reset canvas
+            cv2.imshow("phenopype", temp_canvas2)
+            temp_canvas2 = copy.deepcopy(temp_canvas1) 
+            
+            ## terminate with ESC
+            if k == 27:
+                cv2.destroyWindow("phenopype")
+                sys.exit("PROCESS TERMINATED")
+                break
+            
+        # create bounding box and cut template
+        x,y,w,h = cv2.boundingRect(np.array(self.points))
+        self.points_poly = [(x,y), (x+w,y), (x+w,y+h), (x,y+h)]
+        self.template = self.template_image[y:y+h,x:x+w]
+
+        # create colour mask to show template 
+        self.colour_mask = np.zeros(self.template_image.shape, np.uint8)
+        self.colour_mask[:,:,1] = 255 # all area green
+        cv2.fillPoly(self.colour_mask, np.array([self.points_poly]), red) # red = excluded area
+        self.overlay = cv2.addWeighted(copy.deepcopy(self.template_image), .7, self.colour_mask, 0.3, 0) # combine
+        if self.mode=="polygon":
+            points_drawing = self.points 
+            points_drawing.append(self.points[0])
+            cv2.polylines(self.overlay, np.array([points_drawing]), False, green, linewidth)
+        if self.mode=="rectangle":
+            cv2.rectangle(self.overlay, self.points[0], self.points[1], green, linewidth)
+
+            
+        if self.show == True:
+            show_img(self.overlay)
+
+        print("\n")
+        print("------------------------------------------------")
+        print("Finished - scale template completed")
+        print("------------------------------------------------")
+        print("\n")
+            
 #        
 #        # create mask for SIFT
 #        self.mask_original_template = np.zeros(image.shape[0:2], np.uint8)
@@ -584,7 +768,6 @@ class scale_maker:
             print("\n")
             
             return "no current scale", "no scale mask"
-
         
 class mask_maker:
     """Intialize mask maker, loads image.

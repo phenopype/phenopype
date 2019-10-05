@@ -56,8 +56,29 @@ class motion_tracker(object):
 
 
     def video_output(self, **kwargs):
-        """Set properties of output video file .
+        """Set properties of output video file. Most settings can be left at their default value.
+        
+        Parameters
+        ----------
+        video_format: str (default: "DIVX")
+            format of the output video file. needs to be a "fourcc"-string: https://www.fourcc.org/codecs.php
+        name: str (defaut: input filename + "_out" + input extension)
+            name for the output video file
+        save_dir: str (default: directory of input file)
+            save directory for the output video file. will be created if not existing
+        fps: int (default: input fps)
+            frames per second of the output video file
+        dimensions: tuple (default: input dimensions)
+            dimensions (width, length) of the output video file
+        resize: int (default: 1 [no resize])
+            factor by which to resize the output video dimensions
+        save_colour: bool (default: reads input file)
+            should the saved video frames be in colour 
+        save_video: bool (default: True)
+            should an output video file be saved
+
         """
+        fourcc_str_out = kwargs.get("video_format", "DIVX")
         name_out = kwargs.get("name",  os.path.splitext(self.name)[0] + "_" + kwargs.get("suffix", "out") + ".avi")  
         dir_out = kwargs.get("save_dir", os.path.dirname(self.path))
         if not os.path.exists(dir_out):
@@ -72,11 +93,11 @@ class motion_tracker(object):
             res_msg = " (original resized by factor " + str(self.resize_factor) + ")"
         else:
             res_msg = ""
-        fourcc_str_out = kwargs.get("fourcc_string", "DIVX")
-        fourcc_out = cv2.VideoWriter_fourcc(*fourcc_str_out)
+
         self.save_colour = kwargs.get("save_colour", self.is_colour)
-        
         self.save_video = kwargs.get("save_video",True)
+        
+        fourcc_out = cv2.VideoWriter_fourcc(*fourcc_str_out)
         self.writer = cv2.VideoWriter(path_out, fourcc_out, fps_out, dimensions_out, self.save_colour) 
 
 
@@ -90,7 +111,8 @@ class motion_tracker(object):
     def motion_detection(self, **kwargs):
 
         self.skip = kwargs.get("skip", 5)
-        self.wait = kwargs.get("start_after", 0)
+        self.warmup = kwargs.get("warmup", 0) # currently unsure what this does and why it needed (related to fgbg-detector warmup / quality control)
+        self.start = kwargs.get("start_after", 0)
         self.finish = kwargs.get("finish_after", self.nframes)
 
         history = kwargs.get("history", 60)
@@ -102,14 +124,11 @@ class motion_tracker(object):
             self.fgbg_subtractor = cv2.createBackgroundSubtractorMOG2( int(history * (self.fps / self.skip)),  int(backgr_thresh),  self.detect_shadows)
         elif mode == "KNN":
             self.fgbg_subtractor = cv2.createBackgroundSubtractorKNN( int(history * (self.fps / self.skip)),  int(backgr_thresh),  self.detect_shadows)
-
-        if "mask" in kwargs:
-            self.mask_objects = kwargs.get("mask")
         
         if "methods" in kwargs:
             self.methods = kwargs.get("methods")
             for m in self.methods:
-                m.print_settings()
+                m._print_settings()
                 
         if "consecutive_masking" in kwargs:
             self.consecutive = kwargs.get("consecutive_masking")                 
@@ -117,7 +136,7 @@ class motion_tracker(object):
         print("\n")
         print("----------------------------------------------------------------")
         print("Motion detection settings - \"" + self.name + "\":\n")
-        print("\n\"History\"-parameter: " + str(history) + " seconds" + "\nSensitivity: " + str(backgr_thresh) + "\nRead every nth frame: " + str(self.skip) + "\nDetect shadows: " + str(self.detect_shadows) + "\nStart after n seconds: " + str(self.wait) + "\nFinish after n seconds: " + str(self.finish if self.finish > 0 else " - ")) 
+        print("\n\"History\"-parameter: " + str(history) + " seconds" + "\nSensitivity: " + str(backgr_thresh) + "\nRead every nth frame: " + str(self.skip) + "\nDetect shadows: " + str(self.detect_shadows) + "\nStart after n seconds: " + str(self.start) + "\nFinish after n seconds: " + str(self.finish if self.finish > 0 else " - ")) 
         print("----------------------------------------------------------------")
               
 
@@ -137,9 +156,9 @@ class motion_tracker(object):
         self.df = pd.DataFrame()
         self.idx1, self.idx2 = (0,0)
         self.capture = cv2.VideoCapture(self.path)        
-        self.wait_frame = self.wait * self.fps
+        self.start_frame = int(self.start * self.fps)
         if self.finish > 0:
-            self.finish_frame = self.finish * self.fps
+            self.finish_frame = int(self.finish * self.fps)
             
         #methods_out = []
         while(self.capture.isOpened()):
@@ -168,13 +187,16 @@ class motion_tracker(object):
                 break                             
           
             # check if frame is empty and if it should be captured
-            if self.idx1 > self.wait_frame - (3*self.fps) and self.idx2 == 0:
+            if self.idx1 > self.start_frame - int(self.warmup * self.fps) and self.idx2 == 0:
                 self.ret, self.frame = self.capture.read()  
                 if self.ret==False: # skip empty frames
                     continue  
                 else:
                     capture_frame = True
-                    print(self.time_stamp + " - captured")       
+                    if self.idx1 < self.start_frame and self.idx1 > self.start_frame - int(self.warmup * self.fps):
+                        print(self.time_stamp + " - warmup")       
+                    else:
+                        print(self.time_stamp + " - captured")       
 
             else:
                 self.capture.grab() 
@@ -237,7 +259,7 @@ class motion_tracker(object):
                         
                         # make data.frame
                         self.frame_df.insert(0, 'frame_abs',  self.idx1)
-                        self.frame_df.insert(1, 'frame',  int((self.idx1-self.wait_frame)/self.skip))
+                        self.frame_df.insert(1, 'frame',  int((self.idx1-self.start_frame)/self.skip))
                         self.frame_df.insert(2, 'mins',  mins)
                         self.frame_df.insert(3, 'secs',  secs)
                         self.df = self.df.append(self.frame_df, ignore_index=True, sort=False)                     
@@ -283,6 +305,9 @@ class motion_tracker(object):
 class tracking_method(object):
     def __init__(self, **kwargs):
         """Constructs a tracking method that can be supplied to the tracker. 
+        
+        
+        
         """                   
         for key, value in kwargs.items():
             if key in kwargs:
@@ -301,8 +326,8 @@ class tracking_method(object):
 
         self.exclude = kwargs.get("exclude", True)
 
-    def print_settings(self, **kwargs):
-        """Prints the settings of the tracking method. 
+    def _print_settings(self, **kwargs):
+        """Prints the settings of the tracking method. Internal reference - don't call this directly. 
         """ 
         width = kwargs.get("width",30)
         indent = kwargs.get("indent",1)
@@ -313,7 +338,8 @@ class tracking_method(object):
         
             
     def _run(self, frame, fgmask, **kwargs):
-        """Run tracking method on current frame. Internal reference - don't call this directly.
+        """Run tracking method on current frame. Internal reference - don't call this directly.      
+           => needs better documentation / code-referencing - I already forgot how it works.
         """
         self.frame = frame
         self.fgmask = fgmask
@@ -330,8 +356,7 @@ class tracking_method(object):
             self.fgmask = blur(self.fgmask, blur_kernel)            
             ret, self.fgmask = cv2.threshold(self.fgmask, thresh_val, 255, cv2.THRESH_BINARY)  
             
-        if "mask_objects" in vars(self):
-            
+        if "mask_objects" in vars(self):          
             mask_dummy1 = np.zeros(self.frame.shape[0:2], dtype=bool)
             mask_list = []
             mask_label_names = []
