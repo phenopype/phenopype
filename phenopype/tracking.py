@@ -76,8 +76,8 @@ class motion_tracker(object):
             should the saved video frames be in colour 
         save_video: bool (default: True)
             should an output video file be saved
-
         """
+        ## kward
         fourcc_str_out = kwargs.get("video_format", "DIVX")
         name_out = kwargs.get("name",  os.path.splitext(self.name)[0] + "_" + kwargs.get("suffix", "out") + ".avi")  
         dir_out = kwargs.get("save_dir", os.path.dirname(self.path))
@@ -109,7 +109,26 @@ class motion_tracker(object):
         
 
     def motion_detection(self, **kwargs):
-
+        """Set properties of output video file. Most settings can be left at their default value.
+        
+        Parameters
+        ----------
+        skip: int (default: 5)
+            how many frames to skip between each capture
+        start: int (default: 0)
+            start after X seconds
+        finish: int (default: "video-length")
+            finish after X seconds
+        history: int (default: 60)
+            how many frames to use for fg-bg subtraction algorithm
+        backgr_thresh: int (default: 10)
+            sensitivity-level for fg-bg subtraction algorithm (lower = more sensitive)
+        mode: str (default: "MOG")
+            type of fg-bg subtraction algorithm ("MOG" or "KNN")
+        methods: list
+            list with tracking_method objects
+        """
+        ## kwargs
         self.skip = kwargs.get("skip", 5)
         self.warmup = kwargs.get("warmup", 0) # currently unsure what this does and why it needed (related to fgbg-detector warmup / quality control)
         self.start = kwargs.get("start_after", 0)
@@ -130,19 +149,32 @@ class motion_tracker(object):
             for m in self.methods:
                 m._print_settings()
                 
-        if "consecutive_masking" in kwargs:
-            self.consecutive = kwargs.get("consecutive_masking")                 
+#        ## currently unsure how this works exactly - keeps masks from masking each other, order matters...        
+#        if "consecutive_masking" in kwargs: 
+#            self.consecutive = kwargs.get("consecutive_masking")                 
         
         print("\n")
         print("----------------------------------------------------------------")
         print("Motion detection settings - \"" + self.name + "\":\n")
-        print("\n\"History\"-parameter: " + str(history) + " seconds" + "\nSensitivity: " + str(backgr_thresh) + "\nRead every nth frame: " + str(self.skip) + "\nDetect shadows: " + str(self.detect_shadows) + "\nStart after n seconds: " + str(self.start) + "\nFinish after n seconds: " + str(self.finish if self.finish > 0 else " - ")) 
+        print("\n\"History\"-parameter: " + str(history) + " seconds" + "\nSensitivity: " + str(backgr_thresh) + "\nRead every nth frame: " +  \
+              str(self.skip) + "\nDetect shadows: " + str(self.detect_shadows) + "\nStart after n seconds: " + str(self.start) + \
+              "\nFinish after n seconds: " + str(self.finish if self.finish > 0 else " - ")) 
         print("----------------------------------------------------------------")
               
 
         
     def run_tracking(self, **kwargs):
+        """Start motion tracking procedure.
         
+        Parameters
+        ----------
+        show: str (default: overlay)
+            show output of tracking as "overlay", binary forground mask "fgmask", or frame by frame
+        weight: float (default: 0.5)
+            how transparent the overlay should be
+        return_df: bool (default: True)
+            should the output dataframe be returned or inherited to motion_tracker object
+        """      
         weight = kwargs.get("weight", 0.5)
         if "show" in kwargs:
             show_selector = kwargs.get("show")
@@ -303,12 +335,32 @@ class motion_tracker(object):
         
         
 class tracking_method(object):
+    """Constructs a tracking method that can be supplied to the tracker. 
+    
+    Parameters
+    ----------
+    mode: str (default: "multiple")
+        how many objects to track: "multiple", or "single" (biggest by diameter) objects
+    operations: list (default: ["diameter", "area"])
+        determines the type of operations to be performed on the detected objects:
+            - "diameter" of the bounding circle of our object
+            - "area" within the contour of our object
+            - "grayscale" mean and standard deviation of grayscale pixel values inside the object contours
+            - "grayscale_background" background within boundingbox of contour
+            - "bgr" mean and standard deviation of blue, green and red pixel values inside the object contours
+    blur: tuple
+        blurring of fgbg-mask (kernel size, threshold [1-255])
+    min_length: int (default: 1)
+        minimum length in pixels for objects to be included
+    remove_shadows: bool
+        remove shadows if shadow-detection is actived in MOG-algorithm
+    mask: list
+        phenoype mask-objects (lists of boolean mask, label, and include-argument) to include or exclude an area from the procedure
+    overlay_colour: phenopype colour object (default: red [red, green, blue, black, white])
+        which colour should tracked objects have
+    exclude: ? (forgot what this does)
+    """
     def __init__(self, **kwargs):
-        """Constructs a tracking method that can be supplied to the tracker. 
-        
-        
-        
-        """                   
         for key, value in kwargs.items():
             if key in kwargs:
                 setattr(self, key, value)
@@ -322,8 +374,7 @@ class tracking_method(object):
         
         if "mask" in kwargs:
             self.mask_objects = kwargs.get("mask")
-                    
-
+                           
         self.exclude = kwargs.get("exclude", True)
 
     def _print_settings(self, **kwargs):
@@ -360,7 +411,7 @@ class tracking_method(object):
             mask_dummy1 = np.zeros(self.frame.shape[0:2], dtype=bool)
             mask_list = []
             mask_label_names = []
-            
+                        
             for obj in self.mask_objects:
                 mask, label, include = obj
                 if include == True:

@@ -1,27 +1,35 @@
 Unreleased 
 ==========
 
-- ADD MORE TESTING (e.g. object finder)
-
-- internal: decluttering of base module / outhousing of classes and methods 
-- declutter landmark module (self.)
-- no cropping for scale possible
+- histogram adjustment via colour scale
+- change rectangle method for mask_maker
+- add testing: tracking, landmark, mask, 
+- add tutorial: tracking
 - project management globally acessible through base functions
 - a quick-thresholding method in marked area for single images 
 - object_finder returns histogram of length, area and grayscale of all objects
-- scale_maker is initialized empty to return scale object, that can either draw or detect scales and return mask objects (tuple of 3)
-- inlude/exclude function in masking not working properly global
+
+midterm:
+- declutter modules / remove self. references
+
+longterm:
+- internal: decluttering of base module / outhousing of classes and methods 
+- watershed algorithms
 
 Known bugs
 ==========
 - high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"
 
+0.8.0
+------
+- scale_maker is completely reworked: now has zoom and onscreen notifications for mm/pixel info. measuring scale and making a template for detection are now two separate functions (measure_scale and make_scale_template)
+- documentation and API reference for tracking module added 
+- test for scale added
 
 0.7.2
 ------
 - landmark_maker has now (limited) mousewheel zooming functionality, future releases will provide full gapless zooming
 - changed instructions for phenopype installation: make virtual env in conda for better package control (e.g. avoid different opencv versions)
-- 
 
 0.7.1
 ------

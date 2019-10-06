@@ -21,17 +21,18 @@ pd.options.display.max_rows = 10
 #%% classes
 
 class project_maker: 
-    """Initialize a phenopype project with a name.
-        
-        Parameters
-        ----------
-
-        name: str (default: "My project, -current date-")
-            name of your project     
     """
+    Initialize a phenopype project with a name.
     
-    
-        
+    Parameters
+    ----------
+
+    name: str (default: "My project, -current date-")
+        name of your project     
+    """
+
+
+
     def __init__(self, **kwargs):
         proj_dummy_name = "My project, " + datetime.datetime.today().strftime('%Y-%m-%d')
         self.name = kwargs.get("name", proj_dummy_name)           
@@ -162,14 +163,15 @@ class project_maker:
         
                     
 class scale_maker:
+    
     """Initiate scale maker with an image containing a size-reference card. Make_scale measures 
-       the pixel-mm ratio of a reference card, detect_scale can attempt to find the specified card 
-       in other images.
-        
-        Parameters
-        ----------
-        image: str or array
-            absolute or relative path to OR numpy array of image containing the reference card 
+    the pixel-mm ratio of a reference card, detect_scale can attempt to find the specified card 
+    in other images.
+    
+    Parameters
+    ----------
+    image: str or array
+        absolute or relative path to OR numpy array of image containing the reference card
     """
 
 
