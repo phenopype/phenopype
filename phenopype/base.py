@@ -705,6 +705,11 @@ class scale_maker:
             mask_bin = cv2.fillPoly(zeros, [np.array(rect)], white)       
             self.detected_mask = np.array(mask_bin, dtype=bool)
             
+            
+            # cut out target reference card
+            (rx,ry,w,h) = cv2.boundingRect(rect)
+            self.detected = self.image_target[ry:ry+h,rx:rx+w]
+            
             print("\n")
             print("---------------------------------------------------")
             print("Reference card found with %d keypoint matches:" % self.nkp)

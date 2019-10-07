@@ -20,6 +20,12 @@ Known bugs
 ==========
 - high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"
 
+
+0.9.0
+------
+- show_img can now show multiple images when list is provided
+
+
 0.8.0
 ------
 - scale_maker is completely reworked: now has zoom and onscreen notifications for mm/pixel info. measuring scale and making a template for detection are now two separate functions (measure_scale and make_scale_template)

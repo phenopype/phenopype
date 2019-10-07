@@ -70,12 +70,24 @@ def find_centroid(arr):
 def show_img(img):
     if isinstance(img, str):
         image = cv2.imread(img)  
+        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
+        cv2.imshow('phenopype', image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    elif isinstance(img, list):
+        idx=0
+        for i in img:
+            idx+=1
+            cv2.namedWindow('phenopype' + " - " + str(idx) ,cv2.WINDOW_NORMAL)
+            cv2.imshow('phenopype' + " - " + str(idx), i)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
     else:
         image = img
-    cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
-    cv2.imshow('phenopype', image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
+        cv2.imshow('phenopype', image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
     
     
 #%% grayscale
