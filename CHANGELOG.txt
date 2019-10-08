@@ -1,30 +1,39 @@
-Unreleased 
-==========
+Unreleased / planned
+====================
 
-- histogram adjustment via colour scale
-- change rectangle method for mask_maker
+shortterm:
 - add testing: tracking, landmark, mask, 
 - add tutorial: tracking
-- project management globally acessible through base functions
-- a quick-thresholding method in marked area for single images 
-- object_finder returns histogram of length, area and grayscale of all objects
 
 midterm:
+- change rectangle method for mask_maker
+- internalize zoom method (with canvas) to show_img or interact_img
+- make ret options for methods
 - declutter modules / remove self. references
 
 longterm:
 - internal: decluttering of base module / outhousing of classes and methods 
 - watershed algorithms
+- implement gapless zooming as a choice
+- project management globally acessible through base functions
+- object_finder returns histogram of length, area and grayscale of all objects
+- a quick-thresholding method in marked area for single images 
+
+
 
 Known bugs
 ==========
 - high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"
 
 
+
+
 0.9.0
 ------
+- New feature: scale (former scale_maker) can now automatically equalize histograms via interpolation. Was mostly inspired by this SO question: https://stackoverflow.com/questions/32655686/histogram-matching-of-two-images-in-python-2-x
+- renamed "scale_maker" method to "scale", and subfunctions, too. tutorials updated. more name changes to come towards a more intuitive naming convention
 - show_img can now show multiple images when list is provided
-
+- 
 
 0.8.0
 ------
@@ -34,7 +43,7 @@ Known bugs
 
 0.7.2
 ------
-- landmark_maker has now (limited) mousewheel zooming functionality, future releases will provide full gapless zooming
+- landmark_maker has now (limited) mousewheel zooming functionality
 - changed instructions for phenopype installation: make virtual env in conda for better package control (e.g. avoid different opencv versions)
 
 0.7.1

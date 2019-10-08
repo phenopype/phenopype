@@ -32,7 +32,6 @@ class project_maker:
     """
 
 
-
     def __init__(self, **kwargs):
         proj_dummy_name = "My project, " + datetime.datetime.today().strftime('%Y-%m-%d')
         self.name = kwargs.get("name", proj_dummy_name)           
@@ -162,7 +161,7 @@ class project_maker:
         print("--------------------------------------------")
         
                     
-class scale_maker:
+class scale:
     
     """Initiate scale maker with an image containing a size-reference card. Make_scale measures 
     the pixel-mm ratio of a reference card, detect_scale can attempt to find the specified card 
@@ -238,7 +237,7 @@ class scale_maker:
                 self.flag_zoom=True
                 self.current_zoom = (x,y)
             if flags < 0 and self.flag_zoom == True:
-                self.flag_zoom=False           
+                self.flag_zoom=False
         if self.mode == "polygon":
             if event == cv2.EVENT_LBUTTONDOWN:
                 if self.flag_zoom == True:
@@ -278,10 +277,37 @@ class scale_maker:
                     print("Removing point %d with position(%d,%d) from rectangle" % (self.idx, x, y))
                 else:
                     print("No point to delete")
-                     
 
 
-    def measure_scale(self, **kwargs):
+
+    def _equalize(self, **kwargs):
+        """- Internal reference - don't call this directly -  
+        
+        Histogram equalization via interpolation, upscales the results from the detected reference card to the entire image.
+        May become a standalone function at some point in the future. THIS STRONGLY DEPENDS ON THE QUALITY OF YOUR TEMPLATE.
+        Mostly inspired by this SO question: https://stackoverflow.com/questions/32655686/histogram-matching-of-two-images-in-python-2-x
+        More theory here: https://docs.opencv.org/master/d4/d1b/tutorial_histogram_equalization.html
+        """ 
+        target_detected_ravel = self.target_detected.ravel()
+        template_ravel = self.template.ravel()
+        
+        target_counts = np.bincount(target_detected_ravel, minlength = 256)
+        target_quantiles = np.cumsum(target_counts).astype(np.float64)
+        target_quantiles /= target_quantiles[-1]
+        
+        template_values =  np.arange(0, 256,1, dtype=np.uint8)
+        template_counts = np.bincount(template_ravel, minlength = 256)
+        template_quantiles = np.cumsum(template_counts).astype(np.float64)
+        template_quantiles /= template_quantiles[-1]
+        
+        interp_template_values = np.interp(target_quantiles, template_quantiles, template_values)
+        interp_template_values = interp_template_values.astype(self.target_image.dtype)
+        
+        self.target_image_corrected = interp_template_values[self.target_image_original]
+
+
+
+    def measure(self, **kwargs):
         """Measure the pixel-to-mm-ratio of a reference card inside an image.
         
         Parameters
@@ -291,7 +317,9 @@ class scale_maker:
             factor by which to magnify on scrollwheel use
         """
         ## kwargs 
-        self.zoom_fac = kwargs.get("zoom_factor", 5)                       
+        self.zoom_fac = kwargs.get("zoom_factor", 5)
+#        if "ret" in kwargs:
+#            ret_list = []
             
         ## for zoom
         self.image_height = self.template_image.shape[0]
@@ -421,11 +449,14 @@ class scale_maker:
         print("------------------------------------------------")
         print("\n")
         
+#        if ret_list:
+
+
         return self.scale_ratio
-    
+        
     
 
-    def make_scale_template(self, **kwargs):
+    def create_template(self, **kwargs):
     
         """Make a template of a reference card inside an image for automatic detection and colour-correction.
         
@@ -601,7 +632,7 @@ class scale_maker:
 
 
     
-    def detect_scale(self, target_image, **kwargs):
+    def detect(self, target_image, **kwargs):
         """Find scale from a defined template inside an image and update pixel ratio. Image registration is run by the "AKAZE" algorithm 
         (http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf). Future implementations will include more algorithms to select from.
         Prior to running detect_scale, measure_scale and make_scale_template have to be run once to pass on reference scale size and template of 
@@ -618,54 +649,37 @@ class scale_maker:
         """      
         ## kwargs
         min_matches = kwargs.get('min_matches', 10)
-        show = kwargs.get('show', False)
-        
+        flag_show = kwargs.get('show', False)
+        flag_equalize = kwargs.get('equalize', False)
+
         ## initialize
         if isinstance(target_image, str):
-            self.image_target = cv2.imread(target_image)
+            self.target_image = cv2.imread(target_image)
         else:
-            self.image_target = target_image
-        image_target = self.image_target 
-        image_original = self.template
-        if not len(image_target.shape)==3:
-            image_target = cv2.cvtColor(image_target, cv2.COLOR_GRAY2BGR)
+            self.target_image = target_image
             
-        ## if image diameter bigger than 2000 px, then resize
-        if (image_target.shape[0] + image_target.shape[1])/2 > 2000:
-            factor = kwargs.get('resize', 0.5)
+        ## if "self.measure" is skipped
+        if not hasattr(self, "scale_ratio"):
+            self.scale_ratio = 1
+            
+        self.target_image_original = copy.deepcopy(self.target_image)
+            
+        if not len(self.target_image.shape)==3:
+            self.target_image = cv2.cvtColor(self.target_image, cv2.COLOR_GRAY2BGR)
+            
+        ## if image diameter bigger than 2000 px, then automatically resize
+        if (self.target_image.shape[0] + self.target_image.shape[1])/2 > 2000:
+            self.resize_factor = kwargs.get('resize', 0.5)
         else:
-            factor = kwargs.get('resize', 1)
-        image_target = cv2.resize(image_target, (0,0), fx=1*factor, fy=1*factor) 
-        
-#        ## for future implementation
-#        # =============================================================================
-#        # SIFT detector
-#        # =============================================================================
-#        sift = cv2.xfeatures2d.SIFT_create()
-#        kp1, des1 = sift.detectAndCompute(img1,self.mask_original_template)
-#        kp2, des2 = sift.detectAndCompute(img2,None)
-#         
-#        # =============================================================================
-#        # ORB detector
-#        # =============================================================================
-#        orb = cv2.ORB_create()
-#        kp1, des1 = orb.detectAndCompute(img1,self.mask_original_template)
-#        kp2, des2 = orb.detectAndCompute(img2,None)
-#        des1 = np.asarray(des1, np.float32)
-#        des2 = np.asarray(des2, np.float32)
-#        
-#        FLANN_INDEX_KDTREE = 0
-#        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-#        search_params = dict(checks = 50)
-#        flann = cv2.FlannBasedMatcher(index_params, search_params)
-#        matches = flann.knnMatch(des1,des2,k=2)
-        
+            self.resize_factor = kwargs.get('resize', 1)
+        self.target_image = cv2.resize(self.target_image, (0,0), fx=1*self.resize_factor, fy=1*self.resize_factor) 
+
         # =============================================================================
         # AKAZE detector
         # =============================================================================     
         akaze = cv2.AKAZE_create()
-        kp1, des1 = akaze.detectAndCompute(image_original,self.template_mask)
-        kp2, des2 = akaze.detectAndCompute(image_target,None)       
+        kp1, des1 = akaze.detectAndCompute(self.template, self.template_mask)
+        kp2, des2 = akaze.detectAndCompute(self.target_image, None)       
         matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
         matches = matcher.knnMatch(des1, des2, 2)
 
@@ -686,29 +700,27 @@ class scale_maker:
             box = contours[0].astype(np.float32)
 
             rect  = cv2.perspectiveTransform(box,M).astype(np.int32)
-            image_target = cv2.polylines(image_target,[rect],True,red,5, cv2.LINE_AA)
-            
-            ## show detecton result
-            if show == True:
-                show_img(image_target)
-                
+            self.target_image = cv2.polylines(self.target_image,[rect],True,red,5, cv2.LINE_AA)
+
             # update current scale using reference
-            rect = rect/factor
+            rect = rect/self.resize_factor
             rect = np.array(rect, dtype=np.int32)
             (x,y),radius = cv2.minEnclosingCircle(rect)
             self.detected_diameter = (radius * 2)
             self.diff_ratio = (self.detected_diameter / self.reference_diameter)
             self.current = round(self.scale_ratio * self.diff_ratio,1)
             
+            ## resize target image back to original size
+            self.target_image = cv2.resize(self.target_image, (0,0), fx=1/self.resize_factor, fy=1/self.resize_factor) 
+            
             # create mask of detected scale reference card
-            zeros = np.zeros(self.image_target.shape[0:2], np.uint8)
+            zeros = np.zeros(self.target_image.shape[0:2], np.uint8)
             mask_bin = cv2.fillPoly(zeros, [np.array(rect)], white)       
             self.detected_mask = np.array(mask_bin, dtype=bool)
             
-            
             # cut out target reference card
             (rx,ry,w,h) = cv2.boundingRect(rect)
-            self.detected = self.image_target[ry:ry+h,rx:rx+w]
+            self.target_detected = self.target_image_original[ry:ry+h,rx:rx+w]
             
             print("\n")
             print("---------------------------------------------------")
@@ -717,8 +729,17 @@ class scale_maker:
             print("= %s %% of template image." % round(self.diff_ratio * 100,3))
             print("---------------------------------------------------")
             print("\n")
+            
+            ## do histogram equalization
+            if flag_equalize:
+                self._equalize()
 
-            return (self.detected_mask, "scale-detected", False), self.current       
+            ## show results
+            if flag_show:
+                show_img([self.template_image, self.target_image, self.target_image_corrected])
+                
+            return self.target_image_corrected, (self.detected_mask, "scale-detected", False), self.current       
+
         
         else:
             print("\n")
@@ -728,10 +749,10 @@ class scale_maker:
             print("\n")
             
             return "no current scale", "no scale mask"
-        
-        
-        
-class mask_maker:
+
+
+
+class mask:
     """Intialize mask maker, loads image.
     
     Parameters
@@ -775,7 +796,7 @@ class mask_maker:
             else:
                 print("No points to delete")
                 
-    def draw_mask(self, **kwargs):
+    def create(self, **kwargs):
         """Mask maker method to draw rectangle or polygon mask onto image.
         
         Parameters
@@ -914,6 +935,8 @@ class object_finder:
         
         Parameters
         ----------
+        filename: str (default: "My file")
+            filename of image to find objects in
         method: list (default: ["otsu"])
             determines the type of thresholding: 
                 - "binary" needs an interger for the threshold value (default: 127), 
@@ -950,10 +973,12 @@ class object_finder:
             reference gray scale value to adjust the given picture's histogram to
             
         """
-
+        ## kwargs
         resize = kwargs.get("resize", 1)
         show = kwargs.get('show', True)
         mask_objects = kwargs.get('mask', [])
+
+        self.filename = "My file"
 
         self.image = cv2.resize(self.image, (0,0), fx=1*resize, fy=1*resize) 
         

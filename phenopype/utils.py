@@ -68,6 +68,9 @@ def find_centroid(arr):
     return int(sum_y/length), int(sum_x/length)
 
 def show_img(img):
+    """
+    Show one or multiple images by providing path string or array or list of either.
+    """
     if isinstance(img, str):
         image = cv2.imread(img)  
         cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
@@ -75,22 +78,43 @@ def show_img(img):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
     elif isinstance(img, list):
-        idx=0
-        for i in img:
-            idx+=1
-            cv2.namedWindow('phenopype' + " - " + str(idx) ,cv2.WINDOW_NORMAL)
-            cv2.imshow('phenopype' + " - " + str(idx), i)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        if len(img)>10:
+            warning_banner = np.zeros((30,900,3))
+            warning_string = "WARNING: trying to open " + str(len(img)) + " images - proceed (Enter) or stop (Esc)?"
+            warning_image = cv2.putText(warning_banner,  warning_string ,(11,22), cv2.FONT_HERSHEY_SIMPLEX  , 0.75,green,1,cv2.LINE_AA)
+            cv2.namedWindow('phenopype' ,cv2.WINDOW_AUTOSIZE )
+            cv2.imshow('phenopype', warning_image)
+            k = cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            if k == 13:
+                print("Proceed - Opening images ...")
+                idx=0
+                for i in img:
+                    idx+=1
+                    if isinstance(i, str):
+                        i = cv2.imread(i)  
+                    cv2.namedWindow('phenopype' + " - " + str(idx) ,cv2.WINDOW_NORMAL)
+                    cv2.imshow('phenopype' + " - " + str(idx), i)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
+            elif k == 27:
+                print("Stop - terminating.")
+        else:
+            idx=0
+            for i in img:
+                idx+=1
+                if isinstance(i, str):
+                    i = cv2.imread(i)  
+                cv2.namedWindow('phenopype' + " - " + str(idx) ,cv2.WINDOW_NORMAL)
+                cv2.imshow('phenopype' + " - " + str(idx), i)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
     else:
         image = img
         cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
         cv2.imshow('phenopype', image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-    
-    
-#%% grayscale
     
     
 def get_median_grayscale(image, **kwargs):
@@ -130,8 +154,9 @@ def get_median_grayscale(image, **kwargs):
 #        
 #        if write == True:
 #            self.df["gray_scale"] = self.gray_scale_list
-#%% save functions
-    
+
+
+
 def save_csv(df, name, save_dir, **kwargs):
     """Save a pandas dataframe to csv. 
     
@@ -168,7 +193,7 @@ def save_csv(df, name, save_dir, **kwargs):
             df.to_csv(path_or_buf=df_path, sep=",")
 
 
-def save_img(image, name, save_dir, **kwargs):
+def save_img(image, name, **kwargs):
     """Save an image (array) to jpg.
     
     Parameters
@@ -187,10 +212,9 @@ def save_img(image, name, save_dir, **kwargs):
         overwrite images if name exists
     """
     # set dir and names
-    out_dir = save_dir     
+    out_dir = kwargs.get('save_dir', os.getcwd())     
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-        
 
     app = kwargs.get('append',"")
     new_name = os.path.splitext(name)[0] + app
@@ -209,236 +233,5 @@ def save_img(image, name, save_dir, **kwargs):
             cv2.imwrite(im_path, image)
     else:
         cv2.imwrite(im_path, image)
-       
 
 
-#%% detectors
-        
-class image_registration:
-    """Generic image registration method."
-        
-        Parameters
-        ----------
-        image: str or array
-            absolute or relative path to OR numpy array of image containing the template 
-        mode: str (default: "rectangle")
-            mark the object with a polygon or a rectangle
-
-        """
-        
-    def __init__(self, image, **kwargs):
-        # initialize # ----------------
-        
-        if isinstance(image, str):
-            image = cv2.imread(image)
-        if not len(image.shape)==3:
-            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        
-        self.image = image
-        self.done = False # Flag signalling we're done
-        self.current = (0, 0) # Current position, so we can draw the line-in-progress
-        self.points = [] # List of points defining our polygon
-        self.idx = 0
-        
-        mode = kwargs.get("mode","rectangle")
-        
-        cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback("phenopype", self._on_mouse)
-        
-        temp_canvas1 = copy.deepcopy(self.image)
-        temp_canvas2 = copy.deepcopy(self.image)
-
-        print("\nMark the outline of your mask")
-  
-                    
-        # =============================================================================
-        # draw rectangle 
-        # =============================================================================             
-                
-        if mode == "rectangle":
-            (x,y,w,h) = cv2.selectROI("phenopype", temp_canvas1, fromCenter=False)
-            if cv2.waitKey(50) & 0xff == 13:
-                cv2.destroyWindow("phenopype")
-                self.done = True
-            elif cv2.waitKey(50) & 0xff == 27:
-                cv2.destroyWindow("phenopype")  
-                self.done = True
-            self.points = [(x, y), (x, y+h), (x+w, y+h), (x+w, y)]
-            self.done = True
-            
-        # =============================================================================
-        # draw polygon 
-        # =============================================================================
-        
-        elif mode == "polygon":
-            while(not self.done):
-                if (len(self.points) > 0):
-                    cv2.polylines(temp_canvas1, np.array([self.points]), False, green, 3)
-                    cv2.line(temp_canvas1, self.points[-1], self.current, blue, 3)
-                cv2.imshow("phenopype", temp_canvas1)
-                temp_canvas1 = copy.deepcopy(temp_canvas2)
-                if cv2.waitKey(50) & 0xff == 13:
-                    self.done = True
-                    cv2.destroyWindow("phenopype")
-                elif cv2.waitKey(50) & 0xff == 27:
-                    self.done = True
-                    cv2.destroyWindow("phenopype")
-                    
-                    
-        # create template image for registration
-        rx,ry,w,h = cv2.boundingRect(np.array(self.points, dtype=np.int32))
-        self.image_original_template = self.image[ry:ry+h,rx:rx+w]
-        
-        # create mask for registration
-        self.mask_original_template = np.zeros(self.image.shape[0:2], np.uint8)
-        cv2.fillPoly(self.mask_original_template, np.array([self.points]), white) 
-        self.mask_original_template = self.mask_original_template[ry:ry+h,rx:rx+w]
-                
-        cv2.waitKey(1)
-        cv2.destroyAllWindows()
-        
-    def _on_mouse(self, event, x, y, buttons, user_param):
-        if self.done: # Nothing more to do
-            return
-        if event == cv2.EVENT_MOUSEMOVE:
-            self.current = (x, y)
-        if event == cv2.EVENT_LBUTTONDOWN:
-            self.points.append((x, y))
-            self.idx += 1
-            print("Adding point #%d with position(%d,%d) to overlay" % (self.idx, x, y))
-
-        if event == cv2.EVENT_RBUTTONDOWN:
-            if len(self.points) > 0:
-                self.points = self.points[:-1]
-                self.idx -= 1
-                print("Removing point #%d with position(%d,%d) from overlay" % (self.idx, x, y))
-            else:
-                print("No points to delete")
-            
-    def detect(self, image, **kwargs):
-        """Find object from a defined template inside an image and update pixel ratio. Feature detection is run by the AKAZE algorithm (http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf).  
-        
-        Parameters
-        -----------
-        image: str or array
-            absolute or relative path to OR numpy array of image containing the scale 
-        show: bool (optional, default: False)
-            show result of scale detection procedure on current image   
-        resize: num (optional, default: 1)
-            resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)
-        """
-        
-        # =============================================================================
-        # INITIALIZE
-        # =============================================================================
-        
-        if isinstance(image, str):
-            self.image_target = cv2.imread(image)
-        else:
-            self.image_target = image
-
-        image_target = self.image_target 
-        image_original = self.image_original_template
-        
-        show = kwargs.get('show', False)
-        min_matches = kwargs.get('min_matches', 10)
-        
-        # image diameter bigger than 2000 px
-        if (image_target.shape[0] + image_target.shape[1])/2 > 2000:
-            factor = kwargs.get('resize', 0.5)
-        else:
-            factor = kwargs.get('resize', 1)
-        image_target = cv2.resize(image_target, (0,0), fx=1*factor, fy=1*factor) 
-        
-        if not len(image_target.shape)==3:
-            image_target = cv2.cvtColor(image_target, cv2.COLOR_GRAY2BGR)
-            
-    
-        # =============================================================================
-        # SIFT detector
-        # =============================================================================
-        # sift = cv2.xfeatures2d.SIFT_create()
-        # kp1, des1 = sift.detectAndCompute(img1,self.mask_original_template)
-        # kp2, des2 = sift.detectAndCompute(img2,None)
-         
-        # =============================================================================
-        # ORB detector
-        # =============================================================================
-#        orb = cv2.ORB_create()
-#        kp1, des1 = orb.detectAndCompute(img1,self.mask_original_template)
-#        kp2, des2 = orb.detectAndCompute(img2,None)
-#        des1 = np.asarray(des1, np.float32)
-#       des2 = np.asarray(des2, np.float32)
-        
-#        FLANN_INDEX_KDTREE = 0
-#        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-#        search_params = dict(checks = 50)
-#        flann = cv2.FlannBasedMatcher(index_params, search_params)
-#        matches = flann.knnMatch(des1,des2,k=2)
-        
-        # =============================================================================
-        # AKAZE detector
-        # =============================================================================     
-        akaze = cv2.AKAZE_create()
-        kp1, des1 = akaze.detectAndCompute(image_original,self.mask_original_template)
-        kp2, des2 = akaze.detectAndCompute(image_target,None)       
-        matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
-        matches = matcher.knnMatch(des1, des2, 2)
-
-        # keep only good matches
-        good = []
-        for m,n in matches:
-            if m.distance < 0.7*n.distance:
-                good.append(m)
-        self.nkp = len(good)
-        
-        # find and transpose coordinates of matches
-        if self.nkp >= min_matches:
-            src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
-            dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
-            
-            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-            ret, contours, hierarchy = cv2.findContours(self.mask_original_template,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_TC89_L1)
-            box = contours[0].astype(np.float32)
-
-            self.rect  = cv2.perspectiveTransform(box,M).astype(np.int32)
-            image_target = cv2.polylines(image_target,[self.rect],True,red,5, cv2.LINE_AA)
-            
-            # =============================================================================
-            # compare scale to original, and return adjusted ratios
-            # =============================================================================
-            
-            if show == True:
-                cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-                cv2.imshow("phenopype", image_target)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                
-            if kwargs.get("convert",True) == True:
-                self.rect = self.rect/factor
-                           
-            self.rect = self.rect.astype(int)
-            # MASK
-            zeros = np.zeros(self.image_target.shape[0:2], np.uint8)
-            mask_bin = cv2.fillPoly(zeros, [np.array(self.rect)], white)       
-            self.mask = np.array(mask_bin, dtype=bool)
-
-            # TARGET SNIPPET
-            (rx,ry,w,h) = cv2.boundingRect(self.rect)
-            self.image_found = self.image_target[ry:ry+h,rx:rx+w]
-
-            
-            print("\n")
-            print("--------------------------------------")
-            print("Scale found with %d keypoint matches" % self.nkp)
-            print("--------------------------------------")
-            print("\n")
-        
-        else:
-            print("\n")
-            print("----------------------------------------------")
-            print("Scale not found - only %d/%d keypoint matches" % (self.nkp, min_matches))
-            print("----------------------------------------------")
-            print("\n")
-            
-            return "no current scale", "no scale mask"
