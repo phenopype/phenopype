@@ -26,14 +26,14 @@ def test_project_maker(pm):
     assert len(pm.filenames)==8
 
 @pytest.fixture()
-def sm():
-    return pp.scale_maker(image=test_proj.filepaths[2])
+def scale():
+    return pp.scale(image=test_proj.filepaths[2])
     
-def test_scale_maker(sm):
-    sm.measure_scale(zoom_factor=5)
-    sm.make_scale_template(mode="rectangle", show=False)
-    scale_mask, scale_current = sm.detect_scale(target_image=test_proj.filepaths[4], min_matches=10, show=True)    
-    assert len(scale_mask)==3
+def test_scale_maker(scale):
+    scale.measure(zoom_factor=5)
+    scale.create_template(mode="rectangle", show=False)
+    scale_detected, scale_mask, scale_current  = scale.detect(target_image=test_proj.filepaths[4], show=True, equalize = True)    
+    assert len(scale_mask)==3   
 
 
 #%% tracking
@@ -49,18 +49,3 @@ def test_video_output(motion_tracker_obj):
 
 
 
-# 'avgit',
-# 'decode_fourcc',
-# 'exif_date',
-# 'find_centroid',
-# 'find_skeleton',
-# 'gray_scale',
-# 'label_finder',
-# 'landmark_module',
-# 'motion_tracker',
-# 'object_finder',
-# 'polygon_maker',
-# 'print_function',
-
-# 'show_img',
-# 'tracking_method',
