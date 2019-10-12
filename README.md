@@ -2,7 +2,7 @@
 <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/phenopype_header.png" />
 </p>
 
-**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input in a semi, or fully automated fashion. At the moment it is set up to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. If you are interested in using phenopype, [install](#installation) it from the [Python Package Index (PYPI)](https://pypi.org/project/phenopype/) using `pip install phenopype`. You also may want to clone this repository so you can use the [tutorials](#tutorials) to get started.  
+**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input in a semi, or fully automated fashion. At the moment it is set up to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. penopype can be installed from the [Python Package Index (PYPI)](https://pypi.org/project/phenopype/) using `pip install phenopype` (for details [see below](#installation))it. To use the [tutorials](#tutorials) clone the [github-repo](https://github.com/mluerig/phenopype/archive/master.zip).  
 
 
 ***
