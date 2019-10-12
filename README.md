@@ -2,7 +2,7 @@
 <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/phenopype_header.png" />
 </p>
 
-**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input in a semi, or fully automated fashion. At the moment it is set up to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. penopype can be installed from the [Python Package Index (PYPI)](https://pypi.org/project/phenopype/) using `pip install phenopype`. To use the tutorials clone the [github-repo](https://github.com/mluerig/phenopype/archive/master.zip) and open the files in the [tutorials](https://github.com/mluerig/phenopype/tree/master/tutorials) folder with `jupyter notebook`.  
+**phenopype is a phenotyping pipeline for python**. It is designed to extract phenotypic data from digital images or video material with minimal user input in a semi, or fully automated fashion. At the moment it is set up to be run from a python integrated development environment (IDE), like [spyder](https://www.spyder-ide.org/). Some python knowledge is necessary, but most of the heavy lifting is done in the background. *penopype* can be installed from the [Python Package Index (PYPI)](https://pypi.org/project/phenopype/) using `pip install phenopype`. For a quick start clone the [github-repo](https://github.com/mluerig/phenopype/archive/master.zip) and run the [tutorials](#tutorials) with `jupyter notebook`.  
 
 
 ***
@@ -67,7 +67,7 @@ Download and unpack this repository, open a command line /bash terminal, and cd 
 
 * [2_object_detection.ipynb](tutorials/2_object_detection.ipynb) This tutorial demonstrates how single or multiple objects can be detected and phenotyped in images. 
 
-* [3_setting_landmarks.ipynb](tutorials/3_setting_landmarks.ipynb)
+* [3_setting_landmarks.ipynb](tutorials/3_setting_landmarks.ipynb) Basic landmark usage in images. 
 
 
 # development
