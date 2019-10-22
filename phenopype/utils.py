@@ -67,10 +67,16 @@ def find_centroid(arr):
     sum_y = np.sum(arr[:, 1])
     return int(sum_y/length), int(sum_x/length)
 
-def show_img(img):
+def show_img(img, **kwargs):
     """
     Show one or multiple images by providing path string or array or list of either.
     """
+    window_flag = kwargs.get("window", "normal")
+    if window_flag == "normal":
+        window_flag = cv2.WINDOW_NORMAL
+    elif window_flag == "autosize":
+        window_flag = cv2.WINDOW_AUTOSIZE
+    
     if isinstance(img, str):
         image = cv2.imread(img)  
         cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
@@ -111,7 +117,7 @@ def show_img(img):
             cv2.destroyAllWindows()
     else:
         image = img
-        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
+        cv2.namedWindow('phenopype', window_flag)
         cv2.imshow('phenopype', image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()

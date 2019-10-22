@@ -2,8 +2,10 @@ Unreleased / planned
 ====================
 
 shortterm:
-- add testing: tracking, landmark, mask, 
+- update readme (better looks for phenopype)
+- fix tutorials, and make more (by function)
 - add tutorial: tracking
+- add testing: tracking, landmark, mask 
 
 midterm:
 - change rectangle method for mask_maker
@@ -19,13 +21,17 @@ longterm:
 - object_finder returns histogram of length, area and grayscale of all objects
 - a quick-thresholding method in marked area for single images 
 
-
-
 Known bugs
 ==========
+- object_finder: resizing of image not resizing masks (try to build a size-matcher)
 - high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"
 
 
+
+0.10.0
+------
+bugfix:
+- add_files with multiple ex- or include argument created duplicated filelists
 
 
 0.9.0

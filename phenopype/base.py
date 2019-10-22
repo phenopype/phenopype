@@ -55,6 +55,7 @@ class project_maker:
         exclude: list 
             single or multiple string patterns to target certain files to include - can be used together with include
         """
+
         self.in_dir = image_dir
         
         if "save_dir" in kwargs:
@@ -97,15 +98,14 @@ class project_maker:
                     filepaths1.append(path)
                     filenames1.append(i)
                      
-        # INCLUDE        
+        # INCLUDE
         filepaths2 = []
         filenames2 = []
         if self.include:
             for name, path in zip(filenames1, filepaths1):   
-                for inc in self.include:
-                    if inc in name:
-                        filepaths2.append(path)
-                        filenames2.append(name)
+                if any(inc in name for inc in self.include):
+                    filepaths2.append(path)
+                    filenames2.append(name)
         else:
             filepaths2 = filepaths1
             filenames2 = filenames1
@@ -114,11 +114,10 @@ class project_maker:
         filepaths3 = []
         filenames3 = []
         if self.exclude:
-            for name, path in zip(filenames2, filepaths2):   
-                for exc in self.exclude:
-                    if exc not in name:
-                        filepaths3.append(path)
-                        filenames3.append(name)
+            for name, path in zip(filenames2, filepaths2):
+                if not any(exc in name for exc in self.exclude):
+                    filepaths3.append(path)
+                    filenames3.append(name)
         else:
             filepaths3 = filepaths2
             filenames3 = filenames2
@@ -775,26 +774,105 @@ class mask:
         self.points = [] # List of points defining our polygon
         self.idx = 0
         
+
+        
+        
+        ## kwargs 
+        self.zoom_fac = kwargs.get("zoom_factor", 5)                       
+        self.mode = kwargs.get("mode", "rectangle")                       
+        self.show = kwargs.get("show", "True")          
+
+        ## initialize with empty lists / parameters
+        self.done = False 
+        self.flag_zoom = False
+        self.current = (0, 0) 
+        self.current_zoom = []
+        self.points = []
+        self.idx = 0
+        self.idx_list = []
+        
         self.overlay = np.zeros(self.image.shape, np.uint8) # make overlay
         self.overlay[:,:,2] = 200 # start with all-red overlay
         
-    def _on_mouse(self, event, x, y, buttons, user_param):
-        if self.done: # Nothing more to do
-            return
+        ## for zoom
+        self.image_height = self.template_image.shape[0]
+        self.delta_height = int((self.image_height/self.zoom_fac)/2)
+        self.image_width = self.template_image.shape[1]
+        self.delta_width = int((self.image_width/self.zoom_fac)/2)
+        self.image_diag = int((self.image_height + self.image_width)/2)
+        
+#    def _on_mouse(self, event, x, y, buttons, user_param):
+#        if self.done: # Nothing more to do
+#            return
+#        if event == cv2.EVENT_MOUSEMOVE:
+#            self.current = (x, y)
+#        if event == cv2.EVENT_LBUTTONDOWN:
+#            self.points.append((x, y))
+#            self.idx += 1
+#            print("Adding point #%d with position(%d,%d) to arena" % (self.idx, x, y))
+#
+#        if event == cv2.EVENT_RBUTTONDOWN:
+#            if len(self.points) > 0:
+#                self.points = self.points[:-1]
+#                self.idx -= 1
+#                print("Removing point #%d with position(%d,%d) from arena" % (self.idx, x, y))
+#            else:
+#                print("No points to delete")
+                
+    def _on_mouse(self, event, x, y, flags, params):      
+        """- Internal reference - don't call this directly -  
+        
+        Mouse events for "make_scale_template" function.
+        """ 
+        if self.done: 
+            return       
         if event == cv2.EVENT_MOUSEMOVE:
-            self.current = (x, y)
-        if event == cv2.EVENT_LBUTTONDOWN:
-            self.points.append((x, y))
-            self.idx += 1
-            print("Adding point #%d with position(%d,%d) to arena" % (self.idx, x, y))
-
-        if event == cv2.EVENT_RBUTTONDOWN:
-            if len(self.points) > 0:
-                self.points = self.points[:-1]
-                self.idx -= 1
-                print("Removing point #%d with position(%d,%d) from arena" % (self.idx, x, y))
-            else:
-                print("No points to delete")
+            self.current = (x, y)                
+        if event == cv2.EVENT_MOUSEWHEEL:               
+            if flags > 0 and self.flag_zoom == False:
+                self.flag_zoom=True
+                self.current_zoom = (x,y)
+            if flags < 0 and self.flag_zoom == True:
+                self.flag_zoom=False
+        if self.mode == "polygon":
+            if event == cv2.EVENT_LBUTTONDOWN:
+                if self.flag_zoom == True:
+                    x_zoom, y_zoom = self.current_zoom     
+                    x = x + max(0,x_zoom-self.delta_width)
+                    y = y + max(0,y_zoom-self.delta_height)
+                self.points.append((x, y))
+                self.idx += 1  
+                self.idx_list.append(self.idx)
+                print("Adding point #%d with position(%d,%d) to polygon" % (self.idx, x, y))
+            if event == cv2.EVENT_RBUTTONDOWN:
+                if len(self.points) > 0:
+                    self.points = self.points[:-1]
+                    self.idx -= 1
+                    self.idx_list = self.idx_list[:-1]
+                    print("Removing point #%d with position(%d,%d) from polygon" % (self.idx, x, y))
+                else:
+                    print("No point to delete")
+        if self.mode == "rectangle":
+            if event == cv2.EVENT_LBUTTONDOWN:
+                if self.flag_zoom == True:
+                    x_zoom, y_zoom = self.current_zoom     
+                    x = x + max(0,x_zoom-self.delta_width)
+                    y = y + max(0,y_zoom-self.delta_height)
+                if len(self.points) < 2:
+                    self.points.append((x, y))
+                    self.idx += 1  
+                    self.idx_list.append(self.idx)
+                    print("Adding point %d/2 with position(%d,%d) to rectangle" % (self.idx, x, y))
+                elif len(self.points) == 2:
+                    print("Finished - no more points to add!")
+            if event == cv2.EVENT_RBUTTONDOWN:
+                if len(self.points) > 0:
+                    self.points = self.points[:-1]
+                    self.idx -= 1
+                    self.idx_list = self.idx_list[:-1]
+                    print("Removing point %d with position(%d,%d) from rectangle" % (self.idx, x, y))
+                else:
+                    print("No point to delete")
                 
     def create(self, **kwargs):
         """Mask maker method to draw rectangle or polygon mask onto image.
@@ -817,6 +895,9 @@ class mask:
         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
         cv2.setMouseCallback("phenopype", self._on_mouse)
         
+        
+
+        
         if not "show" in vars(self):
             temp_canvas1 = copy.deepcopy(self.image)
             temp_canvas2 = copy.deepcopy(self.image)
@@ -826,6 +907,34 @@ class mask:
             temp_canvas2 = copy.deepcopy(self.show)
 
         print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
+        
+        if mode == "new":
+        
+            while(not self.done):
+            
+                ## read key input
+                k = cv2.waitKey(50)
+    
+                ## mousewheel zoom
+                self.points_new = copy.deepcopy(self.points)
+                if self.flag_zoom == True:   
+                    
+                    ## zoom rectangle
+                    x_zoom, y_zoom = self.current_zoom
+                    x_res1 = max(0,x_zoom-self.delta_width)
+                    x_res2 = x_zoom+self.delta_width
+                    y_res1 = max(0,y_zoom-self.delta_height)
+                    y_res2 = y_zoom+self.delta_height
+                    temp_canvas2 = temp_canvas2[y_res1:y_res2,x_res1:x_res2]
+                    
+                    ## update points to draw in zoom rectangle                
+                    idx = -1
+                    for i in self.points_new:
+                        idx += 1
+                        x, y = i
+                        x = x - x_res1
+                        y = y - y_res1
+                        self.points_new[idx] = (x,y)    
 
                             
         # =============================================================================
@@ -929,6 +1038,8 @@ class object_finder:
         else: 
             self.image = image
             self.date_taken = "NA"      
+        self.image_orig = copy.deepcopy(self.image)
+        
             
     def find_objects(self, **kwargs):    
         """Method in object finder class: find objects in colour or grayscale images using thresholding
@@ -974,13 +1085,13 @@ class object_finder:
             
         """
         ## kwargs
-        resize = kwargs.get("resize", 1)
+        self.resize_factor = kwargs.get("resize", 1)
         show = kwargs.get('show', True)
         mask_objects = kwargs.get('mask', [])
 
         self.filename = "My file"
 
-        self.image = cv2.resize(self.image, (0,0), fx=1*resize, fy=1*resize) 
+        self.image = cv2.resize(self.image_orig, (0,0), fx=1*self.resize_factor, fy=1*self.resize_factor) 
         
         if not "scale" in kwargs:
             print("Warning - no scale specified")
@@ -995,7 +1106,7 @@ class object_finder:
         # APPLY GRAY-CORRECTION FACTOR TO GRAYSCALE IMAGE AND ROI
         self.gray = cv2.cvtColor(self.image,cv2.COLOR_BGR2GRAY)
         if 'gray_value_ref' in kwargs:
-            if resize < 1:
+            if self.resize_factor > 0.25:
                 ret = get_median_grayscale(source=self.gray)
             else: 
                 ret = get_median_grayscale(source=self.gray,  resize=0.25)
@@ -1081,6 +1192,9 @@ class object_finder:
             
             for obj in mask_objects:
                 mask, label, include = obj
+                mask_bin = np.array(mask, dtype=np.uint8)
+                mask_bin = cv2.resize(mask_bin, (0,0), fx=1*self.resize_factor, fy=1*self.resize_factor)
+                mask = np.array(mask_bin, dtype=bool)
                 if include == True:
                     mask_dummy2 = np.zeros(self.morph.shape)
                     mask_dummy2[mask] = 1
@@ -1188,7 +1302,7 @@ class object_finder:
                             q=kwargs.get("roi_size",300)/2
                             if label==True:
                                 cv2.putText(self.image_processed,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
-                            cv2.drawContours(self.image_processed, [cnt], 0, blue, int(5 * resize))
+                            cv2.drawContours(self.image_processed, [cnt], 0, red, int(10 * self.resize_factor))
                             if any("skeletonize" in o for o in self.operations):                    
                                 cv2.drawContours(self.image_processed, [skel_contour], 0, green, 2)
 
@@ -1264,7 +1378,7 @@ class object_finder:
                     if "roi_size" in kwargs:
                         q=kwargs.get("roi_size",300)/2
                         cv2.rectangle(self.image_processed,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
-                    cv2.drawContours(self.image_processed, [cnt], 0, blue, int(5 * resize))
+                    cv2.drawContours(self.image_processed, [cnt], 0, red, int(10 * self.resize_factor))
                     if any("skeletonize" in o for o in self.operations):                    
                         cv2.drawContours(self.image_processed, [skel_contour], 0, green, 2)
 
@@ -1284,7 +1398,7 @@ class object_finder:
         elif len(df_list)>0:
             self.df = pd.DataFrame(data=[df_list], columns = df_column_names)
             self.df.set_index('filename', drop=True, inplace=True)
-            self.df.insert(3, "resize_factor", resize)
+            self.df.insert(3, "resize_factor", self.resize_factor)
             if hasattr(self,'gray_corr_factor'):
                 self.df.insert(3, "gray_corr_factor", self.gray_corr_factor)
         else: 
