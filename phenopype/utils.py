@@ -1,9 +1,10 @@
 import os
 import cv2
-import copy
 import numpy as np
 import exifread
 from collections import Counter
+
+from phenopype.utils_lowlevel import _image_viewer
 
 #%% colours
 
@@ -13,11 +14,11 @@ blue = (255, 0, 0)
 black = (0,0,0)
 white = (255,255,255)
 
-colours = {"red": (0, 0, 255),
- "green": (0, 255, 0), 
- "blue": (255, 0, 0),
- "black":(0,0,0),
- "white":(255,255,255)}
+#colours = {"red": (0, 0, 255),
+# "green": (0, 255, 0), 
+# "blue": (255, 0, 0),
+# "black":(0,0,0),
+# "white":(255,255,255)}
 
 
 #%% modules
@@ -67,62 +68,73 @@ def find_centroid(arr):
     sum_y = np.sum(arr[:, 1])
     return int(sum_y/length), int(sum_x/length)
 
-def show_img(img, **kwargs):
-    """
-    Show one or multiple images by providing path string or array or list of either.
-    """
-    window_flag = kwargs.get("window", "normal")
-    if window_flag == "normal":
-        window_flag = cv2.WINDOW_NORMAL
-    elif window_flag == "autosize":
-        window_flag = cv2.WINDOW_AUTOSIZE
+def show_img(image, **kwargs):
+    """Show one or multiple images by providing path string or array or list of either.
     
-    if isinstance(img, str):
-        image = cv2.imread(img)  
-        cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
-        cv2.imshow('phenopype', image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-    elif isinstance(img, list):
-        if len(img)>10:
-            warning_banner = np.zeros((30,900,3))
-            warning_string = "WARNING: trying to open " + str(len(img)) + " images - proceed (Enter) or stop (Esc)?"
-            warning_image = cv2.putText(warning_banner,  warning_string ,(11,22), cv2.FONT_HERSHEY_SIMPLEX  , 0.75,green,1,cv2.LINE_AA)
-            cv2.namedWindow('phenopype' ,cv2.WINDOW_AUTOSIZE )
-            cv2.imshow('phenopype', warning_image)
-            k = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if k == 13:
-                print("Proceed - Opening images ...")
-                idx=0
-                for i in img:
-                    idx+=1
-                    if isinstance(i, str):
-                        i = cv2.imread(i)  
-                    cv2.namedWindow('phenopype' + " - " + str(idx) ,cv2.WINDOW_NORMAL)
-                    cv2.imshow('phenopype' + " - " + str(idx), i)
-                cv2.waitKey(0)
+    Parameters
+    ----------
+    image: str, array, or list
+        the image or list of images to be displayed. can be path to image (string), array-type, or list of strings or arrays
+    window_aspect: str (default: "fixed")
+        "fixed" or "free" aspect ratio
+    position_reset: bool
+        flag whether image positions should be reset when reopening list of images
+    position_offset: int 
+        if image is list, the distance in pixels betweeen the positions of each newly opened window (only works in conjunction with "position_reset")
+    """
+    
+    ## kwargs
+    max_dim = kwargs.get("max_dim", 1980)
+    pos_offset = kwargs.get("position_offset", 25)
+    pos_reset = kwargs.get("position_reset", False)
+    window_aspect = kwargs.get("aspect", "fixed")
+    if window_aspect == "free":
+        window_aspect = cv2.WINDOW_NORMAL
+    elif window_aspect == "fixed":
+        window_aspect = cv2.WINDOW_AUTOSIZE
+
+    
+    ## open images list or single images
+    while True:
+        if isinstance(image, list):
+            if len(image)>10:
+                warning_banner = np.zeros((30,900,3))
+                warning_string = "WARNING: trying to open " + str(len(image)) + " images - proceed (Enter) or stop (Esc)?"
+                warning_image = cv2.putText(warning_banner,  warning_string ,(11,22), cv2.FONT_HERSHEY_SIMPLEX  , 0.75,green,1,cv2.LINE_AA)
+                cv2.namedWindow('phenopype' ,cv2.WINDOW_AUTOSIZE )
+                cv2.imshow('phenopype', warning_image)
+                k = cv2.waitKey(0)
                 cv2.destroyAllWindows()
-            elif k == 27:
-                print("Stop - terminating.")
-        else:
+                if k == 27:
+                    print("Stop - terminating.")
+                    break
+                elif k == 13:
+                    print("Proceed - Opening images ...")
             idx=0
-            for i in img:
+            for i in image:
                 idx+=1
-                if isinstance(i, str):
-                    i = cv2.imread(i)  
-                cv2.namedWindow('phenopype' + " - " + str(idx) ,cv2.WINDOW_NORMAL)
-                cv2.imshow('phenopype' + " - " + str(idx), i)
+                _image_viewer(i, 
+                              mode = "", 
+                              window_aspect = window_aspect, 
+                              window_name='phenopype' + " - " + str(idx), 
+                              window_control="external",
+                              max_dim=max_dim)
+                if pos_reset == True:
+                    cv2.moveWindow('phenopype' + " - " + str(idx),idx+idx*pos_offset,idx+idx*pos_offset)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
-    else:
-        image = img
-        cv2.namedWindow('phenopype', window_flag)
-        cv2.imshow('phenopype', image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-    
-    
+            break
+        else:
+            _image_viewer(image, 
+                  mode = "", 
+                  window_aspect = window_aspect, 
+                  window_name='phenopype', 
+                  window_control="internal",
+                  max_dim=max_dim)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            break
+
 def get_median_grayscale(image, **kwargs):
     if (image.shape[0] + image.shape[1])/2 > 2000:
         factor = kwargs.get('resize', 0.5)
