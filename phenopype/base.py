@@ -1,14 +1,17 @@
-import os
-import numpy as np
-import numpy.ma as ma
-import pandas as pd
 import copy
-import math
-import sys
-import warnings
-
 import cv2
 import datetime
+import math
+import numpy as np
+import numpy.ma as ma
+import os
+import pandas as pd
+import sys
+import shutil
+import stat
+import yaml
+
+from shutil import copyfile
 
 from phenopype.utils import (red, green, blue, white, black)
 from phenopype.utils import (blur, exif_date, get_median_grayscale, show_img)
@@ -18,23 +21,88 @@ from phenopype.utils_lowlevel import _image_viewer
 
 pd.options.display.max_rows = 10
 
+def del_rw(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)
+
 #%% classes
 
-class project_maker: 
+class project: 
     """
     Initialize a phenopype project with a name.
     
     Parameters
     ----------
 
-    name: str (default: "My project, -current date-")
-        name of your project     
+    root_dir: str (default: "CurrentWorkingDir + "CurrentDate_phenopype")
+        root directory of the project
+    name: str (default: "CurrentDate_phenopype")
+        name of your project
     """
-
-
+    
     def __init__(self, **kwargs):
-        proj_dummy_name = "My project, " + datetime.datetime.today().strftime('%Y-%m-%d')
-        self.name = kwargs.get("name", proj_dummy_name)           
+
+        flag_overwrite = kwargs.get("overwrite", False)
+        flag_delete = kwargs.get("delete", False)
+        flag_create = False
+        
+        if "root_dir" in kwargs:
+            root_dir = kwargs.get("root_dir")
+            if os.path.basename(root_dir) == "":
+                name = kwargs.get("name", datetime.datetime.today().strftime('%Y%m%d_%H%M%S') + "_phenopype_project")
+                root_dir = os.path.join(root_dir, name)
+            else:
+                name = os.path.basename(root_dir)
+        elif "name" in kwargs:
+            name = kwargs.get("name")
+            root_dir = os.path.join(os.getcwd(), name)
+        else:
+            name = datetime.datetime.today().strftime('%Y%m%d_%H%M%S') + "_phenopype_project"
+            root_dir = os.path.join(os.getcwd(), name)
+
+        print("\n")
+        print("--------------------------------------------")
+        print("phenopype will create a new project named \"" + name + "\". The full path of the project's root directory will be:\n")
+        print(root_dir + ".phenopype")
+        create = input("Proceed? (y/n)\n")
+        if create=="y" or create == "yes":
+            if os.path.isdir(root_dir + ".phenopype"):
+                if flag_overwrite == True:
+                    if flag_delete == True:
+                        shutil.rmtree(root_dir + ".phenopype", ignore_errors=True, onerror=del_rw) 
+                        print("\n\"" + root_dir + ".phenopype\" and its content deleted")
+                    flag_create = True
+                else:
+                    overwrite = input("Warning - project already exists - overwrite? (y/n)")
+                    if overwrite=="y" or overwrite == "yes":
+                        if flag_delete == True:
+                            shutil.rmtree(root_dir + ".phenopype", ignore_errors=True, onerror=del_rw) 
+                            print("\n\"" + root_dir + ".phenopype\" and its content deleted")
+                        flag_create = True
+            else:
+                    flag_create = True
+                    
+        if flag_create == True:
+            self.name = name
+            self.root_dir = os.path.abspath(root_dir) + ".phenopype"
+            self.data_dir = os.path.join(self.root_dir, "data")
+            self.config_filepath = os.path.join(self.root_dir, self.name + '.phenopype.yaml')
+            self.filepaths_original = []
+            self.filepaths = []
+            self.filenames = []
+            
+            os.mkdir(self.root_dir)
+                                    
+            config = {"date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
+                      "date_changed": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
+                      "filepaths_original": self.filepaths_original}
+            with open(self.config_filepath, 'w') as config_file:
+                yaml.dump(config, config_file, default_flow_style=False) 
+            print("\n\"" + name + "\" created at \"" + root_dir + ".phenopype\"")
+            print("--------------------------------------------")
+        else: 
+            print("\n\"" + name + "\" not created!")
+            print("--------------------------------------------")    
 
                       
     def add_files(self, image_dir, **kwargs):
@@ -55,109 +123,121 @@ class project_maker:
         exclude: list 
             single or multiple string patterns to target certain files to include - can be used together with include
         """
+        
+        ## kwargs                      
+        search_mode = kwargs.get("search_mode","dir")                 
+        file_endings = kwargs.get("filetypes", [])
+        exclude_args = kwargs.get("exclude", [])
+        include_args = kwargs.get("include", [])
+        unique_by = kwargs.get("unique_by", "filepaths")
+        
+        ## dummy filepaths for refinement
+        filepaths1, filepaths2, filepaths3, filepaths4 = [],[],[],[]
 
-        self.in_dir = image_dir
-        
-        if "save_dir" in kwargs:
-            self.save_dir = kwargs.get("save_dir", "local")   
-            if self.save_dir == "local":
-                self.save_dir = os.path.normpath(self.in_dir) + "_out"
-            
-            if not os.path.exists(self.save_dir):
-                os.makedirs(self.save_dir)
-                save_dir_str = str(self.save_dir) + " (created)"
-            else:
-                save_dir_str = str(self.save_dir)
-        else:
-            save_dir_str = "No save directory specified."
-            
-            
-        self.mode = kwargs.get("search_mode","dir")                 
-        self.filetypes = kwargs.get("filetypes", [])
-        self.exclude = kwargs.get("exclude", [])
-        self.include = kwargs.get("include", [])
-          
-        # =============================================================================
-        # make file / pathlists
-        # =============================================================================       
-        
-        filepaths1 = []
-        filenames1 = []
-        if self.mode == "recursive":
-            for root, dirs, files in os.walk(self.in_dir):
-                for i in os.listdir(root):
-                    path = os.path.join(root,i)
-                    if os.path.isfile(path):      
-                        filepaths1.append(path)
-                        filenames1.append(i)
-                        
-        elif self.mode == "dir":
-            for i in os.listdir(self.in_dir):
-                path = os.path.join(self.in_dir,i)
-                if os.path.isfile(path):      
-                    filepaths1.append(path)
-                    filenames1.append(i)
-                     
-        # INCLUDE
-        filepaths2 = []
-        filenames2 = []
-        if self.include:
-            for name, path in zip(filenames1, filepaths1):   
-                if any(inc in name for inc in self.include):
-                    filepaths2.append(path)
-                    filenames2.append(name)
-        else:
+        ## find files 
+        if search_mode == "recursive":
+            for root, dirs, files in os.walk(image_dir):
+                for file in os.listdir(root):
+                    filepath = os.path.join(root,file)
+                    if os.path.isfile(filepath):
+                        filepaths1.append(filepath)
+        elif search_mode == "dir":
+            for file in os.listdir(image_dir):
+                filepath = os.path.join(image_dir,file)
+                if os.path.isfile(filepath):   
+                    filepaths1.append(filepath)
+                    
+        ## file endings
+        if len(file_endings)>0:
+            for filepath in filepaths1:
+                if filepath.endswith(tuple(file_endings)):
+                    filepaths2.append(filepath)
+        elif len(file_endings)==0:
             filepaths2 = filepaths1
-            filenames2 = filenames1
-    
-        # EXCLUDE  
-        filepaths3 = []
-        filenames3 = []
-        if self.exclude:
-            for name, path in zip(filenames2, filepaths2):
-                if not any(exc in name for exc in self.exclude):
-                    filepaths3.append(path)
-                    filenames3.append(name)
+            
+        ## include
+        if len(include_args)>0:
+            for filepath in filepaths2:   
+                if any(inc in os.path.basename(filepath) for inc in include_args):
+                    filepaths3.append(filepath)
         else:
             filepaths3 = filepaths2
-            filenames3 = filenames2
-    
-        # FILETYPE        
-        filepaths4 = []
-        filenames4 = []
-        if self.filetypes:
-            for name, path in zip(filenames3, filepaths3):   
-                for ext in self.filetypes:
-                    if name.endswith(ext):
-                        filepaths4.append(path)
-                        filenames4.append(name)
+            
+        ## exclude
+        if len(exclude_args)>0:
+            for filepath in filepaths3:   
+                if not any(exc in os.path.basename(filepath) for exc in exclude_args):
+                    filepaths4.append(filepath)
         else:
             filepaths4 = filepaths3
-            filenames4 = filenames3
-    
-        self.filenames = filenames4
-        self.filepaths = filepaths4
-    
-        # =============================================================================
-        # show added files
-        # =============================================================================
+                
         
-        n_files = len(self.filenames)
+        ## save to object
+        filepaths = filepaths4
+        filenames = []
+        for filepath in filepaths:
+            filenames.append(os.path.basename(filepath))       
         
-        print("Search returned " + str(n_files) + " files: \n" + str(self.filenames[0:49]) + "...")
-        print("\n")
-        print("--------------------------------------------")
-        print("Project settings\n================")
-        print("Project name: " + self.name + "\nImage directory: " + str(self.in_dir)  + "\nSave directory: " + \
-              save_dir_str + "\nSearch mode: " + self.mode + "\nFiletypes: " + str(self.filetypes) + "\nInclude:" + \
-              str(self.include) + "\nExclude: " + str(self.exclude) + "\n")
-        print("Files\n======")
-        if n_files > 10:
-            print(str(self.filenames[0:9]) + " ... " + \
-                  "\n\n Print all filenames or filepaths with _project_name_.filenames / _project_name_.filepaths\n")
-        else:
-            print(str(self.filenames) + "\n Print filenames or filepaths with _project_name_.filenames / _project_name_.filepaths\n")
-        print("--------------------------------------------")
+        ## allow unique filenames filepath or by filename only
+        if unique_by=="filepaths":
+            self.filepaths_not_added = []
+            for filename, filepath in zip(filenames, filepaths):
+                if not filepath in self.filepaths_original:
+                    self.filepaths_original.append(filepath)
+                    self.filenames.append(filename)
+                else:
+                    self.filepaths_not_added.append(filepath)
+        elif unique_by=="filenames":
+            self.filepaths_not_added = []
+            for filename, filepath in zip(filenames, filepaths):
+                if not filename in self.filenames:
+                    self.filepaths_original.append(filepath)
+                    self.filenames.append(filename)
+                else:
+                    self.filepaths_not_added.append(filepath)
+                    
+        ## build phenopype folder structure
+        ## data folder in root
+        if not os.path.isdir(self.data_dir):
+            os.mkdir(self.data_dir)
+        ## loop through files
+        for filepath_original in self.filepaths_original:
+            
+            ## flatten folder structure
+            subfolder_prefix = os.path.dirname(os.path.relpath(filepath_original,image_dir)).replace("\\","__")
+            filename = subfolder_prefix + "__" + os.path.basename(filepath_original)
+            filepath = os.path.join(self.root_dir,"data",filename)
+            if not os.path.isdir(filepath):
+                
+                ## make image-specific directories
+                os.mkdir(filepath)
+                
+                ## copy and rename raw-file
+                copyfile(filepath_original, os.path.join(filepath,"raw.png"))
+                
+                ## specify attributes
+                attributes = {"date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
+                      "date_changed": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
+                      "filepaths_original": filepath_original}
+                with open(filepath + "\\settings.phenopype.yaml", 'w') as config_file:
+                    yaml.dump(attributes, config_file, default_flow_style=False)                    
+                    
+                ## add to project object
+                self.filepaths.append(filepath)
+                
+                ## feedback
+                print(filename + " added")
+            else:
+                print(filename + " already exists")
+
+    
+        ## update config file
+        with open(self.config_filepath, 'r') as config_file:
+            config = yaml.safe_load(config_file)
+        config["date_changed"] = datetime.datetime.today().strftime('%Y%m%d_%H%M%S')
+        config["filepaths_original"] = self.filepaths_original
+        with open(self.config_filepath, 'w') as config_file:
+            config = yaml.dump(config, config_file, default_flow_style=False) 
         
                     
 class scale:
