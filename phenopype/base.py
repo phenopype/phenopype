@@ -26,6 +26,15 @@ def del_rw(action, name, exc):
     os.remove(name)
 
 #%% classes
+    
+class obj(object):
+    def __init__(self, d):
+        for a, b in d.items():
+            if isinstance(b, (list, tuple)):
+               setattr(self, a, [obj(x) if isinstance(x, dict) else x for x in b])
+            else:
+               setattr(self, a, obj(b) if isinstance(b, dict) else b)
+               
 
 class project: 
     """
@@ -90,6 +99,7 @@ class project:
             self.filepaths_original = []
             self.filepaths = []
             self.filenames = []
+            self.data = {}
             
             os.mkdir(self.root_dir)
                                     
@@ -205,8 +215,8 @@ class project:
             
             ## flatten folder structure
             subfolder_prefix = os.path.dirname(os.path.relpath(filepath_original,image_dir)).replace("\\","__")
-            filename = subfolder_prefix + "__" + os.path.basename(filepath_original)
-            filepath = os.path.join(self.root_dir,"data",filename)
+            filename = subfolder_prefix + "____" + os.path.basename(filepath_original)
+            filepath = os.path.join(self.root_dir,"data",os.path.splitext(filename)[0])
             if not os.path.isdir(filepath):
                 
                 ## make image-specific directories
@@ -224,13 +234,18 @@ class project:
                     
                 ## add to project object
                 self.filepaths.append(filepath)
+                self.data[os.path.splitext(filename)[0]] = obj()
                 
                 ## feedback
                 print(filename + " added")
             else:
                 print(filename + " already exists")
 
-    
+        
+        def raw(self):
+            
+        
+        
         ## update config file
         with open(self.config_filepath, 'r') as config_file:
             config = yaml.safe_load(config_file)
