@@ -5,7 +5,9 @@ import math
 import numpy as np
 import numpy.ma as ma
 import os
+import pickle
 import pandas as pd
+import pprint
 import sys
 import shutil
 import stat
@@ -13,29 +15,25 @@ import yaml
 
 from shutil import copyfile
 
+from phenopype import mask
+
 from phenopype.utils import (red, green, blue, white, black)
 from phenopype.utils import (blur, exif_date, get_median_grayscale, show_img)
-from phenopype.utils_lowlevel import _image_viewer
+
 
 #%% settings
 
 pd.options.display.max_rows = 10
 
+pretty = pprint.PrettyPrinter(width=30)
+
+
+#%% methods
+    
 def del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)
     os.remove(name)
-
-#%% classes
     
-class obj(object):
-    def __init__(self, d):
-        for a, b in d.items():
-            if isinstance(b, (list, tuple)):
-               setattr(self, a, [obj(x) if isinstance(x, dict) else x for x in b])
-            else:
-               setattr(self, a, obj(b) if isinstance(b, dict) else b)
-               
-
 class project: 
     """
     Initialize a phenopype project with a name.
@@ -48,12 +46,12 @@ class project:
     name: str (default: "CurrentDate_phenopype")
         name of your project
     """
+    __module__ = "phenopype"
     
     def __init__(self, **kwargs):
 
         flag_overwrite = kwargs.get("overwrite", False)
-        flag_delete = kwargs.get("delete", False)
-        flag_create = False
+        flag_query = kwargs.get("query", True)
         
         if "root_dir" in kwargs:
             root_dir = kwargs.get("root_dir")
@@ -68,37 +66,47 @@ class project:
         else:
             name = datetime.datetime.today().strftime('%Y%m%d_%H%M%S') + "_phenopype_project"
             root_dir = os.path.join(os.getcwd(), name)
-
+            
+        
         print("\n")
         print("--------------------------------------------")
         print("phenopype will create a new project named \"" + name + "\". The full path of the project's root directory will be:\n")
         print(root_dir + ".phenopype")
-        create = input("Proceed? (y/n)\n")
-        if create=="y" or create == "yes":
-            if os.path.isdir(root_dir + ".phenopype"):
-                if flag_overwrite == True:
-                    if flag_delete == True:
-                        shutil.rmtree(root_dir + ".phenopype", ignore_errors=True, onerror=del_rw) 
-                        print("\n\"" + root_dir + ".phenopype\" and its content deleted")
-                    flag_create = True
-                else:
-                    overwrite = input("Warning - project already exists - overwrite? (y/n)")
-                    if overwrite=="y" or overwrite == "yes":
-                        if flag_delete == True:
-                            shutil.rmtree(root_dir + ".phenopype", ignore_errors=True, onerror=del_rw) 
-                            print("\n\"" + root_dir + ".phenopype\" and its content deleted")
-                        flag_create = True
+        
+        while True:
+            if flag_query == False:
+                create = "y"
             else:
-                    flag_create = True
-                    
-        if flag_create == True:
+                create = input("Proceed? (y/n)\n")
+            
+            if create=="y" or create == "yes":
+                if os.path.isdir(root_dir + ".phenopype"):
+                    if flag_overwrite == True:
+                        shutil.rmtree(root_dir + ".phenopype", ignore_errors=True, onerror=del_rw) 
+                        print("\n\"" + root_dir + ".phenopype\" created (overwritten)")
+                        pass
+                    else:
+                        overwrite = input("Warning - project already exists - overwrite? (y/n)")
+                        if overwrite == "y" or overwrite == "yes":
+                            shutil.rmtree(root_dir + ".phenopype", ignore_errors=True, onerror=del_rw) 
+                            print("\n\"" + root_dir + ".phenopype\" created (overwritten)")
+                            pass
+                        else:
+                            print("\n\"" + name + "\" not created!")
+                            print("--------------------------------------------")    
+                            break
+                else:
+                    pass
+            
             self.name = name
             self.root_dir = os.path.abspath(root_dir) + ".phenopype"
             self.data_dir = os.path.join(self.root_dir, "data")
             self.config_filepath = os.path.join(self.root_dir, self.name + '.phenopype.yaml')
+            
             self.filepaths_original = []
             self.filepaths = []
             self.filenames = []
+            
             self.data = {}
             
             os.mkdir(self.root_dir)
@@ -108,11 +116,48 @@ class project:
                       "filepaths_original": self.filepaths_original}
             with open(self.config_filepath, 'w') as config_file:
                 yaml.dump(config, config_file, default_flow_style=False) 
+                
             print("\n\"" + name + "\" created at \"" + root_dir + ".phenopype\"")
             print("--------------------------------------------")
-        else: 
-            print("\n\"" + name + "\" not created!")
-            print("--------------------------------------------")    
+            break
+            
+            
+    class data_object(object):    
+        """ This is a data object where meta information for each image is stored. It also provides direct access to the raw image, masks, etc.
+        
+        Parameters
+        ----------
+    
+        name: str 
+            image_name                      
+        path: str 
+            path to corresponding folder in phenopype diretory
+        """
+        __module__ = "phenopype"
+        
+        def __init__(self, filename, filepath):    
+            self.filename = filename    
+            self.filetype = os.path.splitext(filename)[1]
+            self.filepath = filepath    
+            self.filepath_raw = os.path.join(filepath,"raw" + self.filetype)
+            self.mask = {}
+        def show(self):
+            pretty.pprint(self.__dict__)
+        def load_raw(self):
+            img = cv2.imread(os.path.join(self.filepath_raw))
+            return img
+        def show_raw(self):
+            img = cv2.imread(os.path.join(self.filepath_raw))
+            show_img(img)
+        def create_mask(self, name):
+            self.mask[name] = mask.create_mask(self.filepath_raw)
+        def save(self):     
+            with open(self.path + '.data', 'wb') as output:
+                pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+        def load(self):
+            with open(self.content + '.data', 'rb') as output:
+                pickle.load(output)
+            
 
                       
     def add_files(self, image_dir, **kwargs):
@@ -134,7 +179,8 @@ class project:
             single or multiple string patterns to target certain files to include - can be used together with include
         """
         
-        ## kwargs                      
+        ## kwargs                     
+        flag_overwrite = kwargs.get("overwrite",False)
         search_mode = kwargs.get("search_mode","dir")                 
         file_endings = kwargs.get("filetypes", [])
         exclude_args = kwargs.get("exclude", [])
@@ -206,46 +252,53 @@ class project:
                 else:
                     self.filepaths_not_added.append(filepath)
                     
-        ## build phenopype folder structure
+                    
+        # =============================================================================
+        # build phenopype directory structure
+        # =============================================================================
+        
         ## data folder in root
         if not os.path.isdir(self.data_dir):
             os.mkdir(self.data_dir)
+            
         ## loop through files
         for filepath_original in self.filepaths_original:
-            
             ## flatten folder structure
             subfolder_prefix = os.path.dirname(os.path.relpath(filepath_original,image_dir)).replace("\\","__")
             filename = subfolder_prefix + "____" + os.path.basename(filepath_original)
-            filepath = os.path.join(self.root_dir,"data",os.path.splitext(filename)[0])
-            if not os.path.isdir(filepath):
-                
-                ## make image-specific directories
-                os.mkdir(filepath)
-                
-                ## copy and rename raw-file
-                copyfile(filepath_original, os.path.join(filepath,"raw.png"))
-                
-                ## specify attributes
-                attributes = {"date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
-                      "date_changed": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
-                      "filepaths_original": filepath_original}
-                with open(filepath + "\\settings.phenopype.yaml", 'w') as config_file:
-                    yaml.dump(attributes, config_file, default_flow_style=False)                    
-                    
-                ## add to project object
-                self.filepaths.append(filepath)
-                self.data[os.path.splitext(filename)[0]] = obj()
-                
-                ## feedback
-                print(filename + " added")
-            else:
-                print(filename + " already exists")
-
-        
-        def raw(self):
+            filepath = os.path.join(self.root_dir,"data",filename)
             
-        
-        
+            if os.path.isdir(filepath) and flag_overwrite==False:
+                print(filename + " already exists (overwrite=False)")
+                continue
+            if os.path.isdir(filepath) and flag_overwrite==True:
+                shutil.rmtree(filepath, ignore_errors=True, onerror=del_rw)
+                print(filename + " folder created (overwritten)")
+                pass
+            else:
+                print(filename + " folder created")
+                pass
+            
+            ## create data object
+            do = self.data_object(filename, filepath)
+            
+            ## make image-specific directories
+            os.mkdir(filepath)
+            
+            ## copy and rename raw-file
+            copyfile(filepath_original, do.filepath_raw)
+            
+            ## specify attributes
+            attributes = {"date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
+                  "date_changed": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
+                  "filepaths_original": filepath_original}
+            with open(filepath + "\\settings.phenopype.yaml", 'w') as config_file:
+                yaml.dump(attributes, config_file, default_flow_style=False)                    
+                
+            ## add to project object
+            self.filepaths.append(filepath)
+            self.data[filename] = do
+
         ## update config file
         with open(self.config_filepath, 'r') as config_file:
             config = yaml.safe_load(config_file)
@@ -843,78 +896,6 @@ class scale:
             print("\n")
             
             return "no current scale", "no scale mask"
-
-
-
-def create_mask(image, **kwargs):
-    """Mask maker method to draw rectangle or polygon mask onto image.
-    
-    Parameters
-    ----------        
-    
-    include: bool (default: True)
-        determine whether resulting mask is to include or exclude objects within
-    label: str (default: "area1")
-        passes a label to the mask
-    mode: str (default: "rectangle")
-        zoom into the scale with "rectangle" or "polygon".
-        
-    """
-        
-    ## load image
-    if isinstance(image, str):
-        image = cv2.imread(image)  
-    if len(image.shape)==2:
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-    
-    label = kwargs.get("label","area 1")
-    max_dim = kwargs.get("max_dim",1980)
-    include = kwargs.get("include",True)
-    
-    flag_show = kwargs.get("show",False)
-    flag_tool = kwargs.get("tool","rectangle")
-
-    print("\nMark the outline of your arena, i.e. what you want to include in the image analysis by left clicking, finish with enter.")
-
-    iv_object = _image_viewer(image, mode="interactive", max_dim = max_dim, tool=flag_tool)
-    
-    zeros = np.zeros(image.shape[0:2], np.uint8)
-    
-    if flag_tool == "rectangle" or flag_tool == "box":
-        for rect in iv_object.rect_list:
-            pts = np.array(((rect[0], rect[1]), (rect[2], rect[1]), (rect[2], rect[3]), (rect[0], rect[3])), dtype=np.int32)
-            mask_bin = cv2.fillPoly(zeros, [pts], white)
-    elif flag_tool == "polygon" or flag_tool == "free":
-        for poly in iv_object.poly_list:
-            pts = np.array(poly, dtype=np.int32)
-            mask_bin = cv2.fillPoly(zeros, [pts], white)
-
-    if include == False:
-        mask_bool = np.invert(mask_bin)
-    mask_bool = np.array(mask_bin, dtype=bool)
-
-    overlay = np.zeros(image.shape, np.uint8) # make overlay
-    overlay[:,:,2] = 200 # start with all-red overlay
-    overlay[mask_bool,1] = 200   
-    overlay[mask_bool,2] = 0   
-    overlay = cv2.addWeighted(image, .7, overlay, 0.5, 0)
-    
-    if flag_show:
-        show_img(overlay)
-    if flag_tool == "rectangle" or flag_tool == "box":
-        mask_list = iv_object.rect_list
-    elif flag_tool == "polygon" or flag_tool == "free":
-        mask_list = iv_object.poly_list
-
-    class mask_object:
-        def __init__(self, label, overlay, zeros, mask_bool, mask_list):
-            self.label = label
-            self.overlay = overlay
-            self.mask_bin = zeros
-            self.mask_bool = mask_bool
-            self.mask_list = mask_list
-    
-    return mask_object(label, overlay, zeros, mask_bool, mask_list)  # Create an empty record
 
 
 class object_finder:
