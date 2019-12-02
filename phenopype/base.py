@@ -17,8 +17,8 @@ from shutil import copyfile
 
 from phenopype import mask
 
-from phenopype.utils import (red, green, blue, white, black)
 from phenopype.utils import (blur, exif_date, get_median_grayscale, show_img)
+from phenopype.settings import colours
 
 
 #%% settings
@@ -101,7 +101,7 @@ class project:
             self.name = name
             self.root_dir = os.path.abspath(root_dir) + ".phenopype"
             self.data_dir = os.path.join(self.root_dir, "data")
-            self.config_filepath = os.path.join(self.root_dir, self.name + '.phenopype.yaml')
+            self.config_filepath = os.path.join(self.root_dir, 'attributes.yaml')
             
             self.filepaths_original = []
             self.filepaths = []
@@ -112,8 +112,7 @@ class project:
             os.mkdir(self.root_dir)
                                     
             config = {"date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
-                      "date_changed": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
-                      "filepaths_original": self.filepaths_original}
+                      "date_changed": datetime.datetime.today().strftime('%Y%m%d_%H%M%S')}
             with open(self.config_filepath, 'w') as config_file:
                 yaml.dump(config, config_file, default_flow_style=False) 
                 
@@ -140,6 +139,8 @@ class project:
             self.filetype = os.path.splitext(filename)[1]
             self.filepath = filepath    
             self.filepath_raw = os.path.join(filepath,"raw" + self.filetype)
+            self.filepath_config = os.path.join(filepath,"config.yaml")
+            
             self.mask = {}
         def show(self):
             pretty.pprint(self.__dict__)
@@ -149,8 +150,16 @@ class project:
         def show_raw(self):
             img = cv2.imread(os.path.join(self.filepath_raw))
             show_img(img)
-        def create_mask(self, name):
+            
+        def create_mask(self, **kwargs):
+            name = kwargs.get("name", "mask1")
             self.mask[name] = mask.create_mask(self.filepath_raw)
+            cv2.imwrite(name + ".jpg", self.mask[name].mask_bin)
+        def pype(self, name):
+            self.mask[name] = mask.create_mask(self.filepath_raw)
+            
+            
+            
         def save(self):     
             with open(self.path + '.data', 'wb') as output:
                 pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
@@ -292,7 +301,7 @@ class project:
             attributes = {"date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
                   "date_changed": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
                   "filepaths_original": filepath_original}
-            with open(filepath + "\\settings.phenopype.yaml", 'w') as config_file:
+            with open(filepath + "\\attributes.yaml", 'w') as config_file:
                 yaml.dump(attributes, config_file, default_flow_style=False)                    
                 
             ## add to project object
@@ -306,7 +315,25 @@ class project:
         config["filepaths_original"] = self.filepaths_original
         with open(self.config_filepath, 'w') as config_file:
             config = yaml.dump(config, config_file, default_flow_style=False) 
+            
+            
+    def create_config_files(self, **kwargs):
         
+            
+            
+    def save(self, **kwargs):
+        output_str = os.path.join(self.root_dir, 'project.data')
+        with open(output_str, 'wb') as output:
+            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+             
+            
+            
+    
+            
+def project_load(path):
+    with open(path, 'rb') as output:
+        return pickle.load(output)
+    
                     
 class scale:
     
@@ -542,35 +569,35 @@ class scale:
             
             ## draw lines
             if len(self.points) == 1:
-                cv2.line(temp_canvas2, self.points_new[-1], self.current, blue, linewidth)
+                cv2.line(temp_canvas2, self.points_new[-1], self.current, colours.blue, linewidth)
             elif len(self.points) == 2:
-                cv2.polylines(temp_canvas2, np.array([self.points_new]), False, green, linewidth)
+                cv2.polylines(temp_canvas2, np.array([self.points_new]), False, colours.green, linewidth)
                 
             ## text: length in mm
             if len(self.distance_mm) == 0:
                 cv2.putText(temp_canvas2, "Enter distance (mm): ", (text_mm_x, text_mm_y), cv2.FONT_HERSHEY_SIMPLEX, \
-                            text_size, black, text_thickness, cv2.LINE_AA)
+                            text_size, colours.black, text_thickness, cv2.LINE_AA)
             elif len(self.distance_mm) > 0:
                 cv2.putText(temp_canvas2, "Entered distance: " + self.distance_mm + " mm", (text_mm_x, text_mm_y), cv2.FONT_HERSHEY_SIMPLEX, \
-                            text_size, green, int(text_thickness * 2), cv2.LINE_AA)
+                            text_size, colours.green, int(text_thickness * 2), cv2.LINE_AA)
             
             ## text: scale measured
             if len(self.points) < 2:
                 cv2.putText(temp_canvas2, "Mark scale (2 points): ", (text_px_x, text_px_y), cv2.FONT_HERSHEY_SIMPLEX, \
-                            text_size, black, text_thickness, cv2.LINE_AA)
+                            text_size, colours.black, text_thickness, cv2.LINE_AA)
             elif len(self.points) == 2:
                 cv2.putText(temp_canvas2, "Mark scale: " + str(self.distance_px) + " pixel", (text_px_x, text_px_y), cv2.FONT_HERSHEY_SIMPLEX, \
-                            text_size, green, int(text_thickness * 2), cv2.LINE_AA)
+                            text_size, colours.green, int(text_thickness * 2), cv2.LINE_AA)
 
             ## finish on enter, if conditions are met
             if k == 13:
                 ## Warning if data needs to be entered
                 if len(self.points) < 2:                  
                     cv2.putText(temp_canvas2, "No scale marked!", (int(temp_canvas2.shape[0]/5),int(temp_canvas2.shape[1]/3.5)), \
-                                cv2.FONT_HERSHEY_SIMPLEX, text_size , red, int(text_thickness * 2), cv2.LINE_AA)
+                                cv2.FONT_HERSHEY_SIMPLEX, text_size , colours.red, int(text_thickness * 2), cv2.LINE_AA)
                 if len(self.distance_mm) == 0:                  
                     cv2.putText(temp_canvas2, "No distance entered!", (int(temp_canvas2.shape[0]/5),int(temp_canvas2.shape[1]/2.5)), \
-                                cv2.FONT_HERSHEY_SIMPLEX, text_size , red, int(text_thickness * 2), cv2.LINE_AA)               
+                                cv2.FONT_HERSHEY_SIMPLEX, text_size , colours.red, int(text_thickness * 2), cv2.LINE_AA)               
                 else:
                     cv2.destroyWindow("phenopype")
                     temp_canvas2 = copy.deepcopy(temp_canvas1)
@@ -683,14 +710,14 @@ class scale:
                     
                 ## draw lines
                 if len(self.points)>0:
-                    cv2.line(temp_canvas2, self.points_new[-1], self.current, blue, linewidth)
-                    cv2.polylines(temp_canvas2, np.array([self.points_new]), False, green, linewidth)
+                    cv2.line(temp_canvas2, self.points_new[-1], self.current, colours.blue, linewidth)
+                    cv2.polylines(temp_canvas2, np.array([self.points_new]), False, colours.green, linewidth)
     
                 ## finish on enter
                 if k == 13:
                     ## Warning if data needs to be entered
                     if len(self.points) < 3:                  
-                        cv2.putText(temp_canvas2, "At least three points needed to draw polygon!", (int(temp_canvas2.shape[0]/2.5),int(temp_canvas2.shape[1]/3.5)), cv2.FONT_HERSHEY_SIMPLEX, text_size, red, int(text_thickness * 2), cv2.LINE_AA)
+                        cv2.putText(temp_canvas2, "At least three points needed to draw polygon!", (int(temp_canvas2.shape[0]/2.5),int(temp_canvas2.shape[1]/3.5)), cv2.FONT_HERSHEY_SIMPLEX, text_size, colours.red, int(text_thickness * 2), cv2.LINE_AA)
                     else:
                         cv2.destroyWindow("phenopype")
                         temp_canvas2 = copy.deepcopy(temp_canvas1)
@@ -701,14 +728,14 @@ class scale:
                                    
                 ## draw rectangle
                 if len(self.points)==1:
-                    cv2.rectangle(temp_canvas2, self.points_new[0], self.current, blue, linewidth)
+                    cv2.rectangle(temp_canvas2, self.points_new[0], self.current, colours.blue, linewidth)
                 if len(self.points)==2:
-                    cv2.rectangle(temp_canvas2, self.points_new[0], self.points_new[1], blue, linewidth)
+                    cv2.rectangle(temp_canvas2, self.points_new[0], self.points_new[1], colours.blue, linewidth)
                 
                 ## finish on enter
                 if k == 13:
                     if len(self.points) < 2:                  
-                        cv2.putText(temp_canvas2, "At least two points needed to draw rectangle!", (int(temp_canvas2.shape[0]/2.5),int(temp_canvas2.shape[1]/3.5)), cv2.FONT_HERSHEY_SIMPLEX, text_size, red, int(text_thickness * 2), cv2.LINE_AA)
+                        cv2.putText(temp_canvas2, "At least two points needed to draw rectangle!", (int(temp_canvas2.shape[0]/2.5),int(temp_canvas2.shape[1]/3.5)), cv2.FONT_HERSHEY_SIMPLEX, text_size, colours.red, int(text_thickness * 2), cv2.LINE_AA)
                     else:            
                         cv2.destroyWindow("phenopype")
                         temp_canvas2 = copy.deepcopy(temp_canvas1)
@@ -739,14 +766,14 @@ class scale:
         # create colour mask to show template 
         self.colour_mask = np.zeros(self.template_image.shape, np.uint8)
         self.colour_mask[:,:,1] = 255 # all area green
-        cv2.fillPoly(self.colour_mask, np.array([self.points_bounding_rect]), red) # red = excluded area
+        cv2.fillPoly(self.colour_mask, np.array([self.points_bounding_rect]), colours.red) # red = excluded area
         self.overlay = cv2.addWeighted(copy.deepcopy(self.template_image), .7, self.colour_mask, 0.3, 0) # combine
         if self.mode=="polygon":
             points_drawing = self.points 
             points_drawing.append(self.points[0])
-            cv2.polylines(self.overlay, np.array([points_drawing]), False, green, linewidth)
+            cv2.polylines(self.overlay, np.array([points_drawing]), False, colours.green, linewidth)
         if self.mode=="rectangle":
-            cv2.rectangle(self.overlay, self.points[0], self.points[1], green, linewidth)
+            cv2.rectangle(self.overlay, self.points[0], self.points[1], colours.green, linewidth)
 
         ## show template
         if self.show == True:
@@ -755,7 +782,7 @@ class scale:
         ## create exact mask for scale detection
         if self.mode=="polygon":
             self.template_mask = np.zeros(self.template_image.shape[0:2], np.uint8)
-            cv2.fillPoly(self.template_mask, [np.array(self.points)], white) 
+            cv2.fillPoly(self.template_mask, [np.array(self.points)], colours.white) 
             self.template_mask = self.template_mask[y:y+h,x:x+w]
         elif self.mode=="rectangle":
             self.template_mask = np.zeros(self.template_image.shape[0:2], np.uint8)
@@ -769,9 +796,9 @@ class scale:
         ## create mask object for template image (same proporties as mask_maker objects)
         zeros = np.zeros(self.template_image.shape[0:2], np.uint8)
         if self.mode=="polygon":
-            self.template_image_mask = cv2.fillPoly(zeros, [np.array(self.points)], white)
+            self.template_image_mask = cv2.fillPoly(zeros, [np.array(self.points)], colours.white)
         elif self.mode=="rectangle":
-            self.template_image_mask = cv2.fillPoly(zeros, [np.array(self.points_bounding_rect)], white)
+            self.template_image_mask = cv2.fillPoly(zeros, [np.array(self.points_bounding_rect)], colours.white)
         self.template_image_mask = np.array(self.template_image_mask, dtype=bool)
 
         ## return scale template and mask object (boolean mask of full image, label, include-flag)
@@ -847,7 +874,7 @@ class scale:
             box = contours[0].astype(np.float32)
 
             rect  = cv2.perspectiveTransform(box,M).astype(np.int32)
-            self.target_image = cv2.polylines(self.target_image,[rect],True,red,5, cv2.LINE_AA)
+            self.target_image = cv2.polylines(self.target_image,[rect],True,colours.red,5, cv2.LINE_AA)
 
             # update current scale using reference
             rect = rect/self.resize_factor
@@ -862,7 +889,7 @@ class scale:
             
             # create mask of detected scale reference card
             zeros = np.zeros(self.target_image.shape[0:2], np.uint8)
-            mask_bin = cv2.fillPoly(zeros, [np.array(rect)], white)       
+            mask_bin = cv2.fillPoly(zeros, [np.array(rect)], colours.white)       
             self.detected_mask = np.array(mask_bin, dtype=bool)
             
             # cut out target reference card
@@ -1146,7 +1173,7 @@ class object_finder:
 
                             if any("skeletonize" in o for o in self.operations):
                                 cnt_mask = np.zeros(self.gray.shape, np.uint8)
-                                img_cnt = cv2.drawContours(cnt_mask, [cnt], 0, white,-1)
+                                img_cnt = cv2.drawContours(cnt_mask, [cnt], 0, colours.white,-1)
                                 skeleton=cv2.ximgproc.thinning(img_cnt)                                
                                 skel_ret, skel_contour, skel_hierarchy = cv2.findContours(skeleton,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)  
                                 skel_contour = skel_contour[0]
@@ -1184,9 +1211,9 @@ class object_finder:
                             q=kwargs.get("roi_size",300)/2
                             if label==True:
                                 cv2.putText(self.image_processed,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
-                            cv2.drawContours(self.image_processed, [cnt], 0, red, int(10 * self.resize_factor))
+                            cv2.drawContours(self.image_processed, [cnt], 0, colours.red, int(10 * self.resize_factor))
                             if any("skeletonize" in o for o in self.operations):                    
-                                cv2.drawContours(self.image_processed, [skel_contour], 0, green, 2)
+                                cv2.drawContours(self.image_processed, [skel_contour], 0, colours.green, 2)
 
                     else:
                         idx_noise += 1
@@ -1228,7 +1255,7 @@ class object_finder:
                         
                     if any("skeletonize" in o for o in self.operations):
                         cnt_mask = np.zeros(self.gray.shape, np.uint8)
-                        img_cnt = cv2.drawContours(cnt_mask, [cnt], 0, white,-1)
+                        img_cnt = cv2.drawContours(cnt_mask, [cnt], 0, colours.white,-1)
                         skeleton=cv2.ximgproc.thinning(img_cnt)                                
                         skel_ret, skel_contour, skel_hierarchy = cv2.findContours(skeleton,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_TC89_L1)  
                         skel_contour = skel_contour[0]
@@ -1259,10 +1286,10 @@ class object_finder:
                     # DRAW TO ROI
                     if "roi_size" in kwargs:
                         q=kwargs.get("roi_size",300)/2
-                        cv2.rectangle(self.image_processed,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),red,8)
-                    cv2.drawContours(self.image_processed, [cnt], 0, red, int(10 * self.resize_factor))
+                        cv2.rectangle(self.image_processed,(int(max(0,x-q)),int(max(0, y-q))),(int(min(self.image.shape[1],x+q)),int(min(self.image.shape[0],y+q))),colours.red,8)
+                    cv2.drawContours(self.image_processed, [cnt], 0, colours.red, int(10 * self.resize_factor))
                     if any("skeletonize" in o for o in self.operations):                    
-                        cv2.drawContours(self.image_processed, [skel_contour], 0, green, 2)
+                        cv2.drawContours(self.image_processed, [skel_contour], 0, colours.green, 2)
 
                 else: 
                     print("Object not bigger than minimum diameter or area")

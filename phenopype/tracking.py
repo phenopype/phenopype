@@ -8,7 +8,7 @@ import os
 import pprint
 
 from phenopype.utils import (blur, decode_fourcc, show_img)
-from phenopype.utils import (red, white)
+from phenopype.settings import colours
 
 #%% classes
              
@@ -276,12 +276,12 @@ class motion_tracker(object):
                             self.method_mask = np.zeros_like(self.fgmask)
                             for contour in self.method_contours:
                                 if self.consecutive[0] == "contour":
-                                    self.method_mask = cv2.drawContours(self.method_mask, [contour], 0, white, -1) # Draw filled contour in mask   
+                                    self.method_mask = cv2.drawContours(self.method_mask, [contour], 0, colours.white, -1) # Draw filled contour in mask   
                                 elif self.consecutive[0] == "ellipse":
-                                    self.method_mask = cv2.ellipse(self.method_mask, cv2.fitEllipse(contour), white, -1)                                    
+                                    self.method_mask = cv2.ellipse(self.method_mask, cv2.fitEllipse(contour), colours.white, -1)                                    
                                 elif self.consecutive[0] == "rectangle":
                                     rx,ry,rw,rh = cv2.boundingRect(contour)
-                                    cv2.rectangle(self.method_mask,(int(rx),int(ry)),(int(rx+rw),int(ry+rh)),white,-1)
+                                    cv2.rectangle(self.method_mask,(int(rx),int(ry)),(int(rx+rw),int(ry+rh)), colours.white,-1)
                                 kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(self.consecutive[1],self.consecutive[1]))
                                 self.method_mask = cv2.dilate(self.method_mask, kernel, iterations = 1)   
                             self.fgmask = cv2.subtract(self.fgmask, self.method_mask)
@@ -370,7 +370,7 @@ class tracking_method(object):
             
         self.min_length = kwargs.get("min_length", 1)
         self.max_length = kwargs.get("max_length", 1000)
-        self.overlay_colour = kwargs.get("overlay_colour", red)
+        self.overlay_colour = kwargs.get("overlay_colour", colours.red)
         
         if "mask" in kwargs:
             self.mask_objects = kwargs.get("mask")

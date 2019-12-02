@@ -3,16 +3,43 @@ import copy
 import sys
 import numpy as np
 
-#%% colours
-
-green = (0, 255, 0)
-red = (0, 0, 255)
-blue = (255, 0, 0)
-black = (0,0,0)
-white = (255,255,255)
-
+from phenopype.settings import colours
 
 #%%
+
+def _auto_line_thickness(image, **kwargs):
+    image_height = image.shape[0]
+    image_width = image.shape[1]
+    perc_img_diag = kwargs.get("perc_img_diag", 0.002)
+    
+    line_tickness = int(perc_img_diag * ((image_width + image_height)/2))
+    
+    return line_tickness
+    
+    
+
+def _construct_yaml_map(self, node):
+    # test if there are duplicate node keys
+    keys = set()
+    for key_node, value_node in node.value:
+        key = self.construct_object(key_node, deep=True)
+        if key in keys:
+            break
+        keys.add(key)
+    else:
+        data = {}  # type: Dict[Any, Any]
+        yield data
+        value = self.construct_mapping(node)
+        data.update(value)
+        return
+    data = []
+    yield data
+    for key_node, value_node in node.value:
+        key = self.construct_object(key_node, deep=True)
+        val = self.construct_object(value_node, deep=True)
+        data.append((key, val))
+        
+
 class _image_viewer():
     def __init__(self, image, **kwargs):
 
@@ -20,6 +47,7 @@ class _image_viewer():
         self.flag_zoom_mode = kwargs.get("zoom", "continuous")
         self.flag_mode = kwargs.get("mode", None)
         self.flag_tool = kwargs.get("tool", "rectangle")
+        self.ret_zoom_attributes = kwargs.get("ret_zoom_attributes", False)
         self.window_name = kwargs.get("window_name", "phenopype")
         self.window_aspect = kwargs.get("window_aspect", cv2.WINDOW_AUTOSIZE)
         self.window_control = kwargs.get("window_control", "internal")
@@ -52,7 +80,7 @@ class _image_viewer():
         self.canvas_fx, self.canvas_fy =  self.image_width/self.canvas_width, self.image_height/self.canvas_height
         self.global_fx, self.global_fy = self.canvas_fx , self.canvas_fy 
 
-        ## zoom config
+        ## zoom config        
         self.zoom_x1, self.zoom_y1, self.zoom_x2, self.zoom_y2 = 0,0,self.image_width,self.image_height
         self.flag_zoom = -1
         self.zoom_idx = 1
@@ -73,10 +101,25 @@ class _image_viewer():
             elif self.flag_tool == "polygon" or self.flag_tool == "free":
                 self.poly_list = []
                 self.point_list = []
-            self.line_thickness = kwargs.get("line_thickness", int((1/500) * ((self.image_width + self.image_height)/2)))
+            self.line_thickness = _auto_line_thickness(self.image)
         else:
             self.line_thickness = None
             
+        ## update from a previous call
+        if kwargs.get("prev_attributes"):
+            prev_attr = kwargs.get("prev_attributes")
+            prev_attr = {i:prev_attr[i] for i in prev_attr if i not in ["canvas_copy", "canvas", "image_copy","image"]}
+            self.__dict__.update(prev_attr)
+            if hasattr(self, "rect_list"):
+                for (rx1, ry1, rx2, ry2) in self.rect_list:
+                            cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), colours.green, self.line_thickness)
+            if hasattr(self, "poly_list"):
+                for poly in self.poly_list:
+                    cv2.polylines(self.image_copy, np.array([poly]), False, colours.green, self.line_thickness)
+            self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2,]
+            self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
+            self.canvas_copy = copy.deepcopy(self.canvas)
+
         ## show canvas
         cv2.namedWindow(self.window_name, self.window_aspect)
         cv2.setMouseCallback(self.window_name, self._on_mouse)
@@ -95,16 +138,17 @@ class _image_viewer():
                 cv2.destroyAllWindows()
                 sys.exit("Esc: exit phenopype process")
 
+
     def _on_mouse(self, event, x, y, flags, params):
         """Helper functon that defines mouse callback for image_viewer.
         """
-
         if event == cv2.EVENT_MOUSEWHEEL and flags > 0:
             if self.zoom_idx < self.zoom_n_increments:
                 self.flag_zoom = 1
                 self.zoom_idx += 1
                 if self.flag_zoom_mode == "continuous" or (self.flag_zoom_mode == "fixed" and self.zoom_idx == 2):
                     self._zoom_fun(x,y)
+                self.x, self.y = x, y    
                 cv2.imshow(self.window_name, self.canvas)
         if event == cv2.EVENT_MOUSEWHEEL and flags < 0:
             if self.zoom_idx > 1:
@@ -112,6 +156,7 @@ class _image_viewer():
                 self.zoom_idx -= 1
                 if self.flag_zoom_mode == "continuous" or (self.flag_zoom_mode == "fixed" and self.zoom_idx == 1):
                     self._zoom_fun(x,y)
+                self.x, self.y = x, y    
                 cv2.imshow(self.window_name, self.canvas)
         if self.flag_mode == "interactive":
             if self.flag_tool == "rectangle" or self.flag_tool == "box":
@@ -124,7 +169,7 @@ class _image_viewer():
                             int(self.zoom_x1 + (self.global_fx * self.rect_minpos[0])), int(self.zoom_y1 + (self.global_fy * self.rect_minpos[1])),
                             int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])), int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1]))])
                     for (rx1, ry1, rx2, ry2) in self.rect_list:
-                        cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), green, self.line_thickness)
+                        cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), colours.green, self.line_thickness)
                     self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                     self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                     self.canvas_copy = copy.deepcopy(self.canvas)
@@ -134,7 +179,7 @@ class _image_viewer():
                         self.rect_list = self.rect_list[:-1]
                         self.image_copy = copy.deepcopy(self.image)
                         for (rx1, ry1, rx2, ry2) in self.rect_list:
-                            cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), green, self.line_thickness)
+                            cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), colours.green, self.line_thickness)
                         self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                         self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                         self.canvas_copy = copy.deepcopy(self.canvas)
@@ -145,7 +190,7 @@ class _image_viewer():
                         self.rect_minpos = min(self.rect_start[0], x), min(self.rect_start[1], y)
                         self.rect_maxpos = max(self.rect_start[0], x), max(self.rect_start[1], y)
                         cv2.rectangle(self.canvas, self.rect_minpos, self.rect_maxpos, 
-                                      red, max(2,int(1/500 * (self.canvas_width + self.canvas_height)/2)))
+                                      colours.red, max(2, _auto_line_thickness(self.canvas)))
                         cv2.imshow(self.window_name, self.canvas)
             elif self.flag_tool == "polygon" or self.flag_tool == "free":
                 if event == cv2.EVENT_MOUSEMOVE:
@@ -153,15 +198,15 @@ class _image_viewer():
                     if len(self.point_list) > 0:
                         self.coords_prev = int((self.point_list[-1][0]-self.zoom_x1)/self.global_fx), int((self.point_list[-1][1]-self.zoom_y1)//self.global_fy)
                         self.canvas = copy.deepcopy(self.canvas_copy)
-                        cv2.line(self.canvas, self.coords_prev, (x,y), blue, self.line_thickness)
+                        cv2.line(self.canvas, self.coords_prev, (x,y), colours.blue, self.line_thickness)
                     cv2.imshow(self.window_name, self.canvas)
                 if event == cv2.EVENT_LBUTTONDOWN: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
                     self.coords_original = int(self.zoom_x1+(x * self.global_fx)), int(self.zoom_y1+(y * self.global_fy))
                     self.point_list.append(self.coords_original)
-                    cv2.polylines(self.image_copy, np.array([self.point_list]), False, green, self.line_thickness)
+                    cv2.polylines(self.image_copy, np.array([self.point_list]), False, colours.green, self.line_thickness)
                     if len(self.poly_list)>0:
                         for poly in self.poly_list:
-                            cv2.polylines(self.image_copy, np.array([poly]), False, green, self.line_thickness)
+                            cv2.polylines(self.image_copy, np.array([poly]), False, colours.green, self.line_thickness)
                     self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                     self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                     self.canvas_copy = copy.deepcopy(self.canvas)
@@ -170,9 +215,9 @@ class _image_viewer():
                     if len(self.point_list)>0:
                         self.point_list = self.point_list[:-1]
                         self.image_copy = copy.deepcopy(self.image)
-                        cv2.polylines(self.image_copy, np.array([self.point_list]), False, green, self.line_thickness)
+                        cv2.polylines(self.image_copy, np.array([self.point_list]), False, colours.green, self.line_thickness)
                         for poly in self.poly_list:
-                            cv2.polylines(self.image_copy, np.array([poly]), False, green, self.line_thickness)
+                            cv2.polylines(self.image_copy, np.array([poly]), False, colours.green, self.line_thickness)
                         self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                         self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                         self.canvas_copy = copy.deepcopy(self.canvas)
@@ -181,7 +226,7 @@ class _image_viewer():
                         self.poly_list = self.poly_list[:-1]
                         self.image_copy = copy.deepcopy(self.image)
                         for poly in self.poly_list:
-                            cv2.polylines(self.image_copy, np.array([poly]), False, green, self.line_thickness)
+                            cv2.polylines(self.image_copy, np.array([poly]), False, colours.green, self.line_thickness)
                         self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                         self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                         self.canvas_copy = copy.deepcopy(self.canvas)
@@ -193,7 +238,7 @@ class _image_viewer():
                     self.image_copy = copy.deepcopy(self.image)
                     if len(self.poly_list)>0:
                         for poly in self.poly_list:
-                            cv2.polylines(self.image_copy, np.array([poly]), False, green, self.line_thickness)
+                            cv2.polylines(self.image_copy, np.array([poly]), False, colours.green, self.line_thickness)
                     self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                     self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                     self.canvas_copy = copy.deepcopy(self.canvas)

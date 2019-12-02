@@ -15,8 +15,8 @@ import sys
 
 import pytesseract
 
-from phenopype.utils import (red, green, blue, white)
 from phenopype.utils import (blur)
+from phenopype.settings import colours
 
 #%% modules
 
@@ -61,8 +61,8 @@ class label_finder:
         if mode == "polygon":
             while(not self.done):
                 if (len(self.points) > 0):
-                    cv2.polylines(temp_canvas_1, np.array([self.points]), False, green, 2)
-                    cv2.line(temp_canvas_1, self.points[-1], self.current, blue, 2)
+                    cv2.polylines(temp_canvas_1, np.array([self.points]), False, colours.green, 2)
+                    cv2.line(temp_canvas_1, self.points[-1], self.current, colours.blue, 2)
                 cv2.imshow("phenopype", temp_canvas_1)
                 temp_canvas_1 = copy.deepcopy(image)
                 if cv2.waitKey(50) & 0xff == 13:
@@ -84,7 +84,7 @@ class label_finder:
         # create colour mask to show scale outline
         colour_mask = np.zeros(image.shape, np.uint8)
         colour_mask[:,:,1] = 255 # all area green
-        cv2.fillPoly(colour_mask, np.array([self.points]), red) # red = excluded area
+        cv2.fillPoly(colour_mask, np.array([self.points]), colours.red) # red = excluded area
         temp_canvas_1 = cv2.addWeighted(copy.deepcopy(image), .7, colour_mask, 0.3, 0) # combine
         
         
@@ -154,7 +154,7 @@ class label_finder:
             
             self.box_target = cv2.perspectiveTransform(self.box_original_template.astype(np.float32),M).astype(np.int32)
             
-            image_target = cv2.polylines(image_target,[self.box_target],True,red,5, cv2.LINE_AA)
+            image_target = cv2.polylines(image_target,[self.box_target],True, colours.red,5, cv2.LINE_AA)
             
             if show:
                 cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
@@ -168,7 +168,7 @@ class label_finder:
             
             # MASK TARGET IMAGE
             zeros = np.zeros(self.image_target.shape[0:2], np.uint8)
-            self.image_mask = cv2.fillPoly(zeros, [np.array(self.box_target, dtype=np.int32)], white)
+            self.image_mask = cv2.fillPoly(zeros, [np.array(self.box_target, dtype=np.int32)], colours.white)
 
             # SNIPPET FROM TARGET 
             (rx,ry,w,h) = cv2.boundingRect(self.box_target)
@@ -238,7 +238,7 @@ class label_finder:
         rotation_matrix[1, 2] += ((bound_h / 2) - image_center[1])        
               
         # rotate!
-        self.rotated_thresh = cv2.warpAffine(thresh, rotation_matrix, (bound_w, bound_h), borderValue = white)
+        self.rotated_thresh = cv2.warpAffine(thresh, rotation_matrix, (bound_w, bound_h), borderValue = colours.white)
 
         # blur + threshold rotated image
         coords = np.column_stack(np.where(self.rotated_thresh < 255))

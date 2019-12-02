@@ -4,24 +4,56 @@ import numpy as np
 import exifread
 from collections import Counter
 
-from phenopype.utils_lowlevel import _image_viewer
+from ruamel.yaml import YAML
+from ruamel.yaml.constructor import SafeConstructor
+from watchdog.observers import Observer
+from watchdog.events import PatternMatchingEventHandler
 
-#%% colours
+from phenopype.utils_lowlevel import _image_viewer, _construct_yaml_map
+from phenopype.settings import colours
 
-green = (0, 255, 0)
-red = (0, 0, 255)
-blue = (255, 0, 0)
-black = (0,0,0)
-white = (255,255,255)
-
-#colours = {"red": (0, 0, 255),
-# "green": (0, 255, 0), 
-# "blue": (255, 0, 0),
-# "black":(0,0,0),
-# "white":(255,255,255)}
+#%% settings
 
 
 #%% modules
+
+class yaml_file_monitor:
+    def __init__(self, filepath, **kwargs):
+        
+        ## kwargs       
+        self.flag_print = kwargs.get("print_settings", False)
+#        self.flag_update = True
+        
+        self.dirpath = os.path.dirname(filepath)
+        self.filename = os.path.basename(filepath)
+        self.filepath = filepath
+        self.event_handler = PatternMatchingEventHandler(patterns=["*/" + self.filename])
+        self.event_handler.on_any_event = self.on_config_update
+        
+        self.config = load_yaml(self.filepath)
+        
+        self.observer = Observer()
+        self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
+        self.observer.start()
+
+    def on_config_update(self, event):
+        self.config = load_yaml(self.filepath)
+        if self.flag_print == True:
+            print(self.config, end="")
+        self.flag_update = True
+        cv2.destroyAllWindows()
+        
+    def stop(self):
+        self.observer.stop()
+        self.observer.join()
+
+def load_yaml(filepath):
+    SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
+    yaml = YAML(typ='safe')
+    yaml.allow_duplicate_keys = True
+    with open(filepath, 'r') as file:
+        file = yaml.load(file)
+    return file
 
 def exif_date(path): 
     f = open(path, 'rb')
@@ -35,10 +67,12 @@ def avgit(x):
 def decode_fourcc(cc):
     return "".join([chr((int(cc) >> 8 * i) & 0xFF) for i in range(4)])
 
-def blur(image, blur_kern):
-    kern = np.ones((blur_kern,blur_kern))/(blur_kern**2)
+def blur(image, **kwargs):
+    blur_kernel = kwargs.get("blur_kernel", 5)
+    kern = np.ones((blur_kernel,blur_kernel))/(blur_kernel**2)
     ddepth = -1
-    return cv2.filter2D(image,ddepth,kern)
+    image = cv2.filter2D(image, ddepth,kern)
+    return image
 
 def find_skeleton(img):
     skeleton = np.zeros(img.shape,np.uint8)
@@ -87,7 +121,7 @@ def show_img(image, **kwargs):
     max_dim = kwargs.get("max_dim", 1980)
     pos_offset = kwargs.get("position_offset", 25)
     pos_reset = kwargs.get("position_reset", False)
-    window_aspect = kwargs.get("aspect", "fixed")
+    window_aspect = kwargs.get("aspect", "free")
     if window_aspect == "free":
         window_aspect = cv2.WINDOW_NORMAL
     elif window_aspect == "fixed":
@@ -100,7 +134,7 @@ def show_img(image, **kwargs):
             if len(image)>10:
                 warning_banner = np.zeros((30,900,3))
                 warning_string = "WARNING: trying to open " + str(len(image)) + " images - proceed (Enter) or stop (Esc)?"
-                warning_image = cv2.putText(warning_banner,  warning_string ,(11,22), cv2.FONT_HERSHEY_SIMPLEX  , 0.75,green,1,cv2.LINE_AA)
+                warning_image = cv2.putText(warning_banner,  warning_string ,(11,22), cv2.FONT_HERSHEY_SIMPLEX  , 0.75, colours.green,1,cv2.LINE_AA)
                 cv2.namedWindow('phenopype' ,cv2.WINDOW_AUTOSIZE )
                 cv2.imshow('phenopype', warning_image)
                 k = cv2.waitKey(0)
