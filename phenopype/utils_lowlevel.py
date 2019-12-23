@@ -1,44 +1,54 @@
+#%%
 import cv2
 import copy
+import datetime
+import os
+import stat
 import sys
 import numpy as np
 
-from phenopype.settings import colours
+from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap as ordereddict
+
+from phenopype.settings import pype_presets, colours
+
 
 #%%
+def _make_pype_template(**kwargs):
+    
+    ## kwargs
+    pype_name = kwargs.get("name","pipeline1")
+    preset_name = kwargs.get("preset","config1")
+        
+    ## load preset
+    pype_config = ordereddict([('pype_header', 
+                        [ordereddict([('name', pype_name)]), 
+                         ordereddict([('preset', preset_name)]), 
+                         ordereddict([('created_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
+                         ordereddict([('last_used_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
+                         ordereddict([('modified_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))])])])
+    yaml = YAML()
+    preset = yaml.load(eval("pype_presets." + preset_name))
+    pype_config.update(preset)
+
+    return pype_config
+
+
+def _del_rw(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)
+
+
 
 def _auto_line_thickness(image, **kwargs):
     image_height = image.shape[0]
     image_width = image.shape[1]
     perc_img_diag = kwargs.get("perc_img_diag", 0.002)
-    
     line_tickness = int(perc_img_diag * ((image_width + image_height)/2))
-    
-    return line_tickness
-    
-    
 
-def _construct_yaml_map(self, node):
-    # test if there are duplicate node keys
-    keys = set()
-    for key_node, value_node in node.value:
-        key = self.construct_object(key_node, deep=True)
-        if key in keys:
-            break
-        keys.add(key)
-    else:
-        data = {}  # type: Dict[Any, Any]
-        yield data
-        value = self.construct_mapping(node)
-        data.update(value)
-        return
-    data = []
-    yield data
-    for key_node, value_node in node.value:
-        key = self.construct_object(key_node, deep=True)
-        val = self.construct_object(value_node, deep=True)
-        data.append((key, val))
-        
+    return line_tickness
+
+
 
 class _image_viewer():
     def __init__(self, image, **kwargs):
@@ -55,12 +65,10 @@ class _image_viewer():
         ## load image
         if isinstance(image, str):
             image = cv2.imread(image)  
-        if len(image.shape)==2:
-            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
         ## resize image canvas
         image_width, image_height = image.shape[1], image.shape[0]
-        max_dim = kwargs.get("max_dim", 1980)
+        max_dim = kwargs.get("max_dim", 1000)
         if image_height > max_dim or image_width > max_dim:
             if image_width > image_height:
                 canvas = cv2.resize(image, (max_dim, int((max_dim/image_width) * image_height)), cv2.INTER_AREA)
@@ -121,6 +129,7 @@ class _image_viewer():
             self.canvas_copy = copy.deepcopy(self.canvas)
 
         ## show canvas
+        self.done = False
         cv2.namedWindow(self.window_name, self.window_aspect)
         cv2.setMouseCallback(self.window_name, self._on_mouse)
         cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
@@ -129,6 +138,7 @@ class _image_viewer():
         ## window control
         if self.window_control=="internal":
             if cv2.waitKey() == 13:
+                self.done = True
                 cv2.destroyAllWindows()
                 if self.flag_tool == "polygon" or self.flag_tool == "free":
                     if len(self.point_list)>2:
@@ -137,7 +147,6 @@ class _image_viewer():
             elif cv2.waitKey() == 27:
                 cv2.destroyAllWindows()
                 sys.exit("Esc: exit phenopype process")
-
 
     def _on_mouse(self, event, x, y, flags, params):
         """Helper functon that defines mouse callback for image_viewer.
@@ -242,8 +251,6 @@ class _image_viewer():
                     self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                     self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                     self.canvas_copy = copy.deepcopy(self.canvas)
-
-            
 
     def _zoom_fun(self,x,y):
         """Helper function for image_viewer. Takes current xy coordinates and zooms in within a rectangle around mouse coordinates. 

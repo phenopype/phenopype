@@ -16,7 +16,6 @@ import yaml
 from shutil import copyfile
 
 from phenopype import mask
-
 from phenopype.utils import (blur, exif_date, get_median_grayscale, show_img)
 from phenopype.settings import colours
 
@@ -317,7 +316,7 @@ class project:
             config = yaml.dump(config, config_file, default_flow_style=False) 
             
             
-    def create_config_files(self, **kwargs):
+    def create_pype_template(self, **kwargs):
         
             
             

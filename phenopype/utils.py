@@ -1,19 +1,34 @@
-import os
+import exifread
 import cv2
 import numpy as np
-import exifread
-from collections import Counter
+import os
+import sys
 
+from collections import Counter
 from ruamel.yaml import YAML
-from ruamel.yaml.constructor import SafeConstructor
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-from phenopype.utils_lowlevel import _image_viewer, _construct_yaml_map
+from phenopype.utils_lowlevel import _image_viewer #, _yaml_map_constructor
 from phenopype.settings import colours
 
-#%% settings
+#%% alternative yaml loader
 
+# from ruamel.yaml.constructor import SafeConstructor
+
+# SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _yaml_map_constructor)
+
+# def load_yaml(string):
+#     if os.path.isfile(string):
+#         yaml = ruamel.yaml.YAML(typ='safe')
+#         yaml.allow_duplicate_keys = True
+#         with open(string, 'r') as file:
+#             file = yaml.load(file)
+#     else:
+#         yaml = ruamel.yaml.YAML(typ='safe')
+#         yaml.allow_duplicate_keys = True
+#         file = yaml.load(string)
+#     return file
 
 #%% modules
 
@@ -22,24 +37,25 @@ class yaml_file_monitor:
         
         ## kwargs       
         self.flag_print = kwargs.get("print_settings", False)
-#        self.flag_update = True
-        
+
+        ## file, location and event action        
         self.dirpath = os.path.dirname(filepath)
         self.filename = os.path.basename(filepath)
         self.filepath = filepath
         self.event_handler = PatternMatchingEventHandler(patterns=["*/" + self.filename])
-        self.event_handler.on_any_event = self.on_config_update
+        self.event_handler.on_any_event = self.on_update
         
-        self.config = load_yaml(self.filepath)
+        ## intitialize
+        self.content = load_yaml(self.filepath)
         
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
         self.observer.start()
 
-    def on_config_update(self, event):
-        self.config = load_yaml(self.filepath)
+    def on_update(self, event):
+        self.content = load_yaml(self.filepath)
         if self.flag_print == True:
-            print(self.config, end="")
+            print(show_yaml(self.content), end="")
         self.flag_update = True
         cv2.destroyAllWindows()
         
@@ -47,13 +63,26 @@ class yaml_file_monitor:
         self.observer.stop()
         self.observer.join()
 
-def load_yaml(filepath):
-    SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
-    yaml = YAML(typ='safe')
-    yaml.allow_duplicate_keys = True
-    with open(filepath, 'r') as file:
-        file = yaml.load(file)
+
+
+def load_yaml(string):
+    yaml = YAML()
+    if os.path.isfile(string):
+        with open(string, 'r') as file:
+            file = yaml.load(file)
+    else:
+        file = yaml.load(string)
     return file
+
+def show_yaml(ordereddict):
+    yaml = YAML()
+    yaml.dump(ordereddict, sys.stdout)
+
+def save_yaml(ordereddict, filepath):
+    with open(filepath, 'w') as config_file:
+        yaml = YAML()
+        yaml.dump(ordereddict, config_file)  
+
 
 def exif_date(path): 
     f = open(path, 'rb')
@@ -118,7 +147,7 @@ def show_img(image, **kwargs):
     """
     
     ## kwargs
-    max_dim = kwargs.get("max_dim", 1980)
+    max_dim = kwargs.get("max_dim", 1200)
     pos_offset = kwargs.get("position_offset", 25)
     pos_reset = kwargs.get("position_reset", False)
     window_aspect = kwargs.get("aspect", "free")
