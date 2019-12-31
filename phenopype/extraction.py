@@ -5,62 +5,66 @@ import numpy as np
 import numpy.ma as ma
 
 from phenopype.settings import colours
-from phenopype.utils_lowlevel import _auto_line_thickness
-
-from phenopype.preprocessing import show_mask
+from phenopype.utils_lowlevel import _auto_line_thickness, _load_image
 
 #%% methods
 
+# obj_input = p1.PC
 
-def colours(obj_input, **kwargs):
-    ## load image
-    if isinstance(obj_input, str):
-        image = cv2.imread(obj_input)  
-    elif obj_input.__class__.__name__ == "pype_container":
-        image = obj_input.image_mod
-        image_gray = obj_input.image_gray
-        image_bin = obj_input.image_bin
-
-        contour_list_all = obj_input.contour_list
-        
+def colour_values(obj_input, **kwargs):
+    
     ## kwargs
     channels = kwargs.get("channels", ["gray"])
     
-    ## init
-    
-    pp.show_img(image_gray[ry:ry+rh,rx:rx+rw])
+    ## load image and contours
+    image, flag_input = _load_image(obj_input, load="raw")
+    if flag_input == "pype_container":
+        contour_binder = obj_input.contour_binder
+        contour_df = obj_input.contour_df
 
-        
+    ## create forgeround mask
+    image_bin = np.zeros(image.shape[:2], np.uint8)
+    for label, contour in contour_binder.items():
+        image_bin = cv2.fillPoly(image_bin, [contour["contour_points"]], colours.white)
+    foreground_mask = np.array(image_bin, dtype=np.bool)
+
     ## method
-    for contour_list in contour_list_all:
-        for cnt in contour_list:
-            rx,ry,rw,rh = cv2.boundingRect(cnt)
+    if "gray" in channels:
+        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        contour_df["gray_sd"], contour_df["gray_mean"] = "NA", "NA"
+        for label, contour in contour_binder.items():
+            rx,ry,rw,rh = cv2.boundingRect(contour["contour_points"])
+            grayscale =  ma.array(data=image_gray[ry:ry+rh,rx:rx+rw], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
+            contour_df.loc[label]["gray_sd"] = np.std(grayscale)
+            contour_df.loc[label]["gray_mean"]  = np.mean(grayscale)
+            
+    if "rgb" in channels:
+        contour_df["red_sd"], contour_df["green_sd"], contour_df["blue_sd"] = "NA", "NA","NA"
+        contour_df["red_mean"], contour_df["green_mean"], contour_df["blue_mean"] = "NA", "NA","NA"
+        for label, contour in contour_binder.items():
+            rx,ry,rw,rh = cv2.boundingRect(contour["contour_points"])
+            blue =  ma.array(data=image[ry:ry+rh,rx:rx+rw,0], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
+            green =  ma.array(data=image[ry:ry+rh,rx:rx+rw,1], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
+            red =  ma.array(data=image[ry:ry+rh,rx:rx+rw,2], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
+            contour_df.loc[label]["blue_sd"]  = np.std(blue)
+            contour_df.loc[label]["blue_mean"] = np.mean(blue)
+            contour_df.loc[label]["green_sd"]  = np.std(green)
+            contour_df.loc[label]["green_mean"] = np.mean(green)
+            contour_df.loc[label]["red_sd"]  = np.std(red)
+            contour_df.loc[label]["red_mean"] = np.mean(red)
+            
 
-            if "gray" in channels:
-                grayscale =  ma.array(data=image_gray[ry:ry+rh,rx:rx+rw], mask = np.logical_not(image_bin[ry:ry+rh,rx:rx+rw]))
-                grayscale_mean = int(np.mean(grayscale)) 
-                grayscale_sd = int(np.std(grayscale)) 
-
-                    b =  ma.array(data=image[ry:ry+rh,rx:rx+rw,], mask = np.logical_not(thresh[ry:ry+rh,rx:rx+rw]))
-                    g =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,1], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw]))
-                    r =  ma.array(data=self.image[ry:ry+rh,rx:rx+rw,2], mask = np.logical_not(self.thresh[ry:ry+rh,rx:rx+rw])))
-                            bgr_mean = (int(np.mean(b)),int(np.mean(g)),int(np.mean(r))) # mean grayscale value
-                            bgr_sd = (int(np.std(b)),int(np.std(g)),int(np.std(r))) # mean grayscale value
-                            cnt_list = cnt_list + [bgr_mean, bgr_sd]
-                            df_column_names = df_column_names + ["bgr_mean","bgr_sd"]
-                                
-                            df_list.append(cnt_list)    
     
     
-                            # DRAW TO ROI
-                            q=kwargs.get("roi_size",300)/2
-                            if label==True:
-                                cv2.putText(self.image_processed,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
-                            cv2.drawContours(self.image_processed, [cnt], 0, colours.red, int(10 * self.resize_factor))
-                            if any("skeletonize" in o for o in self.operations):                    
-                                cv2.drawContours(self.image_processed, [skel_contour], 0, colours.green, 2)
+            #                 # DRAW TO ROI
+            #                 q=kwargs.get("roi_size",300)/2
+            #                 if label==True:
+            #                     cv2.putText(self.image_processed,  str(idx) ,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),5,cv2.LINE_AA)
+            #                 cv2.drawContours(self.image_processed, [cnt], 0, colours.red, int(10 * self.resize_factor))
+            #                 if any("skeletonize" in o for o in self.operations):                    
+            #                     cv2.drawContours(self.image_processed, [skel_contour], 0, colours.green, 2)
     
-                    else:
-                        idx_noise += 1
-            else: 
-                print("No objects found - change parameters?")
+            #         else:
+            #             idx_noise += 1
+            # else: 
+            #     print("No objects found - change parameters?")

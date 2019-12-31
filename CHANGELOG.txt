@@ -1,6 +1,10 @@
 Unreleased / planned
 ====================
 
+tutorial:
+- explicit vs. implicit in pype-config (e.g. mask labels)
+
+
 shortterm:
 - update readme (better looks for phenopype)
 - fix tutorials, and make more (by function)

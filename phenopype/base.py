@@ -562,7 +562,7 @@ class scale:
                                    
             ## text position
             text_mm_y = int(temp_canvas2.shape[0]/10)
-            text_mm_x = int(temp_canvas2.shape[1]/50)      
+            text_mm_x = int(temp_canvas2.shape[1]/50)
             text_px_y = text_mm_y + text_mm_y
             text_px_x = text_mm_x            
             

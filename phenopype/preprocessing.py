@@ -1,4 +1,4 @@
-#%%
+#%% modules
 import cv2
 import copy
 import numpy as np
@@ -8,7 +8,7 @@ from phenopype.settings import colours
 from phenopype.utils import show_img
 from phenopype.utils_lowlevel import _auto_line_thickness, _image_viewer
 
-#%%
+#%% methods
 
 def create_mask(obj_input, **kwargs):
     """Mask maker method to draw rectangle or polygon mask onto image.
@@ -30,6 +30,8 @@ def create_mask(obj_input, **kwargs):
         image = cv2.imread(obj_input)  
     elif obj_input.__class__.__name__ == "pype_container":
         image = obj_input.image_mod
+    else:
+        image = obj_input
         
     ## kwargs
     label = kwargs.get("label","mask1")
@@ -108,44 +110,6 @@ def create_mask(obj_input, **kwargs):
     else:
         return MO
 
-def show_mask(obj_input, **kwargs):
-    """Mask maker method to draw rectangle or polygon mask onto image.
-    
-    Parameters
-    ----------        
-    
-    include: bool (default: True)
-        determine whether resulting mask is to include or exclude objects within
-    label: str (default: "area1")
-        passes a label to the mask
-    tool: str (default: "rectangle")
-        zoom into the scale with "rectangle" or "polygon".
-        
-    """
-        
-    ## load image
-    if isinstance(obj_input, str):
-        image = cv2.imread(obj_input)
-    elif obj_input.__class__.__name__ == "pype_container":
-        image = obj_input.image_mod
-        mask_binder = obj_input.mask_binder
-        
-    ## kwargs
-    mask_filter = kwargs.get("filter",mask_binder)
-    line_thickness = kwargs.get("line_thickness", _auto_line_thickness(image))
-    colour = eval("colours." + kwargs.get("colour", "green"))
-
-    ## draw masks from mask obect    
-    for key, value in mask_binder.items():
-        if key in mask_filter:
-            MO = value
-            for (rx1, ry1, rx2, ry2) in MO.mask_list:
-                cv2.rectangle(image, (rx1,ry1), (rx2,ry2), colour, line_thickness)
-                
-    ## return
-    if obj_input.__class__.__name__ == "pype_container":
-        obj_input.image_mod = image
-        return obj_input
 
 
 class mask_data(object):

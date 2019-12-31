@@ -3,11 +3,12 @@ import cv2
 import copy
 import math
 import numpy as np
+import os
+import pandas as pd
+import sys
 
 from phenopype.settings import colours
-from phenopype.utils_lowlevel import _auto_line_thickness
-
-from phenopype.preprocessing import show_mask
+from phenopype.utils_lowlevel import _load_image, _auto_line_thickness
 
 #%% settings
 
@@ -15,21 +16,10 @@ inf = math.inf
 
 #%% methods
 
+
+
 def blur(obj_input, **kwargs):
-    ## load image
-    if isinstance(obj_input, str):
-        image = cv2.imread(obj_input)  
-    elif obj_input.__class__.__name__ == "pype_container":
-        on = kwargs.get("on", "gray")
-        if on == "bin":
-            image = obj_input.image_bin
-        elif on == "raw":
-            image = obj_input.image_mod
-        elif on == "gray":
-            image = obj_input.image_gray
-    else:
-        image = obj_input
-        
+
     ## kwargs
     method = kwargs.get("method","averaging")
     kernel_size = kwargs.get("kernel_size",5)
@@ -37,6 +27,9 @@ def blur(obj_input, **kwargs):
         kernel_size = kernel_size + 1
     sigma_color = kwargs.get("sigma_color",75)
     sigma_space = kwargs.get("sigma_space",75)
+
+    ## load image
+    image, flag_input = _load_image(obj_input)
 
     ## method
     if method=="averaging":
@@ -49,158 +42,90 @@ def blur(obj_input, **kwargs):
         image_mod = cv2.bilateralFilter(image,kernel_size,sigma_color,sigma_space)
     else:
         image_mod = image
-        
+
     ## return
-    if obj_input.__class__.__name__ == "pype_container":
-        if on == "bin":
-            obj_input.image_bin = image_mod
-        elif on == "raw":
-            obj_input.image_mod = image_mod
-        elif on == "gray":
-            obj_input.image_gray = image_mod
-        return obj_input
+    if flag_input=="pype_container":
+        obj_input.image_mod = image_mod
     else:
         return image_mod
-        
+
 
 def find_contours(obj_input, **kwargs):
-    ## load image
-    if obj_input.__class__.__name__ == "pype_container":
-        image = obj_input.image_bin
     
     ## kwargs
     retr = kwargs.get("retrieval", "ext")
-    retr_alg = {"ext": cv2.RETR_EXTERNAL, 
-                "list": cv2.RETR_LIST, 
-                "tree": cv2.RETR_TREE, 
-                "ccomp": cv2.RETR_CCOMP,
-                "flood": cv2.RETR_FLOODFILL}
+    retr_alg = {"ext": cv2.RETR_EXTERNAL, ## only external
+                "list": cv2.RETR_LIST, ## all contours
+                "tree": cv2.RETR_TREE, ## fully hierarchy
+                "ccomp": cv2.RETR_CCOMP, ## outer perimeter and holes
+                "flood": cv2.RETR_FLOODFILL} ## not sure what this does
     approx = kwargs.get("approximation", "simple")
-    approx_alg = {"none": cv2.CHAIN_APPROX_NONE, 
-                "simple": cv2.CHAIN_APPROX_SIMPLE, 
-                "L1": cv2.CHAIN_APPROX_TC89_L1, 
-                "KCOS": cv2.CHAIN_APPROX_TC89_KCOS}    
-    offset_coords = kwargs.get("offset_coords", None)
-    
+    approx_alg = {"none": cv2.CHAIN_APPROX_NONE, ## no approximation of the contours, all points
+                "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
+                "L1": cv2.CHAIN_APPROX_TC89_L1, ## algorithm 1
+                "KCOS": cv2.CHAIN_APPROX_TC89_KCOS} ## algorithm 2
+    offset_coords = kwargs.get("offset_coords", (0,0))
+    min_nodes, max_nodes = kwargs.get('min_nodes', 3), kwargs.get('max_nodes', inf)
+    min_diameter, max_diameter = kwargs.get('min_diameter', 0), kwargs.get('max_diameter', inf)
+    min_area, max_area = kwargs.get('min_area', 0), kwargs.get('max_area', inf)
+
+    ## load image and check if binary exists
+    if obj_input.__class__.__name__ == "pype_container":
+        if not obj_input.image_bin.__class__.__name__ == "ndarray":
+            threshold(obj_input, colourspace="gray")
+        image, flag_input = _load_image(obj_input)
+
     ## method
     image_mod, contours, hierarchy = cv2.findContours(image=image, 
                                                 mode=retr_alg[retr],
                                                 method=approx_alg[approx],
-                                                offset=offset_coords)  
-    ## return
-    if obj_input.__class__.__name__ == "pype_container":
-        obj_input.image_mod = image_mod
-        obj_input.contour_list.append(contours)
-        obj_input.contour_hierarchy.append(hierarchy)
-        return obj_input
-    else:
-        return image_mod, contours, hierarchy
-
-
-def draw_contours(obj_input, **kwargs):
-    ## load image
-    if isinstance(obj_input, str):
-        image = cv2.imread(obj_input)       
-    elif obj_input.__class__.__name__ == "pype_container":
-        image = copy.deepcopy(obj_input.image)
-        contour_list = obj_input.contour_list
-    else:
-        image = obj_input
-     
-    ## kwargs
-    try:
-        contour_list
-    except NameError:
-        contour_list = kwargs.get("contour_list")
-    offset_coords = kwargs.get("offset_coords", None)
-    thickness = kwargs.get("thickness", _auto_line_thickness(image))
-    level = kwargs.get("level", 3)
-    colour = eval("colours." + kwargs.get("colour", "red"))
-    idx = kwargs.get("idx", 0)
-
-    ## method
-    if any(isinstance(i, list) for i in contour_list):
-        contours = []
-        for sublist in contour_list:
-            for item in sublist:
-                contours.append(item)
-    else:
-        contours = contour_list
-    for cnt in contours:
-        image = cv2.drawContours(image=image, 
-                        contours=[cnt], 
-                        contourIdx = idx,
-                        thickness=thickness, 
-                        color=colour, 
-                        maxLevel=level,
-                        offset=offset_coords)
+                                                offset=offset_coords)
         
-    ## return
-    image_mod = image
-    if obj_input.__class__.__name__ == "pype_container":
-        obj_input.image_mod = image_mod
-        return obj_input
-    else:
-        return image_mod
-    
-    
-def filter_contours(obj_input, **kwargs):
-    ## load image
-    if isinstance(obj_input, str):
-        image = cv2.imread(obj_input)  
-    elif obj_input.__class__.__name__ == "pype_container":
-        contour_list_all = obj_input.contour_list
-
-    ## kwargs
-    min_nodes, max_nodes = kwargs.get('min_nodes', 5), kwargs.get('max_nodes', inf)
-    min_diameter, max_diameter = kwargs.get('min_diameter', 0), kwargs.get('max_diameter', inf)
-    min_area, max_area = kwargs.get('min_area', 0), kwargs.get('max_area', inf)
-
-    ## method
-    if contour_list_all:
-        contour_list_all_new = []
-        for contour_list in contour_list_all:
-            contour_list_new = []
-            for cnt in contour_list:
-
-                ## quality check
+    ## filtering
+    if contours:
+        contour_binder = {}
+        contour_df = {}
+        idx = 0
+        for contour, hier in zip(contours,hierarchy[0]):
+            ## number of contour nodes
+            if len(contour) > min_nodes and len(contour) < max_nodes:
+                center, radius = cv2.minEnclosingCircle(contour)
+                x,y = int(center[0]), int(center[1])
+                diameter = int(radius*2)
+                area = int(cv2.contourArea(contour))
                 if all([
-                        ## number of contour nodes
-                        len(cnt) > min_nodes and len(cnt) < max_nodes,
-                        ## contour diameter
-                        int(cv2.minEnclosingCircle(cnt)[1]*2) > min_diameter and int(cv2.minEnclosingCircle(cnt)[1]*2) < max_diameter,
-                        ## contour area
-                        int(cv2.contourArea(cnt)) > min_area and int(cv2.contourArea(cnt)) < max_area
-                        ]):
-                    contour_list_new.append(cnt)
-            contour_list_all_new.append(contour_list_new)
-                
+                    ## contour diameter
+                    diameter > min_diameter and diameter < max_diameter,
+                    ## contour area
+                    area > min_area and area < max_area
+                    ]):
+                    
+                        idx += 1
+                        contour_label = str(idx).zfill(3)
+                        contour_df[contour_label] = {"label":contour_label, 
+                                                     "x":x,
+                                                     "y":y,
+                                                     "diameter": diameter, 
+                                                     "area":area}
+                        hier = [hier[2], hier[3]]
+                        contour_binder[contour_label] = {"contour_points":contour,
+                                          "contour_hierarchy":hier}
     else:
-        contour_list_all_new = contour_list_all
+        contours, hierarchy, contour_df, contour_binder = [], [], {}, {}
+        
+    contour_df = pd.DataFrame(contour_df).T
+    
+    ## return
+    if flag_input=="pype_container":
+        obj_input.contours = contours
+        obj_input.hierarchy = hierarchy
+        obj_input.contour_df = contour_df
+        obj_input.contour_binder = contour_binder
 
-    if obj_input.__class__.__name__ == "pype_container":
-        obj_input.contour_list = contour_list_all_new
-        # obj_input.contour_hierarchy =
-        return obj_input
-    else:
-        return contour_list_all_new
-    
-    
-    
+
+
+
 def morphology(obj_input, **kwargs):
-    ## load image
-    if isinstance(obj_input, str):
-        image = cv2.imread(obj_input)
-    elif obj_input.__class__.__name__ == "pype_container":
-        on = kwargs.get("on", "bin")
-        if on == "bin":
-            image = obj_input.image_bin
-        elif on == "raw":
-            image = obj_input.image_mod
-        elif on == "gray":
-            image = obj_input.image_gray
-    else:
-        image = obj_input
     
     ## kwargs   
     kernel_size = kwargs.get("kernel_size", 5)
@@ -218,7 +143,10 @@ def morphology(obj_input, **kwargs):
                       "tophad ": cv2.MORPH_TOPHAT, 
                       "blackhat": cv2.MORPH_BLACKHAT, 
                       "hitmiss": cv2.MORPH_HITMISS}  
-    iterations = kwargs.get("iterations", 1)   
+    iterations = kwargs.get("iterations", 1)
+    
+    ## load image
+    image, flag_input = _load_image(obj_input)
     
     ## method
     image_mod = cv2.morphologyEx(image, 
@@ -227,34 +155,36 @@ def morphology(obj_input, **kwargs):
                                  iterations = iterations)
 
     ## return
-    if obj_input.__class__.__name__ == "pype_container":
-        if on == "bin":
-            obj_input.image_bin = image_mod
-        elif on == "raw":
-            obj_input.image_mod = image_mod
-        elif on == "gray":
-            obj_input.image_gray = image_mod
-        return obj_input
+    if flag_input=="pype_container":
+        obj_input.image_mod = image_mod
     else:
         return image_mod
 
 
 
 def threshold(obj_input, **kwargs):
-    ## load image
-    if isinstance(obj_input, str):
-        image = cv2.imread(obj_input)       
-    elif obj_input.__class__.__name__ == "pype_container":
-        image = obj_input.image_gray
-    else:
-        image = obj_input
     
     ## kwargs
-    method = kwargs.get("method", "otsu")
     blocksize = kwargs.get("blocksize", 99)
     constant = kwargs.get("constant", 1)
+    colourspace = kwargs.get("colourspace", "gray")
+    method = kwargs.get("method", "otsu")
     value = kwargs.get("value", 127)
-    
+
+    ## load image
+    image, flag_input = _load_image(obj_input)
+
+    ## colourspace
+    if len(image.shape)==3:
+        if colourspace == "gray" or colourspace=="grayscale":
+            image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+        elif colourspace == "g" or colourspace== "green":
+            image = image[:,:,0]
+        elif colourspace == "r" or colourspace== "red":
+            image = image[:,:,1]
+        elif colourspace == "blue" or colourspace== "b":
+            image = image[:,:,2]
+            
     ## method
     if method == "otsu":
         ret, image_mod = cv2.threshold(image, 0, 255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -264,21 +194,17 @@ def threshold(obj_input, **kwargs):
         ret, image_mod = cv2.threshold(image, value, 255,cv2.THRESH_BINARY_INV)  
     else:
         image_mod = image
-        
+
     ## apply mask
-    if len(obj_input.mask_binder)>0:
+    if flag_input=="pype_container":
         for key, value in obj_input.mask_binder.items():
             MO = value
             if MO.include == True:
                 image_mod[np.invert(MO.mask_bool)] = 0
-    
+
     ## return
-    if obj_input.__class__.__name__ == "pype_container":
+    if flag_input=="pype_container":
         obj_input.image_bin = image_mod
-        return obj_input
+        obj_input.image_mod = image_mod
     else:
         return image_mod
-    
-    
-    
-    

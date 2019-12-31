@@ -1,3 +1,4 @@
+#%% modules
 import exifread
 import cv2
 import numpy as np
@@ -30,7 +31,7 @@ from phenopype.settings import colours
 #         file = yaml.load(string)
 #     return file
 
-#%% modules
+#%% methods
 
 class yaml_file_monitor:
     def __init__(self, filepath, **kwargs):

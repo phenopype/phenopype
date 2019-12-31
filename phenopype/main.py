@@ -11,6 +11,7 @@ import pprint
 import ruamel.yaml
 import shutil
 import subprocess
+import sys 
 
 from shutil import copyfile
 from ruamel.yaml.comments import CommentedMap as ordereddict
@@ -18,7 +19,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 from phenopype.utils import yaml_file_monitor, load_yaml, save_yaml
 from phenopype.utils_lowlevel import _image_viewer, _del_rw, _make_pype_template
 from phenopype.settings import pype_presets, colours
-from phenopype import preprocessing, segmentation
+from phenopype import preprocessing, segmentation, extraction, visualization
 
 #%% settings
 
@@ -352,7 +353,8 @@ class pype:
         ## kwargs
         print_settings = kwargs.get("print_settings",False)
         flag_return = kwargs.get("return_results",False)   
-        steps = kwargs.get("steps",[]) 
+        steps_exclude = kwargs.get("exclude",[]) 
+        steps_include = kwargs.get("include",[]) 
 
         ## fetch pype configuration from file or preset
         pype_config = kwargs.get("pype_config", None)
@@ -385,43 +387,70 @@ class pype:
 
         self.FM = yaml_file_monitor(self.pype_config_file, print_settings=print_settings)
         update = {}
+        iv = None
         
-        idx= 0
-        while True:      
-            if len(steps)==0:
-                break
+        while True:
             
-            ## reset image in pype container
-            self.PC.image_mod = copy.deepcopy(self.PC.image)
-            self.PC.contour_list = []
-
-            ## get yaml dump
+            ## reset pype container
+            flag_vis = False
+            self.PC.reset(components=["contour_list"])
+            
+            ## get config file and assemble pype
             self.pype_config = self.FM.content
-            
+            if not steps_include:
+                steps_pre = []
+                for item in self.pype_config:
+                    steps_pre.append(item)
+                steps = [e for e in steps_pre if e not in steps_exclude]
+            elif steps_include:
+                steps = steps_include
+
             ## apply pype
             for step in steps:
+                if step == "pype_header":
+                    continue
                 for item in self.pype_config[step]:
-                    if isinstance(item, str):
-                        method_name = item
-                        method_args = {}
-                    else:
-                        method_name = list(item)[0]
-                        method_args = dict(list(dict(item).values())[0])
-                    method_loaded = eval(step + "." + method_name) 
-                    self.PC = method_loaded(self.PC, **method_args) 
+                    try:
+                        ## construct method name and arguments
+                        if isinstance(item, str):
+                            method_name = item
+                            method_args = {}
+                        else:
+                            method_name = list(item)[0]
+                            method_args = dict(list(dict(item).values())[0])
+                            
+                        ## run method
+                        method_loaded = eval(step + "." + method_name)
+                        method_loaded(self.PC, **method_args)
+
+                        ## check if visualization argument is given in config
+                        if method_name == "show_image":
+                            flag_vis = True
+                            
+                    except Exception as ex:
+                        print(step + "." + method_name + ": " + str(ex.__class__.__name__) + " - " + str(ex))
 
             ## show image and hold
-            iv = _image_viewer(self.PC.image_mod, prev_attributes=update)
-            
-            ## pass on settings for next call
-            update = iv.__dict__
-            
+            try:
+                if not flag_vis:
+                    self.PC = visualization.show_image(self.PC)
+                iv = _image_viewer(self.PC.canvas, prev_attributes=update)
+    
+                ## pass on settings for next call
+                update = iv.__dict__
+
+            except Exception as ex:
+                print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
+
             ## close
-            if iv.done == True:
-                break
-        
+            if iv:
+                if iv.done:
+                    self.FM.stop()
+                    break
+
         if flag_return:
             return self.PC
+
 
 
 class pype_container(object):
@@ -436,14 +465,12 @@ class pype_container(object):
             image can be provided as path to file or diretory (phenpype dir), as phenopype-binder object (dict), 
             or as numpy array
         """
-        self.image = image
         
+        ## images
+        self.image = image
         self.image_mod = copy.deepcopy(self.image)
-        if len(image.shape)==3:
-            self.image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            self.image_gray_mod = copy.deepcopy(self.image_gray)
-
         self.image_bin = None
+        self.canvas = None
         
         self.contour_list = []
         self.contour_hierarchy = []   
@@ -452,14 +479,10 @@ class pype_container(object):
     def reset(self, components=[]):
         
         self.image_mod = copy.deepcopy(self.image)
-        if len(image.shape)==3:
-            self.image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            self.image_gray_mod = copy.deepcopy(self.image_gray)
-
         self.image_bin = None
+        self.canvas = None
 
-        
-        if "contours" in components or "contour" in components:
+        if "contour" in components or "contours" in components or "contour_list" in components:
             self.contour_list = []
             self.contour_hierarchy = []
         if "mask" in components or "masks" in components:

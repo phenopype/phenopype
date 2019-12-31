@@ -1,4 +1,4 @@
-#%%
+#%% modules
 import cv2
 import copy
 import datetime
@@ -10,10 +10,62 @@ import numpy as np
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
-from phenopype.settings import pype_presets, colours
+from phenopype.settings import colours
 
 
-#%%
+#%% methods
+
+def _auto_line_thickness(image, **kwargs):
+    factor = kwargs.get("factor", 0.001)
+    image_height,image_width = image.shape[0:2]
+    image_diagonal = (image_height + image_width) /2
+    line_tickness = int(factor * image_diagonal)
+
+    return line_tickness
+
+def _auto_text_thickness(image, **kwargs):
+    factor = kwargs.get("factor", 0.0005)
+    image_height,image_width = image.shape[0:2]
+    image_diagonal = (image_height + image_width) /2
+    text_tickness = int(factor * image_diagonal)
+
+    return text_tickness
+
+def _auto_text_size(image, **kwargs):
+    factor = kwargs.get("factor", 0.00025)
+    image_height,image_width = image.shape[0:2]
+    image_diagonal = (image_height + image_width) /2
+    text_size = int(factor * image_diagonal)
+
+    return text_size
+
+def _load_image(obj_input, **kwargs):
+    ##kwargs 
+    flag_load = kwargs.get("load","mod")
+    if obj_input.__class__.__name__ == "str":
+        flag_input = "str"
+        if os.path.isfile(obj_input):
+            image = cv2.imread(obj_input)
+        else:
+            sys.exit("invalid image path")
+    elif obj_input.__class__.__name__ == "ndarray":
+        flag_input = "ndarray"
+        image = obj_input
+    elif obj_input.__class__.__name__ == "pype_container":
+        flag_input = "pype_container"
+        if flag_load == "mod":
+            image = copy.deepcopy(obj_input.image_mod)
+        elif flag_load == "canvas":
+            if obj_input.canvas.__class__.__name__ == "ndarray":
+                image = copy.deepcopy(obj_input.canvas)
+            else:
+                image = copy.deepcopy(obj_input.image)
+        elif flag_load == "raw":
+            image = copy.deepcopy(obj_input.image)
+    return image, flag_input
+
+
+
 def _make_pype_template(**kwargs):
     
     ## kwargs
@@ -37,16 +89,6 @@ def _make_pype_template(**kwargs):
 def _del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)
     os.remove(name)
-
-
-
-def _auto_line_thickness(image, **kwargs):
-    image_height = image.shape[0]
-    image_width = image.shape[1]
-    perc_img_diag = kwargs.get("perc_img_diag", 0.002)
-    line_tickness = int(perc_img_diag * ((image_width + image_height)/2))
-
-    return line_tickness
 
 
 
