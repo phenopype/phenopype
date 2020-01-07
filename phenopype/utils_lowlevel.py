@@ -10,7 +10,7 @@ import numpy as np
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
-from phenopype.settings import colours
+from phenopype.settings import colours, pype_presets
 
 
 #%% methods
@@ -66,19 +66,29 @@ def _load_image(obj_input, **kwargs):
 
 
 
-def _make_pype_template(**kwargs):
+def _make_pype_template(name, preset, **kwargs):
     
     ## kwargs
-    pype_name = kwargs.get("name","pipeline1")
-    preset_name = kwargs.get("preset","config1")
+    pype_name = name
+    preset_name = preset
+    
+    image_data = kwargs.get("attributes_file", None)
         
     ## load preset
-    pype_config = ordereddict([('pype_header', 
-                        [ordereddict([('name', pype_name)]), 
-                         ordereddict([('preset', preset_name)]), 
-                         ordereddict([('created_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
-                         ordereddict([('last_used_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
-                         ordereddict([('modified_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))])])])
+    # pype_config = ordereddict([('pype_header', 
+    #                     [ordereddict([('name', pype_name)]), 
+    #                      ordereddict([('preset', preset_name)]), 
+    #                      ordereddict([('created_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
+    #                      ordereddict([('last_used_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
+    #                      ordereddict([('modified_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))])])])
+    
+    
+    pype_config = {"pype_info":
+                   {"name": pype_name,
+                    "preset": preset_name,
+                    "date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
+                    "date_modified": datetime.datetime.today().strftime('%Y%m%d_%H%M%S')}
+                   }
     yaml = YAML()
     preset = yaml.load(eval("pype_presets." + preset_name))
     pype_config.update(preset)

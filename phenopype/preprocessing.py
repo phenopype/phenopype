@@ -2,11 +2,14 @@
 import cv2
 import copy
 import numpy as np
+import os
 import sys 
 
+from ruamel.yaml.comments import CommentedMap as ordereddict
+
 from phenopype.settings import colours
-from phenopype.utils import show_img
-from phenopype.utils_lowlevel import _auto_line_thickness, _image_viewer
+from phenopype.utils import show_img, load_yaml, save_yaml, show_yaml
+from phenopype.utils_lowlevel import _image_viewer, _load_image
 
 #%% methods
 
@@ -24,16 +27,9 @@ def create_mask(obj_input, **kwargs):
         zoom into the scale with "rectangle" or "polygon".
         
     """
-        
-    ## load image
-    if isinstance(obj_input, str):
-        image = cv2.imread(obj_input)  
-    elif obj_input.__class__.__name__ == "pype_container":
-        image = obj_input.image_mod
-    else:
-        image = obj_input
-        
+
     ## kwargs
+    skip = False
     label = kwargs.get("label","mask1")
     max_dim = kwargs.get("max_dim", 1000)
     include = kwargs.get("include",True)
@@ -41,69 +37,80 @@ def create_mask(obj_input, **kwargs):
     flag_tool = kwargs.get("tool","rectangle")
     flag_overwrite = kwargs.get("overwrite", False)
     
+    ## load image and check if pp-project
+    image, flag_input = _load_image(obj_input)
+    if obj_input.flag_pp_proj:
+        attr = load_yaml(os.path.join(obj_input.dirpath, "attributes.yaml"))
+
     ## check if mask exists 
-    if obj_input.__class__.__name__ == "pype_container":
-        if label in obj_input.mask_binder:
+    if flag_input == "pype_container":
+        if obj_input.flag_pp_proj:
+            if "masks" in attr:
+                if label in attr["masks"] and not flag_overwrite:
+                    skip = True
+                    coords = eval(attr["masks"][label]["coords"])
+        elif label in obj_input.mask_binder:
             if not flag_overwrite:
                 return obj_input
-            else:
-                pass
-    
-    ## method
-    iv_object = _image_viewer(image, 
-                              mode="interactive", 
-                              max_dim = max_dim, 
-                              tool=flag_tool)
-    
-    ## draw masks into black canvas
-    zeros = np.zeros(image.shape[0:2], np.uint8)
-    if flag_tool == "rectangle" or flag_tool == "box":
-        for rect in iv_object.rect_list:
-            pts = np.array(((rect[0], rect[1]), (rect[2], rect[1]), (rect[2], rect[3]), (rect[0], rect[3])), dtype=np.int32)
-            mask_bin = cv2.fillPoly(zeros, [pts], colours.white)
-    elif flag_tool == "polygon" or flag_tool == "free":
-        for poly in iv_object.poly_list:
-            pts = np.array(poly, dtype=np.int32)
-            mask_bin = cv2.fillPoly(zeros, [pts], colours.white)
 
-    ## create boolean mask
+    ## method
+    if not skip:
+        iv_object = _image_viewer(image, 
+                                  mode="interactive", 
+                                  max_dim = max_dim, 
+                                  tool=flag_tool)
+        coords = []
+        if flag_tool == "rectangle" or flag_tool == "box":
+            for rect in iv_object.rect_list:
+                pts = [(rect[0], rect[1]), (rect[2], rect[1]), (rect[2], rect[3]), (rect[0], rect[3]),(rect[0], rect[1])]
+                coords.append(pts)
+        elif flag_tool == "polygon" or flag_tool == "free":
+            for poly in iv_object.poly_list:
+                pts = np.array(poly, dtype=np.int32)
+                coords.append(pts)
+
+    ## create binary mask and boolean mask
+    mask_bin = np.zeros(image.shape[0:2], np.uint8)
+    for sub_coords in coords:
+        cv2.fillPoly(mask_bin, [np.array(sub_coords, dtype=np.int32)], colours.white)
     mask_bool = np.array(mask_bin, dtype=bool)
-    if include == False:
-        mask_bool = np.invert(mask_bool)
+
         
     ## create overlay
     overlay = np.zeros(image.shape, np.uint8) # make overlay
     overlay[:,:,2] = 200 # start with all-red overlay
-    overlay[mask_bool,1] = 200   
-    overlay[mask_bool,2] = 0   
+    if include:
+        overlay[mask_bool,1], overlay[mask_bool,2] = 200, 0
+    else:
+        overlay[np.invert(mask_bool),1], overlay[np.invert(mask_bool),2] = 200, 0
     mask_overlay = cv2.addWeighted(image, .7, overlay, 0.5, 0)
-    
-    ## show image
-    if flag_show:
-        show_img(mask_overlay)
-    if flag_tool == "rectangle" or flag_tool == "box":
-        mask_list = iv_object.rect_list
-    elif flag_tool == "polygon" or flag_tool == "free":
-        mask_list = iv_object.poly_list
-        
+
     ## create mask data object
-    MO = mask_data(mask_list=mask_list, 
+    MO = mask_data(coords=coords, 
                      mask_overlay=mask_overlay, 
                      mask_bin=mask_bin, 
                      mask_bool = mask_bool, 
                      label=label,
                      include=include)
-    
-    # MO.__class__.__name__ = label
-    
-    ## window control
+
+    ## show image with window control
+    if flag_show:
+        show_img(mask_overlay)
     if cv2.waitKey() == 13:
         cv2.destroyAllWindows()
     elif cv2.waitKey() == 27:
         cv2.destroyAllWindows()
         sys.exit("Esc: exit phenopype process")    
-    
-    ## return
+
+    ## if pp-project, add to attributes
+    if obj_input.flag_pp_proj:
+        mask = ordereddict([("include",include),("coords",str(coords))])
+        if not "masks" in attr:
+            attr["masks"] = {}
+        attr["masks"][label] = mask
+        save_yaml(attr, os.path.join(obj_input.dirpath, "attributes.yaml"))
+
+    ## return mask
     if obj_input.__class__.__name__ == "pype_container":
         obj_input.mask_binder[label] = MO
         return obj_input
@@ -111,10 +118,9 @@ def create_mask(obj_input, **kwargs):
         return MO
 
 
-
 class mask_data(object):
     """ This is a mask-data object where the image and other data 
-     is stored that can be passed on between pype-steps
+      is stored that can be passed on between pype-steps
     
     Parameters
     ----------
@@ -133,13 +139,11 @@ class mask_data(object):
         flag whether mask area is included or excluded
         
     """    
-    def __init__(self, mask_list, mask_overlay, mask_bin, mask_bool, label, include):
+    def __init__(self, coords, mask_overlay, mask_bin, mask_bool, label, include):
         self.label = label
         self.include = include
+        self.coords = coords
         self.mask_overlay = mask_overlay
         self.mask_bin = mask_bin
         self.mask_bool = mask_bool
-        self.mask_list = mask_list
-
-        
 

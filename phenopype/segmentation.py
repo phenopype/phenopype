@@ -83,47 +83,52 @@ def find_contours(obj_input, **kwargs):
         
     ## filtering
     if contours:
-        contour_binder = {}
+        contour_dict = {}
         contour_df = {}
         idx = 0
         for contour, hier in zip(contours,hierarchy[0]):
+            
             ## number of contour nodes
             if len(contour) > min_nodes and len(contour) < max_nodes:
                 center, radius = cv2.minEnclosingCircle(contour)
                 x,y = int(center[0]), int(center[1])
                 diameter = int(radius*2)
                 area = int(cv2.contourArea(contour))
+                if hier[3] == -1:
+                    cont_order = "parent"
+                else:
+                    cont_order = "child"
                 if all([
                     ## contour diameter
                     diameter > min_diameter and diameter < max_diameter,
                     ## contour area
-                    area > min_area and area < max_area
+                    area > min_area and area < max_area,
                     ]):
-                    
                         idx += 1
-                        contour_label = str(idx).zfill(3)
+                        contour_label = str(idx)
                         contour_df[contour_label] = {"label":contour_label, 
                                                      "x":x,
                                                      "y":y,
                                                      "diameter": diameter, 
-                                                     "area":area}
-                        hier = [hier[2], hier[3]]
-                        contour_binder[contour_label] = {"contour_points":contour,
-                                          "contour_hierarchy":hier}
+                                                     "area":area,
+                                                     "order": cont_order
+                                                     }
+                        contour_dict[contour_label] = {"coords":contour,
+                                                       "idx_child":hier[2],
+                                                       "idx_parent":hier[3],
+                                                       "order":cont_order,
+                                                       "center":(x,y)}
     else:
-        contours, hierarchy, contour_df, contour_binder = [], [], {}, {}
-        
+        contour_df, contour_dict = [], [], {}, {}
+
     contour_df = pd.DataFrame(contour_df).T
-    
+    df_result = pd.concat([pd.concat([obj_input.df_result]*len(contour_df)).reset_index(drop=True), contour_df.reset_index(drop=True)], axis=1)
+    df_result.index = df_result.index + 1
+
     ## return
     if flag_input=="pype_container":
-        obj_input.contours = contours
-        obj_input.hierarchy = hierarchy
-        obj_input.contour_df = contour_df
-        obj_input.contour_binder = contour_binder
-
-
-
+        obj_input.contours = contour_dict
+        obj_input.df_result = df_result
 
 def morphology(obj_input, **kwargs):
     
@@ -197,10 +202,17 @@ def threshold(obj_input, **kwargs):
 
     ## apply mask
     if flag_input=="pype_container":
-        for key, value in obj_input.mask_binder.items():
+        mask_binder = copy.deepcopy(obj_input.mask_binder)
+        mask_in = np.zeros(image_mod.shape, np.uint8)
+        mask_ex = np.zeros(image_mod.shape, np.uint8)
+        for key, value in mask_binder.items():
             MO = value
-            if MO.include == True:
-                image_mod[np.invert(MO.mask_bool)] = 0
+            if MO.include:
+                mask_in = mask_in + MO.mask_bool.astype(int)
+            else:
+                mask_ex = mask_ex - MO.mask_bool.astype(int)
+        image_mod[mask_in==0] = 0
+        image_mod[mask_ex<0] = 0
 
     ## return
     if flag_input=="pype_container":

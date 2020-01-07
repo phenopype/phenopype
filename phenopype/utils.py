@@ -6,6 +6,7 @@ import os
 import sys
 
 from collections import Counter
+from PIL import Image, ExifTags
 from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
@@ -13,23 +14,10 @@ from watchdog.events import PatternMatchingEventHandler
 from phenopype.utils_lowlevel import _image_viewer #, _yaml_map_constructor
 from phenopype.settings import colours
 
-#%% alternative yaml loader
+#%% settings
 
-# from ruamel.yaml.constructor import SafeConstructor
+Image.MAX_IMAGE_PIXELS = 999999999
 
-# SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _yaml_map_constructor)
-
-# def load_yaml(string):
-#     if os.path.isfile(string):
-#         yaml = ruamel.yaml.YAML(typ='safe')
-#         yaml.allow_duplicate_keys = True
-#         with open(string, 'r') as file:
-#             file = yaml.load(file)
-#     else:
-#         yaml = ruamel.yaml.YAML(typ='safe')
-#         yaml.allow_duplicate_keys = True
-#         file = yaml.load(string)
-#     return file
 
 #%% methods
 
@@ -85,11 +73,57 @@ def save_yaml(ordereddict, filepath):
         yaml.dump(ordereddict, config_file)  
 
 
-def exif_date(path): 
-    f = open(path, 'rb')
-    tags = exifread.process_file(f)
-    t = str(tags["EXIF DateTimeOriginal"])
-    return t[0:4] + "-" + t[5:7] + "-" + t[8:10] + " " + t[11:20]
+
+def exif_data(image_path): 
+    
+    ## open image and check size
+    img = Image.open(image_path)
+    if img.size[0]*img.size[1] > 125000000:
+        print("WARNING - large image. Expect slow processing, and consider resizing with the \"raw_mode\" option (check api-help)")
+    elif img.size[0]*img.size[1] > 250000000:
+        print("WARNING - extremely large image. Expect very slow processing, some operations will take up to and consider resizing with the \"raw_mode\" option (check api-help)")
+
+    ## populate dictionary
+    exif_ret = {}
+    exif_data = {}
+    fields = {"DateTimeOriginal": "date_taken",
+              "DateTime": "date_modified",
+              "Model": "camera_model",
+              "ExposureTime": "exposure_time", 
+              "ISOSpeedRatings": "iso_speed",
+              "FNumber": "f_number",
+              "XResolution":"resolution_dpi",
+              "LensModel": "lens_model"}
+    try:
+        for k, v in img._getexif().items():
+            if k in ExifTags.TAGS:
+                exif_ret[ExifTags.TAGS[k]] = v
+    except Exception as ex:
+        print(ex)
+    
+    ## rename and refine exif_data
+    for field, field_renamed in fields.items():
+        if field in exif_ret:
+            exif_data[field_renamed] = exif_ret[field]
+        else:
+            exif_data[field_renamed] = None
+    if exif_data["date_taken"]:
+        exif_data["date_taken"] = exif_data["date_taken"].replace(":","").replace(" ","_")
+    if exif_data["date_modified"]:
+        exif_data["date_modified"] = exif_data["date_modified"].replace(":","").replace(" ","_")
+    if exif_data["exposure_time"]:
+        exif_data["exposure_time"] = str(exif_data["exposure_time"][0]) + "/" + str(exif_data["exposure_time"][1]) 
+    if exif_data["f_number"]:
+        exif_data["f_number"] = "f/" + str(exif_data["f_number"][0])
+    if exif_data["resolution_dpi"]:
+        exif_data["resolution_dpi"] = str(exif_data["resolution_dpi"][0]) 
+    exif_data["size_xy_px"] = str(img.size)
+    
+    img.close()
+    
+    return exif_data
+
+
 
 def avgit(x):
     return x.sum(axis=0)/np.shape(x)[0]

@@ -13,7 +13,6 @@ inf = math.inf
 
 #%% methods
 
-
 def show_image(obj_input, **kwargs):
     
     ## kwargs
@@ -38,7 +37,6 @@ def show_image(obj_input, **kwargs):
     if len(obj_input.canvas.shape)<3:
         obj_input.canvas = cv2.cvtColor(obj_input.canvas, cv2.COLOR_GRAY2BGR)
 
-
     return obj_input
 
 
@@ -58,30 +56,20 @@ def show_contours(obj_input, contour_list=[],**kwargs):
     text_size = kwargs.get("text_size", _auto_text_size(image))
 
     if flag_input == "pype_container":
-        contour_binder = obj_input.contour_binder
-        contour_df = obj_input.contour_df
+        contours = obj_input.contours
 
-    # ## method
-    # if any(isinstance(i, list) for i in contour_list):
-    #     contours = []
-    #     for sublist in contour_list:
-    #         for item in sublist:
-    #             contours.append(item)
-    # else:
-    #     contours = contour_list
-        
     idx = 0
     colour_mask = copy.deepcopy(image)
 
-    for label, contour in contour_binder.items():
-        if not contour["contour_hierarchy"][1] == -1:
+    for label, contour in contours.items():
+        if contour["order"] == "child":
             fill_colour = colours.red
             line_colour = colours.red
         else:
             fill_colour = line_colour
         if flag_fill > 0:
             cv2.drawContours(image=colour_mask, 
-                    contours=[contour["contour_points"]], 
+                    contours=[contour["coords"]], 
                     contourIdx = idx,
                     thickness=-1, 
                     color=fill_colour, 
@@ -89,17 +77,16 @@ def show_contours(obj_input, contour_list=[],**kwargs):
                     offset=offset_coords)
         if flag_line_thickness > 0: 
             cv2.drawContours(image=image, 
-                    contours=[contour["contour_points"]], 
+                    contours=[contour["coords"]], 
                     contourIdx = idx,
                     thickness=flag_line_thickness, 
                     color=line_colour, 
                     maxLevel=level,
                     offset=offset_coords)
         if label:
-            centroid_coords = (contour_df.loc[label]["x"],contour_df.loc[label]["y"])
-            cv2.putText(image, label , centroid_coords, cv2.FONT_HERSHEY_SIMPLEX, 
+            cv2.putText(image, label , contour["center"], cv2.FONT_HERSHEY_SIMPLEX, 
                         text_size, text_colour, text_thickness, cv2.LINE_AA)
-            cv2.putText(colour_mask, label , centroid_coords, cv2.FONT_HERSHEY_SIMPLEX, 
+            cv2.putText(colour_mask, label , contour["center"], cv2.FONT_HERSHEY_SIMPLEX, 
                         text_size, text_colour, text_thickness, cv2.LINE_AA)
     image_mod = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) # combine
 
@@ -140,13 +127,13 @@ def show_mask(obj_input, **kwargs):
     else:
         mask_filter = kwargs.get("filter", {})
 
-    ## draw masks from mask obect    
+    ## draw masks from mask obect
     image_mod = image
     for key, value in mask_binder.items():
         if key in mask_filter:
             MO = value
-            for (rx1, ry1, rx2, ry2) in MO.mask_list:
-                cv2.rectangle(image, (rx1,ry1), (rx2,ry2), colour, line_thickness)
+            for coords_sub in MO.coords:
+                image_mod = cv2.polylines(image_mod, [np.array(coords_sub, dtype=np.int32)], False, colour, line_thickness)
 
     ## return
     if flag_input == "pype_container":
