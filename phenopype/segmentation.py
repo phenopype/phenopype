@@ -51,7 +51,7 @@ def blur(obj_input, **kwargs):
 
 
 def find_contours(obj_input, **kwargs):
-    
+
     ## kwargs
     retr = kwargs.get("retrieval", "ext")
     retr_alg = {"ext": cv2.RETR_EXTERNAL, ## only external
@@ -74,13 +74,15 @@ def find_contours(obj_input, **kwargs):
         if not obj_input.image_bin.__class__.__name__ == "ndarray":
             threshold(obj_input, colourspace="gray")
         image, flag_input = _load_image(obj_input)
+    else:
+        image, flag_input = _load_image(obj_input)
 
     ## method
     image_mod, contours, hierarchy = cv2.findContours(image=image, 
                                                 mode=retr_alg[retr],
                                                 method=approx_alg[approx],
                                                 offset=offset_coords)
-        
+
     ## filtering
     if contours:
         contour_dict = {}
@@ -119,10 +121,11 @@ def find_contours(obj_input, **kwargs):
                                                        "order":cont_order,
                                                        "center":(x,y)}
     else:
-        contour_df, contour_dict = [], [], {}, {}
+        contour_df, contour_dict = {}, {}
 
     contour_df = pd.DataFrame(contour_df).T
-    df_result = pd.concat([pd.concat([obj_input.df_result]*len(contour_df)).reset_index(drop=True), contour_df.reset_index(drop=True)], axis=1)
+    df_result = pd.concat([pd.concat([obj_input.df_result]*len(contour_df)).reset_index(drop=True), 
+                           contour_df.reset_index(drop=True)], axis=1)
     df_result.index = df_result.index + 1
 
     ## return
@@ -168,7 +171,25 @@ def morphology(obj_input, **kwargs):
 
 
 def threshold(obj_input, **kwargs):
-    
+    """
+    If the input array was single channel, the threshold method can only use the 
+    grayscale space to, but if multiple channels were provided, then one can either chose 
+    to coerce the color image to grayscale or use one of the color channels directly.  
+
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    image_mod : TYPE
+        DESCRIPTION.
+
+    """
     ## kwargs
     blocksize = kwargs.get("blocksize", 99)
     constant = kwargs.get("constant", 1)

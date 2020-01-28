@@ -32,25 +32,29 @@ ruamel.yaml.Representer.add_representer(ordereddict, ruamel.yaml.Representer.rep
 #%% methods
 
 class project: 
-    """
-    Initialize a phenopype project with a name.
+    def __init__(self, root, name, **kwargs):
+        """
+        Initialize a phenopype project with a root directory and a name.
+        
+        Parameters
+        ----------
     
-    Parameters
-    ----------
+        root_dir: str
+            root directory of the project
+        name: str
+            name of your project
+        overwrite (optional): bool (default: False)
+            overwrite option, if a given root directory already exist
+        ask (optional): bool (default: False)
+            perform actions without asking for input
+        """
 
-    root_dir: str (default: "CurrentWorkingDir + "CurrentDate_phenopype")
-        root directory of the project
-    name: str (default: "CurrentDate_phenopype")
-        name of your project
-    """
-    
-    def __init__(self, root=os.getcwd(), name="phenopype_project", **kwargs):
-        
-        root_dir = os.path.join(root, name)
-        
         ## kwargs
         flag_overwrite = kwargs.get("overwrite", False)
         flag_query = kwargs.get("query", True)
+
+        ## form dirpath from root-location and name
+        root_dir = os.path.join(root, name)
 
         ## feedback
         print("\n")
@@ -114,7 +118,6 @@ class project:
             break
 
 
-
     def add_files(self, image_dir, **kwargs):
         """Add files to your project from a directory, can look recursively. 
         Optional: specify a search string for filenames or file extensions. 
@@ -124,14 +127,21 @@ class project:
     
         image_dir: str 
             path to directory with images                             
-        search_mode: str (default: "dir")
+        search_mode (optional): str (default: "dir")
             "dir" searches current directory for valid files; "recursive" walks through all subdirectories
-        filetypes: list 
+        filetypes (optional): list of str
             single or multiple string patterns to target files with certain endings
-        include: list 
-            single or multiple string patterns to target certain files to include - can be used together with exclude
-        exclude: list 
-            single or multiple string patterns to target certain files to include - can be used together with include
+        include (optional): list of str
+            single or multiple string patterns to target certain files to include
+        exclude (optional): list of str
+            single or multiple string patterns to target certain files to exclude - can overrule "include"
+        unique_by (optional): str (default: "filepath")
+            how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
+            if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
+            whereas filename will ignore all those files after their first occurrence.
+        raw_mode (optional): str (default: "copy")
+            how should the raw files be passed on to the phenopype directory tree: "copy" will make a copy of the original file, 
+            "link" will only send the link to the original raw file to attributes, but not copy the actual file (useful for big files)
         """
         
         ## kwargs
@@ -140,12 +150,13 @@ class project:
         file_endings = kwargs.get("filetypes", [])
         exclude_args = kwargs.get("exclude", [])
         include_args = kwargs.get("include", [])
-        unique_by = kwargs.get("unique_by", "filepaths")
+        unique_by = kwargs.get("unique_by", "filepath")
         flag_raw = kwargs.get("raw_mode", "copy")
 
         ## dummy filepaths for refinement
         filepaths1, filepaths2, filepaths3, filepaths4 = [],[],[],[]
         original_filepaths, filepaths_not_added = [], []
+        
         ## find files 
         if search_mode == "recursive":
             for root, dirs, files in os.walk(image_dir):
@@ -190,13 +201,13 @@ class project:
             filenames.append(os.path.basename(filepath))
         
         ## allow unique filenames filepath or by filename only
-        if unique_by=="filepaths":
+        if unique_by=="filepaths" or unique_by=="filepath":
             for filename, filepath in zip(filenames, filepaths):
                 if not filepath in original_filepaths:
                     original_filepaths.append(filepath)
                 else:
                     filepaths_not_added.append(filepath)
-        elif unique_by=="filenames":
+        elif unique_by=="filenames" or unique_by=="filename":
             for filename, filepath in zip(filenames, filepaths):
                 if not filename in filenames:
                     original_filepaths.append(filepath)
@@ -235,14 +246,9 @@ class project:
             os.mkdir(phenopype_dirpath)
             phenopype_filepath_raw = os.path.join(phenopype_dirpath,"raw" + original_filetype)
 
-            flag_resize = False
+            ## copy or link raw files
             if flag_raw == "copy":
                 copyfile(original_filepath, phenopype_filepath_raw)
-            elif flag_raw.__class__.__name__ == "float" or flag_raw.__class__.__name__ == "int":
-                flag_resize = True
-                raw = cv2.imread(original_filepath)
-                raw_resized = cv2.resize(raw, (0,0), fx=1*flag_raw, fy=1*flag_raw) 
-                cv2.imwrite(phenopype_filepath_raw, raw_resized)            
             elif flag_raw == "link":
                 phenopype_filepath_raw = original_filepath
                 
@@ -257,8 +263,7 @@ class project:
                 "dirname": phenopype_dirname,
                 "dirpath": phenopype_dirpath,
                 "filepath_raw": phenopype_filepath_raw,
-                "raw_mode": flag_raw,
-                "resize": flag_resize} 
+                "raw_mode": flag_raw} 
 
             attributes = {'information':
                           {'meta_data': exif_data(original_filepath),
@@ -275,20 +280,35 @@ class project:
             self.attributes_dict[phenopype_dirname] = attributes
 
 
-    def add_pype_preset(self, **kwargs):
+    def add_pype_preset(self,  **kwargs):
+        """
+        Add pype configuration presets to all project directories
+
+        Parameters
+        ----------
+
+        name (optional): str (default: "v1")
+            name of config-file
+        preset (optional): str (default: "preset1")
+            chose from given presets in phenopype/settings/pype_presets.py (e.g. preset1, preset2, preset3, ...)
+        interactive (optional): bool (default: False)
+            start a pype, modify loaded preset before saving it to phenopype directories
+        overwrite (optional): bool (default: False)
+            overwrite option, if a given pype config-file already exist
+        """
 
         ## kwargs
+        pype_name = kwargs.get("name","v1")
+        preset_name = kwargs.get("preset","preset1")
+        flag_interactive = kwargs.get("interactive", None)
         flag_overwrite = kwargs.get("overwrite", False)
-        flag_interactive = kwargs.get("test_and_modify", None)
-        pype_name = kwargs.get("name","pype1")
-        preset_name = kwargs.get("preset","config1")
 
         ## modify preset 
         if flag_interactive:
             if flag_interactive.__class__.__name__ == "str":
                 p = pype(self.attributes_dict[flag_interactive]["information"]["phenopype_io"]["filepath_raw"])
             if flag_interactive.__class__.__name__ == "bool":
-                p = pype(self.attributes_dict[next(iter(self.attributes_dict))]["information"]["phenopype_io"]["filepath_raw"])
+                p = pype(self.attributes_dict[next(iter(self.attributes_dict))]["information"]["phenopype_io"]["dirpath"])
 
             test_path = os.path.join(self.root_dir, "temp_pype.yaml")
             save_yaml(load_yaml(eval("pype_presets." + preset_name)), test_path)
@@ -303,7 +323,7 @@ class project:
             attr = load_yaml(os.path.join(directory, "attributes.yaml"))
             dirpath = attr["information"]["phenopype_io"]["dirpath"]
             dirname = attr["information"]["phenopype_io"]["dirname"]
-            pype_path = os.path.join(dirpath, pype_name + ".yaml")
+            pype_path = os.path.join(dirpath, "pype_" + pype_name + ".yaml")
 
             pype_config = {"pype_info":
                            {"name": pype_name,
@@ -317,53 +337,107 @@ class project:
                             "exposure_time": attr["information"]["meta_data"]["exposure_time"],
                             "data_taken": attr["information"]["meta_data"]["date_taken"],
                             "date_phenopyped": None
-                            }
-                           }
+                            }}
                 
             if not flag_interactive:
                 preset = load_yaml(eval("pype_presets." + preset_name))
             pype_config.update(preset)
 
             if os.path.isfile(pype_path) and flag_overwrite==False:
-                print(pype_name + ".yaml already exists in " + dirname +  " (overwrite=False)")
+                print("pype_" + pype_name + ".yaml already exists in " + dirname +  " (overwrite=False)")
                 continue
             elif os.path.isfile(pype_path) and flag_overwrite==True:
-                print(pype_name + ".yaml created for " + dirname + " (overwritten)")
+                print("pype_" + pype_name + ".yaml created for " + dirname + " (overwritten)")
                 pass
             else:
-                print(pype_name + ".yaml created for " + dirname)
+                print("pype_" + pype_name + ".yaml created for " + dirname)
                 pass
             save_yaml(pype_config, pype_path)
-                
-def save_project(project_file):
-    output_str = os.path.join(project_file.root_dir, 'project.data')
+
+
+
+def save_project(project):
+    """
+    Save project to root directory
+
+    Parameters
+    ----------
+
+    project: phenopype.main.project
+        save project file to root dir of project (saves ONLY the python object needed to call file-lists, NOT collected data),
+        which needs to be saved separately with the appropriate functions (e.g. "save_csv" and "save_img")
+    """
+    output_str = os.path.join(project.root_dir, 'project.data')
     with open(output_str, 'wb') as output:
-        pickle.dump(project_file, output, pickle.HIGHEST_PROTOCOL)
-         
+        pickle.dump(project, output, pickle.HIGHEST_PROTOCOL)
+
+
+
 def load_project(path):
+    """
+    Load phenoype project.data file to python namespace
+
+    Parameters
+    ----------
+
+    path: path to project.data
+        load project file saved to root dir of project
+    """
     with open(path, 'rb') as output:
         return pickle.load(output)
 
+
+
 class pype:
     def __init__(self, image, **kwargs):
-        
+        """
+        Initialize pype routine
+
+        Parameters
+        ----------
+
+        image: str
+            name of config-file
+        """
         ## kwargs
         resize = kwargs.get("resize", False)
         self.PC = pype_container(image, resize=resize)
-            
-    def run(self, **kwargs):
         
+        
+        
+    # - IMAGE DECISION HERE OR IN PC 
+    # - PYPE CONFIG - how to default vs dir vs array vs string
+    # - CASES!
+    
+        
+    def run(self, **kwargs):
+        """
+        Add pype configuration presets to all project directories
+
+        Parameters
+        ----------
+
+        name (optional): str (default: "v1")
+            name of config-file
+        preset (optional): str (default: "preset1")
+            chose from given presets in phenopype/settings/pype_presets.py (e.g. preset1, preset2, preset3, ...)
+        interactive (optional): bool (default: False)
+            start a pype, modify loaded preset before saving it to phenopype directories
+        overwrite (optional): bool (default: False)
+            overwrite option, if a given pype config-file already exist
+        """
+
         ## kwargs
-        print_settings = kwargs.get("print_settings",False)
         flag_return = kwargs.get("return_results",False)
         flag_show = kwargs.get("show",True)
         steps_exclude = kwargs.get("exclude",[]) 
         steps_include = kwargs.get("include",[]) 
+        pype_config = kwargs.get("pype_config", None)
+        print_settings = kwargs.get("print_settings",False)
 
         ## fetch pype configuration from file or preset
-        pype_config = kwargs.get("pype_config", None)
-
-        if isinstance(pype_config,  str):
+        if pype_config:
+            # if pype_config
             pype_config_locations = [os.path.join(self.PC.dirpath, pype_config + ".yaml"),
                        os.path.join(self.PC.dirpath, pype_config)]
             for loc in pype_config_locations:
@@ -375,7 +449,6 @@ class pype:
             self.pype_config_file = self.dirname
             
         if not pype_config:
-            print("not")
             loc = os.path.join(self.dirname, "pipeline1.yaml")
             save_yaml(_make_pype_template(), loc)
             self.pype_config = load_yaml(loc)
@@ -434,6 +507,7 @@ class pype:
                         if method_name == "show_image":
                             flag_vis = True
                     except Exception as ex:
+                        full_stack()
                         location = step + "." + method_name + ": " + str(ex.__class__.__name__)
                         print(location + " - " + str(ex))
 
@@ -476,13 +550,13 @@ class pype_container(object):
         Parameters
         ----------
 
-        image: array
+        image: str
         """
 
         ## kwargs
         dirpath = kwargs.get("dirpath", None)
         resize = kwargs.get("resize", False)
-        
+
         ## load image 
         self.flag_pp_proj = False
         if image.__class__.__name__ == "str":
@@ -515,6 +589,7 @@ class pype_container(object):
         ## set up containers
         self.mask_binder = {}
         self.contours = {}
+
 
     def reset(self, components=[]):
         

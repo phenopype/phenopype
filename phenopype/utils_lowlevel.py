@@ -40,17 +40,25 @@ def _auto_text_size(image, **kwargs):
     return text_size
 
 def _load_image(obj_input, **kwargs):
+    
+    
     ##kwargs 
     flag_load = kwargs.get("load","mod")
+    
+    ## load image from path
     if obj_input.__class__.__name__ == "str":
         flag_input = "str"
         if os.path.isfile(obj_input):
             image = cv2.imread(obj_input)
         else:
             sys.exit("invalid image path")
+
     elif obj_input.__class__.__name__ == "ndarray":
         flag_input = "ndarray"
         image = obj_input
+    
+
+        
     elif obj_input.__class__.__name__ == "pype_container":
         flag_input = "pype_container"
         if flag_load == "mod":
