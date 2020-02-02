@@ -3,6 +3,8 @@ import cv2
 import copy
 import numpy as np
 import numpy.ma as ma
+import sys
+import warnings
 
 from phenopype.settings import colours
 from phenopype.utils_lowlevel import _auto_line_thickness, _load_image
@@ -11,16 +13,25 @@ from phenopype.utils_lowlevel import _auto_line_thickness, _load_image
 
 # obj_input = p1.PC
 
-def colour_values(obj_input, **kwargs):
-    
+def extract_colour(obj_input, **kwargs):
+
     ## kwargs
     channels = kwargs.get("channels", ["gray"])
+    contour_dict = kwargs.get("contours", None)
+    contour_df = kwargs.get("df", None)
     
     ## load image and contours
-    image, flag_input = _load_image(obj_input, load="raw")
-    if flag_input == "pype_container":
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if not contour_dict:
+            sys.exit("no contours provided")
+        if contour_df.__class__.__name__ == "NoneType":
+            warning.warn("no data-frame for contours provided")
+            contour_df = pd.DataFrame({"filename":"unknown"}, index=[0]).T
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.image_copy
         contour_dict = obj_input.contours
-        contour_df = obj_input.df_result
+        contour_df = obj_input.df
 
     ## create forgeround mask
     image_bin = np.zeros(image.shape[:2], np.uint8)
@@ -59,6 +70,8 @@ def colour_values(obj_input, **kwargs):
             contour_df.loc[contour_df["label"]==label,["green_mean","green_sd"]]  = np.ma.mean(green), np.ma.std(green)
             contour_df.loc[contour_df["label"]==label,["blue_mean","blue_sd"]]  = np.ma.mean(blue), np.ma.std(blue)
 
-    obj_input.df_result = contour_df
-
-
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return contour_df
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df = contour_df

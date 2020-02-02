@@ -44,23 +44,12 @@ def _load_image(obj_input, **kwargs):
     
     ##kwargs 
     flag_load = kwargs.get("load","mod")
-    
-    ## load image from path
-    if obj_input.__class__.__name__ == "str":
-        flag_input = "str"
-        if os.path.isfile(obj_input):
-            image = cv2.imread(obj_input)
-        else:
-            sys.exit("invalid image path")
 
-    elif obj_input.__class__.__name__ == "ndarray":
-        flag_input = "ndarray"
-        image = obj_input
-    
-
+    if obj_input.__class__.__name__ == "ndarray":
+        image, flag_input = obj_input, "ndarray"
+    elif obj_input.__class__.__name__ == "container":
+        image, flag_input = obj_input.image_mod = "container"
         
-    elif obj_input.__class__.__name__ == "pype_container":
-        flag_input = "pype_container"
         if flag_load == "mod":
             image = copy.deepcopy(obj_input.image_mod)
         elif flag_load == "canvas":

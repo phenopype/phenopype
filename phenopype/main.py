@@ -14,10 +14,11 @@ import shutil
 import subprocess
 import sys 
 
+from distutils.dir_util import copy_tree
 from shutil import copyfile
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
-from phenopype.utils import yaml_file_monitor, load_yaml, save_yaml, exif_data
+from phenopype.utils import yaml_file_monitor, load_yaml, save_yaml, show_yaml
 from phenopype.utils_lowlevel import _image_viewer, _del_rw, _make_pype_template
 from phenopype.settings import pype_presets, colours
 from phenopype import preprocessing, segmentation, extraction, visualization, postprocessing
@@ -266,7 +267,7 @@ class project:
                 "raw_mode": flag_raw} 
 
             attributes = {'information':
-                          {'meta_data': exif_data(original_filepath),
+                          {#'meta_data': exif_data(original_filepath),
                            'original_io': original_io,
                            'phenopype_io': phenopype_io}
                           }
@@ -302,20 +303,30 @@ class project:
         preset_name = kwargs.get("preset","preset1")
         flag_interactive = kwargs.get("interactive", None)
         flag_overwrite = kwargs.get("overwrite", False)
-
+        steps_include = kwargs.get("include",[]) 
+        
         ## modify preset 
         if flag_interactive:
-            if flag_interactive.__class__.__name__ == "str":
-                p = pype(self.attributes_dict[flag_interactive]["information"]["phenopype_io"]["filepath_raw"])
-            if flag_interactive.__class__.__name__ == "bool":
-                p = pype(self.attributes_dict[next(iter(self.attributes_dict))]["information"]["phenopype_io"]["dirpath"])
-
-            test_path = os.path.join(self.root_dir, "temp_pype.yaml")
-            save_yaml(load_yaml(eval("pype_presets." + preset_name)), test_path)
-            p.run(steps=["preprocessing", "segmentation"], pype_config=test_path)
-            preset = p.pype_config
-            os.remove(test_path)
+            source_dir = self.attributes_dict[next(iter(self.attributes_dict))]["information"]["phenopype_io"]["dirpath"]
+            template_dir = os.path.join(self.root_dir, "template")
+            if not os.path.isdir(template_dir):
+                os.makedirs(template_dir)
+            copy_tree(source_dir, template_dir)
+            template_pype = os.path.join(template_dir, "template_pype.yaml")
+            template_attributes = os.path.join(template_dir, "attributes.yaml")
+            attr = load_yaml(template_attributes)
+            attr["information"]["phenopype_io"]["dirname"] = "template"
+            attr["information"]["phenopype_io"]["dirpath"] = template_dir
+            attr["information"]["phenopype_io"]["filepath_raw"] = os.path.join(template_dir, 
+                                                                          "raw" + attr["information"]["original_io"]["filetype"])
+            save_yaml(attr, template_attributes)
             
+            save_yaml(load_yaml(eval("pype_presets." + preset_name)), template_pype)
+            print(template_dir)
+            p = pype(template_dir)
+            p.run(steps=steps_include, pype_config=template_pype)
+            preset = p.pype_config
+            show_yaml(preset)
         ## save pype-config file
         for directory in self.dirpath_list:
             
@@ -437,7 +448,6 @@ class pype:
 
         ## fetch pype configuration from file or preset
         if pype_config:
-            # if pype_config
             pype_config_locations = [os.path.join(self.PC.dirpath, pype_config + ".yaml"),
                        os.path.join(self.PC.dirpath, pype_config)]
             for loc in pype_config_locations:
@@ -453,7 +463,7 @@ class pype:
             save_yaml(_make_pype_template(), loc)
             self.pype_config = load_yaml(loc)
             self.pype_config_file = loc
-
+            
         ## open config file with system viewer
         if flag_show:
             if platform.system() == 'Darwin':       # macOS
@@ -464,6 +474,7 @@ class pype:
                 subprocess.call(('xdg-open', self.pype_config_file))
 
         self.FM = yaml_file_monitor(self.pype_config_file, print_settings=print_settings)
+
         update = {}
         iv = None
         
@@ -471,12 +482,16 @@ class pype:
             
             ## reset pype container
             flag_vis = False
-            self.PC.reset(components=["contour_list"])
+            self.PC.reset(components=["contour_list", "mask"])
             self.PC.df_result["date_phenopyped"] = datetime.datetime.today().strftime('%Y%m%d_%H%M%S') 
             self.PC.df_result["pype_name"] = pype_config
             
             ## get config file and assemble pype
-            self.pype_config = self.FM.content
+            self.pype_config = copy.deepcopy(self.FM.content)
+            if not self.pype_config:
+                continue
+            
+            ## check steps
             if not steps_include:
                 steps_pre = []
                 for item in self.pype_config:
@@ -507,7 +522,6 @@ class pype:
                         if method_name == "show_image":
                             flag_vis = True
                     except Exception as ex:
-                        full_stack()
                         location = step + "." + method_name + ": " + str(ex.__class__.__name__)
                         print(location + " - " + str(ex))
 
@@ -585,7 +599,7 @@ class pype_container(object):
         self.image_mod = copy.deepcopy(self.image)
         self.image_bin = None
         self.canvas = None
-        
+
         ## set up containers
         self.mask_binder = {}
         self.contours = {}

@@ -48,11 +48,12 @@ def blur(obj_input, **kwargs):
         obj_input.image_mod = image_mod
     else:
         return image_mod
-
+    
 
 def find_contours(obj_input, **kwargs):
 
     ## kwargs
+    flag_ret_cont = kwargs.get("return_contours",True)
     retr = kwargs.get("retrieval", "ext")
     retr_alg = {"ext": cv2.RETR_EXTERNAL, ## only external
                 "list": cv2.RETR_LIST, ## all contours
@@ -69,26 +70,28 @@ def find_contours(obj_input, **kwargs):
     min_diameter, max_diameter = kwargs.get('min_diameter', 0), kwargs.get('max_diameter', inf)
     min_area, max_area = kwargs.get('min_area', 0), kwargs.get('max_area', inf)
 
+
     ## load image and check if binary exists
-    if obj_input.__class__.__name__ == "pype_container":
-        if not obj_input.image_bin.__class__.__name__ == "ndarray":
-            threshold(obj_input, colourspace="gray")
-        image, flag_input = _load_image(obj_input)
-    else:
-        image, flag_input = _load_image(obj_input)
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.image
+
+    ## check
+    if len(image.shape)>2:
+        sys.exit("multi-channel array supplied - need binary array")
 
     ## method
-    image_mod, contours, hierarchy = cv2.findContours(image=image, 
+    image_mod, contour_list, hierarchy = cv2.findContours(image=image, 
                                                 mode=retr_alg[retr],
                                                 method=approx_alg[approx],
                                                 offset=offset_coords)
 
     ## filtering
-    if contours:
+    if contour_list:
         contour_dict = {}
-        contour_df = {}
         idx = 0
-        for contour, hier in zip(contours,hierarchy[0]):
+        for contour, hier in zip(contour_list, hierarchy[0]):
             
             ## number of contour nodes
             if len(contour) > min_nodes and len(contour) < max_nodes:
@@ -108,30 +111,34 @@ def find_contours(obj_input, **kwargs):
                     ]):
                         idx += 1
                         contour_label = str(idx)
-                        contour_df[contour_label] = {"label":contour_label, 
+                        contour_dict[contour_label] = {"label":contour_label, 
                                                      "x":x,
                                                      "y":y,
                                                      "diameter": diameter, 
                                                      "area":area,
-                                                     "order": cont_order
-                                                     }
-                        contour_dict[contour_label] = {"coords":contour,
-                                                       "idx_child":hier[2],
-                                                       "idx_parent":hier[3],
-                                                       "order":cont_order,
-                                                       "center":(x,y)}
+                                                     "order": cont_order,
+                                                     "idx_child":hier[2],
+                                                     "idx_parent":hier[3],
+                                                     "coords":contour}
     else:
-        contour_df, contour_dict = {}, {}
-
-    contour_df = pd.DataFrame(contour_df).T
-    df_result = pd.concat([pd.concat([obj_input.df_result]*len(contour_df)).reset_index(drop=True), 
-                           contour_df.reset_index(drop=True)], axis=1)
-    df_result.index = df_result.index + 1
-
-    ## return
-    if flag_input=="pype_container":
+        sys.exit("no contours found")
+        
+    ## output
+    contour_df = pd.DataFrame(contour_dict).T
+    contour_df.reset_index(drop=True, inplace=True)
+    contour_df.drop(columns=["idx_child","idx_parent","coords"], inplace=True)
+    
+    if obj_input.__class__.__name__ == "ndarray":
+        if flag_ret_cont:
+            return image, contour_df, contour_dict
+        else:
+            return image, contour_df
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df = pd.concat([pd.concat([obj_input.df]*len(contour_df)).reset_index(drop=True), 
+                                  contour_df.reset_index(drop=True)], axis=1)
         obj_input.contours = contour_dict
-        obj_input.df_result = df_result
+
+
 
 def morphology(obj_input, **kwargs):
     
@@ -190,6 +197,7 @@ def threshold(obj_input, **kwargs):
         DESCRIPTION.
 
     """
+
     ## kwargs
     blocksize = kwargs.get("blocksize", 99)
     constant = kwargs.get("constant", 1)
@@ -198,7 +206,10 @@ def threshold(obj_input, **kwargs):
     value = kwargs.get("value", 127)
 
     ## load image
-    image, flag_input = _load_image(obj_input)
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.image
 
     ## colourspace
     if len(image.shape)==3:
@@ -213,31 +224,29 @@ def threshold(obj_input, **kwargs):
             
     ## method
     if method == "otsu":
-        ret, image_mod = cv2.threshold(image, 0, 255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        ret, image = cv2.threshold(image, 0, 255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     elif method == "adaptive":
-        image_mod = cv2.adaptiveThreshold(image, 255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV, blocksize, constant)
+        image = cv2.adaptiveThreshold(image, 255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV, blocksize, constant)
     elif method == "binary":
-        ret, image_mod = cv2.threshold(image, value, 255,cv2.THRESH_BINARY_INV)  
-    else:
-        image_mod = image
+        ret, image = cv2.threshold(image, value, 255,cv2.THRESH_BINARY_INV)  
 
     ## apply mask
-    if flag_input=="pype_container":
-        mask_binder = copy.deepcopy(obj_input.mask_binder)
-        mask_in = np.zeros(image_mod.shape, np.uint8)
-        mask_ex = np.zeros(image_mod.shape, np.uint8)
-        for key, value in mask_binder.items():
-            MO = value
-            if MO.include:
-                mask_in = mask_in + MO.mask_bool.astype(int)
-            else:
-                mask_ex = mask_ex - MO.mask_bool.astype(int)
-        image_mod[mask_in==0] = 0
-        image_mod[mask_ex<0] = 0
+    if obj_input.__class__.__name__ == "container":
+        if obj_input.masks:
+            masks = copy.deepcopy(obj_input.masks)
+            mask_in = np.zeros(image.shape, np.uint8)
+            mask_ex = np.zeros(image.shape, np.uint8)
+            for key, value in masks.items():
+                MO = value
+                if MO.include:
+                    mask_in = mask_in + MO.mask_bool.astype(int)
+                else:
+                    mask_ex = mask_ex - MO.mask_bool.astype(int)
+            image[mask_in==0] = 0
+            image[mask_ex<0] = 0
 
     ## return
-    if flag_input=="pype_container":
-        obj_input.image_bin = image_mod
-        obj_input.image_mod = image_mod
-    else:
-        return image_mod
+    if obj_input.__class__.__name__ == "ndarray":
+        return image
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.image = image

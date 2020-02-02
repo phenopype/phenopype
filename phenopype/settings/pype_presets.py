@@ -35,7 +35,7 @@ visualization:
     line_thickness: 5
     
 postprocessing:
-- save_csv:
+- save_results:
     overwrite: true
     
 - save_overlay:
@@ -76,7 +76,7 @@ visualization:
     line_thickness: 5
     
 postprocessing:
-- save_csv:
+- save_results:
     overwrite: true
     
 - save_overlay:

@@ -1,9 +1,12 @@
 #%% modules
 import exifread
+import copy
 import cv2
 import numpy as np
 import os
+import pandas as pd
 import sys
+import warnings
 
 from collections import Counter
 from PIL import Image, ExifTags
@@ -11,6 +14,7 @@ from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
+# from phenopype.main import container
 from phenopype.utils_lowlevel import _image_viewer #, _yaml_map_constructor
 from phenopype.settings import colours
 
@@ -20,6 +24,97 @@ Image.MAX_IMAGE_PIXELS = 999999999
 
 
 #%% methods
+
+
+def load_image(obj_input, **kwargs):
+
+    ## kwargs 
+    flag_meta = kwargs.get("meta",None)
+    flag_container = kwargs.get("container",False)
+    input_name = kwargs.get("name", "unknown_array")
+    meta_fields = kwargs.get("fields", ["date_taken", "resolution", "dimensions"])
+
+    ## method
+    if obj_input.__class__.__name__ == "str":
+        if os.path.isfile(obj_input):
+            image = cv2.imread(obj_input)
+            flag_input = "file"
+            if not flag_meta:
+                flag_meta = True
+        else:
+            sys.exit("invalid image path")
+    elif obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        flag_input = "array"
+        if not flag_meta:
+            flag_meta = False
+    else:
+        sys.exit("invalid input format")
+
+    ## image data
+    if flag_input == "file":
+        image_data = {
+            "filename": os.path.split(obj_input)[1],
+            "filepath": obj_input,
+            "extension ": os.path.splitext(obj_input)[1]
+            }
+    elif flag_input == "array":
+        image_data = {
+            "filename": "unknown",
+            "filepath": "unkown",
+            "extension ": "array"
+            }
+
+    ## add meta data
+    if flag_meta:
+        if flag_input == "file":
+            meta_data = load_meta_data(obj_input)
+            df = {"filename": image_data["filename"]}
+            df.update(dict((field, meta_data[field]) for field in meta_fields if field in meta_data))
+            df = pd.DataFrame(df, index=[0])
+        elif flag_input == "array":
+            df = {"filename": input_name,
+                  "dimensions": obj_input.shape[0:2]}
+
+    ## return
+    if flag_container:
+        ct = container(image,df)
+        return ct
+    if flag_meta:
+        return image, df
+    else:
+        return image
+
+
+
+class container(object):
+    
+    def __init__(self, image, df, **kwargs):
+
+        self.image = image
+        self.image_copy = copy.deepcopy(self.image)
+        self.df = df
+        self.df_copy = copy.deepcopy(self.df)
+
+        self.image_mod = copy.deepcopy(self.image)
+        self.image_bin = None
+        self.canvas = None
+
+        self.masks = {}
+        self.contours = {}
+    def reset(self, components=[]):
+        
+        self.image = copy.deepcopy(self.image_copy)
+        self.df = copy.deepcopy(self.df_copy)
+        self.canvas = None
+
+        if "contour" in components or "contours" in components or "contour_list" in components:
+            self.df_result = copy.deepcopy(self.df_result_copy)
+            self.contours = {}
+        if "mask" in components or "masks" in components:
+            self.mask_binder = {}
+
+
 
 class yaml_file_monitor:
     def __init__(self, filepath, **kwargs):
@@ -74,7 +169,7 @@ def save_yaml(ordereddict, filepath):
 
 
 
-def exif_data(image_path): 
+def load_meta_data(image_path): 
     
     ## open image and check size
     img = Image.open(image_path)
@@ -86,14 +181,16 @@ def exif_data(image_path):
     ## populate dictionary
     exif_ret = {}
     exif_data = {}
-    fields = {"DateTimeOriginal": "date_taken",
-              "DateTime": "date_modified",
-              "Model": "camera_model",
-              "ExposureTime": "exposure_time", 
-              "ISOSpeedRatings": "iso_speed",
-              "FNumber": "f_number",
-              "XResolution":"resolution_dpi",
-              "LensModel": "lens_model"}
+    fields = {
+        "DateTimeOriginal": "date_taken",
+        "DateTime": "date_modified",
+        "Model": "camera_model",
+        "ExposureTime": "exposure_time", 
+        "ISOSpeedRatings": "iso_speed",
+        "FNumber": "f_number",
+        "XResolution":"resolution_dpi",
+        "LensModel": "lens_model"
+        }
     try:
         for k, v in img._getexif().items():
             if k in ExifTags.TAGS:
@@ -119,9 +216,21 @@ def exif_data(image_path):
         exif_data["resolution_dpi"] = str(exif_data["resolution_dpi"][0]) 
     exif_data["size_xy_px"] = str(img.size)
     
+    ## reformata meta-data
+    meta_data = {"date_phenopyped": None,
+         "date_taken": exif_data["date_taken"],
+         "date_modified": exif_data["date_modified"],
+         "exif_data": [exif_data["camera_model"], 
+                    exif_data["exposure_time"], 
+                    exif_data["iso_speed"], 
+                    exif_data["f_number"], 
+                    exif_data["lens_model"]],
+         "resolution": exif_data["resolution_dpi"],
+         "dimensions": exif_data["size_xy_px"]}
+
     img.close()
     
-    return exif_data
+    return meta_data
 
 
 

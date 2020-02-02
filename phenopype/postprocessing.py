@@ -13,7 +13,7 @@ from phenopype.utils_lowlevel import _image_viewer, _load_image
 
 #%% methods
 
-def save_csv(obj_input, **kwargs):
+def save_results(obj_input, **kwargs):
     """Save a pandas dataframe to csv. 
     
     Parameters
@@ -39,7 +39,6 @@ def save_csv(obj_input, **kwargs):
         dirpath = obj_input.dirpath
         df = obj_input.df_result
         name = df["pype_name"].iloc[0]
-# print (df[(df == 'something1').all(1)])
 
     if keep:
         df = df.loc[df["order"]=="parent"]
@@ -95,3 +94,59 @@ def save_overlay(obj_input, **kwargs):
             cv2.imwrite(save_path, img)
     else:
         cv2.imwrite(save_path, img)
+        
+        
+def save_contours(obj_input, **kwargs):
+    """Save a pandas dataframe to csv. 
+    
+    Parameters
+    ----------
+    df: df
+        object_finder outpur (pandas data frame) to save
+    name: str
+        name for saved df
+    save_dir: str
+        location to save df
+    append: str (optional)
+        append df name with string to prevent overwriting
+    overwrite: bool (optional, default: False)
+        overwrite df if name exists
+    """
+    ## kwargs
+    flag_overwrite = kwargs.get("overwrite", False)
+        
+    ## load input
+    image, flag_input = _load_image(obj_input)
+
+    if flag_input == "pype_container":
+        dirpath = obj_input.dirpath
+        df = obj_input.df_result
+        name = df["pype_name"].iloc[0]
+
+    obj_output = {}
+    obj_output["filename"] = obj_input.df_result["filename"][1]
+    obj_output["project"] = obj_input.df_result["project"][1]
+    obj_output["size_px_xy"] = obj_input.df_result["size_px_xy"][1]
+    obj_output["contours"] = {}
+    
+    for contour in obj_input.contours.keys():
+        contour_dict = {}
+        contour_dict["label"] = contour
+        contour_dict["center"] = str(obj_input.contours[contour]["center"])
+        contour_dict["order"] = str(obj_input.contours[contour]["order"])
+        contour_dict["idx_child"] = 1 # str(obj_input.contours[contour]["idx_child"])
+        contour_dict["idx_parent"] = str(obj_input.contours[contour]["idx_parent"])
+        x_coords, y_coords = [], []
+        for coord in obj_input.contours[contour]["coords"]:
+            x_coords.append(coord[0][0])
+            y_coords.append(coord[0][1])
+        contour_dict["x_coords"], contour_dict["y_coords"] = str(x_coords), str(y_coords)
+        obj_output["contours"][contour] = contour_dict
+
+    save_path = os.path.join(dirpath, "contours.yml")
+
+    if os.path.exists(save_path):
+        if flag_overwrite == True:
+             save_yaml(obj_output, save_path)
+    else:
+         save_yaml(obj_output, save_path)
