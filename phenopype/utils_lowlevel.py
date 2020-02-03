@@ -1,103 +1,17 @@
 #%% modules
-import cv2
-import copy
-import datetime
-import os
-import stat
-import sys
+import cv2, copy, os, sys, warnings
 import numpy as np
+import pandas as pd
 
+from datetime import datetime
+from stat import S_IWRITE
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
-from phenopype.settings import colours, pype_presets
+from phenopype.settings import colours
 
 
 #%% methods
-
-def _auto_line_thickness(image, **kwargs):
-    factor = kwargs.get("factor", 0.001)
-    image_height,image_width = image.shape[0:2]
-    image_diagonal = (image_height + image_width) /2
-    line_tickness = int(factor * image_diagonal)
-
-    return line_tickness
-
-def _auto_text_thickness(image, **kwargs):
-    factor = kwargs.get("factor", 0.0005)
-    image_height,image_width = image.shape[0:2]
-    image_diagonal = (image_height + image_width) /2
-    text_tickness = int(factor * image_diagonal)
-
-    return text_tickness
-
-def _auto_text_size(image, **kwargs):
-    factor = kwargs.get("factor", 0.00025)
-    image_height,image_width = image.shape[0:2]
-    image_diagonal = (image_height + image_width) /2
-    text_size = int(factor * image_diagonal)
-
-    return text_size
-
-def _load_image(obj_input, **kwargs):
-    
-    
-    ##kwargs 
-    flag_load = kwargs.get("load","mod")
-
-    if obj_input.__class__.__name__ == "ndarray":
-        image, flag_input = obj_input, "ndarray"
-    elif obj_input.__class__.__name__ == "container":
-        image, flag_input = obj_input.image_mod = "container"
-        
-        if flag_load == "mod":
-            image = copy.deepcopy(obj_input.image_mod)
-        elif flag_load == "canvas":
-            if obj_input.canvas.__class__.__name__ == "ndarray":
-                image = copy.deepcopy(obj_input.canvas)
-            else:
-                image = copy.deepcopy(obj_input.image)
-        elif flag_load == "raw":
-            image = copy.deepcopy(obj_input.image)
-    return image, flag_input
-
-
-
-def _make_pype_template(name, preset, **kwargs):
-    
-    ## kwargs
-    pype_name = name
-    preset_name = preset
-    
-    image_data = kwargs.get("attributes_file", None)
-        
-    ## load preset
-    # pype_config = ordereddict([('pype_header', 
-    #                     [ordereddict([('name', pype_name)]), 
-    #                      ordereddict([('preset', preset_name)]), 
-    #                      ordereddict([('created_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
-    #                      ordereddict([('last_used_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
-    #                      ordereddict([('modified_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))])])])
-    
-    
-    pype_config = {"pype_info":
-                   {"name": pype_name,
-                    "preset": preset_name,
-                    "date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
-                    "date_modified": datetime.datetime.today().strftime('%Y%m%d_%H%M%S')}
-                   }
-    yaml = YAML()
-    preset = yaml.load(eval("pype_presets." + preset_name))
-    pype_config.update(preset)
-
-    return pype_config
-
-
-def _del_rw(action, name, exc):
-    os.chmod(name, stat.S_IWRITE)
-    os.remove(name)
-
-
 
 class _image_viewer():
     def __init__(self, image, **kwargs):
@@ -337,3 +251,118 @@ class _image_viewer():
         self.global_fx, self.global_fy = self.canvas_fx * ((self.zoom_x2-self.zoom_x1)/self.image_width), self.canvas_fy * ((self.zoom_y2-self.zoom_y1)/self.image_height)
         self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
         self.canvas_copy = copy.deepcopy(self.canvas)
+
+
+class _yaml_file_monitor:
+    def __init__(self, filepath, **kwargs):
+
+        ## kwargs       
+        self.flag_print = kwargs.get("print_settings", False)
+
+        ## file, location and event action        
+        self.dirpath = os.path.dirname(filepath)
+        self.filename = os.path.basename(filepath)
+        self.filepath = filepath
+        self.event_handler = PatternMatchingEventHandler(patterns=["*/" + self.filename])
+        self.event_handler.on_any_event = self.on_update
+        
+        ## intitialize
+        self.content = load_yaml(self.filepath)
+        self.observer = Observer()
+        self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
+        self.observer.start()
+
+    def on_update(self, event):
+        self.content = load_yaml(self.filepath)
+        if self.flag_print == True:
+            print(show_yaml(self.content), end="")
+        self.flag_update = True
+        cv2.destroyAllWindows()
+
+    def stop(self):
+        self.observer.stop()
+        self.observer.join()
+
+
+
+def _auto_line_thickness(image, **kwargs):
+    factor = kwargs.get("factor", 0.001)
+    image_height,image_width = image.shape[0:2]
+    image_diagonal = (image_height + image_width) /2
+    line_tickness = int(factor * image_diagonal)
+
+    return line_tickness
+
+
+
+def _auto_text_thickness(image, **kwargs):
+    factor = kwargs.get("factor", 0.0005)
+    image_height,image_width = image.shape[0:2]
+    image_diagonal = (image_height + image_width) /2
+    text_tickness = int(factor * image_diagonal)
+
+    return text_tickness
+
+
+
+def _auto_text_size(image, **kwargs):
+    factor = kwargs.get("factor", 0.00025)
+    image_height,image_width = image.shape[0:2]
+    image_diagonal = (image_height + image_width) /2
+    text_size = int(factor * image_diagonal)
+
+    return text_size
+
+
+
+def _make_pype_template(name, preset, **kwargs):
+    
+    ## kwargs
+    pype_name = name
+    preset_name = preset
+    
+    image_data = kwargs.get("attributes_file", None)
+        
+    ## load preset
+    # pype_config = ordereddict([('pype_header', 
+    #                     [ordereddict([('name', pype_name)]), 
+    #                      ordereddict([('preset', preset_name)]), 
+    #                      ordereddict([('created_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
+    #                      ordereddict([('last_used_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
+    #                      ordereddict([('modified_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))])])])
+    
+    
+    pype_config = {"pype_info":
+                   {"name": pype_name,
+                    "preset": preset_name,
+                    "date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
+                    "date_modified": datetime.datetime.today().strftime('%Y%m%d_%H%M%S')}
+                   }
+    yaml = YAML()
+    preset = yaml.load(eval("pype_presets." + preset_name))
+    pype_config.update(preset)
+
+    return pype_config
+
+
+def _del_rw(action, name, exc):
+    os.chmod(name, S_IWRITE)
+    os.remove(name)
+
+
+
+# def get_median_grayscale(image, **kwargs):
+#     if (image.shape[0] + image.shape[1])/2 > 2000:
+#         factor = kwargs.get('resize', 0.5)
+#         image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
+        
+#     vector = np.ravel(image)
+#     vector_mc = Counter(vector).most_common(9)
+#     g = [item[0] for item in vector_mc]
+#     return int(np.median(g))
+
+# def avgit(x):
+#     return x.sum(axis=0)/np.shape(x)[0]
+
+# def decode_fourcc(cc):
+#     return "".join([chr((int(cc) >> 8 * i) & 0xFF) for i in range(4)])

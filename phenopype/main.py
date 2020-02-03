@@ -1,31 +1,29 @@
 #%% modules
 
-import copy
-import cv2
-import datetime
+import cv2, copy, os, sys, warnings
 import numpy as np
-import os
+from pandas import DataFrame, concat
+from pandas import options as pandas_options
+
+import datetime
 import pickle
-import pandas as pd
 import platform
 import pprint
 import ruamel.yaml
 import shutil
 import subprocess
-import sys 
 
 from distutils.dir_util import copy_tree
-from shutil import copyfile
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
-from phenopype.utils import yaml_file_monitor, load_yaml, save_yaml, show_yaml
-from phenopype.utils_lowlevel import _image_viewer, _del_rw, _make_pype_template
+from phenopype.utils import load_yaml, save_yaml, show_yaml
+from phenopype.utils_lowlevel import _image_viewer, _del_rw, _make_pype_template, _yaml_file_monitor
 from phenopype.settings import pype_presets, colours
-from phenopype import preprocessing, segmentation, extraction, visualization, postprocessing
+from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
 #%% settings
 
-pd.options.display.max_rows = 10 # how many rows of pd-dataframe to show
+pandas_options.display.max_rows = 10 # how many rows of pd-dataframe to show
 pretty = pprint.PrettyPrinter(width=30) # pretty print short strings
 ruamel.yaml.Representer.add_representer(ordereddict, ruamel.yaml.Representer.represent_dict) # suppress !!omap node info
 
@@ -473,7 +471,7 @@ class pype:
             else:                                   # linux variants
                 subprocess.call(('xdg-open', self.pype_config_file))
 
-        self.FM = yaml_file_monitor(self.pype_config_file, print_settings=print_settings)
+        self.FM = _yaml_file_monitor(self.pype_config_file, print_settings=print_settings)
 
         update = {}
         iv = None

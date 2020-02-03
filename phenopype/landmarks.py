@@ -5,7 +5,7 @@ import copy
 import pandas as pd 
 import sys
 
-from phenopype.utils import (show_img)
+from phenopype.utils import show_img
 
 
 #%% colours

@@ -1,19 +1,13 @@
 #%% modules
-import cv2
-import copy
+import cv2, copy, os, sys, warnings
 import numpy as np
 import numpy.ma as ma
-import sys
-import warnings
-
-from phenopype.settings import colours
-from phenopype.utils_lowlevel import _auto_line_thickness, _load_image
+import pandas as pd
 
 #%% methods
 
-# obj_input = p1.PC
 
-def extract_colour(obj_input, **kwargs):
+def colour(obj_input, **kwargs):
 
     ## kwargs
     channels = kwargs.get("channels", ["gray"])
@@ -26,7 +20,7 @@ def extract_colour(obj_input, **kwargs):
         if not contour_dict:
             sys.exit("no contours provided")
         if contour_df.__class__.__name__ == "NoneType":
-            warning.warn("no data-frame for contours provided")
+            warnings.warn("no data-frame for contours provided")
             contour_df = pd.DataFrame({"filename":"unknown"}, index=[0]).T
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image_copy

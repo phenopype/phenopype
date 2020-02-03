@@ -1,11 +1,12 @@
 #%% modules
-import cv2
-import copy
-import math
+import cv2, copy, os, sys, warnings
 import numpy as np
+import pandas as pd
+
+import math
 
 from phenopype.settings import colours
-from phenopype.utils_lowlevel import _auto_line_thickness, _auto_text_thickness, _auto_text_size, _load_image
+from phenopype.utils_lowlevel import _auto_line_thickness, _auto_text_thickness, _auto_text_size
 
 #%% settings
 

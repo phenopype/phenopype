@@ -1,15 +1,13 @@
 #%% modules
-import cv2
-import copy
+import cv2, copy, os, sys, warnings
 import numpy as np
-import os
-import sys 
+import pandas as pd
 
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
-from phenopype.utils import show_img, load_yaml, save_yaml, show_yaml
-from phenopype.utils_lowlevel import _image_viewer, _load_image
+from phenopype.utils import load_image, load_yaml, load_meta_data, show_image, show_yaml, save_image, save_yaml
+from phenopype.utils_lowlevel import _image_viewer
 
 #%% methods
 
@@ -38,13 +36,18 @@ def create_mask(obj_input, **kwargs):
     flag_overwrite = kwargs.get("overwrite", False)
     
     ## load image and check if pp-project
-    image, flag_input = _load_image(obj_input)
-    if obj_input.flag_pp_proj:
-        attr = load_yaml(os.path.join(obj_input.dirpath, "attributes.yaml"))
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.image
+        
+    # image, flag_input = _load_image(obj_input)
+    # if obj_input.flag_pp_proj:
+    #     attr = load_yaml(os.path.join(obj_input.dirpath, "attributes.yaml"))
 
     ## check if mask exists 
-    if flag_input == "pype_container":
-        if obj_input.flag_pp_proj:
+    if obj_input.__class__.__name__ == "container":
+        if obj_input.masks:
             if "masks" in attr:
                 if label in attr["masks"] and not flag_overwrite:
                     skip = True
@@ -95,7 +98,7 @@ def create_mask(obj_input, **kwargs):
 
     ## show image with window control
     if flag_show:
-        show_img(mask_overlay)
+        show_image(mask_overlay)
     if cv2.waitKey() == 13:
         cv2.destroyAllWindows()
     elif cv2.waitKey() == 27:
@@ -103,7 +106,7 @@ def create_mask(obj_input, **kwargs):
         sys.exit("Esc: exit phenopype process")    
 
     ## if pp-project, add to attributes
-    if obj_input.flag_pp_proj:
+    if obj_input.__class__.__name__ == "container":
         mask = ordereddict([("include",include),("coords",str(coords))])
         if not "masks" in attr:
             attr["masks"] = {}

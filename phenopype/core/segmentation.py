@@ -1,25 +1,29 @@
 #%% modules
-import cv2
-import copy
-import math
+import cv2, copy, os, sys, warnings
 import numpy as np
-import os
 import pandas as pd
-import sys
 
-from phenopype.settings import colours
-from phenopype.utils_lowlevel import _load_image, _auto_line_thickness
-
-#%% settings
-
-inf = math.inf
+from math import inf
 
 #%% methods
 
-
-
 def blur(obj_input, **kwargs):
+    """
+    
 
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    image : TYPE
+        DESCRIPTION.
+
+    """
     ## kwargs
     method = kwargs.get("method","averaging")
     kernel_size = kwargs.get("kernel_size",5)
@@ -29,30 +33,34 @@ def blur(obj_input, **kwargs):
     sigma_space = kwargs.get("sigma_space",75)
 
     ## load image
-    image, flag_input = _load_image(obj_input)
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.image
 
     ## method
     if method=="averaging":
-        image_mod = cv2.blur(image,(kernel_size,kernel_size))
+        image = cv2.blur(image,(kernel_size,kernel_size))
     elif method=="gaussian":
-        image_mod = cv2.GaussianBlur(image,(kernel_size,kernel_size),0)
+        image = cv2.GaussianBlur(image,(kernel_size,kernel_size),0)
     elif method=="median":
-        image_mod = cv2.medianBlur(image,kernel_size)
+        image = cv2.medianBlur(image,kernel_size)
     elif method=="bilateral":
-        image_mod = cv2.bilateralFilter(image,kernel_size,sigma_color,sigma_space)
+        image = cv2.bilateralFilter(image,kernel_size,sigma_color,sigma_space)
     else:
-        image_mod = image
+        image = image
 
     ## return
-    if flag_input=="pype_container":
-        obj_input.image_mod = image_mod
+    if obj_input.__class__.__name__ == "container":
+        obj_input.image = image
     else:
-        return image_mod
+        return image
     
 
 def find_contours(obj_input, **kwargs):
 
     ## kwargs
+    df = kwargs.get("df", None)
     flag_ret_cont = kwargs.get("return_contours",True)
     retr = kwargs.get("retrieval", "ext")
     retr_alg = {"ext": cv2.RETR_EXTERNAL, ## only external
@@ -71,7 +79,7 @@ def find_contours(obj_input, **kwargs):
     min_area, max_area = kwargs.get('min_area', 0), kwargs.get('max_area', inf)
 
 
-    ## load image and check if binary exists
+    ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
@@ -82,7 +90,7 @@ def find_contours(obj_input, **kwargs):
         sys.exit("multi-channel array supplied - need binary array")
 
     ## method
-    image_mod, contour_list, hierarchy = cv2.findContours(image=image, 
+    image, contour_list, hierarchy = cv2.findContours(image=image, 
                                                 mode=retr_alg[retr],
                                                 method=approx_alg[approx],
                                                 offset=offset_coords)
@@ -129,6 +137,8 @@ def find_contours(obj_input, **kwargs):
     contour_df.drop(columns=["idx_child","idx_parent","coords"], inplace=True)
     
     if obj_input.__class__.__name__ == "ndarray":
+        if df.__class__.__name__ == "DataFrame":
+            contour_df = pd.concat([pd.concat([df]*len(contour_df)).reset_index(drop=True), contour_df.reset_index(drop=True)], axis=1)
         if flag_ret_cont:
             return image, contour_df, contour_dict
         else:
@@ -164,16 +174,39 @@ def morphology(obj_input, **kwargs):
     image, flag_input = _load_image(obj_input)
     
     ## method
-    image_mod = cv2.morphologyEx(image, 
+    image = cv2.morphologyEx(image, 
                                  op=operation_list[operation], 
                                  kernel = kernel,
                                  iterations = iterations)
 
     ## return
     if flag_input=="pype_container":
-        obj_input.image_mod = image_mod
+        obj_input.image = image
     else:
-        return image_mod
+        return image
+
+
+
+def skeletonize(img):
+    skeleton = np.zeros(img.shape,np.uint8)
+    eroded = np.zeros(img.shape,np.uint8)
+    temp = np.zeros(img.shape,np.uint8)
+
+    _,thresh = cv2.threshold(img,127,255,0)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))
+
+    iters = 0
+    while(True):
+        cv2.erode(thresh, kernel, eroded)
+        cv2.dilate(eroded, kernel, temp)
+        cv2.subtract(thresh, temp, temp)
+        cv2.bitwise_or(skeleton, temp, skeleton)
+        thresh, eroded = eroded, thresh # Swap instead of copy
+
+        iters += 1
+        if cv2.countNonZero(thresh) == 0:
+            return (skeleton,iters)
 
 
 
@@ -193,7 +226,7 @@ def threshold(obj_input, **kwargs):
 
     Returns
     -------
-    image_mod : TYPE
+    image : TYPE
         DESCRIPTION.
 
     """
