@@ -1,9 +1,7 @@
 #%% modules
-
 import cv2, copy, os, sys, warnings
 import numpy as np
-from pandas import DataFrame, concat
-from pandas import options as pandas_options
+import pandas as pd
 
 import datetime
 import pickle
@@ -23,7 +21,7 @@ from phenopype.core import preprocessing, segmentation, measurement, export, vis
 
 #%% settings
 
-pandas_options.display.max_rows = 10 # how many rows of pd-dataframe to show
+pd.options.display.max_rows = 10 # how many rows of pd-dataframe to show
 pretty = pprint.PrettyPrinter(width=30) # pretty print short strings
 ruamel.yaml.Representer.add_representer(ordereddict, ruamel.yaml.Representer.represent_dict) # suppress !!omap node info
 
@@ -247,7 +245,7 @@ class project:
 
             ## copy or link raw files
             if flag_raw == "copy":
-                copyfile(original_filepath, phenopype_filepath_raw)
+                shutil.copyfile(original_filepath, phenopype_filepath_raw)
             elif flag_raw == "link":
                 phenopype_filepath_raw = original_filepath
                 

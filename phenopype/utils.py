@@ -1,13 +1,12 @@
 #%% modules
+
 import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
 
-from collections import Counter
+from pprint import PrettyPrinter
 from PIL import Image, ExifTags
 from ruamel.yaml import YAML
-from watchdog.observers import Observer
-from watchdog.events import PatternMatchingEventHandler
 
 from phenopype.utils_lowlevel import _image_viewer 
 from phenopype.settings import colours
@@ -15,9 +14,14 @@ from phenopype.settings import colours
 #%% settings
 
 Image.MAX_IMAGE_PIXELS = 999999999
+pretty = PrettyPrinter(width=30)
 
+def custom_formatwarning(msg, *args, **kwargs):
+    # ignore everything except the message
+    return "WARNING: " + str(msg) + '\n'
+warnings.formatwarning = custom_formatwarning
 
-#%% methods
+#%% classes
 
 class container(object):
     
@@ -46,66 +50,185 @@ class container(object):
         if "mask" in components or "masks" in components:
             self.mask_binder = {}
 
-
+#%% functions
 
 def load_image(obj_input, **kwargs):
+    """
+    
 
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
     ## kwargs 
-    flag_meta = kwargs.get("meta",None)
-    flag_container = kwargs.get("container",False)
-    input_name = kwargs.get("name", "unknown_array")
-    meta_fields = kwargs.get("fields", ["date_taken", "resolution", "dimensions"])
+    flag_container = kwargs.get("container", False)
+    flag_df = kwargs.get("df", False)
+    flag_meta = kwargs.get("meta", False)
+    default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
+    exif_fields = kwargs.get("fields", default_fields)
+    if not exif_fields.__class__.__name__ == "list":
+        exif_fields = [exif_fields]
 
     ## method
     if obj_input.__class__.__name__ == "str":
         if os.path.isfile(obj_input):
             image = cv2.imread(obj_input)
-            flag_input = "file"
-            if not flag_meta:
-                flag_meta = True
         else:
             sys.exit("invalid image path")
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
-        flag_input = "array"
-        if not flag_meta:
-            flag_meta = False
     else:
         sys.exit("invalid input format")
 
-    ## image data
-    if flag_input == "file":
-        image_data = {
-            "filename": os.path.split(obj_input)[1],
-            "filepath": obj_input,
-            "extension ": os.path.splitext(obj_input)[1]
-            }
-    elif flag_input == "array":
-        image_data = {
-            "filename": "unknown",
-            "filepath": "unkown",
-            "extension ": "array"
-            }
+    ## load image data
+    image_data = load_image_data(obj_input)
+    df = pd.DataFrame({"filename": image_data["filename"],
+          "width": image_data["width"],
+          "height": image_data["height"]}, index=[0])
 
-    ## add meta data
+    ## add meta-data 
     if flag_meta:
-        if flag_input == "file":
-            meta_data = load_meta_data(obj_input)
-            df = {"filename": image_data["filename"]}
-            df.update(dict((field, meta_data[field]) for field in meta_fields if field in meta_data))
-            df = pd.DataFrame(df, index=[0])
-        elif flag_input == "array":
-            df = {"filename": input_name,
-                  "dimensions": obj_input.shape[0:2]}
+        meta_data = load_meta_data(obj_input, fields=exif_fields)        
+        df = pd.concat([df.reset_index(drop=True), pd.DataFrame(meta_data, index=[0])], axis=1)
 
     ## return
-    if flag_container:
-        ct = container(image,df)
-        return ct
-    if flag_meta:
-        return image, df
+    if flag_container == True:
+        return container(image, df)
+    elif flag_container == False:
+        if flag_df:
+            return image, df
+        else:
+            return image
+
+
+
+def load_image_data(obj_input):
+    """
+    
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    image_data : TYPE
+        DESCRIPTION.
+
+    """
+    if obj_input.__class__.__name__ == "str":
+        if os.path.isfile(obj_input):
+            image = Image.open(obj_input)
+            width, height = image.size
+            image.close()
+            image_data = {
+                "filename": os.path.split(obj_input)[1],
+                "filepath": obj_input,
+                "filetype ": os.path.splitext(obj_input)[1],
+                "width": width,
+                "height": height
+                }
+    elif obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        width, height = image.shape[0:2]
+        image_data = {
+                "filename": "unknown",
+                "filepath": "unkown",
+                "filetype ": "array_type",
+                "width": width,
+                "height": height
+            }
+
+    ## issue warnings for large images
+    if width*height > 125000000:
+        warnings.warn("Large image. Expect slow processing and consider resizing.")
+    elif width*height > 250000000:
+        warnings.warn("Extremely large image. Expect very slow processing and consider resizing.")
+
+    ## return image data
+    return image_data
+
+
+
+def load_meta_data(obj_input, **kwargs):
+    """
+    
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+    ## kwargs
+    flag_show = kwargs.get("show_fields", False)
+    default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
+    exif_fields = kwargs.get("fields", default_fields)
+    if not exif_fields.__class__.__name__ == "list":
+        exif_fields = [exif_fields]
+        
+    # ## check if basic fields are present
+    # if exif_fields.__class__.__name__ == "list":
+    #     if not len(exif_fields) == 0:
+    #         prepend = list(set(default_fields) - set(exif_fields))
+    #         exif_fields = prepend + exif_fields
+
+    ## read image
+    if obj_input.__class__.__name__ == "str":
+        if os.path.isfile(obj_input):
+            image = Image.open(obj_input)
+        else:
+            warnings.warn("Not a valid image file.")
+            return {}
     else:
-        return image
+        warnings.warn("Not a valid image file.")
+        return {}
+
+    ## populate dictionary
+    exif_data_all = {}
+    exif_data = {}
+    try:
+        for k, v in image._getexif().items():
+            if k in ExifTags.TAGS:
+                exif_data_all[ExifTags.TAGS[k]] = v
+        exif_data_all = dict(sorted(exif_data_all.items()))
+    except Exception:
+        warnings.warn("No exif data found.")
+
+    if flag_show:
+        print("--------------------------------------------")
+        print("Available exif-tags:\n")
+        pretty.pprint(exif_data_all)
+        print("\n")
+        print("Default exif-tags (append list using \"fields\" argument):\n")
+        print(default_fields)
+        print("--------------------------------------------")
+
+    ## subset exif_data
+    for field in exif_fields:
+        if field in exif_data_all:
+            exif_data[field] = str(exif_data_all[field])
+    exif_data = dict(sorted(exif_data.items()))
+
+    ## close image and return meta data
+    image.close()
+    return exif_data
 
 
 
@@ -117,71 +240,6 @@ def load_yaml(string):
     else:
         file = yaml.load(string)
     return file
-
-
-
-def load_meta_data(image_path): 
-    
-    ## open image and check size
-    img = Image.open(image_path)
-    if img.size[0]*img.size[1] > 125000000:
-        print("WARNING - large image. Expect slow processing, and consider resizing with the \"raw_mode\" option (check api-help)")
-    elif img.size[0]*img.size[1] > 250000000:
-        print("WARNING - extremely large image. Expect very slow processing, some operations will take up to and consider resizing with the \"raw_mode\" option (check api-help)")
-
-    ## populate dictionary
-    exif_ret = {}
-    exif_data = {}
-    fields = {
-        "DateTimeOriginal": "date_taken",
-        "DateTime": "date_modified",
-        "Model": "camera_model",
-        "ExposureTime": "exposure_time", 
-        "ISOSpeedRatings": "iso_speed",
-        "FNumber": "f_number",
-        "XResolution":"resolution_dpi",
-        "LensModel": "lens_model"
-        }
-    try:
-        for k, v in img._getexif().items():
-            if k in ExifTags.TAGS:
-                exif_ret[ExifTags.TAGS[k]] = v
-    except Exception as ex:
-        print(ex)
-    
-    ## rename and refine exif_data
-    for field, field_renamed in fields.items():
-        if field in exif_ret:
-            exif_data[field_renamed] = exif_ret[field]
-        else:
-            exif_data[field_renamed] = None
-    if exif_data["date_taken"]:
-        exif_data["date_taken"] = exif_data["date_taken"].replace(":","").replace(" ","_")
-    if exif_data["date_modified"]:
-        exif_data["date_modified"] = exif_data["date_modified"].replace(":","").replace(" ","_")
-    if exif_data["exposure_time"]:
-        exif_data["exposure_time"] = str(exif_data["exposure_time"][0]) + "/" + str(exif_data["exposure_time"][1]) 
-    if exif_data["f_number"]:
-        exif_data["f_number"] = "f/" + str(exif_data["f_number"][0])
-    if exif_data["resolution_dpi"]:
-        exif_data["resolution_dpi"] = str(exif_data["resolution_dpi"][0]) 
-    exif_data["size_xy_px"] = str(img.size)
-    
-    ## reformata meta-data
-    meta_data = {"date_phenopyped": None,
-         "date_taken": exif_data["date_taken"],
-         "date_modified": exif_data["date_modified"],
-         "exif_data": [exif_data["camera_model"], 
-                    exif_data["exposure_time"], 
-                    exif_data["iso_speed"], 
-                    exif_data["f_number"], 
-                    exif_data["lens_model"]],
-         "resolution": exif_data["resolution_dpi"],
-         "dimensions": exif_data["size_xy_px"]}
-
-    img.close()
-    
-    return meta_data
 
 
 

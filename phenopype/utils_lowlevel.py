@@ -7,6 +7,8 @@ from datetime import datetime
 from stat import S_IWRITE
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap as ordereddict
+from watchdog.observers import Observer
+from watchdog.events import PatternMatchingEventHandler
 
 from phenopype.settings import colours
 
