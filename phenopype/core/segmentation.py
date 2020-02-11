@@ -5,6 +5,8 @@ import pandas as pd
 
 from math import inf
 
+from phenopype.utils_lowlevel import _create_mask_bin
+
 #%% methods
 
 def blur(obj_input, **kwargs):
@@ -58,7 +60,22 @@ def blur(obj_input, **kwargs):
     
 
 def find_contours(obj_input, **kwargs):
+    """
+    
 
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
     ## kwargs
     df = kwargs.get("df", None)
     flag_ret_cont = kwargs.get("return_contours",True)
@@ -151,7 +168,22 @@ def find_contours(obj_input, **kwargs):
 
 
 def morphology(obj_input, **kwargs):
+    """
     
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    image : TYPE
+        DESCRIPTION.
+
+    """
     ## kwargs   
     kernel_size = kwargs.get("kernel_size", 5)
     shape = kwargs.get("shape", "rect")
@@ -171,7 +203,10 @@ def morphology(obj_input, **kwargs):
     iterations = kwargs.get("iterations", 1)
     
     ## load image
-    image, flag_input = _load_image(obj_input)
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.image
     
     ## method
     image = cv2.morphologyEx(image, 
@@ -180,7 +215,7 @@ def morphology(obj_input, **kwargs):
                                  iterations = iterations)
 
     ## return
-    if flag_input=="pype_container":
+    if obj_input.__class__.__name__ == "container":
         obj_input.image = image
     else:
         return image
@@ -270,11 +305,11 @@ def threshold(obj_input, **kwargs):
             mask_in = np.zeros(image.shape, np.uint8)
             mask_ex = np.zeros(image.shape, np.uint8)
             for key, value in masks.items():
-                MO = value
-                if MO.include:
-                    mask_in = mask_in + MO.mask_bool.astype(int)
+                mask = value
+                if mask["include"]:
+                    mask_in = mask_in + _create_mask_bin(image, eval(mask["coords"]))
                 else:
-                    mask_ex = mask_ex - MO.mask_bool.astype(int)
+                    mask_ex = mask_ex - _create_mask_bin(image, eval(mask["coords"]))
             image[mask_in==0] = 0
             image[mask_ex<0] = 0
 

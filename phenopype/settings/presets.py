@@ -2,7 +2,6 @@ preset1 = """
 preprocessing:
 - create_mask:
     label: mask1
-
 segmentation:
 - blur:
     kernel_size: 15
@@ -17,11 +16,9 @@ segmentation:
     retrieval: ccomp
     min_diameter: 0
     min_area: 0
-    
-extraction:
-- colour_values:
+measurement:
+- colour:
     channels: [gray, rgb]
-    
 visualization:
 - show_image:
     canvas: image
@@ -33,15 +30,15 @@ visualization:
 - show_mask:
     colour: blue
     line_thickness: 5
-    
-postprocessing:
+export:
 - save_results:
     overwrite: true
-    
 - save_overlay:
     resize: 0.5
     overwrite: true
 """
+
+
 
 preset2 = """
 segmentation:

@@ -6,10 +6,10 @@ import pandas as pd
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
-from phenopype.utils import load_image, load_yaml, load_meta_data, show_image, show_yaml, save_image, save_yaml
+from phenopype.utils import load_image, load_meta_data, show_image, save_image
 from phenopype.utils_lowlevel import _image_viewer
 
-#%% methods
+#%% functions
 
 def save_results(obj_input, **kwargs):
     """Save a pandas dataframe to csv. 

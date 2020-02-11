@@ -6,8 +6,9 @@ import pandas as pd
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
-from phenopype.utils import load_image, load_yaml, load_meta_data, show_image, show_yaml, save_image, save_yaml
-from phenopype.utils_lowlevel import _image_viewer
+from phenopype.utils import load_image, load_meta_data, show_image, save_image
+from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin
+from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
 
 #%% methods
 
@@ -39,22 +40,17 @@ def create_mask(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
-        
-    # image, flag_input = _load_image(obj_input)
-    # if obj_input.flag_pp_proj:
-    #     attr = load_yaml(os.path.join(obj_input.dirpath, "attributes.yaml"))
+        image = obj_input.image_copy
 
     ## check if mask exists 
     if obj_input.__class__.__name__ == "container":
         if obj_input.masks:
-            if "masks" in attr:
-                if label in attr["masks"] and not flag_overwrite:
+            masks = dict(obj_input.masks)
+            for k, v in masks.items():
+                if label == k and not flag_overwrite:
+                    include = v["include"]
+                    coords = eval(v["coords"])
                     skip = True
-                    coords = eval(attr["masks"][label]["coords"])
-        elif label in obj_input.mask_binder:
-            if not flag_overwrite:
-                return obj_input
 
     ## method
     if not skip:
@@ -72,53 +68,41 @@ def create_mask(obj_input, **kwargs):
                 pts = np.array(poly, dtype=np.int32)
                 coords.append(pts)
 
-    ## create binary mask and boolean mask
-    mask_bin = np.zeros(image.shape[0:2], np.uint8)
-    for sub_coords in coords:
-        cv2.fillPoly(mask_bin, [np.array(sub_coords, dtype=np.int32)], colours.white)
-    mask_bool = np.array(mask_bin, dtype=bool)
-
-        
-    ## create overlay
-    overlay = np.zeros(image.shape, np.uint8) # make overlay
-    overlay[:,:,2] = 200 # start with all-red overlay
-    if include:
-        overlay[mask_bool,1], overlay[mask_bool,2] = 200, 0
-    else:
-        overlay[np.invert(mask_bool),1], overlay[np.invert(mask_bool),2] = 200, 0
-    mask_overlay = cv2.addWeighted(image, .7, overlay, 0.5, 0)
-
-    ## create mask data object
-    MO = mask_data(coords=coords, 
-                     mask_overlay=mask_overlay, 
-                     mask_bin=mask_bin, 
-                     mask_bool = mask_bool, 
-                     label=label,
-                     include=include)
+    ## create mask
+    mask = {"label": label,
+            "include": include,
+            "coords": str(coords)}
 
     ## show image with window control
     if flag_show:
+        overlay = np.zeros(image.shape, np.uint8) # make overlay
+        overlay[:,:,2] = 200 # start with all-red overlay
+        mask_bin = _create_mask_bin(image, coords)
+        mask_bool = np.array(mask_bin, dtype=bool)
+        if include:
+            overlay[mask_bool,1], overlay[mask_bool,2] = 200, 0
+        else:
+            overlay[np.invert(mask_bool),1], overlay[np.invert(mask_bool),2] = 200, 0
+        mask_overlay = cv2.addWeighted(image, .7, overlay, 0.5, 0)
         show_image(mask_overlay)
-    if cv2.waitKey() == 13:
-        cv2.destroyAllWindows()
-    elif cv2.waitKey() == 27:
-        cv2.destroyAllWindows()
-        sys.exit("Esc: exit phenopype process")    
 
-    ## if pp-project, add to attributes
+    ## overwrite if directory
     if obj_input.__class__.__name__ == "container":
-        mask = ordereddict([("include",include),("coords",str(coords))])
-        if not "masks" in attr:
-            attr["masks"] = {}
-        attr["masks"][label] = mask
-        save_yaml(attr, os.path.join(obj_input.dirpath, "attributes.yaml"))
+        if obj_input.dirpath:
+            if skip == False:
+                mask_path = os.path.join(obj_input.dirpath, "masks.yaml")
+                if os.path.isfile(mask_path):
+                    masks = _load_yaml(mask_path)
+                else:
+                    masks = {}
+                masks[label] = mask
+                _save_yaml(masks, mask_path)
 
     ## return mask
-    if obj_input.__class__.__name__ == "pype_container":
-        obj_input.mask_binder[label] = MO
-        return obj_input
+    if obj_input.__class__.__name__ == "container":
+        obj_input.masks[label] = mask
     else:
-        return MO
+        return mask
 
 
 class mask_data(object):

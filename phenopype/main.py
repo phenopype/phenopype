@@ -3,20 +3,20 @@ import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
 
-import datetime
 import pickle
 import platform
 import pprint
-import ruamel.yaml
-import shutil
 import subprocess
+import ruamel.yaml
 
-from distutils.dir_util import copy_tree
+from datetime import datetime
 from ruamel.yaml.comments import CommentedMap as ordereddict
+from shutil import copyfile, rmtree
 
-from phenopype.utils import load_yaml, save_yaml, show_yaml
-from phenopype.utils_lowlevel import _image_viewer, _del_rw, _make_pype_template, _yaml_file_monitor
-from phenopype.settings import pype_presets, colours
+from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
+from phenopype.utils_lowlevel import _image_viewer, _del_rw, _file_walker, _make_pype_template
+from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
+from phenopype.settings import presets, colours
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
 #%% settings
@@ -26,7 +26,7 @@ pretty = pprint.PrettyPrinter(width=30) # pretty print short strings
 ruamel.yaml.Representer.add_representer(ordereddict, ruamel.yaml.Representer.represent_dict) # suppress !!omap node info
 
 
-#%% methods
+#%% classes
 
 class project: 
     def __init__(self, root, name, **kwargs):
@@ -69,13 +69,13 @@ class project:
             if create=="y" or create == "yes":
                 if os.path.isdir(root_dir):
                     if flag_overwrite == True:
-                        shutil.rmtree(root_dir, ignore_errors=True, onerror=_del_rw) 
+                        rmtree(root_dir, ignore_errors=True, onerror=_del_rw) 
                         print("\n\"" + root_dir + "\" created (overwritten)")
                         pass
                     else:
                         overwrite = input("Warning - project root_dir already exists - overwrite? (y/n)")
                         if overwrite == "y" or overwrite == "yes":
-                            shutil.rmtree(root_dir, ignore_errors=True, onerror=_del_rw) 
+                            rmtree(root_dir, ignore_errors=True, onerror=_del_rw) 
                             print("\n\"" + root_dir + "\" created (overwritten)")
                             pass
                         else:
@@ -87,20 +87,25 @@ class project:
             else:
                 print("\n\"" + root_dir + "\" not created!")
                 break
-            
+
+            ## make directories
             self.root_dir = root_dir
             os.makedirs(self.root_dir)
             self.data_dir = os.path.join(self.root_dir, "data")
-            os.mkdir(self.data_dir)
-            self.dirpath_list = []
-            self.attributes_dict = {}
+            os.makedirs(self.data_dir)
+
+            ## lists for files to add
             self.name = name
-            
+            self.dirnames = []
+            self.dirlist = []
+            self.rawlist = []
+            self.files = {}
+
             ## global project attributes
             project_data = {
                 "name": name,
-                "date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
-                "date_changed": datetime.datetime.today().strftime('%Y%m%d_%H%M%S')}
+                "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
+                "date_changed": datetime.today().strftime('%Y%m%d_%H%M%S')}
             project_io = {
                 "root_dir": self.root_dir,
                 "data_dir": self.data_dir}
@@ -108,7 +113,7 @@ class project:
                     [ordereddict([('project_data', project_data)]), 
                      ordereddict([('project_io', project_io)])
                      ])])
-            save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
+            _save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
 
             print("\nproject attributes written to " + os.path.join(self.root_dir, "attributes.yaml"))
             print("--------------------------------------------")
@@ -124,6 +129,11 @@ class project:
     
         image_dir: str 
             path to directory with images                             
+
+        raw_mode (optional): str (default: "copy")
+            how should the raw files be passed on to the phenopype directory tree: "copy" will make a copy of the original file, 
+            "link" will only send the link to the original raw file to attributes, but not copy the actual file (useful for big files)
+            
         search_mode (optional): str (default: "dir")
             "dir" searches current directory for valid files; "recursive" walks through all subdirectories
         filetypes (optional): list of str
@@ -136,88 +146,27 @@ class project:
             how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
             if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
             whereas filename will ignore all those files after their first occurrence.
-        raw_mode (optional): str (default: "copy")
-            how should the raw files be passed on to the phenopype directory tree: "copy" will make a copy of the original file, 
-            "link" will only send the link to the original raw file to attributes, but not copy the actual file (useful for big files)
         """
         
         ## kwargs
         flag_overwrite = kwargs.get("overwrite",False)
-        search_mode = kwargs.get("search_mode","dir")
-        file_endings = kwargs.get("filetypes", [])
-        exclude_args = kwargs.get("exclude", [])
-        include_args = kwargs.get("include", [])
-        unique_by = kwargs.get("unique_by", "filepath")
         flag_raw = kwargs.get("raw_mode", "copy")
+        resize = kwargs.get("resize",1)
+        search_mode = kwargs.get("search_mode","dir")
+        filetypes = kwargs.get("filetypes", [])
+        include = kwargs.get("include", [])
+        exclude = kwargs.get("exclude", [])
+        unique_by = kwargs.get("unique_by", "filepath")
 
-        ## dummy filepaths for refinement
-        filepaths1, filepaths2, filepaths3, filepaths4 = [],[],[],[]
-        original_filepaths, filepaths_not_added = [], []
-        
-        ## find files 
-        if search_mode == "recursive":
-            for root, dirs, files in os.walk(image_dir):
-                for file in os.listdir(root):
-                    filepath = os.path.join(root,file)
-                    if os.path.isfile(filepath):
-                        filepaths1.append(filepath)
-        elif search_mode == "dir":
-            for file in os.listdir(image_dir):
-                filepath = os.path.join(image_dir,file)
-                if os.path.isfile(filepath):   
-                    filepaths1.append(filepath)
-                    
-        ## file endings
-        if len(file_endings)>0:
-            for filepath in filepaths1:
-                if filepath.endswith(tuple(file_endings)):
-                    filepaths2.append(filepath)
-        elif len(file_endings)==0:
-            filepaths2 = filepaths1
-            
-        ## include
-        if len(include_args)>0:
-            for filepath in filepaths2:   
-                if any(inc in os.path.basename(filepath) for inc in include_args):
-                    filepaths3.append(filepath)
-        else:
-            filepaths3 = filepaths2
-            
-        ## exclude
-        if len(exclude_args)>0:
-            for filepath in filepaths3:   
-                if not any(exc in os.path.basename(filepath) for exc in exclude_args):
-                    filepaths4.append(filepath)
-        else:
-            filepaths4 = filepaths3
-        
-        ## save to object
-        filepaths = filepaths4
-        filenames = []
-        for filepath in filepaths:
-            filenames.append(os.path.basename(filepath))
-        
-        ## allow unique filenames filepath or by filename only
-        if unique_by=="filepaths" or unique_by=="filepath":
-            for filename, filepath in zip(filenames, filepaths):
-                if not filepath in original_filepaths:
-                    original_filepaths.append(filepath)
-                else:
-                    filepaths_not_added.append(filepath)
-        elif unique_by=="filenames" or unique_by=="filename":
-            for filename, filepath in zip(filenames, filepaths):
-                if not filename in filenames:
-                    original_filepaths.append(filepath)
-                else:
-                    filepaths_not_added.append(filepath)
+        ## collect filepaths
+        filepaths, duplicates = _file_walker(image_dir, search_mode=search_mode, unique_by=unique_by, filetypes=filetypes, exclude=exclude, include=include)
+
 
         ## loop through files
-        for original_filepath in original_filepaths:
-            original_filename = os.path.basename(original_filepath)
-            original_filetype = os.path.splitext(original_filename)[1]
-        
+        for filepath in filepaths:
+
             ## flatten folder structure
-            relpath = os.path.relpath(original_filepath,image_dir)
+            relpath = os.path.relpath(filepath,image_dir)
             depth = relpath.count("\\")
             relpath_flat = os.path.dirname(relpath).replace("\\","__")
             if depth > 0:
@@ -226,58 +175,60 @@ class project:
                 subfolder_prefix = str(depth) + "__" 
                 
             ## image paths
-            phenopype_dirname = subfolder_prefix + os.path.splitext(original_filename)[0]
-            phenopype_dirpath = os.path.join(self.root_dir,"data",phenopype_dirname)
+            dirname = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
+            dirpath = os.path.join(self.root_dir,"data",dirname)
 
             ## make image-specific directories
-            if os.path.isdir(phenopype_dirpath) and flag_overwrite==False:
-                print(phenopype_dirname + " already exists (overwrite=False)")
+            if os.path.isdir(dirpath) and flag_overwrite==False:
+                print(dirname + " already exists (overwrite=False)")
                 continue
-            if os.path.isdir(phenopype_dirpath) and flag_overwrite==True:
-                shutil.rmtree(phenopype_dirpath, ignore_errors=True, onerror=_del_rw)
-                print("phenopype-project folder " + phenopype_dirname + " created (overwritten)")
-                pass
+            if os.path.isdir(dirpath) and flag_overwrite==True:
+                rmtree(dirpath, ignore_errors=True, onerror=_del_rw)
+                print("phenopype-project folder " + dirname + " created (overwritten)")
+                os.mkdir(dirpath)
             else:
-                print("phenopype-project folder " + phenopype_dirname + " created")
-                pass
-            os.mkdir(phenopype_dirpath)
-            phenopype_filepath_raw = os.path.join(phenopype_dirpath,"raw" + original_filetype)
+                print("phenopype-project folder " + dirname + " created")
+                os.mkdir(dirpath)
 
             ## copy or link raw files
             if flag_raw == "copy":
-                shutil.copyfile(original_filepath, phenopype_filepath_raw)
+                raw_path = os.path.join(dirpath, "raw" + os.path.splitext(os.path.basename(filepath))[1])
+                if resize < 1:
+                    image = cv2.imread(filepath)
+                    image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize) 
+                    cv2.imwrite(raw_path, image)
+                else:
+                    copyfile(filepath, raw_path)
             elif flag_raw == "link":
-                phenopype_filepath_raw = original_filepath
-                
-                
-            original_io = {
-                "filename": original_filename,
-                "filepath": original_filepath,
-                "filetype": original_filetype}
+                raw_path = filepath
 
-            phenopype_io = {
-                "project": self.name,
-                "dirname": phenopype_dirname,
-                "dirpath": phenopype_dirpath,
-                "filepath_raw": phenopype_filepath_raw,
-                "raw_mode": flag_raw} 
+            ## collect attribute-data and save
+            image_data = load_image_data(filepath)
+            meta_data = load_meta_data(filepath)
+            project_data = {
+                "project_name": self.name,
+                "dirname": dirname,
+                "dirpath": dirpath,
+                "raw_mode": flag_raw,
+                "raw_path": raw_path,
+                "resize_factor": resize
+                }
+            
+            attributes = {
+                "image": image_data,
+                "meta": meta_data,
+                "project": project_data}
 
-            attributes = {'information':
-                          {#'meta_data': exif_data(original_filepath),
-                           'original_io': original_io,
-                           'phenopype_io': phenopype_io}
-                          }
-                                       
             ## write attributes file
-            attributes_path = os.path.join(phenopype_dirpath, "attributes.yaml")
-            save_yaml(attributes, attributes_path)
+            _save_yaml(attributes, os.path.join(dirpath, "attributes.yaml"))
 
             ## add to project object
-            self.dirpath_list.append(phenopype_dirpath)
-            self.attributes_dict[phenopype_dirname] = attributes
+            self.dirnames.append(dirname)
+            self.dirlist.append(dirpath)
+            self.rawlist.append(raw_path)
+            self.files[dirname] = attributes
 
-
-    def add_pype_preset(self,  **kwargs):
+    def add_config(self,  **kwargs):
         """
         Add pype configuration presets to all project directories
 
@@ -301,67 +252,248 @@ class project:
         flag_overwrite = kwargs.get("overwrite", False)
         steps_include = kwargs.get("include",[]) 
         
-        ## modify preset 
+        ## load preset
+        preset = _load_yaml(eval("presets." + preset_name))
+        
+        ## modify
         if flag_interactive:
-            source_dir = self.attributes_dict[next(iter(self.attributes_dict))]["information"]["phenopype_io"]["dirpath"]
-            template_dir = os.path.join(self.root_dir, "template")
-            if not os.path.isdir(template_dir):
-                os.makedirs(template_dir)
-            copy_tree(source_dir, template_dir)
-            template_pype = os.path.join(template_dir, "template_pype.yaml")
-            template_attributes = os.path.join(template_dir, "attributes.yaml")
-            attr = load_yaml(template_attributes)
-            attr["information"]["phenopype_io"]["dirname"] = "template"
-            attr["information"]["phenopype_io"]["dirpath"] = template_dir
-            attr["information"]["phenopype_io"]["filepath_raw"] = os.path.join(template_dir, 
-                                                                          "raw" + attr["information"]["original_io"]["filetype"])
-            save_yaml(attr, template_attributes)
-            
-            save_yaml(load_yaml(eval("pype_presets." + preset_name)), template_pype)
-            print(template_dir)
-            p = pype(template_dir)
-            p.run(steps=steps_include, pype_config=template_pype)
+            attr = self.files[next(iter(self.files))]
+            image_path = attr["project"]["raw_path"]
+
+            template_path = os.path.join(self.root_dir, "pype_template.yaml")
+            _save_yaml(preset, template_path)
+
+            p = pype(image_path)
+            p.run(steps=steps_include, pype_config=template_path)
             preset = p.pype_config
-            show_yaml(preset)
-        ## save pype-config file
-        for directory in self.dirpath_list:
-            
-            ## get dir from local attributes file
-            attr = load_yaml(os.path.join(directory, "attributes.yaml"))
-            dirpath = attr["information"]["phenopype_io"]["dirpath"]
-            dirname = attr["information"]["phenopype_io"]["dirname"]
-            pype_path = os.path.join(dirpath, "pype_" + pype_name + ".yaml")
+            _show_yaml(preset)
 
-            pype_config = {"pype_info":
-                           {"name": pype_name,
-                            "preset": preset_name,
-                            "date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
-                            "date_modified": datetime.datetime.today().strftime('%Y%m%d_%H%M%S')},
-                           "image_info":
-                           {"filename": attr["information"]["original_io"]["filename"],
-                            "project": attr["information"]["phenopype_io"]["project"],
-                            "size_px_xy": attr["information"]["meta_data"]["size_xy_px"],
-                            "exposure_time": attr["information"]["meta_data"]["exposure_time"],
-                            "data_taken": attr["information"]["meta_data"]["date_taken"],
-                            "date_phenopyped": None
-                            }}
-                
-            if not flag_interactive:
-                preset = load_yaml(eval("pype_presets." + preset_name))
-            pype_config.update(preset)
+        ## go through project directories
+        for directory in self.dirlist:
+            attr = _load_yaml(os.path.join(directory, "attributes.yaml"))
+            pype_preset = {"image": attr["image"],
+                           "pype":
+                               {"name": pype_name,
+                                "preset": preset_name,
+                                "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
+                                "date_last_used": None
+                                }
+                               }
+            pype_preset.update(preset)
 
-            if os.path.isfile(pype_path) and flag_overwrite==False:
+            ## save config
+            preset_path = os.path.join(directory, "pype_" + pype_name + ".yaml")
+            dirname = attr["project"]["dirname"]
+            if os.path.isfile(preset_path) and flag_overwrite==False:
                 print("pype_" + pype_name + ".yaml already exists in " + dirname +  " (overwrite=False)")
                 continue
-            elif os.path.isfile(pype_path) and flag_overwrite==True:
+            elif os.path.isfile(preset_path) and flag_overwrite==True:
                 print("pype_" + pype_name + ".yaml created for " + dirname + " (overwritten)")
                 pass
             else:
                 print("pype_" + pype_name + ".yaml created for " + dirname)
                 pass
-            save_yaml(pype_config, pype_path)
+            _save_yaml(pype_preset, preset_path)
 
 
+
+class pype:
+    def __init__(self, obj_input, **kwargs):
+        """
+        Initialize pype routine
+
+        Parameters
+        ----------
+
+        image: str
+            name of config-file
+        """
+        ## kwargs
+        default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
+        exif_fields = kwargs.get("fields", default_fields)
+        if not exif_fields.__class__.__name__ == "list":
+            exif_fields = [exif_fields]
+            
+        self.obj_input = obj_input
+        
+        if obj_input.__class__.__name__ == "ndarray":
+            self.container = load_image(obj_input, container=True, meta=False)
+        elif obj_input.__class__.__name__ == "str":
+            if os.path.isfile(obj_input):
+                self.container = load_image(obj_input, container=True, meta=True, fields=exif_fields)
+            elif os.path.isdir(obj_input):
+                self.container = load_directory(obj_input, meta=True, fields=exif_fields)
+        else:
+            sys.exit("Wrong input - cannot run pype.")
+
+    def run(self, **kwargs):
+        """
+        Add pype configuration presets to all project directories
+
+        Parameters
+        ----------
+
+        name (optional): str (default: "v1")
+            name of config-file
+        preset (optional): str (default: "preset1")
+            chose from given presets in phenopype/settings/pype_presets.py (e.g. preset1, preset2, preset3, ...)
+        interactive (optional): bool (default: False)
+            start a pype, modify loaded preset before saving it to phenopype directories
+        overwrite (optional): bool (default: False)
+            overwrite option, if a given pype config-file already exist
+        """
+
+        ## kwargs
+        flag_return = kwargs.get("return_results",False)
+        flag_show = kwargs.get("show",True)
+        steps_exclude = kwargs.get("exclude",[]) 
+        steps_include = kwargs.get("include",[]) 
+        pype_config = kwargs.get("config", None)
+        print_settings = kwargs.get("print_settings",False)
+        
+
+        ## fetch pype configuration, and revert to generic if none are found
+        ## from project directory
+        if pype_config.__class__.__name__ == "str":
+            generic = True
+            if self.container.dirpath:
+                pype_config_locations = [os.path.join(self.container.dirpath, "pype_" + pype_config + ".yaml"),
+                                         os.path.join(self.container.dirpath, pype_config + ".yaml"),
+                                         os.path.join(self.container.dirpath, pype_config)]
+                for location in pype_config_locations:
+                    if os.path.isfile(location):
+                        generic = False
+                        self.pype_config = _load_yaml(location)
+                        self.pype_config_file = location
+                if generic:
+                    warnings.warn("No pype configuration found under given name - defaulting to preset1")
+            ## from filepath
+            else:
+                if os.path.isfile(pype_config):
+                    generic = False
+                    self.pype_config = _load_yaml(pype_config)
+                    self.pype_config_file = pype_config
+                else:
+                    generic = True
+                    warnings.warn("No pype configuration found under given path - defaulting to preset1")
+        ## if none provided, use generic pype config from preset
+        elif pype_config.__class__.__name__ == "NoneType":
+            warnings.warn("No pype configuration provided - defaulting to preset1")
+            generic = True
+                
+        ## make generic pype preset
+        if generic:
+            if self.container.dirpath:
+                location = os.path.join(self.container.dirpath, "pype_generic.yaml")
+            else:
+                location = os.path.join(os.getcwd(), "pype_generic.yaml")
+            if os.path.isfile(location):
+                self.pype_config = _load_yaml(location)
+                self.pype_config_file = location
+            else:   
+                preset = _load_yaml(eval("presets.preset1"))
+                pype_preset = {"image": self.container.image_data,
+                               "pype":
+                                   {"name": "pype_generic",
+                                    "preset": "preset1",
+                                    "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
+                                    "date_last_used": None}}
+                pype_preset.update(preset)
+                _save_yaml(pype_preset, location)
+                self.pype_config = pype_preset
+                self.pype_config_file = location
+
+        ## open config file with system viewer
+        if flag_show:
+            if platform.system() == 'Darwin':       # macOS
+                subprocess.call(('open', self.pype_config_file))
+            elif platform.system() == 'Windows':    # Windows
+                os.startfile(self.pype_config_file)
+            else:                                   # linux variants
+                subprocess.call(('xdg-open', self.pype_config_file))
+
+
+
+        self.FM = _yaml_file_monitor(self.pype_config_file, print_settings=print_settings)
+
+        update = {}
+        iv = None
+        
+        while True:
+            
+            ## reset pype container
+            flag_vis = False
+            self.container.reset(components=["contours", "masks"])
+            self.container.df["date_phenopyped"] = datetime.today().strftime('%Y%m%d_%H%M%S') 
+            self.container.df["pype_name"] = pype_config
+            
+            ## get config file and assemble pype
+            self.pype_config = copy.deepcopy(self.FM.content)
+            if not self.pype_config:
+                continue
+            
+            ## check steps
+            if not steps_include:
+                steps_pre = []
+                for item in self.pype_config:
+                    steps_pre.append(item)
+                steps = [e for e in steps_pre if e not in steps_exclude]
+            elif steps_include:
+                steps = steps_include
+
+            ## apply pype
+            for step in steps:
+                if step in ["image", "meta", "pype"]:
+                    continue
+                for item in self.pype_config[step]:
+                    try:
+                        ## construct method name and arguments
+                        if isinstance(item, str):
+                            method_name = item
+                            method_args = {}
+                        else:
+                            method_name = list(item)[0]
+                            method_args = dict(list(dict(item).values())[0])
+                            
+                        ## run method
+                        method_loaded = eval(step + "." + method_name)
+                        method_loaded(self.container, **method_args)
+
+                        ## check if visualization argument is given in config
+                        if method_name == "show_image":
+                            flag_vis = True
+                    except Exception as ex:
+                        location = step + "." + method_name + ": " + str(ex.__class__.__name__)
+                        print(location + " - " + str(ex))
+
+            ## show image and hold
+            if flag_show:
+                try:
+                    if not flag_vis:
+                        self.container = visualization.show_image(self.container)
+                    iv = _image_viewer(self.container.canvas, prev_attributes=update)
+        
+                    ## pass on settings for next call
+                    update = iv.__dict__
+    
+                except Exception as ex:
+                    print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
+    
+                ## close
+                if iv:
+                    if iv.done:
+                        self.FM.stop()
+                        break
+            else:
+                self.FM.stop()
+                break
+
+        if flag_return:
+            return self.container
+
+
+
+#%% functions
 
 def save_project(project):
     """
@@ -392,257 +524,3 @@ def load_project(path):
     """
     with open(path, 'rb') as output:
         return pickle.load(output)
-
-
-
-class pype:
-    def __init__(self, image, **kwargs):
-        """
-        Initialize pype routine
-
-        Parameters
-        ----------
-
-        image: str
-            name of config-file
-        """
-        ## kwargs
-        resize = kwargs.get("resize", False)
-        self.PC = pype_container(image, resize=resize)
-        
-        
-        
-    # - IMAGE DECISION HERE OR IN PC 
-    # - PYPE CONFIG - how to default vs dir vs array vs string
-    # - CASES!
-    
-        
-    def run(self, **kwargs):
-        """
-        Add pype configuration presets to all project directories
-
-        Parameters
-        ----------
-
-        name (optional): str (default: "v1")
-            name of config-file
-        preset (optional): str (default: "preset1")
-            chose from given presets in phenopype/settings/pype_presets.py (e.g. preset1, preset2, preset3, ...)
-        interactive (optional): bool (default: False)
-            start a pype, modify loaded preset before saving it to phenopype directories
-        overwrite (optional): bool (default: False)
-            overwrite option, if a given pype config-file already exist
-        """
-
-        ## kwargs
-        flag_return = kwargs.get("return_results",False)
-        flag_show = kwargs.get("show",True)
-        steps_exclude = kwargs.get("exclude",[]) 
-        steps_include = kwargs.get("include",[]) 
-        pype_config = kwargs.get("pype_config", None)
-        print_settings = kwargs.get("print_settings",False)
-
-        ## fetch pype configuration from file or preset
-        if pype_config:
-            pype_config_locations = [os.path.join(self.PC.dirpath, pype_config + ".yaml"),
-                       os.path.join(self.PC.dirpath, pype_config)]
-            for loc in pype_config_locations:
-                if os.path.isfile(loc):
-                    self.pype_config = load_yaml(loc)
-                    self.pype_config_file = loc
-        else:
-            self.pype_config = pype_config
-            self.pype_config_file = self.dirname
-            
-        if not pype_config:
-            loc = os.path.join(self.dirname, "pipeline1.yaml")
-            save_yaml(_make_pype_template(), loc)
-            self.pype_config = load_yaml(loc)
-            self.pype_config_file = loc
-            
-        ## open config file with system viewer
-        if flag_show:
-            if platform.system() == 'Darwin':       # macOS
-                subprocess.call(('open', self.pype_config_file))
-            elif platform.system() == 'Windows':    # Windows
-                os.startfile(self.pype_config_file)
-            else:                                   # linux variants
-                subprocess.call(('xdg-open', self.pype_config_file))
-
-        self.FM = _yaml_file_monitor(self.pype_config_file, print_settings=print_settings)
-
-        update = {}
-        iv = None
-        
-        while True:
-            
-            ## reset pype container
-            flag_vis = False
-            self.PC.reset(components=["contour_list", "mask"])
-            self.PC.df_result["date_phenopyped"] = datetime.datetime.today().strftime('%Y%m%d_%H%M%S') 
-            self.PC.df_result["pype_name"] = pype_config
-            
-            ## get config file and assemble pype
-            self.pype_config = copy.deepcopy(self.FM.content)
-            if not self.pype_config:
-                continue
-            
-            ## check steps
-            if not steps_include:
-                steps_pre = []
-                for item in self.pype_config:
-                    steps_pre.append(item)
-                steps = [e for e in steps_pre if e not in steps_exclude]
-            elif steps_include:
-                steps = steps_include
-
-            ## apply pype
-            for step in steps:
-                if step in ["pype_info", "image_info"]:
-                    continue
-                for item in self.pype_config[step]:
-                    try:
-                        ## construct method name and arguments
-                        if isinstance(item, str):
-                            method_name = item
-                            method_args = {}
-                        else:
-                            method_name = list(item)[0]
-                            method_args = dict(list(dict(item).values())[0])
-                            
-                        ## run method
-                        method_loaded = eval(step + "." + method_name)
-                        method_loaded(self.PC, **method_args)
-
-                        ## check if visualization argument is given in config
-                        if method_name == "show_image":
-                            flag_vis = True
-                    except Exception as ex:
-                        location = step + "." + method_name + ": " + str(ex.__class__.__name__)
-                        print(location + " - " + str(ex))
-
-            ## show image and hold
-            if flag_show:
-                try:
-                    if not flag_vis:
-                        self.PC = visualization.show_image(self.PC)
-                    iv = _image_viewer(self.PC.canvas, prev_attributes=update)
-        
-                    ## pass on settings for next call
-                    update = iv.__dict__
-    
-                except Exception as ex:
-                    print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
-    
-                ## close
-                if iv:
-                    if iv.done:
-                        self.FM.stop()
-                        break
-            else:
-                self.FM.stop()
-                break
-
-        if flag_return:
-            return self.PC
-
-
-
-class pype_container(object):
-    def __init__(self, image, **kwargs):
-        """ This object acts as a "sticky-ball" for all the operations bewteen one pype-iteration, and 
-        contains the raw image to extract information, the modified image for processing, and all in-between
-        steps (e.g. masks and detected contours). Depending on the input (phenopype directory (default), 
-        path to an image, or array), more pr less complete meta-information will be passed on to the results file
-        that will be stored in the same directory as the input-image (or custom directory [default: current working 
-        directory] , in case of the array).
-        
-        Parameters
-        ----------
-
-        image: str
-        """
-
-        ## kwargs
-        dirpath = kwargs.get("dirpath", None)
-        resize = kwargs.get("resize", False)
-
-        ## load image 
-        self.flag_pp_proj = False
-        if image.__class__.__name__ == "str":
-            if os.path.isdir(image) and "attributes.yaml" in os.listdir(image):
-                self.flag_pp_proj = True
-                attr = load_yaml(os.path.join(image, "attributes.yaml"))
-                image = cv2.imread(attr["information"]["phenopype_io"]["filepath_raw"])
-                dirpath = attr["information"]["phenopype_io"]["dirpath"]
-                df_dict = {"filename": attr["information"]["original_io"]["filename"],
-                            "project": attr["information"]["phenopype_io"]["project"],
-                            "size_px_xy": attr["information"]["meta_data"]["size_xy_px"],
-                            "resize": resize,
-                            "exposure_time": attr["information"]["meta_data"]["exposure_time"],
-                            "data_taken": attr["information"]["meta_data"]["date_taken"]}
-
-        ## set up meta info
-        self.dirpath = dirpath
-        self.df_result = pd.DataFrame([df_dict])
-        self.df_result_copy = copy.deepcopy(self.df_result)
-
-        ## set up images
-        if resize:
-            self.image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize) 
-        else:
-            self.image = image
-        self.image_mod = copy.deepcopy(self.image)
-        self.image_bin = None
-        self.canvas = None
-
-        ## set up containers
-        self.mask_binder = {}
-        self.contours = {}
-
-
-    def reset(self, components=[]):
-        
-        self.image_mod = copy.deepcopy(self.image)
-        self.image_bin = None
-        self.canvas = None
-
-        if "contour" in components or "contours" in components or "contour_list" in components:
-            self.df_result = copy.deepcopy(self.df_result_copy)
-            self.contours = {}
-        if "mask" in components or "masks" in components:
-            self.mask_binder = {}
-            
-            
-        # def save(self):     
-        #     with open(self.path + '.data', 'wb') as output:
-        #         pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
-        # def load(self):
-        #     with open(self.content + '.data', 'rb') as output:
-        #         pickle.load(output)
-                
-                
-        #     self.mask = {}
-        # def show(self):
-        #     pretty.pprint(self.__dict__)
-        # def load_raw(self):
-        #     img = cv2.imread(os.path.join(self.filepath_raw))
-        #     return img
-        # def show_raw(self):
-        #     img = cv2.imread(os.path.join(self.filepath_raw))
-        #     show_img(img)
-            
-        # def create_mask(self, **kwargs):
-        #     name = kwargs.get("name", "mask1")
-        #     self.mask[name] = mask.create_mask(self.filepath_raw)
-        #     cv2.imwrite(name + ".jpg", self.mask[name].mask_bin)
-        
-            
-# class image_container(object):    
-#     def __init__(self, filename, filepath): 
-#         self.filename = filename    
-#         self.filetype = os.path.splitext(filename)[1]
-#         self.filepath = filepath    
-#         self.filepath_raw = os.path.join(filepath,"raw" + self.filetype)
-#         self.filepath_config = os.path.join(filepath,"config.yaml")
-        

@@ -9,6 +9,7 @@ from PIL import Image, ExifTags
 from ruamel.yaml import YAML
 
 from phenopype.utils_lowlevel import _image_viewer 
+from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
 from phenopype.settings import colours
 
 #%% settings
@@ -20,13 +21,27 @@ def custom_formatwarning(msg, *args, **kwargs):
     # ignore everything except the message
     return "WARNING: " + str(msg) + '\n'
 warnings.formatwarning = custom_formatwarning
+warnings.simplefilter('always', UserWarning)
 
 #%% classes
 
 class container(object):
-    
     def __init__(self, image, df, **kwargs):
+        """
+        Parameters
+        ----------
+        image : TYPE
+            DESCRIPTION.
+        df : TYPE
+            DESCRIPTION.
+        **kwargs : TYPE
+            DESCRIPTION.
 
+        Returns
+        -------
+        None.
+
+        """
         self.image = image
         self.image_copy = copy.deepcopy(self.image)
         self.df = df
@@ -39,18 +54,94 @@ class container(object):
         self.masks = {}
         self.contours = {}
     def reset(self, components=[]):
-        
+        """
+        Parameters
+        ----------
+        components : TYPE, optional
+            DESCRIPTION. The default is [].
+
+        Returns
+        -------
+        None.
+
+        """
         self.image = copy.deepcopy(self.image_copy)
         self.df = copy.deepcopy(self.df_copy)
         self.canvas = None
 
         if "contour" in components or "contours" in components or "contour_list" in components:
-            self.df_result = copy.deepcopy(self.df_result_copy)
             self.contours = {}
         if "mask" in components or "masks" in components:
-            self.mask_binder = {}
+            self.masks = {}
 
 #%% functions
+            
+def load_directory(obj_input, **kwargs):
+    """
+    
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    ## kwargs
+    flag_container = kwargs.get("container", True)
+    flag_df = kwargs.get("df", False)
+    flag_meta = kwargs.get("meta", True)
+    default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
+    exif_fields = kwargs.get("fields", default_fields)
+    if not exif_fields.__class__.__name__ == "list":
+        exif_fields = [exif_fields]
+        
+    if not os.path.isdir(obj_input):
+        sys.exit("Not a valid phenoype directory - cannot load files.")
+        
+    attr = _load_yaml(os.path.join(obj_input, "attributes.yaml"))
+    image = cv2.imread(attr["project"]["raw_path"])
+    df = pd.DataFrame({"filename": attr["image"]["filename"],
+                       "width": attr["image"]["width"],
+                       "height": attr["image"]["height"]
+                       }, index=[0])
+
+    ## add meta-data 
+    if flag_meta:
+        exif_data_all, exif_data = attr["meta"], {}
+        for field in exif_fields:
+            if field in exif_data_all:
+                exif_data[field] = exif_data_all[field]
+        exif_data = dict(sorted(exif_data.items()))
+        df = pd.concat([df.reset_index(drop=True), pd.DataFrame(exif_data, index=[0])], axis=1)
+
+    ## return
+    if flag_container == True:
+        ct = container(image, df)
+        ct.dirpath = obj_input
+        ct.image_data = attr["image"]
+    ## check for masks
+    masks_path = os.path.join(obj_input, "masks.yaml")
+    if os.path.isfile(masks_path):
+        ct.masks = _load_yaml(masks_path)
+        
+    ## for future release 
+    # ==> here, other objects from directory can be loaded and injected to container
+
+    if flag_container == True:
+        return ct
+    elif flag_container == False:
+        if flag_df:
+            return image, df
+        else:
+            return image
+
+
 
 def load_image(obj_input, **kwargs):
     """
@@ -82,11 +173,11 @@ def load_image(obj_input, **kwargs):
         if os.path.isfile(obj_input):
             image = cv2.imread(obj_input)
         else:
-            sys.exit("invalid image path")
+            sys.exit("Invalid image path - cannot load image from str.")
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     else:
-        sys.exit("invalid input format")
+        sys.exit("Invalid input format - cannot load image.")
 
     ## load image data
     image_data = load_image_data(obj_input)
@@ -101,7 +192,10 @@ def load_image(obj_input, **kwargs):
 
     ## return
     if flag_container == True:
-        return container(image, df)
+        ct = container(image, df)
+        ct.image_data = image_data
+        ct.dirpath = None
+        return ct
     elif flag_container == False:
         if flag_df:
             return image, df
@@ -127,32 +221,38 @@ def load_image_data(obj_input):
     """
     if obj_input.__class__.__name__ == "str":
         if os.path.isfile(obj_input):
-            image = Image.open(obj_input)
-            width, height = image.size
-            image.close()
-            image_data = {
-                "filename": os.path.split(obj_input)[1],
-                "filepath": obj_input,
-                "filetype ": os.path.splitext(obj_input)[1],
-                "width": width,
-                "height": height
-                }
+            path = obj_input
+        elif os.path.isdir(obj_input):
+            attr = _load_yaml(os.path.join(obj_input, "attributes.yaml"))
+            path = attr["project"]["raw_path"]
+        image = Image.open(path)
+        width, height = image.size
+        image.close()
+        image_data = {
+            "filename": os.path.split(obj_input)[1],
+            "filepath": obj_input,
+            "filetype": os.path.splitext(obj_input)[1],
+            "width": width,
+            "height": height
+            }
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         width, height = image.shape[0:2]
         image_data = {
                 "filename": "unknown",
                 "filepath": "unkown",
-                "filetype ": "array_type",
+                "filetype": "array_type",
                 "width": width,
                 "height": height
             }
+    else:
+        warnings.warn("Not a valid image file - cannot read image data.")
 
     ## issue warnings for large images
     if width*height > 125000000:
-        warnings.warn("Large image. Expect slow processing and consider resizing.")
+        warnings.warn("Large image - expect slow processing and consider resizing.")
     elif width*height > 250000000:
-        warnings.warn("Extremely large image. Expect very slow processing and consider resizing.")
+        warnings.warn("Extremely large image - expect very slow processing and consider resizing.")
 
     ## return image data
     return image_data
@@ -194,10 +294,10 @@ def load_meta_data(obj_input, **kwargs):
         if os.path.isfile(obj_input):
             image = Image.open(obj_input)
         else:
-            warnings.warn("Not a valid image file.")
+            warnings.warn("Not a valid image file - cannot read exif data.")
             return {}
     else:
-        warnings.warn("Not a valid image file.")
+        warnings.warn("Not a valid image file - cannot read exif data.")
         return {}
 
     ## populate dictionary
@@ -232,14 +332,6 @@ def load_meta_data(obj_input, **kwargs):
 
 
 
-def load_yaml(string):
-    yaml = YAML()
-    if os.path.isfile(string):
-        with open(string, 'r') as file:
-            file = yaml.load(file)
-    else:
-        file = yaml.load(string)
-    return file
 
 
 
@@ -310,9 +402,7 @@ def show_image(image, **kwargs):
             cv2.destroyAllWindows()
             break
 
-def show_yaml(ordereddict):
-    yaml = YAML()
-    yaml.dump(ordereddict, sys.stdout)
+
 
 
 
@@ -358,8 +448,3 @@ def save_image(image, name, **kwargs):
         cv2.imwrite(im_path, image)
 
 
-
-def save_yaml(ordereddict, filepath):
-    with open(filepath, 'w') as config_file:
-        yaml = YAML()
-        yaml.dump(ordereddict, config_file)  

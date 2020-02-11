@@ -12,8 +12,7 @@ from watchdog.events import PatternMatchingEventHandler
 
 from phenopype.settings import colours
 
-
-#%% methods
+#%% classes
 
 class _image_viewer():
     def __init__(self, image, **kwargs):
@@ -255,6 +254,7 @@ class _image_viewer():
         self.canvas_copy = copy.deepcopy(self.canvas)
 
 
+
 class _yaml_file_monitor:
     def __init__(self, filepath, **kwargs):
 
@@ -269,15 +269,15 @@ class _yaml_file_monitor:
         self.event_handler.on_any_event = self.on_update
         
         ## intitialize
-        self.content = load_yaml(self.filepath)
+        self.content = _load_yaml(self.filepath)
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
         self.observer.start()
 
     def on_update(self, event):
-        self.content = load_yaml(self.filepath)
+        self.content = _load_yaml(self.filepath)
         if self.flag_print == True:
-            print(show_yaml(self.content), end="")
+            print(_show_yaml(self.content), end="")
         self.flag_update = True
         cv2.destroyAllWindows()
 
@@ -285,7 +285,7 @@ class _yaml_file_monitor:
         self.observer.stop()
         self.observer.join()
 
-
+#%% functions
 
 def _auto_line_thickness(image, **kwargs):
     factor = kwargs.get("factor", 0.001)
@@ -317,6 +317,124 @@ def _auto_text_size(image, **kwargs):
 
 
 
+def _create_mask_bin(image, coords):
+    mask_bin = np.zeros(image.shape[0:2], np.uint8)
+    for sub_coords in coords:
+        cv2.fillPoly(mask_bin, [np.array(sub_coords, dtype=np.int32)], colours.white)
+    return mask_bin
+
+
+def _del_rw(action, name, exc):
+    os.chmod(name, S_IWRITE)
+    os.remove(name)
+
+
+
+def _file_walker(directory, **kwargs):
+    """
+    
+    Parameters
+    ----------
+    directory : TYPE
+        DESCRIPTION.
+    search_mode (optional): str (default: "dir")
+        "dir" searches current directory for valid files; "recursive" walks through all subdirectories
+    filetypes (optional): list of str
+        single or multiple string patterns to target files with certain endings
+    include (optional): list of str
+        single or multiple string patterns to target certain files to include
+    exclude (optional): list of str
+        single or multiple string patterns to target certain files to exclude - can overrule "include"
+    unique_by (optional): str (default: "filepath")
+        how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
+        if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
+        whereas filename will ignore all those files after their first occurrence.
+
+    Returns
+    -------
+    None.
+
+    """
+    ## kwargs
+    search_mode = kwargs.get("search_mode","dir")
+    filetypes = kwargs.get("filetypes", [])
+    include = kwargs.get("include", [])
+    exclude = kwargs.get("exclude", [])
+    unique_by = kwargs.get("unique_by", "filepath")
+
+
+    ## find files 
+    filepaths1, filepaths2, filepaths3, filepaths4 = [],[],[],[]
+    
+    if search_mode == "recursive":
+        for root, dirs, files in os.walk(directory):
+            for file in os.listdir(root):
+                filepath = os.path.join(root,file)
+                if os.path.isfile(filepath):
+                    filepaths1.append(filepath)
+    elif search_mode == "dir":
+        for file in os.listdir(directory):
+            filepath = os.path.join(directory,file)
+            if os.path.isfile(filepath):   
+                filepaths1.append(filepath)
+
+    ## file endings
+    if len(filetypes)>0:
+        for filepath in filepaths1:
+            if filepath.endswith(tuple(filetypes)):
+                filepaths2.append(filepath)
+    elif len(filetypes)==0:
+        filepaths2 = filepaths1
+
+    ## include
+    if len(include)>0:
+        for filepath in filepaths2:   
+            if any(inc in os.path.basename(filepath) for inc in include):
+                filepaths3.append(filepath)
+    else:
+        filepaths3 = filepaths2
+
+    ## exclude
+    if len(exclude)>0:
+        for filepath in filepaths3:   
+            if not any(exc in os.path.basename(filepath) for exc in exclude):
+                filepaths4.append(filepath)
+    else:
+        filepaths = filepaths3
+
+    ## allow unique filenames filepath or by filename only
+    filenames, unique_filename, unique, duplicate = [],[],[],[]
+    for filepath in filepaths:
+        filenames.append(os.path.basename(filepath))
+        
+    if unique_by=="filepaths" or unique_by=="filepath":
+        for filename, filepath in zip(filenames, filepaths):
+            if not filepath in unique:
+                unique.append(filepath)
+            else:
+                duplicate.append(filepath)
+    elif unique_by=="filenames" or unique_by=="filename":
+        for filename, filepath in zip(filenames, filepaths):
+            if not filename in unique_filename:
+                unique_filename.append(filename)
+                unique.append(filepath)
+            else:
+                duplicate.append(filepath)
+
+    return unique, duplicate
+
+
+
+def _load_yaml(string):
+    yaml = YAML()
+    if os.path.isfile(string):
+        with open(string, 'r') as file:
+            file = yaml.load(file)
+    else:
+        file = yaml.load(string)
+    return file
+
+
 def _make_pype_template(name, preset, **kwargs):
     
     ## kwargs
@@ -324,15 +442,8 @@ def _make_pype_template(name, preset, **kwargs):
     preset_name = preset
     
     image_data = kwargs.get("attributes_file", None)
-        
-    ## load preset
-    # pype_config = ordereddict([('pype_header', 
-    #                     [ordereddict([('name', pype_name)]), 
-    #                      ordereddict([('preset', preset_name)]), 
-    #                      ordereddict([('created_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
-    #                      ordereddict([('last_used_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))]), 
-    #                      ordereddict([('modified_on', datetime.datetime.today().strftime('%Y%m%d_%H%M%S'))])])])
-    
+
+
     
     pype_config = {"pype_info":
                    {"name": pype_name,
@@ -346,13 +457,17 @@ def _make_pype_template(name, preset, **kwargs):
 
     return pype_config
 
-
-def _del_rw(action, name, exc):
-    os.chmod(name, S_IWRITE)
-    os.remove(name)
-
+def _show_yaml(ordereddict):
+    yaml = YAML()
+    yaml.dump(ordereddict, sys.stdout)
 
 
+
+def _save_yaml(ordereddict, filepath):
+    with open(filepath, 'w') as config_file:
+        yaml = YAML()
+        yaml.dump(ordereddict, config_file)
+        
 # def get_median_grayscale(image, **kwargs):
 #     if (image.shape[0] + image.shape[1])/2 > 2000:
 #         factor = kwargs.get('resize', 0.5)
