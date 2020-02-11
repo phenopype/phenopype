@@ -14,7 +14,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 from shutil import copyfile, rmtree
 
 from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
-from phenopype.utils_lowlevel import _image_viewer, _del_rw, _file_walker, _make_pype_template
+from phenopype.utils_lowlevel import _image_viewer, _del_rw, _file_walker, _load_pype_config, _generic_pype_config
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
 from phenopype.settings import presets, colours
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
@@ -246,27 +246,22 @@ class project:
         """
 
         ## kwargs
-        pype_name = kwargs.get("name","v1")
-        preset_name = kwargs.get("preset","preset1")
+        pype_name = kwargs.get("name","1")
+        preset = kwargs.get("preset","preset1")
         flag_interactive = kwargs.get("interactive", None)
         flag_overwrite = kwargs.get("overwrite", False)
         steps_include = kwargs.get("include",[]) 
-        
-        ## load preset
-        preset = _load_yaml(eval("presets." + preset_name))
-        
+
         ## modify
         if flag_interactive:
-            attr = self.files[next(iter(self.files))]
-            image_path = attr["project"]["raw_path"]
-
+            container = load_directory(self.dirlist[0])
+            config, template_path = _generic_pype_config(container, preset = preset)
             template_path = os.path.join(self.root_dir, "pype_template.yaml")
-            _save_yaml(preset, template_path)
-
-            p = pype(image_path)
-            p.run(steps=steps_include, pype_config=template_path)
-            preset = p.pype_config
-            _show_yaml(preset)
+            _save_yaml(config, template_path)
+            p = pype(self.rawlist[0], steps=steps_include, config=template_path)
+            config = p.config
+        else:
+            config = _load_yaml(eval("presets." + preset))
 
         ## go through project directories
         for directory in self.dirlist:
@@ -274,12 +269,10 @@ class project:
             pype_preset = {"image": attr["image"],
                            "pype":
                                {"name": pype_name,
-                                "preset": preset_name,
+                                "preset": preset,
                                 "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
-                                "date_last_used": None
-                                }
-                               }
-            pype_preset.update(preset)
+                                "date_last_used": None}}
+            pype_preset.update(config)
 
             ## save config
             preset_path = os.path.join(directory, "pype_" + pype_name + ".yaml")
@@ -289,47 +282,18 @@ class project:
                 continue
             elif os.path.isfile(preset_path) and flag_overwrite==True:
                 print("pype_" + pype_name + ".yaml created for " + dirname + " (overwritten)")
-                pass
+                _save_yaml(pype_preset, preset_path)
             else:
                 print("pype_" + pype_name + ".yaml created for " + dirname)
-                pass
-            _save_yaml(pype_preset, preset_path)
+                _save_yaml(pype_preset, preset_path)
 
 
 
 class pype:
     def __init__(self, obj_input, **kwargs):
         """
-        Initialize pype routine
-
-        Parameters
-        ----------
-
-        image: str
-            name of config-file
-        """
-        ## kwargs
-        default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
-        exif_fields = kwargs.get("fields", default_fields)
-        if not exif_fields.__class__.__name__ == "list":
-            exif_fields = [exif_fields]
-            
-        self.obj_input = obj_input
+        Pype method. 
         
-        if obj_input.__class__.__name__ == "ndarray":
-            self.container = load_image(obj_input, container=True, meta=False)
-        elif obj_input.__class__.__name__ == "str":
-            if os.path.isfile(obj_input):
-                self.container = load_image(obj_input, container=True, meta=True, fields=exif_fields)
-            elif os.path.isdir(obj_input):
-                self.container = load_directory(obj_input, meta=True, fields=exif_fields)
-        else:
-            sys.exit("Wrong input - cannot run pype.")
-
-    def run(self, **kwargs):
-        """
-        Add pype configuration presets to all project directories
-
         Parameters
         ----------
 
@@ -342,100 +306,65 @@ class pype:
         overwrite (optional): bool (default: False)
             overwrite option, if a given pype config-file already exist
         """
-
         ## kwargs
         flag_return = kwargs.get("return_results",False)
         flag_show = kwargs.get("show",True)
         steps_exclude = kwargs.get("exclude",[]) 
         steps_include = kwargs.get("include",[]) 
-        pype_config = kwargs.get("config", None)
-        print_settings = kwargs.get("print_settings",False)
-        
+        config = kwargs.get("config", None)
+        print_settings = kwargs.get("print_settings",False)        
+        default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
+        exif_fields = kwargs.get("fields", default_fields)
+        if not exif_fields.__class__.__name__ == "list":
+            exif_fields = [exif_fields]
 
-        ## fetch pype configuration, and revert to generic if none are found
-        ## from project directory
-        if pype_config.__class__.__name__ == "str":
-            generic = True
-            if self.container.dirpath:
-                pype_config_locations = [os.path.join(self.container.dirpath, "pype_" + pype_config + ".yaml"),
-                                         os.path.join(self.container.dirpath, pype_config + ".yaml"),
-                                         os.path.join(self.container.dirpath, pype_config)]
-                for location in pype_config_locations:
-                    if os.path.isfile(location):
-                        generic = False
-                        self.pype_config = _load_yaml(location)
-                        self.pype_config_file = location
-                if generic:
-                    warnings.warn("No pype configuration found under given name - defaulting to preset1")
-            ## from filepath
-            else:
-                if os.path.isfile(pype_config):
-                    generic = False
-                    self.pype_config = _load_yaml(pype_config)
-                    self.pype_config_file = pype_config
-                else:
-                    generic = True
-                    warnings.warn("No pype configuration found under given path - defaulting to preset1")
-        ## if none provided, use generic pype config from preset
-        elif pype_config.__class__.__name__ == "NoneType":
-            warnings.warn("No pype configuration provided - defaulting to preset1")
-            generic = True
-                
-        ## make generic pype preset
-        if generic:
-            if self.container.dirpath:
-                location = os.path.join(self.container.dirpath, "pype_generic.yaml")
-            else:
-                location = os.path.join(os.getcwd(), "pype_generic.yaml")
-            if os.path.isfile(location):
-                self.pype_config = _load_yaml(location)
-                self.pype_config_file = location
-            else:   
-                preset = _load_yaml(eval("presets.preset1"))
-                pype_preset = {"image": self.container.image_data,
-                               "pype":
-                                   {"name": "pype_generic",
-                                    "preset": "preset1",
-                                    "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
-                                    "date_last_used": None}}
-                pype_preset.update(preset)
-                _save_yaml(pype_preset, location)
-                self.pype_config = pype_preset
-                self.pype_config_file = location
+        ## load image as cointainer from array, file, or directory
+        if obj_input.__class__.__name__ == "ndarray":
+            self.container = load_image(obj_input, container=True, meta=False)
+        elif obj_input.__class__.__name__ == "str":
+            if os.path.isfile(obj_input):
+                self.container = load_image(obj_input, container=True, meta=True, fields=exif_fields)
+            elif os.path.isdir(obj_input):
+                self.container = load_directory(obj_input, meta=True, fields=exif_fields)
+        else:
+            sys.exit("Wrong input - cannot run pype.")
+            
+        self.config, self.config_file = _load_pype_config(self.container, config)
+        _save_yaml(self.config, self.config_file)
+
+
 
         ## open config file with system viewer
         if flag_show:
             if platform.system() == 'Darwin':       # macOS
-                subprocess.call(('open', self.pype_config_file))
+                subprocess.call(('open', self.config_file))
             elif platform.system() == 'Windows':    # Windows
-                os.startfile(self.pype_config_file)
+                os.startfile(self.config_file)
             else:                                   # linux variants
-                subprocess.call(('xdg-open', self.pype_config_file))
+                subprocess.call(('xdg-open', self.config_file))
 
-
-
-        self.FM = _yaml_file_monitor(self.pype_config_file, print_settings=print_settings)
-
+        ## initialize
+        self.FM = _yaml_file_monitor(self.config_file, print_settings=print_settings)
         update = {}
         iv = None
         
+        # =============================================================================
+        # pype
+        # =============================================================================
+        
         while True:
-            
-            ## reset pype container
+            ## check visulization given
             flag_vis = False
-            self.container.reset(components=["contours", "masks"])
-            self.container.df["date_phenopyped"] = datetime.today().strftime('%Y%m%d_%H%M%S') 
-            self.container.df["pype_name"] = pype_config
             
             ## get config file and assemble pype
-            self.pype_config = copy.deepcopy(self.FM.content)
-            if not self.pype_config:
+            self.config = copy.deepcopy(self.FM.content)
+            if not self.config:
                 continue
             
             ## check steps
             if not steps_include:
                 steps_pre = []
-                for item in self.pype_config:
+                for item in self.config:
                     steps_pre.append(item)
                 steps = [e for e in steps_pre if e not in steps_exclude]
             elif steps_include:
@@ -445,7 +374,7 @@ class pype:
             for step in steps:
                 if step in ["image", "meta", "pype"]:
                     continue
-                for item in self.pype_config[step]:
+                for item in self.config[step]:
                     try:
                         ## construct method name and arguments
                         if isinstance(item, str):
@@ -472,13 +401,13 @@ class pype:
                     if not flag_vis:
                         self.container = visualization.show_image(self.container)
                     iv = _image_viewer(self.container.canvas, prev_attributes=update)
-        
+
                     ## pass on settings for next call
                     update = iv.__dict__
-    
+
                 except Exception as ex:
                     print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
-    
+
                 ## close
                 if iv:
                     if iv.done:
@@ -487,6 +416,10 @@ class pype:
             else:
                 self.FM.stop()
                 break
+            
+            ## reset container
+            self.container.reset(components=["contours"])
+            print("\n\n---------------new pype iteration---------------\n\n")
 
         if flag_return:
             return self.container

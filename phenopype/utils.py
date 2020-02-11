@@ -49,10 +49,12 @@ class container(object):
 
         self.image_mod = copy.deepcopy(self.image)
         self.image_bin = None
+        self.image_gray = None
         self.canvas = None
 
         self.masks = {}
         self.contours = {}
+
     def reset(self, components=[]):
         """
         Parameters
@@ -125,11 +127,12 @@ def load_directory(obj_input, **kwargs):
         ct = container(image, df)
         ct.dirpath = obj_input
         ct.image_data = attr["image"]
+        
     ## check for masks
     masks_path = os.path.join(obj_input, "masks.yaml")
     if os.path.isfile(masks_path):
         ct.masks = _load_yaml(masks_path)
-        
+
     ## for future release 
     # ==> here, other objects from directory can be loaded and injected to container
 
@@ -194,7 +197,7 @@ def load_image(obj_input, **kwargs):
     if flag_container == True:
         ct = container(image, df)
         ct.image_data = image_data
-        ct.dirpath = None
+        ct.dirpath = os.getcwd()
         return ct
     elif flag_container == False:
         if flag_df:

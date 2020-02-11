@@ -16,44 +16,59 @@ def save_results(obj_input, **kwargs):
     
     Parameters
     ----------
-    df: df
-        object_finder outpur (pandas data frame) to save
-    name: str
-        name for saved df
-    save_dir: str
+    name: str (optional, default: "results")
+        name for saved csv
+    dirpath: str (default: None)
         location to save df
-    append: str (optional)
-        append df name with string to prevent overwriting
+    round: int (optional, default: 1)
+        number of digits to round to
     overwrite: bool (optional, default: False)
-        overwrite df if name exists
+        overwrite csv if it already exists
+    silent: bool (optional, default: True)
+        do not print where file was saved
     """
     ## kwargs
     flag_overwrite = kwargs.get("overwrite", False)
-    keep = kwargs.get("keep",None)
-    ## load image
-    image, flag_input = _load_image(obj_input)
+    dirpath = kwargs.get("directory", None)
+    df = kwargs.get("df", None)
+    name = kwargs.get("name","results")
+    round_digits = kwargs.get("round",1)
+    silent = kwargs.get("silent", True)
+    
+    ## load df
+    if obj_input.__class__.__name__ == 'DataFrame':
+        df = obj_input
+        if not dirpath:
+            warnings.warn("No save directory specified - cannot export results.")
+    elif obj_input.__class__.__name__ == "container":
+        if not dirpath:
+            dirpath = obj_input.dirpath
+        df = obj_input.df
+    else:
+        warnings.warn("No df supplied - cannot export results.")
 
-    if flag_input == "pype_container":
-        dirpath = obj_input.dirpath
-        df = obj_input.df_result
-        name = df["pype_name"].iloc[0]
-
-    if keep:
-        df = df.loc[df["order"]=="parent"]
-
+    ## fix na, round, and format to string
     df = df.fillna(-9999)
-    df = df.round(1)
+    df = df.round(round_digits)
     df = df.astype(str)
 
-    save_path = os.path.join(dirpath, name + "_result.csv")
-
+    ## save
+    save_path = os.path.join(dirpath,  name + ".csv")
     if os.path.exists(save_path):
         if flag_overwrite == True:
-            df.to_csv(path_or_buf=save_path, sep=",")
+            df.to_csv(path_or_buf=save_path, sep=",",index=False)
+            if not silent:
+                print("Results saved under " + save_path + " (overwritten).")
+        else:
+            if not silent:
+                print("Results not saved - file already exists (overwrite = False).")
     else:
-        df.to_csv(path_or_buf=save_path, sep=",")
-        
-        
+        df.to_csv(path_or_buf=save_path, sep=",",index=False)
+        if not silent:
+            print("Results saved under " + save_path + ".")
+
+
+
 def save_overlay(obj_input, **kwargs):
     """Save a pandas dataframe to csv. 
     
@@ -69,29 +84,47 @@ def save_overlay(obj_input, **kwargs):
         append df name with string to prevent overwriting
     overwrite: bool (optional, default: False)
         overwrite df if name exists
+    silent: bool (optional, default: True)
+        do not print where file was saved
     """
     ## kwargs
+    dirpath = kwargs.get("directory", None)
     flag_overwrite = kwargs.get("overwrite", False)
+    name = kwargs.get("name","results")
     resize = kwargs.get("resize", 1)
-        
-    ## load image
-    image, flag_input = _load_image(obj_input)
+    silent = kwargs.get("silent", True)
+    
+    ## load df
+    if obj_input.__class__.__name__ == 'ndarray':
+        image = obj_input
+        if not dirpath:
+            warnings.warn("No save directory specified - cannot save overlay.")
+    elif obj_input.__class__.__name__ == "container":
+        if not dirpath:
+            dirpath = obj_input.dirpath
+        image = obj_input.canvas
+    else:
+        warnings.warn("No image supplied - cannot save overlay.")
 
-    if flag_input == "pype_container":
-        dirpath = obj_input.dirpath
-        img = obj_input.canvas
-        name = obj_input.df_result["pype_name"].iloc[0] + "_result"
+    ## resize
+    if resize < 1:
+        image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize) 
 
-    img = cv2.resize(img, (0,0), fx=1*resize, fy=1*resize) 
-
-
-    save_path = os.path.join(dirpath, name + ".jpg")
-
+    ## save
+    save_path = os.path.join(dirpath,  name + ".jpg")
     if os.path.exists(save_path):
         if flag_overwrite == True:
-            cv2.imwrite(save_path, img)
+            cv2.imwrite(save_path, image)
+            if not silent:
+                print("Results saved under " + save_path + " (overwritten).")
+        else:
+            if not silent:
+                print("Results not saved - file already exists (overwrite = False).")
     else:
-        cv2.imwrite(save_path, img)
+        cv2.imwrite(save_path, image)
+        if not silent:
+            print("Results saved under " + save_path + ".")
+
         
         
 def save_contours(obj_input, **kwargs):
@@ -113,8 +146,17 @@ def save_contours(obj_input, **kwargs):
     ## kwargs
     flag_overwrite = kwargs.get("overwrite", False)
         
-    ## load input
-    image, flag_input = _load_image(obj_input)
+    ## load df
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if not dirpath:
+            warnings.warn("No save directory specified - cannot export results.")
+        elif not df:
+            warnings.warn("No df supplied - cannot export results.")
+    elif obj_input.__class__.__name__ == "container":
+        if not dirpath:
+            dirpath = obj_input.dirpath
+        df = obj_input.df
 
     if flag_input == "pype_container":
         dirpath = obj_input.dirpath

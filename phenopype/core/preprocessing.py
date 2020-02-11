@@ -3,6 +3,7 @@ import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
 
+from datetime import datetime
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
@@ -71,6 +72,7 @@ def create_mask(obj_input, **kwargs):
     ## create mask
     mask = {"label": label,
             "include": include,
+            "created_on": datetime.today().strftime('%Y%m%d_%H%M%S'),
             "coords": str(coords)}
 
     ## show image with window control
@@ -103,34 +105,3 @@ def create_mask(obj_input, **kwargs):
         obj_input.masks[label] = mask
     else:
         return mask
-
-
-class mask_data(object):
-    """ This is a mask-data object where the image and other data 
-      is stored that can be passed on between pype-steps
-    
-    Parameters
-    ----------
-
-    mask_list: list
-        list of drawn masks (clockwise cornerpoints of rectangles or polygons)
-    mask_overlay: array
-        input image with drawn mask contours
-    mask_bin: array
-        binary mask 
-    mask_bool: array
-        boolean mask
-    label: str
-        mask label
-    include: bool
-        flag whether mask area is included or excluded
-        
-    """    
-    def __init__(self, coords, mask_overlay, mask_bin, mask_bool, label, include):
-        self.label = label
-        self.include = include
-        self.coords = coords
-        self.mask_overlay = mask_overlay
-        self.mask_bin = mask_bin
-        self.mask_bool = mask_bool
-

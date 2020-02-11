@@ -5,9 +5,9 @@ import pandas as pd
 
 from math import inf
 
-from phenopype.utils_lowlevel import _create_mask_bin
+from phenopype.utils_lowlevel import _create_mask_bin, _load_masks
 
-#%% methods
+#%% functions
 
 def blur(obj_input, **kwargs):
     """
@@ -104,7 +104,7 @@ def find_contours(obj_input, **kwargs):
 
     ## check
     if len(image.shape)>2:
-        sys.exit("multi-channel array supplied - need binary array")
+        warnings.warn("Multi-channel array supplied - need binary array.")
 
     ## method
     image, contour_list, hierarchy = cv2.findContours(image=image, 
@@ -146,7 +146,7 @@ def find_contours(obj_input, **kwargs):
                                                      "idx_parent":hier[3],
                                                      "coords":contour}
     else:
-        sys.exit("no contours found")
+        warnings.warn("No contours found.")
         
     ## output
     contour_df = pd.DataFrame(contour_dict).T
@@ -270,6 +270,7 @@ def threshold(obj_input, **kwargs):
     blocksize = kwargs.get("blocksize", 99)
     constant = kwargs.get("constant", 1)
     colourspace = kwargs.get("colourspace", "gray")
+    mask_list = kwargs.get("masks", None)
     method = kwargs.get("method", "otsu")
     value = kwargs.get("value", 127)
 
@@ -278,6 +279,9 @@ def threshold(obj_input, **kwargs):
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
+
+    ## load mask 
+    masks, mask_list = _load_masks(obj_input, mask_list)
 
     ## colourspace
     if len(image.shape)==3:
@@ -299,19 +303,17 @@ def threshold(obj_input, **kwargs):
         ret, image = cv2.threshold(image, value, 255,cv2.THRESH_BINARY_INV)  
 
     ## apply mask
-    if obj_input.__class__.__name__ == "container":
-        if obj_input.masks:
-            masks = copy.deepcopy(obj_input.masks)
-            mask_in = np.zeros(image.shape, np.uint8)
-            mask_ex = np.zeros(image.shape, np.uint8)
-            for key, value in masks.items():
-                mask = value
-                if mask["include"]:
-                    mask_in = mask_in + _create_mask_bin(image, eval(mask["coords"]))
-                else:
-                    mask_ex = mask_ex - _create_mask_bin(image, eval(mask["coords"]))
-            image[mask_in==0] = 0
-            image[mask_ex<0] = 0
+    if len(masks)>0:
+        mask_in = np.zeros(image.shape, np.uint8)
+        mask_ex = np.zeros(image.shape, np.uint8)
+        for mask in masks:
+            print("Thresholding - applying mask: " + mask["label"] + ".")
+            if mask["include"]:
+                mask_in = mask_in + _create_mask_bin(image, eval(mask["coords"]))
+            elif not mask["include"]:
+                mask_ex = mask_ex - _create_mask_bin(image, eval(mask["coords"]))
+        image[mask_in==0] = 0
+        image[mask_ex<0] = 0
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

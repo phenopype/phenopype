@@ -10,7 +10,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-from phenopype.settings import colours
+from phenopype.settings import colours, presets
 
 #%% classes
 
@@ -425,6 +425,34 @@ def _file_walker(directory, **kwargs):
 
 
 
+def _load_masks(obj_input, mask_list):
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if mask_list.__class__.__name__ == "dict":
+            masks = [mask_list]
+        elif mask_list.__class__.__name__ == "NoneType":
+            masks = []
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.image
+        if mask_list.__class__.__name__ == "dict":
+                masks = [mask_list]
+        elif mask_list.__class__.__name__ == "list" or mask_list.__class__.__name__ == "CommentedSeq":
+            if all(isinstance(n, dict) for n in mask_list):
+                masks = mask_list            
+            elif all(isinstance(n, str) for n in mask_list):
+                masks = []
+                for mask in mask_list:
+                    if mask in obj_input.masks:
+                        masks.append(obj_input.masks[mask])
+        elif mask_list.__class__.__name__ == "str":
+            if mask_list in obj_input.masks:
+                masks = [obj_input.masks[mask_list]]
+        elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0:
+            masks, mask_list = list(obj_input.masks.values()), list(obj_input.masks.keys())
+    return masks, mask_list
+
+
+
 def _load_yaml(string):
     yaml = YAML()
     if os.path.isfile(string):
@@ -435,27 +463,45 @@ def _load_yaml(string):
     return file
 
 
-def _make_pype_template(name, preset, **kwargs):
-    
+
+def _load_pype_config(container, config):
+
+    dirpath = container.dirpath    
+    if os.path.isfile(config):
+        return _load_yaml(config), config
+
+    pype_config_locations = [os.path.join(dirpath, "pype_" + config + ".yaml"),
+                             os.path.join(dirpath, config + ".yaml"),
+                             os.path.join(dirpath, config)]
+    for location in pype_config_locations:
+        if os.path.isfile(location):
+            return _load_yaml(location), location
+
+    warnings.warn("No pype configuration found under given name - defaulting to preset1")
+    pype_preset, location = _generic_pype_config(container)
+    return pype_preset, location
+
+
+
+def _generic_pype_config(container, **kwargs):
+
     ## kwargs
-    pype_name = name
-    preset_name = preset
+    preset = kwargs.get("preset", "preset1")
     
-    image_data = kwargs.get("attributes_file", None)
+    dirpath = container.dirpath
+    location = os.path.join(dirpath, "pype_generic.yaml")
+    config = _load_yaml(eval("presets." + preset))
+    pype_preset = {"image": container.image_data,
+                   "pype":
+                       {"name": "pype_generic",
+                        "preset": "preset1",
+                        "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
+                        "date_last_used": None}}
+    pype_preset.update(config)
+    print("Generic pype config generated from " + preset + ".")
+    return pype_preset, location
 
 
-    
-    pype_config = {"pype_info":
-                   {"name": pype_name,
-                    "preset": preset_name,
-                    "date_created": datetime.datetime.today().strftime('%Y%m%d_%H%M%S'),
-                    "date_modified": datetime.datetime.today().strftime('%Y%m%d_%H%M%S')}
-                   }
-    yaml = YAML()
-    preset = yaml.load(eval("pype_presets." + preset_name))
-    pype_config.update(preset)
-
-    return pype_config
 
 def _show_yaml(ordereddict):
     yaml = YAML()

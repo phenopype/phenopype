@@ -6,7 +6,7 @@ import pandas as pd
 import math
 
 from phenopype.settings import colours
-from phenopype.utils_lowlevel import _auto_line_thickness, _auto_text_thickness, _auto_text_size
+from phenopype.utils_lowlevel import _auto_line_thickness, _auto_text_thickness, _auto_text_size, _load_masks
 
 #%% settings
 
@@ -25,15 +25,15 @@ def show_image(obj_input, **kwargs):
     if canvas == "gray" or canvas == "grayscale":
         obj_input.canvas = copy.deepcopy(obj_input.image_gray)
     if canvas == "mod" or canvas == "modified":
-        obj_input.canvas = copy.deepcopy(obj_input.image_mod)
-    if canvas == "img" or canvas == "image":
         obj_input.canvas = copy.deepcopy(obj_input.image)
+    if canvas == "img" or canvas == "image":
+        obj_input.canvas = copy.deepcopy(obj_input.image_copy)
     if canvas == "g" or canvas == "green":
-        obj_input.canvas = copy.deepcopy(obj_input.image[:,:,0])
+        obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,0])
     if canvas == "r" or canvas == "red":
-        obj_input.canvas = copy.deepcopy(obj_input.image[:,:,1])
+        obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,1])
     if canvas == "b" or canvas == "blue":
-        obj_input.canvas = copy.deepcopy(obj_input.image[:,:,2])
+        obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,2])
         
     if len(obj_input.canvas.shape)<3:
         obj_input.canvas = cv2.cvtColor(obj_input.canvas, cv2.COLOR_GRAY2BGR)
@@ -41,33 +41,45 @@ def show_image(obj_input, **kwargs):
     return obj_input
 
 
-def show_contours(obj_input, contour_list=[],**kwargs):
+def show_contours(obj_input,**kwargs):
 
     ## kwargs
+    contours = kwargs.get("contours", None)
     offset_coords = kwargs.get("offset_coords", None)
     level = kwargs.get("level", 3)
-    line_colour = eval("colours." + kwargs.get("line_colour", "green"))
+    line_colour_sel = eval("colours." + kwargs.get("line_colour", "green"))
     text_colour = eval("colours." + kwargs.get("text_colour", "black"))
+    flag_fill = kwargs.get("fill", 0.2)
+    flag_child = kwargs.get("mark_holes", True)
 
     ## load image
-    image, flag_input = _load_image(obj_input, load="canvas")
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if not contours:
+            warnings.warn("No contour list provided - cannot draw contous.")
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.canvas
+        contours = obj_input.contours
+        
+    ## more kwargs
     flag_line_thickness = kwargs.get("line_thickness", _auto_line_thickness(image))
-    flag_fill = kwargs.get("fill", 0.2)
     text_thickness = kwargs.get("text_thickness", _auto_text_thickness(image))
     text_size = kwargs.get("text_size", _auto_text_size(image))
 
-    if flag_input == "pype_container":
-        contours = obj_input.contours
-
+    ## method
     idx = 0
     colour_mask = copy.deepcopy(image)
-
     for label, contour in contours.items():
-        if contour["order"] == "child":
-            fill_colour = colours.red
-            line_colour = colours.red
+        if flag_child:
+            if contour["order"] == "child":
+                fill_colour = colours.red
+                line_colour = colours.red
+            else:
+                fill_colour = line_colour_sel
+                line_colour = line_colour_sel
         else:
-            fill_colour = line_colour
+            fill_colour = line_colour_sel
+            line_colour = line_colour_sel
         if flag_fill > 0:
             cv2.drawContours(image=colour_mask, 
                     contours=[contour["coords"]], 
@@ -85,22 +97,22 @@ def show_contours(obj_input, contour_list=[],**kwargs):
                     maxLevel=level,
                     offset=offset_coords)
         if label:
-            cv2.putText(image, label , contour["center"], cv2.FONT_HERSHEY_SIMPLEX, 
+            cv2.putText(image, label , (contour["x"],contour["y"]), cv2.FONT_HERSHEY_SIMPLEX, 
                         text_size, text_colour, text_thickness, cv2.LINE_AA)
-            cv2.putText(colour_mask, label , contour["center"], cv2.FONT_HERSHEY_SIMPLEX, 
+            cv2.putText(colour_mask, label , (contour["x"],contour["y"]), cv2.FONT_HERSHEY_SIMPLEX, 
                         text_size, text_colour, text_thickness, cv2.LINE_AA)
-    image_mod = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) # combine
+    image = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) # combine
 
     ## return
-    if flag_input == "pype_container":
-        if isinstance(obj_input.canvas, np.ndarray):
-            obj_input.canvas = image_mod
+    if obj_input.__class__.__name__ == "ndarray":
+        return image
+    elif obj_input.__class__.__name__ == "container":
+        if  obj_input.canvas.__class__.__name__ == "ndarray":
+            obj_input.canvas = image
         else:
-            obj_input.image_mod = image_mod
-    else:
-        return image_mod
-    
-    
+            obj_input.image = image
+
+
 
 def show_mask(obj_input, **kwargs):
     """Mask maker method to draw rectangle or polygon mask onto image.
@@ -116,31 +128,38 @@ def show_mask(obj_input, **kwargs):
         zoom into the scale with "rectangle" or "polygon".
         
     """
+    
+    # mask_list = ["mask1"]
 
-    ## kwargs & load image
-    image, flag_input = _load_image(obj_input, load="canvas")
-    line_thickness = kwargs.get("line_thickness", _auto_line_thickness(image))
+    ## kwargs
     colour = eval("colours." + kwargs.get("colour", "green"))
+    mask_list = kwargs.get("masks", None)
 
-    if flag_input == "pype_container":
-        mask_binder = obj_input.mask_binder
-        mask_filter = kwargs.get("filter", mask_binder)
-    else:
-        mask_filter = kwargs.get("filter", {})
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.canvas
+
+    ## more kwargs
+    line_thickness = kwargs.get("line_thickness", _auto_line_thickness(image))
+
+    ## load masks
+    masks, mask_list = _load_masks(obj_input, mask_list)
+    if len(masks)==0:
+        warnings.warn("No mask-list provided - cannot draw mask outlines.")
 
     ## draw masks from mask obect
-    image_mod = image
-    for key, value in mask_binder.items():
-        if key in mask_filter:
-            MO = value
-            for coords_sub in MO.coords:
-                image_mod = cv2.polylines(image_mod, [np.array(coords_sub, dtype=np.int32)], False, colour, line_thickness)
+    for mask in masks:
+        if mask["label"] in mask_list:
+            for coord in eval(mask["coords"]):
+                image = cv2.polylines(image, [np.array(coord, dtype=np.int32)], False, colour, line_thickness)
 
     ## return
-    if flag_input == "pype_container":
-        if isinstance(obj_input.canvas, np.ndarray):
-            obj_input.canvas = image_mod
+    if obj_input.__class__.__name__ == "ndarray":
+        return image
+    elif obj_input.__class__.__name__ == "container":
+        if  obj_input.canvas.__class__.__name__ == "ndarray":
+            obj_input.canvas = image
         else:
-            obj_input.image_mod = image_mod
-    else:
-        return image_mod
+            obj_input.image = image
