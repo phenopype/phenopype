@@ -112,7 +112,7 @@ def invert_image(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image_copy
+        image = obj_input.image
 
     image = cv2.bitwise_not(image)
 
