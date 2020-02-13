@@ -400,7 +400,12 @@ def _file_walker(directory, **kwargs):
             if not any(exc in os.path.basename(filepath) for exc in exclude):
                 filepaths4.append(filepath)
     else:
-        filepaths = filepaths3
+        filepaths4 = filepaths3
+
+    ## check if files found
+    filepaths = filepaths4
+    if len(filepaths) == 0:
+        sys.exit("No files found under the given location that match given.")
 
     ## allow unique filenames filepath or by filename only
     filenames, unique_filename, unique, duplicate = [],[],[],[]
@@ -449,6 +454,8 @@ def _load_masks(obj_input, mask_list):
                 masks = [obj_input.masks[mask_list]]
         elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0:
             masks, mask_list = list(obj_input.masks.values()), list(obj_input.masks.keys())
+        elif mask_list.__class__.__name__ == "NoneType":
+            masks = []
     return masks, mask_list
 
 
@@ -464,12 +471,15 @@ def _load_yaml(string):
 
 
 
-def _load_pype_config(container, config):
+def _load_pype_config(container, **kwargs):
+    
+    ## kwargs
+    config = kwargs.get("config", "pype_generic.yaml")
 
     dirpath = container.dirpath    
     if os.path.isfile(config):
         return _load_yaml(config), config
-
+    
     pype_config_locations = [os.path.join(dirpath, "pype_" + config + ".yaml"),
                              os.path.join(dirpath, config + ".yaml"),
                              os.path.join(dirpath, config)]

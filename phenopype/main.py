@@ -328,11 +328,13 @@ class pype:
                 self.container = load_directory(obj_input, meta=True, fields=exif_fields)
         else:
             sys.exit("Wrong input - cannot run pype.")
-            
-        self.config, self.config_file = _load_pype_config(self.container, config)
+
+        ## load config
+        if config:
+            self.config, self.config_file = _load_pype_config(self.container, config=config)
+        else: 
+            self.config, self.config_file = _load_pype_config(self.container)
         _save_yaml(self.config, self.config_file)
-
-
 
         ## open config file with system viewer
         if flag_show:
