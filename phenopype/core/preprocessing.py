@@ -11,7 +11,7 @@ from phenopype.utils import load_image, load_meta_data, show_image, save_image
 from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
 
-#%% methods
+#%% functions
 
 def create_mask(obj_input, **kwargs):
     """Mask maker method to draw rectangle or polygon mask onto image.

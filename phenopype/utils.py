@@ -54,7 +54,9 @@ class container(object):
 
         self.masks = {}
         self.contours = {}
-
+        
+        self.dirpath = None
+        
     def reset(self, components=[]):
         """
         Parameters
@@ -76,6 +78,17 @@ class container(object):
         if "mask" in components or "masks" in components:
             self.masks = {}
 
+    def reload(self, components=[]):
+        
+        if "contour" in components or "contours" in components or "contour_list" in components:
+            print("Load components not yet implemented")
+        if "mask" in components or "masks" in components:
+            if self.dirpath:
+                self.masks = _load_yaml(os.path.join(self.dirpath, "masks.yaml"))
+            
+            
+            
+            
 #%% functions
             
 def load_directory(obj_input, **kwargs):

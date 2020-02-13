@@ -363,6 +363,9 @@ class pype:
             if not self.config:
                 continue
             
+            ## reload container, if given
+            self.container.reload(components=["mask"])
+            
             ## check steps
             if not steps_include:
                 steps_pre = []
@@ -420,7 +423,7 @@ class pype:
                 break
             
             ## reset container
-            self.container.reset(components=["contours"])
+            self.container.reset(components=["contours", "masks"])
             print("\n\n---------------new pype iteration---------------\n\n")
 
         if flag_return:

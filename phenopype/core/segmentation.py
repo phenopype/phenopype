@@ -304,19 +304,23 @@ def threshold(obj_input, **kwargs):
 
     ## apply mask
     if len(masks)>0:
-        mask_in = np.zeros(image.shape, np.uint8)
-        mask_ex = np.zeros(image.shape, np.uint8)
+        mask_in = np.zeros(image.shape, np.float)
+        mask_ex = np.zeros(image.shape, np.float)
+        mask_template = np.zeros(image.shape, np.float)
+        mask_template.fill(255)
         for mask in masks:
             print("Thresholding - applying mask: " + mask["label"] + ".")
             if mask["include"]:
                 mask_in = mask_in + _create_mask_bin(image, eval(mask["coords"]))
+                mask_template[mask_in==0] = 0
             elif not mask["include"]:
                 mask_ex = mask_ex - _create_mask_bin(image, eval(mask["coords"]))
-        image[mask_in==0] = 0
-        image[mask_ex<0] = 0
+                mask_template[mask_ex<0] = 0
+        image[mask_template==0] = 0
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
         return image
     elif obj_input.__class__.__name__ == "container":
         obj_input.image = image
+        obj_input.image_bin = image

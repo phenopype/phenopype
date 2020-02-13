@@ -432,15 +432,17 @@ def _file_walker(directory, **kwargs):
 
 def _load_masks(obj_input, mask_list):
     if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if mask_list.__class__.__name__ == "dict":
-            masks = [mask_list]
+        if mask_list.__class__.__name__ == "dict" or mask_list.__class__.__name__ == "CommentedMap":
+            masks = []
+            for mask in  list(mask_list.items()):
+                masks.append(mask[1])
         elif mask_list.__class__.__name__ == "NoneType":
             masks = []
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
-        if mask_list.__class__.__name__ == "dict":
-                masks = [mask_list]
+        if mask_list.__class__.__name__ == "dict" or mask_list.__class__.__name__ == "CommentedMap":
+            masks = []
+            for mask in  list(mask_list.items()):
+                masks.append(mask[1])
         elif mask_list.__class__.__name__ == "list" or mask_list.__class__.__name__ == "CommentedSeq":
             if all(isinstance(n, dict) for n in mask_list):
                 masks = mask_list            
