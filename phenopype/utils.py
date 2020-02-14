@@ -81,14 +81,37 @@ class container(object):
     def reload(self, components=[]):
         
         if "contour" in components or "contours" in components or "contour_list" in components:
-            print("Load components not yet implemented")
+            print("Load contours not yet implemented")
         if "mask" in components or "masks" in components:
             if self.dirpath:
-                self.masks = _load_yaml(os.path.join(self.dirpath, "masks.yaml"))
-            
-            
-            
-            
+                mask_path = os.path.join(self.dirpath, "masks.yaml")
+                print(mask_path)
+                if os.path.isfile(mask_path):
+                    self.masks = _load_yaml(mask_path)
+                    for mask in self.masks.values():
+                        print("Loading mask " + mask["label"] + " from file.")
+
+    def save(self, components=[], **kwargs):
+        
+        ## kwargs
+        flag_overwrite = kwargs.get("overwrite", False)
+        
+        if "contour" in components or "contours" in components or "contour_list" in components:
+            print("Save contours not yet implemented")
+        if "mask" in components or "masks" in components:
+            if self.dirpath:
+                mask_path = os.path.join(self.dirpath, "masks.yaml")
+                if os.path.isfile(mask_path) and not flag_overwrite:
+                    warnings.warn("Mask file already exists - cannot save masks (overwrite=False).")
+                elif os.path.isfile(mask_path) and flag_overwrite:
+                    print("Saved masks (overwritten).")
+                    self.masks = _save_yaml(self.masks, mask_path)
+                else:
+                    self.masks = _save_yaml(self.masks, mask_path)
+                    print("Saved masks.")
+
+
+
 #%% functions
             
 def load_directory(obj_input, **kwargs):

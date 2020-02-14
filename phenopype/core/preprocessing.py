@@ -88,18 +88,6 @@ def create_mask(obj_input, **kwargs):
         mask_overlay = cv2.addWeighted(image, .7, overlay, 0.5, 0)
         show_image(mask_overlay)
 
-    ## overwrite if directory
-    if obj_input.__class__.__name__ == "container":
-        if obj_input.dirpath:
-            if skip == False:
-                mask_path = os.path.join(obj_input.dirpath, "masks.yaml")
-                if os.path.isfile(mask_path):
-                    masks = _load_yaml(mask_path)
-                else:
-                    masks = {}
-                masks[label] = mask
-                _save_yaml(masks, mask_path)
-
     ## return 
     if obj_input.__class__.__name__ == "container":
         obj_input.masks[label] = mask

@@ -246,11 +246,10 @@ class project:
         """
 
         ## kwargs
-        pype_name = kwargs.get("name","1")
+        pype_name = kwargs.get("name","v1")
         preset = kwargs.get("preset","preset1")
         flag_interactive = kwargs.get("interactive", None)
         flag_overwrite = kwargs.get("overwrite", False)
-        steps_include = kwargs.get("include",[]) 
 
         ## modify
         if flag_interactive:
@@ -258,7 +257,7 @@ class project:
             config, template_path = _generic_pype_config(container, preset = preset)
             template_path = os.path.join(self.root_dir, "pype_template.yaml")
             _save_yaml(config, template_path)
-            p = pype(self.rawlist[0], steps=steps_include, config=template_path)
+            p = pype(self.rawlist[0], exclude=["export"], config=template_path, presetting=True)
             config = p.config
         else:
             config = _load_yaml(eval("presets." + preset))
@@ -312,7 +311,8 @@ class pype:
         steps_exclude = kwargs.get("exclude",[]) 
         steps_include = kwargs.get("include",[]) 
         config = kwargs.get("config", None)
-        print_settings = kwargs.get("print_settings",False)        
+        print_settings = kwargs.get("print_settings",False)
+        presetting = kwargs.get("presetting", False)
         default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
         exif_fields = kwargs.get("fields", default_fields)
         if not exif_fields.__class__.__name__ == "list":
@@ -334,7 +334,8 @@ class pype:
             self.config, self.config_file = _load_pype_config(self.container, config=config)
         else: 
             self.config, self.config_file = _load_pype_config(self.container)
-        _save_yaml(self.config, self.config_file)
+            if not os.path.isfile(self.config_file):
+                _save_yaml(self.config, self.config_file)
 
         ## open config file with system viewer
         if flag_show:
@@ -357,6 +358,7 @@ class pype:
         while True:
             ## check visulization given
             flag_vis = False
+            flag_overwrite_mask = False
             
             ## get config file and assemble pype
             self.config = copy.deepcopy(self.FM.content)
@@ -364,7 +366,8 @@ class pype:
                 continue
             
             ## reload container, if given
-            self.container.reload(components=["mask"])
+            if not presetting:
+                self.container.reload(components=["mask"])
             
             ## check steps
             if not steps_include:
@@ -388,7 +391,7 @@ class pype:
                         else:
                             method_name = list(item)[0]
                             method_args = dict(list(dict(item).values())[0])
-                            
+                        print(method_name)
                         ## run method
                         method_loaded = eval(step + "." + method_name)
                         method_loaded(self.container, **method_args)
@@ -396,6 +399,9 @@ class pype:
                         ## check if visualization argument is given in config
                         if method_name == "show_image":
                             flag_vis = True
+                        if method_name == "create_mask":
+                            flag_overwrite_mask = method_args["overwrite"]
+                            print(method_args)
                     except Exception as ex:
                         location = step + "." + method_name + ": " + str(ex.__class__.__name__)
                         print(location + " - " + str(ex))
@@ -422,8 +428,13 @@ class pype:
                 self.FM.stop()
                 break
             
-            ## reset container
-            self.container.reset(components=["contours", "masks"])
+            ## save container content, and reset container
+            if not presetting:
+                self.container.save(components=["contours", "masks"], overwrite=flag_overwrite_mask)
+                self.container.reset(components=["contours", "masks"])
+            else: 
+                self.container.reset(components=["contours"])
+                
             print("\n\n---------------new pype iteration---------------\n\n")
 
         if flag_return:

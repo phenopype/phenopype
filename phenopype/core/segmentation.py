@@ -170,7 +170,6 @@ def find_contours(obj_input, **kwargs):
 def morphology(obj_input, **kwargs):
     """
     
-
     Parameters
     ----------
     obj_input : TYPE
@@ -309,7 +308,7 @@ def threshold(obj_input, **kwargs):
         mask_template = np.zeros(image.shape, np.float)
         mask_template.fill(255)
         for mask in masks:
-            print("Thresholding - applying mask: " + mask["label"] + ".")
+            print(" - applying mask: " + mask["label"] + ".")
             if mask["include"]:
                 mask_in = mask_in + _create_mask_bin(image, eval(mask["coords"]))
                 mask_template[mask_in==0] = 0

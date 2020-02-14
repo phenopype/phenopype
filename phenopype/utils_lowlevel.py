@@ -454,8 +454,8 @@ def _load_masks(obj_input, mask_list):
         elif mask_list.__class__.__name__ == "str":
             if mask_list in obj_input.masks:
                 masks = [obj_input.masks[mask_list]]
-        elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0:
-            masks, mask_list = list(obj_input.masks.values()), list(obj_input.masks.keys())
+        # elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0: ## too confusing?
+        #     masks, mask_list = list(obj_input.masks.values()), list(obj_input.masks.keys())
         elif mask_list.__class__.__name__ == "NoneType":
             masks = []
     return masks, mask_list
@@ -487,6 +487,7 @@ def _load_pype_config(container, **kwargs):
                              os.path.join(dirpath, config)]
     for location in pype_config_locations:
         if os.path.isfile(location):
+            print(location)
             return _load_yaml(location), location
 
     warnings.warn("No pype configuration found under given name - defaulting to preset1")

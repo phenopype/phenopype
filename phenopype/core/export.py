@@ -145,6 +145,7 @@ def save_contours(obj_input, **kwargs):
     """
     ## kwargs
     flag_overwrite = kwargs.get("overwrite", False)
+    dirpath = kwargs.get("dirpath", None)
         
     ## load df
     if obj_input.__class__.__name__ == "ndarray":
@@ -158,21 +159,14 @@ def save_contours(obj_input, **kwargs):
             dirpath = obj_input.dirpath
         df = obj_input.df
 
-    if flag_input == "pype_container":
-        dirpath = obj_input.dirpath
-        df = obj_input.df_result
-        name = df["pype_name"].iloc[0]
-
     obj_output = {}
-    obj_output["filename"] = obj_input.df_result["filename"][1]
-    obj_output["project"] = obj_input.df_result["project"][1]
-    obj_output["size_px_xy"] = obj_input.df_result["size_px_xy"][1]
+    obj_output["image"] = obj_input.image_data
     obj_output["contours"] = {}
     
     for contour in obj_input.contours.keys():
         contour_dict = {}
         contour_dict["label"] = contour
-        contour_dict["center"] = str(obj_input.contours[contour]["center"])
+        contour_dict["center"] = str((obj_input.contours[contour]["x"], obj_input.contours[contour]["y"]))
         contour_dict["order"] = str(obj_input.contours[contour]["order"])
         contour_dict["idx_child"] = 1 # str(obj_input.contours[contour]["idx_child"])
         contour_dict["idx_parent"] = str(obj_input.contours[contour]["idx_parent"])
@@ -187,6 +181,6 @@ def save_contours(obj_input, **kwargs):
 
     if os.path.exists(save_path):
         if flag_overwrite == True:
-             save_yaml(obj_output, save_path)
+             _save_yaml(obj_output, save_path)
     else:
-         save_yaml(obj_output, save_path)
+         _save_yaml(obj_output, save_path)
