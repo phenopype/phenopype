@@ -36,14 +36,14 @@ class project:
         Parameters
         ----------
     
-        root_dir: str
-            root directory of the project
+        root: str
+            path to root directory of the project where folder gets created
         name: str
-            name of your project
+            name of your project and the project folder
         overwrite (optional): bool (default: False)
-            overwrite option, if a given root directory already exist
-        ask (optional): bool (default: False)
-            perform actions without asking for input
+            overwrite option, if a given root directory already exist (WARNING: also removes all folders inside)
+        query: bool (optional, default: False)
+            create project without requiring input
         """
 
         ## kwargs
@@ -97,23 +97,20 @@ class project:
             ## lists for files to add
             self.name = name
             self.dirnames = []
-            self.dirlist = []
-            self.rawlist = []
-            self.files = {}
+            self.dirpaths = []
+            self.filenames = []
+            self.filepaths = []
+            self.fileattr = {}
 
             ## global project attributes
             project_data = {
                 "name": name,
                 "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
-                "date_changed": datetime.today().strftime('%Y%m%d_%H%M%S')}
-            project_io = {
+                "date_changed": datetime.today().strftime('%Y%m%d_%H%M%S'),
                 "root_dir": self.root_dir,
                 "data_dir": self.data_dir}
-            project_attributes = ordereddict([('information', 
-                    [ordereddict([('project_data', project_data)]), 
-                     ordereddict([('project_io', project_io)])
-                     ])])
-            _save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
+
+            _save_yaml(project_data, os.path.join(self.root_dir, "attributes.yaml"))
 
             print("\nproject attributes written to " + os.path.join(self.root_dir, "attributes.yaml"))
             print("--------------------------------------------")
@@ -160,7 +157,6 @@ class project:
 
         ## collect filepaths
         filepaths, duplicates = _file_walker(image_dir, search_mode=search_mode, unique_by=unique_by, filetypes=filetypes, exclude=exclude, include=include)
-
 
         ## loop through files
         for filepath in filepaths:
@@ -224,9 +220,11 @@ class project:
 
             ## add to project object
             self.dirnames.append(dirname)
-            self.dirlist.append(dirpath)
-            self.rawlist.append(raw_path)
-            self.files[dirname] = attributes
+            self.dirpaths.append(dirpath)
+            self.filenames.append(image_data["filename"])
+            self.filepaths.append(raw_path)
+            self.fileattr[dirname] = attributes
+
 
     def add_config(self,  **kwargs):
         """
