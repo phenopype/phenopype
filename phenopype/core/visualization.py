@@ -152,6 +152,7 @@ def show_mask(obj_input, **kwargs):
     ## draw masks from mask obect
     for mask in masks:
         if mask["label"] in mask_list:
+            print(" - applying mask: " + mask["label"] + ".")
             for coord in eval(mask["coords"]):
                 image = cv2.polylines(image, [np.array(coord, dtype=np.int32)], False, colour, line_thickness)
 

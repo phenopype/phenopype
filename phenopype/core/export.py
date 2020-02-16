@@ -7,7 +7,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
 from phenopype.utils import load_image, load_meta_data, show_image, save_image
-from phenopype.utils_lowlevel import _image_viewer
+from phenopype.utils_lowlevel import _image_viewer, _save_yaml
 
 #%% functions
 
@@ -146,10 +146,10 @@ def save_contours(obj_input, **kwargs):
     ## kwargs
     flag_overwrite = kwargs.get("overwrite", False)
     dirpath = kwargs.get("dirpath", None)
+    df = kwargs.get("df", None)
         
     ## load df
     if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
         if not dirpath:
             warnings.warn("No save directory specified - cannot export results.")
         elif not df:

@@ -324,6 +324,13 @@ def _create_mask_bin(image, coords):
     return mask_bin
 
 
+def _create_mask_bool(image, coords):
+    mask_bin = np.zeros(image.shape[0:2], np.uint8)
+    for sub_coords in coords:
+        cv2.fillPoly(mask_bin, [np.array(sub_coords, dtype=np.int32)], colours.white)
+    return np.array(mask_bin, dtype=bool)
+
+
 def _del_rw(action, name, exc):
     os.chmod(name, S_IWRITE)
     os.remove(name)
@@ -454,8 +461,10 @@ def _load_masks(obj_input, mask_list):
         elif mask_list.__class__.__name__ == "str":
             if mask_list in obj_input.masks:
                 masks = [obj_input.masks[mask_list]]
-        # elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0: ## too confusing?
-        #     masks, mask_list = list(obj_input.masks.values()), list(obj_input.masks.keys())
+            else:
+                masks = []
+        elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0: ## too confusing?
+            masks, mask_list = list(obj_input.masks.values()), list(obj_input.masks.keys())
         elif mask_list.__class__.__name__ == "NoneType":
             masks = []
     return masks, mask_list

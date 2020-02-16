@@ -5,7 +5,7 @@ import pandas as pd
 
 from math import inf
 
-from phenopype.utils_lowlevel import _create_mask_bin, _load_masks
+from phenopype.utils_lowlevel import _create_mask_bin, _create_mask_bool, _load_masks
 
 #%% functions
 
@@ -278,6 +278,7 @@ def threshold(obj_input, **kwargs):
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
+        # image = copy.deepcopy(obj_input.image_copy)
 
     ## load mask 
     masks, mask_list = _load_masks(obj_input, mask_list)
@@ -301,21 +302,16 @@ def threshold(obj_input, **kwargs):
     elif method == "binary":
         ret, image = cv2.threshold(image, value, 255,cv2.THRESH_BINARY_INV)  
 
-    ## apply mask
+    ## apply masks
     if len(masks)>0:
-        mask_in = np.zeros(image.shape, np.float)
-        mask_ex = np.zeros(image.shape, np.float)
-        mask_template = np.zeros(image.shape, np.float)
-        mask_template.fill(255)
+        mask_bool = np.zeros(image.shape, np.bool)
         for mask in masks:
             print(" - applying mask: " + mask["label"] + ".")
             if mask["include"]:
-                mask_in = mask_in + _create_mask_bin(image, eval(mask["coords"]))
-                mask_template[mask_in==0] = 0
-            elif not mask["include"]:
-                mask_ex = mask_ex - _create_mask_bin(image, eval(mask["coords"]))
-                mask_template[mask_ex<0] = 0
-        image[mask_template==0] = 0
+                mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, eval(mask["coords"])))
+            if not mask["include"]:
+                mask_bool[_create_mask_bool(image, eval(mask["coords"]))] = False
+        image[mask_bool==0] = 0
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

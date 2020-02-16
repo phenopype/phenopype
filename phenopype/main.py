@@ -160,8 +160,8 @@ class project:
 
         ## loop through files
         for filepath in filepaths:
-
-            ## flatten folder structure
+            
+            ## generate phenopype dir-tree
             relpath = os.path.relpath(filepath,image_dir)
             depth = relpath.count("\\")
             relpath_flat = os.path.dirname(relpath).replace("\\","__")
@@ -169,14 +169,14 @@ class project:
                 subfolder_prefix = str(depth) + "__" + relpath_flat + "__"
             else:
                 subfolder_prefix = str(depth) + "__" 
-                
-            ## image paths
             dirname = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
             dirpath = os.path.join(self.root_dir,"data",dirname)
 
+
+
             ## make image-specific directories
             if os.path.isdir(dirpath) and flag_overwrite==False:
-                print(dirname + " already exists (overwrite=False)")
+                warnings.warn(dirname + " already exists (overwrite=False)")
                 continue
             if os.path.isdir(dirpath) and flag_overwrite==True:
                 rmtree(dirpath, ignore_errors=True, onerror=_del_rw)
@@ -219,12 +219,12 @@ class project:
             _save_yaml(attributes, os.path.join(dirpath, "attributes.yaml"))
 
             ## add to project object
-            self.dirnames.append(dirname)
-            self.dirpaths.append(dirpath)
-            self.filenames.append(image_data["filename"])
-            self.filepaths.append(raw_path)
-            self.fileattr[dirname] = attributes
-
+            if not dirname in self.dirnames:
+                self.dirnames.append(dirname)
+                self.dirpaths.append(dirpath)
+                self.filenames.append(image_data["filename"])
+                self.filepaths.append(raw_path)
+                self.fileattr[dirname] = attributes
 
     def add_config(self,  **kwargs):
         """
@@ -251,17 +251,17 @@ class project:
 
         ## modify
         if flag_interactive:
-            container = load_directory(self.dirlist[0])
+            container = load_directory(self.dirpaths[0])
             config, template_path = _generic_pype_config(container, preset = preset)
             template_path = os.path.join(self.root_dir, "pype_template.yaml")
             _save_yaml(config, template_path)
-            p = pype(self.rawlist[0], exclude=["export"], config=template_path, presetting=True)
+            p = pype(self.filepaths[0], exclude=["export"], config=template_path, presetting=True)
             config = p.config
         else:
             config = _load_yaml(eval("presets." + preset))
 
         ## go through project directories
-        for directory in self.dirlist:
+        for directory in self.dirpaths:
             attr = _load_yaml(os.path.join(directory, "attributes.yaml"))
             pype_preset = {"image": attr["image"],
                            "pype":
@@ -304,7 +304,6 @@ class pype:
             overwrite option, if a given pype config-file already exist
         """
         ## kwargs
-        flag_return = kwargs.get("return_results",False)
         flag_show = kwargs.get("show",True)
         steps_exclude = kwargs.get("exclude",[]) 
         steps_include = kwargs.get("include",[]) 
@@ -324,8 +323,11 @@ class pype:
                 self.container = load_image(obj_input, container=True, meta=True, fields=exif_fields)
             elif os.path.isdir(obj_input):
                 self.container = load_directory(obj_input, meta=True, fields=exif_fields)
+                self.container.load(components=["mask"])
         else:
             sys.exit("Wrong input - cannot run pype.")
+            
+        ## load masks if in , if given
 
         ## load config
         if config:
@@ -362,11 +364,7 @@ class pype:
             self.config = copy.deepcopy(self.FM.content)
             if not self.config:
                 continue
-            
-            ## reload container, if given
-            if not presetting:
-                self.container.reload(components=["mask"])
-            
+
             ## check steps
             if not steps_include:
                 steps_pre = []
@@ -390,6 +388,7 @@ class pype:
                             method_name = list(item)[0]
                             method_args = dict(list(dict(item).values())[0])
                         print(method_name)
+                        
                         ## run method
                         method_loaded = eval(step + "." + method_name)
                         method_loaded(self.container, **method_args)
@@ -398,8 +397,10 @@ class pype:
                         if method_name == "show_image":
                             flag_vis = True
                         if method_name == "create_mask":
-                            flag_overwrite_mask = method_args["overwrite"]
-                            print(method_args)
+                            if "overwrite" in method_args:
+                                flag_overwrite_mask = method_args["overwrite"]
+                            else:
+                                flag_overwrite_mask = False
                     except Exception as ex:
                         location = step + "." + method_name + ": " + str(ex.__class__.__name__)
                         print(location + " - " + str(ex))
@@ -428,17 +429,17 @@ class pype:
             
             ## save container content, and reset container
             if not presetting:
-                self.container.save(components=["contours", "masks"], overwrite=flag_overwrite_mask)
                 self.container.reset(components=["contours", "masks"])
             else: 
                 self.container.reset(components=["contours"])
                 
             print("\n\n---------------new pype iteration---------------\n\n")
-
-        if flag_return:
-            return self.container
-
-
+            
+            
+        ## save masks
+        if not presetting:
+            if os.path.isdir(obj_input):
+                self.container.save(components=["masks"], overwrite=flag_overwrite_mask)
 
 #%% functions
 

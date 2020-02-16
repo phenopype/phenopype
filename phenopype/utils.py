@@ -52,9 +52,11 @@ class container(object):
         self.image_gray = None
         self.canvas = None
 
-        self.masks = {}
+
         self.contours = {}
-        
+        self.masks = {}
+        self.masks_copy = copy.deepcopy(self.masks)
+
         self.dirpath = None
         
     def reset(self, components=[]):
@@ -76,23 +78,51 @@ class container(object):
         if "contour" in components or "contours" in components or "contour_list" in components:
             self.contours = {}
         if "mask" in components or "masks" in components:
-            self.masks = {}
+            if self.masks_copy:
+                self.masks = copy.deepcopy(self.masks_copy)
 
-    def reload(self, components=[]):
+    def load(self, components=[]):
+        """
         
+
+        Parameters
+        ----------
+        components : TYPE, optional
+            DESCRIPTION. The default is [].
+
+        Returns
+        -------
+        None.
+
+        """
         if "contour" in components or "contours" in components or "contour_list" in components:
             print("Load contours not yet implemented")
         if "mask" in components or "masks" in components:
             if self.dirpath:
                 mask_path = os.path.join(self.dirpath, "masks.yaml")
-                print(mask_path)
                 if os.path.isfile(mask_path):
                     self.masks = _load_yaml(mask_path)
+                    self.masks_copy = copy.deepcopy(self.masks)
                     for mask in self.masks.values():
-                        print("Loading mask " + mask["label"] + " from file.")
-
+                        print("Loaded mask " + mask["label"] + " from file.")
+                
+                
     def save(self, components=[], **kwargs):
+        """
         
+
+        Parameters
+        ----------
+        components : TYPE, optional
+            DESCRIPTION. The default is [].
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
         ## kwargs
         flag_overwrite = kwargs.get("overwrite", False)
         
@@ -105,9 +135,9 @@ class container(object):
                     warnings.warn("Mask file already exists - cannot save masks (overwrite=False).")
                 elif os.path.isfile(mask_path) and flag_overwrite:
                     print("Saved masks (overwritten).")
-                    self.masks = _save_yaml(self.masks, mask_path)
+                    _save_yaml(self.masks, mask_path)
                 else:
-                    self.masks = _save_yaml(self.masks, mask_path)
+                    _save_yaml(self.masks, mask_path)
                     print("Saved masks.")
 
 

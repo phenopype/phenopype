@@ -8,7 +8,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
 from phenopype.utils import load_image, load_meta_data, show_image, save_image
-from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin
+from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin, _load_masks
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
 
 #%% functions
@@ -43,31 +43,35 @@ def create_mask(obj_input, **kwargs):
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image_copy
 
-    ## check if mask exists 
-    if obj_input.__class__.__name__ == "container":
-        if obj_input.masks:
-            masks = dict(obj_input.masks)
-            for k, v in masks.items():
-                if label == k and not flag_overwrite:
-                    include = v["include"]
-                    coords = eval(v["coords"])
-                    skip = True
+    ## load mask and check if exists
+    masks, mask_list = _load_masks(obj_input, label)
+
+    while True:
+        if len(masks) == 1 and flag_overwrite == False: 
+            mask = masks[0]
+            print("len1 owF")
+            return            
+        elif len(masks) == 1 and flag_overwrite == True:
+            print("len1 owT")
+            break
+        elif len(masks) == 0:
+            print("len0")
+            break
 
     ## method
-    if not skip:
-        iv_object = _image_viewer(image, 
-                                  mode="interactive", 
-                                  max_dim = max_dim, 
-                                  tool=flag_tool)
-        coords = []
-        if flag_tool == "rectangle" or flag_tool == "box":
-            for rect in iv_object.rect_list:
-                pts = [(rect[0], rect[1]), (rect[2], rect[1]), (rect[2], rect[3]), (rect[0], rect[3]),(rect[0], rect[1])]
-                coords.append(pts)
-        elif flag_tool == "polygon" or flag_tool == "free":
-            for poly in iv_object.poly_list:
-                pts = np.array(poly, dtype=np.int32)
-                coords.append(pts)
+    iv_object = _image_viewer(image, 
+                              mode="interactive", 
+                              max_dim = max_dim, 
+                              tool=flag_tool)
+    coords = []
+    if flag_tool == "rectangle" or flag_tool == "box":
+        for rect in iv_object.rect_list:
+            pts = [(rect[0], rect[1]), (rect[2], rect[1]), (rect[2], rect[3]), (rect[0], rect[3]),(rect[0], rect[1])]
+            coords.append(pts)
+    elif flag_tool == "polygon" or flag_tool == "free":
+        for poly in iv_object.poly_list:
+            # pts = np.array(poly, dtype=np.int32)
+            coords.append(poly)
 
     ## create mask
     mask = {"label": label,
@@ -91,17 +95,37 @@ def create_mask(obj_input, **kwargs):
     ## return 
     if obj_input.__class__.__name__ == "container":
         obj_input.masks[label] = mask
+        obj_input.masks_copy[label] = mask
     else:
         return mask
 
-def invert_image(obj_input, **kwargs):
 
+
+def invert_image(obj_input, **kwargs):
+    """
+    
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    image : TYPE
+        DESCRIPTION.
+
+    """
+    
     ## load image and check if pp-project
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
 
+    ## method
     image = cv2.bitwise_not(image)
 
     ## return 
