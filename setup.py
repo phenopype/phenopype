@@ -14,6 +14,7 @@ setup(
 	author='Moritz Luerig',
 	author_email='moritz.luerig@gmail.com',
 	packages=['phenopype'],
+    package_data={'phenopype': ['core/*.py', 'settings/*.py']},
 	install_requires=[
 		"numpy",
 		"pandas",
@@ -21,7 +22,8 @@ setup(
 		"pytest",
 		"opencv-contrib-python==3.4.5.20",
         "ruamel.yaml",
-		"trackpy==0.4.1"
+		"trackpy==0.4.1",
+        "watchdog"
 ],
 	version=verstr,
 	license='LGPL',

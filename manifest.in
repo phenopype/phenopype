@@ -1,1 +1,2 @@
-recursive-include settings/ *.py
+recursive-include examples *
+recursive-include core *
