@@ -15,10 +15,9 @@ setup(
 	author_email='moritz.luerig@gmail.com',
 	packages=['phenopype'],
 	install_requires=[
-		"exifread",
 		"numpy",
 		"pandas",
-#		"pytesseract==0.2.6",
+		"Pillow",
 		"pytest",
 		"opencv-contrib-python==3.4.5.20",
         "ruamel.yaml",
