@@ -14,6 +14,7 @@ setup(
 	author='Moritz Luerig',
 	author_email='moritz.luerig@gmail.com',
 	packages=['phenopype'],
+    package_dir={'phenopype': 'phenopype'},
     package_data={'phenopype': ['core/*.py', 'settings/*.py']},
 	install_requires=[
 		"numpy",
