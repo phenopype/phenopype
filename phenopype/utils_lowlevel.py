@@ -16,7 +16,21 @@ from phenopype.settings import colours, presets
 
 class _image_viewer():
     def __init__(self, image, **kwargs):
+        """
+        
 
+        Parameters
+        ----------
+        image : TYPE
+            DESCRIPTION.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
         ## kwargs
         self.flag_zoom_mode = kwargs.get("zoom", "continuous")
         self.flag_mode = kwargs.get("mode", None)
@@ -352,7 +366,7 @@ def _file_walker(directory, **kwargs):
         single or multiple string patterns to target certain files to include
     exclude (optional): list of str
         single or multiple string patterns to target certain files to exclude - can overrule "include"
-    unique_by (optional): str (default: "filepath")
+    unique_mode (optional): str (default: "filepath")
         how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
         if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
         whereas filename will ignore all those files after their first occurrence.
@@ -364,10 +378,16 @@ def _file_walker(directory, **kwargs):
     """
     ## kwargs
     search_mode = kwargs.get("search_mode","dir")
+    unique_mode = kwargs.get("unique_mode", "filepath")
     filetypes = kwargs.get("filetypes", [])
+    if not filetypes.__class__.__name__ == "list":
+        filetypes = [filetypes]
     include = kwargs.get("include", [])
+    if not include.__class__.__name__ == "list":
+        include = [include]
     exclude = kwargs.get("exclude", [])
-    unique_by = kwargs.get("unique_by", "filepath")
+    if not exclude.__class__.__name__ == "list":
+        exclude = [exclude]
 
 
     ## find files 
@@ -419,13 +439,13 @@ def _file_walker(directory, **kwargs):
     for filepath in filepaths:
         filenames.append(os.path.basename(filepath))
         
-    if unique_by=="filepaths" or unique_by=="filepath":
+    if unique_mode=="filepaths" or unique_mode=="filepath":
         for filename, filepath in zip(filenames, filepaths):
             if not filepath in unique:
                 unique.append(filepath)
             else:
                 duplicate.append(filepath)
-    elif unique_by=="filenames" or unique_by=="filename":
+    elif unique_mode=="filenames" or unique_mode=="filename":
         for filename, filepath in zip(filenames, filepaths):
             if not filename in unique_filename:
                 unique_filename.append(filename)
@@ -443,6 +463,8 @@ def _load_masks(obj_input, mask_list):
             masks = []
             for mask in  list(mask_list.items()):
                 masks.append(mask[1])
+        elif mask_list.__class__.__name__ == "str":
+            masks = []
         elif mask_list.__class__.__name__ == "NoneType":
             masks = []
     elif obj_input.__class__.__name__ == "container":

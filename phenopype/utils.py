@@ -52,7 +52,6 @@ class container(object):
         self.image_gray = None
         self.canvas = None
 
-
         self.contours = {}
         self.masks = {}
         self.masks_copy = copy.deepcopy(self.masks)
@@ -131,14 +130,17 @@ class container(object):
         if "mask" in components or "masks" in components:
             if self.dirpath:
                 mask_path = os.path.join(self.dirpath, "masks.yaml")
-                if os.path.isfile(mask_path) and not flag_overwrite:
-                    warnings.warn("Mask file already exists - cannot save masks (overwrite=False).")
-                elif os.path.isfile(mask_path) and flag_overwrite:
-                    print("Saved masks (overwritten).")
-                    _save_yaml(self.masks, mask_path)
-                else:
-                    _save_yaml(self.masks, mask_path)
-                    print("Saved masks.")
+                saved_masks = _load_yaml(mask_path)
+                for mask in self.masks.items():
+                    if mask[0] in saved_masks and not flag_overwrite:
+                        warnings.warn("Mask " +  mask[0] + " already exists - cannot save (overwrite=False).")
+                    elif mask[0] in saved_masks and flag_overwrite:
+                        print("Saved mask" + mask[0] + " (overwritten).")
+                        saved_masks[mask[0]]=mask[1]
+                    else:
+                        saved_masks[mask[0]]=mask[1]
+                        print("Saved mask" + mask[0])
+                _save_yaml(saved_masks, mask_path)
 
 
 

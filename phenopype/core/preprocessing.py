@@ -19,17 +19,24 @@ def create_mask(obj_input, **kwargs):
     Parameters
     ----------        
     
-    include: bool (default: True)
+    include (optional): bool (default: True)
         determine whether resulting mask is to include or exclude objects within
-    label: str (default: "area1")
+    label(optional): str (default: "mask1")
         passes a label to the mask
-    tool: str (default: "rectangle")
-        zoom into the scale with "rectangle" or "polygon".
+    max_dim (optional): int (default: 1000)
+        maximum dimension of the window along any axis in pixel
+    overwrite (optional): bool (default: False)
+        if working using a container, or from a phenopype project directory, should
+        existing masks with the same label be overwritten
+    show (otpional): bool (default: False)
+        should the drawn mask be shown as an overlay on the image
+    tool (optional): str (default: "rectangle")
+        draw mask by draging a rectangle (option: "rectangle") or by settings 
+        points for a polygon (option: "polygon").
         
     """
 
     ## kwargs
-    skip = False
     label = kwargs.get("label","mask1")
     max_dim = kwargs.get("max_dim", 1000)
     include = kwargs.get("include",True)
@@ -49,13 +56,10 @@ def create_mask(obj_input, **kwargs):
     while True:
         if len(masks) == 1 and flag_overwrite == False: 
             mask = masks[0]
-            print("len1 owF")
             return            
         elif len(masks) == 1 and flag_overwrite == True:
-            print("len1 owT")
             break
         elif len(masks) == 0:
-            print("len0")
             break
 
     ## method

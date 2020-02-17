@@ -31,18 +31,19 @@ ruamel.yaml.Representer.add_representer(ordereddict, ruamel.yaml.Representer.rep
 class project: 
     def __init__(self, root, name, **kwargs):
         """
-        Initialize a phenopype project with a root directory and a name.
-        
+        Initialize a phenopype project with a root directory path and a (folder) name.
+
         Parameters
         ----------
-    
+
         root: str
             path to root directory of the project where folder gets created
         name: str
             name of your project and the project folder
         overwrite (optional): bool (default: False)
-            overwrite option, if a given root directory already exist (WARNING: also removes all folders inside)
-        query: bool (optional, default: False)
+            overwrite option, if a given root directory already exist 
+            (WARNING: also removes all folders inside)
+        query(optional: bool (default: False)
             create project without requiring input
         """
 
@@ -119,30 +120,34 @@ class project:
 
     def add_files(self, image_dir, **kwargs):
         """Add files to your project from a directory, can look recursively. 
-        Optional: specify a search string for filenames or file extensions. 
+        Specify in- or exclude arguments, filetypes, duplicate-action and copy 
+        or link raw files to save memory on the harddrive.
     
         Parameters
         ----------
     
         image_dir: str 
-            path to directory with images                             
-
-        raw_mode (optional): str (default: "copy")
-            how should the raw files be passed on to the phenopype directory tree: "copy" will make a copy of the original file, 
-            "link" will only send the link to the original raw file to attributes, but not copy the actual file (useful for big files)
-            
-        search_mode (optional): str (default: "dir")
-            "dir" searches current directory for valid files; "recursive" walks through all subdirectories
-        filetypes (optional): list of str
+            path to directory with images
+        filetypes (optional): list or str
             single or multiple string patterns to target files with certain endings
-        include (optional): list of str
+        include (optional): list or str
             single or multiple string patterns to target certain files to include
-        exclude (optional): list of str
-            single or multiple string patterns to target certain files to exclude - can overrule "include"
-        unique_by (optional): str (default: "filepath")
-            how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
-            if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
-            whereas filename will ignore all those files after their first occurrence.
+        exclude (optional): list or str
+            single or multiple string patterns to target certain files to exclude - 
+            can overrule "include"
+        raw_mode (optional): str (default: "copy")
+            how should the raw files be passed on to the phenopype directory tree: 
+            "copy" will make a copy of the original file, "link" will only send the 
+            link to the original raw file to attributes, but not copy the actual 
+            file (useful for big files)
+        search_mode (optional): str (default: "dir")
+            "dir" searches current directory for valid files; "recursive" walks 
+            through all subdirectories
+        unique_mode (optional): str (default: "filepath"):
+            how to deal with image duplicates - "filepath" is useful if identically 
+            named files exist in different subfolders (folder structure will be 
+            collapsed and goes into the filename), whereas filename will ignore 
+            all similar named files after their first occurrence.
         """
         
         ## kwargs
@@ -153,10 +158,15 @@ class project:
         filetypes = kwargs.get("filetypes", [])
         include = kwargs.get("include", [])
         exclude = kwargs.get("exclude", [])
-        unique_by = kwargs.get("unique_by", "filepath")
+        unique_mode = kwargs.get("unique_mode", "filepath")
 
         ## collect filepaths
-        filepaths, duplicates = _file_walker(image_dir, search_mode=search_mode, unique_by=unique_by, filetypes=filetypes, exclude=exclude, include=include)
+        filepaths, duplicates = _file_walker(image_dir, 
+                                             search_mode=search_mode, 
+                                             unique_mode=unique_mode, 
+                                             filetypes=filetypes, 
+                                             exclude=exclude, 
+                                             include=include)
 
         ## loop through files
         for filepath in filepaths:
@@ -171,8 +181,6 @@ class project:
                 subfolder_prefix = str(depth) + "__" 
             dirname = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
             dirpath = os.path.join(self.root_dir,"data",dirname)
-
-
 
             ## make image-specific directories
             if os.path.isdir(dirpath) and flag_overwrite==False:
@@ -228,7 +236,7 @@ class project:
 
     def add_config(self,  **kwargs):
         """
-        Add pype configuration presets to all project directories
+        Add pype configuration presets to all project directories. 
 
         Parameters
         ----------
@@ -236,9 +244,10 @@ class project:
         name (optional): str (default: "v1")
             name of config-file
         preset (optional): str (default: "preset1")
-            chose from given presets in phenopype/settings/pype_presets.py (e.g. preset1, preset2, preset3, ...)
+            chose from given presets in phenopype/settings/presets.py 
+            (e.g. preset1, preset2, preset3, ...)
         interactive (optional): bool (default: False)
-            start a pype, modify loaded preset before saving it to phenopype directories
+            start a pype and modify preset before saving it to phenopype directories
         overwrite (optional): bool (default: False)
             overwrite option, if a given pype config-file already exist
         """
@@ -289,15 +298,30 @@ class project:
 class pype:
     def __init__(self, obj_input, **kwargs):
         """
-        Pype method. 
+        The pype is phenopype’s core method that allows running all functions 
+        that are available in the program’s library in sequence. Executing the pype routine 
+        will trigger two actions: it will open a yaml configuration file 
+        containing instructions for image processing using the default OS text viewer, 
+        and a phenopype-window showing the image that was passed on to the pype 
+        function as an array, or a character string containing the path to an 
+        image on the harddrive (or a directory). Phenopype will parse all functions 
+        contained in the config-file in sequence and attempt to apply them to the image 
+        (exceptions will be passed, but exceptions returned for diagnostics). 
+        The user immediately sees the result and can decide to make changes directly to 
+        the opened config-file (e.g. either change function parameters or add new functions), 
+        and run the pype again, or to terminate the pype and save all results. 
+        The user can store the processed image, any extracted phenotypic information, 
+        as well as the modified config-file inside the image directory. 
+        By providing unique names, users can store different pype configurations and 
+        the associated results side by side. 
         
         Parameters
         ----------
 
-        name (optional): str (default: "v1")
+        name (optional): str (default: "generic")
             name of config-file
-        preset (optional): str (default: "preset1")
-            chose from given presets in phenopype/settings/pype_presets.py (e.g. preset1, preset2, preset3, ...)
+        config (optional): str (default: "preset1")
+            chose from given presets in phenopype/settings/pype_presets.py (e.g. preset1, preset2, ...)
         interactive (optional): bool (default: False)
             start a pype, modify loaded preset before saving it to phenopype directories
         overwrite (optional): bool (default: False)
@@ -326,8 +350,6 @@ class pype:
                 self.container.load(components=["mask"])
         else:
             sys.exit("Wrong input - cannot run pype.")
-            
-        ## load masks if in , if given
 
         ## load config
         if config:

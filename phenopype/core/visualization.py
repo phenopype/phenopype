@@ -12,7 +12,7 @@ from phenopype.utils_lowlevel import _auto_line_thickness, _auto_text_thickness,
 
 inf = math.inf
 
-#%% methods
+#%% functions
 
 def show_image(obj_input, **kwargs):
     
@@ -23,6 +23,8 @@ def show_image(obj_input, **kwargs):
     if canvas == "bin" or canvas == "binary":
         obj_input.canvas = copy.deepcopy(obj_input.image_bin)
     if canvas == "gray" or canvas == "grayscale":
+        if obj_input.image_gray.__class__.__name__ == "NoneType":
+            obj_input.image_gray = cv2.cvtColor(obj_input.image_copy,cv2.COLOR_BGR2GRAY)
         obj_input.canvas = copy.deepcopy(obj_input.image_gray)
     if canvas == "mod" or canvas == "modified":
         obj_input.canvas = copy.deepcopy(obj_input.image)
@@ -46,6 +48,7 @@ def show_contours(obj_input,**kwargs):
     ## kwargs
     contours = kwargs.get("contours", None)
     offset_coords = kwargs.get("offset_coords", None)
+    flag_label = kwargs.get("label", True)
     level = kwargs.get("level", 3)
     line_colour_sel = eval("colours." + kwargs.get("line_colour", "green"))
     text_colour = eval("colours." + kwargs.get("text_colour", "black"))
@@ -96,7 +99,7 @@ def show_contours(obj_input,**kwargs):
                     color=line_colour, 
                     maxLevel=level,
                     offset=offset_coords)
-        if label:
+        if flag_label:
             cv2.putText(image, label , (contour["x"],contour["y"]), cv2.FONT_HERSHEY_SIMPLEX, 
                         text_size, text_colour, text_thickness, cv2.LINE_AA)
             cv2.putText(colour_mask, label , (contour["x"],contour["y"]), cv2.FONT_HERSHEY_SIMPLEX, 
