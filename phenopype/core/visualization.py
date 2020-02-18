@@ -17,7 +17,7 @@ inf = math.inf
 def show_image(obj_input, **kwargs):
     
     ## kwargs
-    canvas = kwargs.get("canvas", "mod")
+    canvas = kwargs.get("canvas", "image")
     
     ## method
     if canvas == "bin" or canvas == "binary":
@@ -40,8 +40,9 @@ def show_image(obj_input, **kwargs):
     if len(obj_input.canvas.shape)<3:
         obj_input.canvas = cv2.cvtColor(obj_input.canvas, cv2.COLOR_GRAY2BGR)
 
-    return obj_input
-
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return obj_input
 
 def show_contours(obj_input,**kwargs):
 

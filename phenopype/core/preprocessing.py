@@ -56,7 +56,11 @@ def create_mask(obj_input, **kwargs):
     while True:
         if len(masks) == 1 and flag_overwrite == False: 
             mask = masks[0]
-            return            
+            if len(eval(mask["coords"]))==0:
+                warnings.warn("mask " + mask["label"] + " has no coordinates - redo mask")
+                break
+            else:
+                return mask
         elif len(masks) == 1 and flag_overwrite == True:
             break
         elif len(masks) == 0:

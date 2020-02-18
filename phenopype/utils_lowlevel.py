@@ -109,10 +109,10 @@ class _image_viewer():
         ## show canvas
         self.done = False
         cv2.namedWindow(self.window_name, self.window_aspect)
+        cv2.startWindowThread() ## needed for macs (?)
         cv2.setMouseCallback(self.window_name, self._on_mouse)
         cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
         cv2.imshow(self.window_name, self.canvas)
-
         ## window control
         if self.window_control=="internal":
             if cv2.waitKey() == 13:
@@ -481,8 +481,11 @@ def _load_masks(obj_input, mask_list):
                     if mask in obj_input.masks:
                         masks.append(obj_input.masks[mask])
         elif mask_list.__class__.__name__ == "str":
-            if mask_list in obj_input.masks:
-                masks = [obj_input.masks[mask_list]]
+            if obj_input.masks:
+                if mask_list in obj_input.masks:
+                    masks = [obj_input.masks[mask_list]]
+                else:
+                    masks = []
             else:
                 masks = []
         elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0: ## too confusing?
@@ -498,9 +501,11 @@ def _load_yaml(string):
     if os.path.isfile(string):
         with open(string, 'r') as file:
             file = yaml.load(file)
+        return file
     else:
-        file = yaml.load(string)
-    return file
+        warnings.warn("Not a valid path - couldn't load yaml.")
+        # file = yaml.load(string)
+
 
 
 
@@ -518,7 +523,6 @@ def _load_pype_config(container, **kwargs):
                              os.path.join(dirpath, config)]
     for location in pype_config_locations:
         if os.path.isfile(location):
-            print(location)
             return _load_yaml(location), location
 
     warnings.warn("No pype configuration found under given name - defaulting to preset1")

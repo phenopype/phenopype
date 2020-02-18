@@ -44,17 +44,17 @@ class container(object):
         """
         self.image = image
         self.image_copy = copy.deepcopy(self.image)
-        self.df = df
-        self.df_copy = copy.deepcopy(self.df)
-
         self.image_mod = copy.deepcopy(self.image)
         self.image_bin = None
         self.image_gray = None
         self.canvas = None
-
+        
+        self.df = df
+        self.df_copy = copy.deepcopy(self.df)
         self.contours = {}
+        self.contours_copy = None
         self.masks = {}
-        self.masks_copy = copy.deepcopy(self.masks)
+        self.masks_copy = None
 
         self.dirpath = None
         
@@ -100,12 +100,17 @@ class container(object):
             if self.dirpath:
                 mask_path = os.path.join(self.dirpath, "masks.yaml")
                 if os.path.isfile(mask_path):
-                    self.masks = _load_yaml(mask_path)
-                    self.masks_copy = copy.deepcopy(self.masks)
-                    for mask in self.masks.values():
-                        print("Loaded mask " + mask["label"] + " from file.")
-                
-                
+                    masks = _load_yaml(mask_path)
+                    if masks:
+                        masks_l = []
+                        for mask in masks.values():
+                            self.masks[mask["label"]] = mask
+                            masks_l.append(mask["label"])
+                        print("Loaded masks " + ", ".join(masks_l) + " from file.")
+                        self.masks_copy = copy.deepcopy(self.masks)
+                    else:
+                        self.masks = {}
+                        self.masks_copy = {}
     def save(self, components=[], **kwargs):
         """
         
@@ -130,16 +135,25 @@ class container(object):
         if "mask" in components or "masks" in components:
             if self.dirpath:
                 mask_path = os.path.join(self.dirpath, "masks.yaml")
-                saved_masks = _load_yaml(mask_path)
+                if os.path.isfile(mask_path):
+                    saved_masks = _load_yaml(mask_path)
+                    if not saved_masks:
+                        saved_masks = {}
+                else:
+                    saved_masks = {}
                 for mask in self.masks.items():
                     if mask[0] in saved_masks and not flag_overwrite:
-                        warnings.warn("Mask " +  mask[0] + " already exists - cannot save (overwrite=False).")
+                        if len(eval(saved_masks[mask[0]]["coords"])) == 0:
+                            saved_masks[mask[0]]=mask[1]
+                            print("Saved mask " + mask[0] + " (missing coords replaced).")
+                        # else:
+                        #     warnings.warn("Mask " +  mask[0] + " already exists - cannot save (overwrite=False).")
                     elif mask[0] in saved_masks and flag_overwrite:
-                        print("Saved mask" + mask[0] + " (overwritten).")
+                        print("Saved mask " + mask[0] + " (overwritten).")
                         saved_masks[mask[0]]=mask[1]
                     else:
                         saved_masks[mask[0]]=mask[1]
-                        print("Saved mask" + mask[0])
+                        print("Saved mask " + mask[0])
                 _save_yaml(saved_masks, mask_path)
 
 

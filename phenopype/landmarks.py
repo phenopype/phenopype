@@ -34,7 +34,7 @@ class landmark_maker:
 
     
     """        
-    
+
     def __init__(self, image, **kwargs):
         
         # initialize # ----------------

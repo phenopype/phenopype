@@ -329,6 +329,7 @@ class pype:
         """
         ## kwargs
         flag_show = kwargs.get("show",True)
+        flag_skip = kwargs.get("skip", None)
         steps_exclude = kwargs.get("exclude",[]) 
         steps_include = kwargs.get("include",[]) 
         config = kwargs.get("config", None)
@@ -350,14 +351,23 @@ class pype:
                 self.container.load(components=["mask"])
         else:
             sys.exit("Wrong input - cannot run pype.")
+            
+        if flag_skip:
+            filepaths, duplicates = _file_walker(self.container.dirpath, search_mode="dir", include=flag_skip)
+            if len(filepaths)>0:
+                return
 
         ## load config
         if config:
             self.config, self.config_file = _load_pype_config(self.container, config=config)
-        else: 
-            self.config, self.config_file = _load_pype_config(self.container)
-            if not os.path.isfile(self.config_file):
-                _save_yaml(self.config, self.config_file)
+        else:
+            self.config_file = os.path.join(self.container.dirpath,"pype_generic.yaml")
+            if os.path.isfile(self.config_file):
+                self.config = _load_yaml(self.config_file)
+            else:
+                self.config, self.config_file = _load_pype_config(self.container)
+                if not os.path.isfile(self.config_file):
+                    _save_yaml(self.config, self.config_file)
 
         ## open config file with system viewer
         if flag_show:
@@ -381,7 +391,7 @@ class pype:
             ## check visulization given
             flag_vis = False
             flag_overwrite_mask = False
-            
+
             ## get config file and assemble pype
             self.config = copy.deepcopy(self.FM.content)
             if not self.config:
@@ -462,6 +472,8 @@ class pype:
         if not presetting:
             if os.path.isdir(obj_input):
                 self.container.save(components=["masks"], overwrite=flag_overwrite_mask)
+
+
 
 #%% functions
 
