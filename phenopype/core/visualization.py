@@ -6,7 +6,7 @@ import pandas as pd
 import math
 
 from phenopype.settings import colours
-from phenopype.utils_lowlevel import _auto_line_thickness, _auto_text_thickness, _auto_text_size, _load_masks
+from phenopype.utils_lowlevel import _auto_line_width, _auto_text_width, _auto_text_size, _load_masks
 
 #%% settings
 
@@ -48,13 +48,13 @@ def show_contours(obj_input,**kwargs):
 
     ## kwargs
     contours = kwargs.get("contours", None)
-    offset_coords = kwargs.get("offset_coords", None)
     flag_label = kwargs.get("label", True)
-    level = kwargs.get("level", 3)
-    line_colour_sel = eval("colours." + kwargs.get("line_colour", "green"))
-    text_colour = eval("colours." + kwargs.get("text_colour", "black"))
     flag_fill = kwargs.get("fill", 0.2)
     flag_child = kwargs.get("mark_holes", True)
+    level = kwargs.get("level", 3)
+    line_colour_sel = colours[kwargs.get("line_colour", "green")]
+    text_colour = colours[kwargs.get("text_colour", "black")]
+    offset_coords = kwargs.get("offset_coords", None)
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -76,8 +76,8 @@ def show_contours(obj_input,**kwargs):
     for label, contour in contours.items():
         if flag_child:
             if contour["order"] == "child":
-                fill_colour = colours.red
-                line_colour = colours.red
+                fill_colour = colours["red"]
+                line_colour = colours["red"]
             else:
                 fill_colour = line_colour_sel
                 line_colour = line_colour_sel

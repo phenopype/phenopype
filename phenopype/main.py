@@ -13,11 +13,12 @@ from datetime import datetime
 from ruamel.yaml.comments import CommentedMap as ordereddict
 from shutil import copyfile, rmtree
 
+from phenopype import presets
+from phenopype.settings import colours
+from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
 from phenopype.utils_lowlevel import _image_viewer, _del_rw, _file_walker, _load_pype_config, _generic_pype_config
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
-from phenopype.settings import presets, colours
-from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
 #%% settings
 
