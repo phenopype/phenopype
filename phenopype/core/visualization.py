@@ -6,7 +6,7 @@ import pandas as pd
 import math
 
 from phenopype.settings import colours
-from phenopype.utils_lowlevel import _auto_line_width, _auto_text_width, _auto_text_size, _load_masks
+from phenopype.utils_lowlevel import _auto_line_width, _auto_point_size, _auto_text_width, _auto_text_size, _load_masks
 
 #%% settings
 
@@ -14,10 +14,10 @@ inf = math.inf
 
 #%% functions
 
-def show_image(obj_input, **kwargs):
+def select_canvas(obj_input, **kwargs):
     
     ## kwargs
-    canvas = kwargs.get("canvas", "image")
+    canvas = kwargs.get("canvas", "mod")
     
     ## method
     if canvas == "bin" or canvas == "binary":
@@ -60,14 +60,14 @@ def show_contours(obj_input,**kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if not contours:
-            warnings.warn("No contour list provided - cannot draw contous.")
+            warnings.warn("No contour list provided - cannot draw contours.")
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         contours = obj_input.contours
         
     ## more kwargs
-    flag_line_thickness = kwargs.get("line_thickness", _auto_line_thickness(image))
-    text_thickness = kwargs.get("text_thickness", _auto_text_thickness(image))
+    flag_line_thickness = kwargs.get("line_thickness", _auto_line_width(image))
+    text_thickness = kwargs.get("text_thickness", _auto_line_width(image))
     text_size = kwargs.get("text_size", _auto_text_size(image))
 
     ## method
@@ -118,6 +118,57 @@ def show_contours(obj_input,**kwargs):
 
 
 
+def show_landmarks(obj_input, **kwargs):
+    """Mask maker method to draw rectangle or polygon mask onto image.
+    
+    Parameters
+    ----------        
+    
+    include: bool (default: True)
+        determine whether resulting mask is to include or exclude objects within
+    label: str (default: "area1")
+        passes a label to the mask
+    tool: str (default: "rectangle")
+        zoom into the scale with "rectangle" or "polygon".
+        
+    """
+    
+
+    ## kwargs
+    colour = colours[kwargs.get("colour", "green")]
+    mask_list = kwargs.get("masks", None)
+
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.canvas
+
+    point_size = kwargs.get("point_size", _auto_point_size(image))
+    point_col = colours[kwargs.get("point_col", "red")]
+    text_size = kwargs.get("label_size", _auto_text_size(image))
+    text_width = kwargs.get("label_width", _auto_text_width(image))
+    text_col = colours[kwargs.get("label_col", "black")]
+
+    ## draw landmarks
+    if obj_input.landmarks:
+        points = eval(obj_input.landmarks["landmarks"]["coords"])
+        for point, idx in zip(points, range(len(points))):
+            cv2.circle(image, point, point_size, point_col, -1)
+            cv2.putText(image, str(idx+1), point, 
+                cv2.FONT_HERSHEY_SIMPLEX, text_size, text_col, text_width, cv2.LINE_AA)
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return image
+    elif obj_input.__class__.__name__ == "container":
+        if  obj_input.canvas.__class__.__name__ == "ndarray":
+            obj_input.canvas = image
+        else:
+            obj_input.image = image
+
+
+
 def show_mask(obj_input, **kwargs):
     """Mask maker method to draw rectangle or polygon mask onto image.
     
@@ -136,7 +187,7 @@ def show_mask(obj_input, **kwargs):
     # mask_list = ["mask1"]
 
     ## kwargs
-    colour = eval("colours." + kwargs.get("colour", "green"))
+    colour = colours[kwargs.get("colour", "green")]
     mask_list = kwargs.get("masks", None)
 
     ## load image
@@ -146,7 +197,7 @@ def show_mask(obj_input, **kwargs):
         image = obj_input.canvas
 
     ## more kwargs
-    line_thickness = kwargs.get("line_thickness", _auto_line_thickness(image))
+    line_thickness = kwargs.get("line_thickness", _auto_line_width(image))
 
     ## load masks
     masks, mask_list = _load_masks(obj_input, mask_list)

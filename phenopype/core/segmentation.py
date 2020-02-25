@@ -136,7 +136,7 @@ def find_contours(obj_input, **kwargs):
                     ]):
                         idx += 1
                         contour_label = str(idx)
-                        contour_dict[contour_label] = {"label":contour_label, 
+                        contour_dict[contour_label] = {"contour":contour_label, 
                                                      "x":x,
                                                      "y":y,
                                                      "diameter": diameter, 

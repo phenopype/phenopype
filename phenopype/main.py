@@ -14,10 +14,10 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 from shutil import copyfile, rmtree
 
 from phenopype import presets
-from phenopype.settings import colours
+from phenopype.settings import *
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
-from phenopype.utils_lowlevel import _image_viewer, _del_rw, _file_walker, _load_pype_config, _generic_pype_config
+from phenopype.utils_lowlevel import _image_viewer, _del_rw, _file_walker, _load_pype_config, _create_generic_pype_config
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
 
 #%% settings
@@ -262,7 +262,7 @@ class project:
         ## modify
         if flag_interactive:
             container = load_directory(self.dirpaths[0])
-            config, template_path = _generic_pype_config(container, preset = preset)
+            config, template_path = _create_generic_pype_config(container, preset = preset)
             template_path = os.path.join(self.root_dir, "pype_template.yaml")
             _save_yaml(config, template_path)
             p = pype(self.filepaths[0], exclude=["export"], config=template_path, presetting=True)
@@ -297,7 +297,7 @@ class project:
 
 
 class pype:
-    def __init__(self, obj_input, **kwargs):
+    def __init__(self, image, name, **kwargs):
         """
         The pype is phenopype’s core method that allows running all functions 
         that are available in the program’s library in sequence. Executing the pype routine 
@@ -319,8 +319,11 @@ class pype:
         Parameters
         ----------
 
-        name (optional): str (default: "generic")
-            name of config-file
+        image: array or str 
+            can be either a numpy array or a string that provides the path to source image file 
+            or path to a valid phenopype directory
+        name: str
+            name of pype-config - will be prepended to all results files
         config (optional): str (default: "preset1")
             chose from given presets in phenopype/settings/pype_presets.py (e.g. preset1, preset2, ...)
         interactive (optional): bool (default: False)
@@ -328,59 +331,58 @@ class pype:
         overwrite (optional): bool (default: False)
             overwrite option, if a given pype config-file already exist
         """
+        
+        if "_" in name:
+            sys.exit("no underscores allowed in pype name")
+
         ## kwargs
         flag_show = kwargs.get("show",True)
         flag_skip = kwargs.get("skip", None)
         steps_exclude = kwargs.get("exclude",[]) 
         steps_include = kwargs.get("include",[]) 
-        config = kwargs.get("config", None)
+        preset = kwargs.get("preset", default_pype_preset)
         print_settings = kwargs.get("print_settings",False)
         presetting = kwargs.get("presetting", False)
-        default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
-        exif_fields = kwargs.get("fields", default_fields)
+        flag_meta = kwargs.get("meta", True)
+        
+        exif_fields = kwargs.get("fields", default_meta_data_fields)
         if not exif_fields.__class__.__name__ == "list":
             exif_fields = [exif_fields]
 
         ## load image as cointainer from array, file, or directory
-        if obj_input.__class__.__name__ == "ndarray":
-            self.container = load_image(obj_input, container=True, meta=False)
-        elif obj_input.__class__.__name__ == "str":
-            if os.path.isfile(obj_input):
-                self.container = load_image(obj_input, container=True, meta=True, fields=exif_fields)
-            elif os.path.isdir(obj_input):
-                self.container = load_directory(obj_input, meta=True, fields=exif_fields)
-                self.container.load(components=["mask"])
+        if image.__class__.__name__ == "ndarray":
+            self.container = load_image(image, container=True, meta=flag_meta)
+            self.container.save_suffix = name
+        elif image.__class__.__name__ == "str":
+            if os.path.isfile(image):
+                self.container = load_image(image, container=True, meta=flag_meta, fields=exif_fields)
+                self.container.save_suffix = name
+            elif os.path.isdir(image):
+                self.container = load_directory(image, meta=flag_meta, fields=exif_fields)
+                self.container.save_suffix = name
         else:
             sys.exit("Wrong input - cannot run pype.")
-            
+
+        ## skip directories that already contain specified files
         if flag_skip:
-            filepaths, duplicates = _file_walker(self.container.dirpath, search_mode="dir", include=flag_skip)
+            filepaths, duplicates = _file_walker(self.container.dirpath, flag_skip)
             if len(filepaths)>0:
                 return
 
         ## load config
-        if config:
-            self.config, self.config_file = _load_pype_config(self.container, config=config)
-        else:
-            self.config_file = os.path.join(self.container.dirpath,"pype_generic.yaml")
-            if os.path.isfile(self.config_file):
-                self.config = _load_yaml(self.config_file)
-            else:
-                self.config, self.config_file = _load_pype_config(self.container)
-                if not os.path.isfile(self.config_file):
-                    _save_yaml(self.config, self.config_file)
+        self.config, self.config_location = _load_pype_config(self.container, config=name, preset=preset)
 
         ## open config file with system viewer
         if flag_show:
             if platform.system() == 'Darwin':       # macOS
-                subprocess.call(('open', self.config_file))
+                subprocess.call(('open', self.config_location))
             elif platform.system() == 'Windows':    # Windows
-                os.startfile(self.config_file)
+                os.startfile(self.config_location)
             else:                                   # linux variants
-                subprocess.call(('xdg-open', self.config_file))
+                subprocess.call(('xdg-open', self.config_location))
 
         ## initialize
-        self.FM = _yaml_file_monitor(self.config_file, print_settings=print_settings)
+        self.FM = _yaml_file_monitor(self.config_location, print_settings=print_settings)
         update = {}
         iv = None
         
@@ -389,14 +391,13 @@ class pype:
         # =============================================================================
         
         while True:
-            ## check visulization given
-            flag_vis = False
-            flag_overwrite_mask = False
 
             ## get config file and assemble pype
             self.config = copy.deepcopy(self.FM.content)
             if not self.config:
                 continue
+
+            self.container.load()
 
             ## check steps
             if not steps_include:
@@ -408,6 +409,7 @@ class pype:
                 steps = steps_include
 
             ## apply pype
+            self.method_cache = {}
             for step in steps:
                 if step in ["image", "meta", "pype"]:
                     continue
@@ -423,6 +425,7 @@ class pype:
                         print(method_name)
                         
                         ## run method
+                        self.method_cache[method_name] = method_args
                         method_loaded = eval(step + "." + method_name)
                         method_loaded(self.container, **method_args)
 
@@ -432,47 +435,59 @@ class pype:
                         if method_name == "create_mask":
                             if "overwrite" in method_args:
                                 flag_overwrite_mask = method_args["overwrite"]
-                            else:
-                                flag_overwrite_mask = False
+                        if method_name == "landmarks":
+                            if "overwrite" in method_args:
+                                flag_overwrite_lm = method_args["overwrite"]
                     except Exception as ex:
                         location = step + "." + method_name + ": " + str(ex.__class__.__name__)
                         print(location + " - " + str(ex))
 
-            ## show image and hold
-            if flag_show:
-                try:
-                    if not flag_vis:
-                        self.container = visualization.show_image(self.container)
-                    iv = _image_viewer(self.container.canvas, prev_attributes=update)
+            try:
+                iv = _image_viewer(self.container.canvas, previous=update)
+                update = iv.__dict__
+            except Exception as ex:
+                print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
+                    
+            ## close
+            if iv:
+                if iv.done:
+                    self.FM.stop()
+                    break
 
-                    ## pass on settings for next call
-                    update = iv.__dict__
 
-                except Exception as ex:
-                    print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
+            # ## show image and hold
+            # if flag_show:
+            #     try:
+            #         if not flag_vis:
+            #             self.container = visualization.show_image(self.container)
+            #         iv = _image_viewer(self.container.canvas, previous=update)
 
-                ## close
-                if iv:
-                    if iv.done:
-                        self.FM.stop()
-                        break
-            else:
-                self.FM.stop()
-                break
+            #         ## pass on settings for next call
+            #         update = iv.__dict__
+
+            #     except Exception as ex:
+            #         print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
+
+            #     ## close
+            #     if iv:
+            #         if iv.done:
+            #             self.FM.stop()
+            #             break
+            # else:
+            #     self.FM.stop()
+            #     break
             
-            ## save container content, and reset container
+            # save container content, and reset container
             if not presetting:
-                self.container.reset(components=["contours", "masks"])
-            else: 
-                self.container.reset(components=["contours"])
-                
+                self.container.reset()
+
             print("\n\n---------------new pype iteration---------------\n\n")
             
             
         ## save masks
         if not presetting:
-            if os.path.isdir(obj_input):
-                self.container.save(components=["masks"], overwrite=flag_overwrite_mask)
+            self.container.save()
+
 
 
 

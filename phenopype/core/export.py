@@ -177,7 +177,7 @@ def save_contours(obj_input, **kwargs):
         contour_dict["x_coords"], contour_dict["y_coords"] = str(x_coords), str(y_coords)
         obj_output["contours"][contour] = contour_dict
 
-    save_path = os.path.join(dirpath, "contours.yml")
+    save_path = os.path.join(dirpath, "contours.yaml")
 
     if os.path.exists(save_path):
         if flag_overwrite == True:

@@ -67,17 +67,17 @@ def create_mask(obj_input, **kwargs):
             break
 
     ## method
-    iv_object = _image_viewer(image, 
+    out = _image_viewer(image, 
                               mode="interactive", 
                               max_dim = max_dim, 
                               tool=flag_tool)
     coords = []
     if flag_tool == "rectangle" or flag_tool == "box":
-        for rect in iv_object.rect_list:
+        for rect in out.rect_list:
             pts = [(rect[0], rect[1]), (rect[2], rect[1]), (rect[2], rect[3]), (rect[0], rect[3]),(rect[0], rect[1])]
             coords.append(pts)
     elif flag_tool == "polygon" or flag_tool == "free":
-        for poly in iv_object.poly_list:
+        for poly in out.poly_list:
             # pts = np.array(poly, dtype=np.int32)
             coords.append(poly)
 
@@ -106,6 +106,41 @@ def create_mask(obj_input, **kwargs):
         obj_input.masks_copy[label] = mask
     else:
         return mask
+
+
+
+def enter_data(obj_input, **kwargs):
+    
+    print(kwargs)
+    # def _keyboard_entry(event, x, y, flags, params):
+    #     pass
+    
+    # done = False
+    # if ID.__class__.__name__ == "NoneType":
+    #     ID = ""
+    #     while not done or ID == "":
+            
+    #         cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
+    #         cv2.setMouseCallback("phenopype", _keyboard_entry)
+    #         k = cv2.waitKey(1)
+    
+    #         if k > 0 and k != 8 and k != 13 and k != 27:
+    #             ID = ID + chr(k)
+    #         elif k == 8:
+    #             ID = ID[0:len(ID)-1]
+    #         image_warning = copy.deepcopy(out.image_copy)
+    #         cv2.putText(image_warning, "Enter ID: " + ID, (int(image_warning.shape[0]//10),int(image_warning.shape[1]/3)), 
+    #                 cv2.FONT_HERSHEY_SIMPLEX, _auto_text_size(image)+10, colours["red"], _auto_text_width(image)*10, cv2.LINE_AA)
+            
+    #         cv2.imshow("phenopype", image_warning)
+    #         if k == 27:
+    #             cv2.destroyWindow("phenopype")
+    #             break
+    #         elif k == 13:
+    #             if not ID =="":
+    #                 done = True
+    #                 cv2.destroyWindow("phenopype")
+    #                 break
 
 
 
@@ -141,3 +176,5 @@ def invert_image(obj_input, **kwargs):
         obj_input.image = image
     else:
         return image
+    
+

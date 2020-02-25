@@ -10,7 +10,7 @@ from ruamel.yaml import YAML
 
 from phenopype.utils_lowlevel import _image_viewer 
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
-from phenopype.settings import colours
+from phenopype.settings import *
 
 #%% settings
 
@@ -26,7 +26,7 @@ warnings.simplefilter('always', UserWarning)
 #%% classes
 
 class container(object):
-    def __init__(self, image, df, **kwargs):
+    def __init__(self, image, df_image_data, **kwargs):
         """
         Parameters
         ----------
@@ -49,16 +49,16 @@ class container(object):
         self.image_gray = None
         self.canvas = None
         
-        self.df = df
-        self.df_copy = copy.deepcopy(self.df)
-        self.contours = {}
-        self.contours_copy = None
-        self.masks = {}
-        self.masks_copy = None
+        self.df_image_data = df_image_data
+        self.df_image_data_copy = copy.deepcopy(self.df_image_data)
 
-        self.dirpath = None
+
         
-    def reset(self, components=[]):
+        ## attributes
+        self.dirpath = None
+        self.save_suffix = default_save_suffix
+
+    def reset(self):
         """
         Parameters
         ----------
@@ -71,16 +71,11 @@ class container(object):
 
         """
         self.image = copy.deepcopy(self.image_copy)
-        self.df = copy.deepcopy(self.df_copy)
         self.canvas = None
+        
+        
 
-        if "contour" in components or "contours" in components or "contour_list" in components:
-            self.contours = {}
-        if "mask" in components or "masks" in components:
-            if self.masks_copy:
-                self.masks = copy.deepcopy(self.masks_copy)
-
-    def load(self, components=[]):
+    def load(self):
         """
         
 
@@ -94,9 +89,22 @@ class container(object):
         None.
 
         """
-        if "contour" in components or "contours" in components or "contour_list" in components:
+        if hasattr(self, "df_contours"):
             print("Load contours not yet implemented")
-        if "mask" in components or "masks" in components:
+
+        ## landmarks
+        if not hasattr(self, "df_landmarks"):
+            path = os.path.join(self.dirpath, "landmarks_" + self.save_suffix + ".csv")
+            if os.path.isfile(path):
+                self.df_landmarks = pd.read_csv(path) 
+
+        ## polylines
+        if not hasattr(self, "df_polyline"):
+            path = os.path.join(self.dirpath, "polylines_" + self.save_suffix + ".csv")
+            if os.path.isfile(path):
+                self.df_polylines = pd.read_csv(path) 
+            
+        if hasattr(self, "masks"):
             if self.dirpath:
                 mask_path = os.path.join(self.dirpath, "masks.yaml")
                 if os.path.isfile(mask_path):
@@ -111,7 +119,8 @@ class container(object):
                     else:
                         self.masks = {}
                         self.masks_copy = {}
-    def save(self, components=[], **kwargs):
+                        
+    def save(self, **kwargs):
         """
         
 
@@ -126,35 +135,70 @@ class container(object):
         -------
         None.
 
+        cfg = "pype_config_v1.yaml"
+        cfg[cfg.rindex('_')+1:cfg.rindex('.')]
+
         """
         ## kwargs
-        flag_overwrite = kwargs.get("overwrite", False)
+
         
-        if "contour" in components or "contours" in components or "contour_list" in components:
+        if hasattr(self, "df_contours"):
             print("Save contours not yet implemented")
-        if "mask" in components or "masks" in components:
-            if self.dirpath:
-                mask_path = os.path.join(self.dirpath, "masks.yaml")
-                if os.path.isfile(mask_path):
-                    saved_masks = _load_yaml(mask_path)
-                    if not saved_masks:
-                        saved_masks = {}
-                else:
+            
+        ## landmarks
+        if hasattr(self, "df_landmarks") and hasattr(self, "ov_landmarks"):
+            while True:
+                path = os.path.join(self.dirpath, "landmarks_" + self.save_suffix + ".csv")
+                if os.path.isfile(path) and not self.ov_landmarks:
+                    warnings.warn("landmarks already saved (overwrite=False)")
+                    break
+                elif os.path.isfile(path) and self.ov_landmarks:
+                    print("Saved landmarks (overwritten)")
+                    pass
+                elif not os.path.isfile(path):
+                    print("Saved landmarks")
+                    pass
+                self.df_landmarks.to_csv(path_or_buf=path, sep=",",index=False)
+                break
+
+        ## polylines
+        if hasattr(self, "df_polylines") and hasattr(self, "ov_polylines"):
+            while True:
+                path = os.path.join(self.dirpath, "polylines_" + self.save_suffix + ".csv")
+                if os.path.isfile(path) and not self.ov_polylines:
+                    warnings.warn("polylines already saved (overwrite=False)")
+                    break
+                elif os.path.isfile(path) and self.ov_polylines:
+                    print("Saved polylines (overwritten)")
+                    pass
+                elif not os.path.isfile(path):
+                    print("Saved polylines")
+                    pass
+                self.df_polylines.to_csv(path_or_buf=path, sep=",",index=False)
+                break
+
+        if hasattr(self, "masks"):
+            mask_path = os.path.join(self.dirpath, "masks.yaml")
+            if os.path.isfile(mask_path):
+                saved_masks = _load_yaml(mask_path)
+                if not saved_masks:
                     saved_masks = {}
-                for mask in self.masks.items():
-                    if mask[0] in saved_masks and not flag_overwrite:
-                        if len(eval(saved_masks[mask[0]]["coords"])) == 0:
-                            saved_masks[mask[0]]=mask[1]
-                            print("Saved mask " + mask[0] + " (missing coords replaced).")
-                        # else:
-                        #     warnings.warn("Mask " +  mask[0] + " already exists - cannot save (overwrite=False).")
-                    elif mask[0] in saved_masks and flag_overwrite:
-                        print("Saved mask " + mask[0] + " (overwritten).")
+            else:
+                saved_masks = {}
+            for mask in self.masks.items():
+                if mask[0] in saved_masks and not flag_overwrite:
+                    if len(eval(saved_masks[mask[0]]["coords"])) == 0:
                         saved_masks[mask[0]]=mask[1]
-                    else:
-                        saved_masks[mask[0]]=mask[1]
-                        print("Saved mask " + mask[0])
-                _save_yaml(saved_masks, mask_path)
+                        print("Saved mask " + mask[0] + " (missing coords replaced).")
+                    # else:
+                    #     warnings.warn("Mask " +  mask[0] + " already exists - cannot save (overwrite=False).")
+                elif mask[0] in saved_masks and flag_overwrite:
+                    print("Saved mask " + mask[0] + " (overwritten).")
+                    saved_masks[mask[0]]=mask[1]
+                else:
+                    saved_masks[mask[0]]=mask[1]
+                    print("Saved mask " + mask[0])
+            _save_yaml(saved_masks, mask_path)
 
 
 
@@ -180,8 +224,7 @@ def load_directory(obj_input, **kwargs):
     flag_container = kwargs.get("container", True)
     flag_df = kwargs.get("df", False)
     flag_meta = kwargs.get("meta", True)
-    default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
-    exif_fields = kwargs.get("fields", default_fields)
+    exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
         
@@ -248,8 +291,7 @@ def load_image(obj_input, **kwargs):
     flag_container = kwargs.get("container", False)
     flag_df = kwargs.get("df", False)
     flag_meta = kwargs.get("meta", False)
-    default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
-    exif_fields = kwargs.get("fields", default_fields)
+    exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
 
@@ -266,18 +308,18 @@ def load_image(obj_input, **kwargs):
 
     ## load image data
     image_data = load_image_data(obj_input)
-    df = pd.DataFrame({"filename": image_data["filename"],
+    df_image_data = pd.DataFrame({"filename": image_data["filename"],
           "width": image_data["width"],
           "height": image_data["height"]}, index=[0])
 
     ## add meta-data 
     if flag_meta:
         meta_data = load_meta_data(obj_input, fields=exif_fields)        
-        df = pd.concat([df.reset_index(drop=True), pd.DataFrame(meta_data, index=[0])], axis=1)
+        df_image_data = pd.concat([df_image_data.reset_index(drop=True), pd.DataFrame(meta_data, index=[0])], axis=1)
 
     ## return
     if flag_container == True:
-        ct = container(image, df)
+        ct = container(image, df_image_data)
         ct.image_data = image_data
         ct.dirpath = os.getcwd()
         return ct
@@ -363,8 +405,7 @@ def load_meta_data(obj_input, **kwargs):
     """
     ## kwargs
     flag_show = kwargs.get("show_fields", False)
-    default_fields = ["DateTimeOriginal","Model","LensModel","ExposureTime", "ISOSpeedRatings","FNumber"]
-    exif_fields = kwargs.get("fields", default_fields)
+    exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
         
@@ -402,7 +443,7 @@ def load_meta_data(obj_input, **kwargs):
         pretty.pprint(exif_data_all)
         print("\n")
         print("Default exif-tags (append list using \"fields\" argument):\n")
-        print(default_fields)
+        print(default_meta_data_fields)
         print("--------------------------------------------")
 
     ## subset exif_data

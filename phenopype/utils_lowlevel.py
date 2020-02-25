@@ -11,7 +11,7 @@ from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
 from phenopype import presets
-from phenopype.settings import colours
+from phenopype.settings import *
 
 #%% classes
 
@@ -74,7 +74,7 @@ class _image_viewer():
         if self.flag_tool:
             self.points, self.point_list = [], []
             self.line_width = kwargs.get("line_width", _auto_line_width(image))
-            if self.flag_tool==self.flag_tool == "rectangle" or self.flag_tool == "box":
+            if self.flag_tool== "rectangle" or self.flag_tool == "box":
                 self.rect_list, self.rect_start = [], None
             elif self.flag_tool == "landmarks" or self.flag_tool == "landmark":
                 self.point_size = kwargs.get("point_size", _auto_point_size(image))
@@ -83,9 +83,9 @@ class _image_viewer():
                 self.text_width = kwargs.get("label_size", _auto_text_width(image))
                 self.text_col = colours[kwargs.get("label_col", "black")]
             
-        ## update from a previous call
-        if kwargs.get("prev_attributes"):
-            prev_attr = kwargs.get("prev_attributes")
+        ## update from previous call
+        if kwargs.get("previous"):
+            prev_attr = kwargs.get("previous")
             prev_attr = {i:prev_attr[i] for i in prev_attr if i not in ["canvas_copy", "canvas", "image_copy","image"]}
             self.__dict__.update(prev_attr)
             if hasattr(self, "rect_list"):
@@ -114,6 +114,9 @@ class _image_viewer():
                 if self.flag_tool == "polygon" or self.flag_tool == "free":
                     if len(self.points)>2:
                         self.points.append(self.points[0])
+                        self.point_list.append(self.points)
+                elif self.flag_tool == "polyline" or self.flag_tool == "polylines":
+                    if len(self.points)>0:
                         self.point_list.append(self.points)
                 elif self.flag_tool == "rectangle" or self.flag_tool == "box":
                     if len(self.rect_list)>0:
@@ -146,10 +149,12 @@ class _image_viewer():
         if self.flag_tool:
             if self.flag_tool == "landmark" or self.flag_tool == "landmarks":
                 self._on_mouse_landmark(event, x, y)
-            if self.flag_tool == "rectangle" or self.flag_tool == "box":
+            elif self.flag_tool == "rectangle" or self.flag_tool == "box":
                 self._on_mouse_rectangle(event, x, y, flags)
             elif self.flag_tool == "polygon" or self.flag_tool == "free":
                 self._on_mouse_polygon(event, x, y, flags)
+            elif self.flag_tool == "polyline" or self.flag_tool == "polylines":
+                self._on_mouse_polygon(event, x, y, flags, polyline=True)
 
     def _on_mouse_landmark(self, event, x, y):
         if event == cv2.EVENT_LBUTTONDOWN: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
@@ -175,7 +180,8 @@ class _image_viewer():
                 self.canvas_copy = copy.deepcopy(self.canvas)
                 cv2.imshow(self.window_name, self.canvas)
                 
-    def _on_mouse_polygon(self, event, x, y, flags):
+    def _on_mouse_polygon(self, event, x, y, flags, **kwargs):
+        polyline = kwargs.get("polyline", False)
         if event == cv2.EVENT_MOUSEMOVE:
             self.coords_original = int(self.zoom_x1+(x * self.global_fx)), int(self.zoom_y1+(y * self.global_fy))
             if len(self.points) > 0:
@@ -215,10 +221,11 @@ class _image_viewer():
                 self.canvas_copy = copy.deepcopy(self.canvas)
                 cv2.imshow(self.window_name, self.canvas)
         if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.points)>2:
-            self.points.append(self.points[0])
+            if not polyline:
+                self.points.append(self.points[0])
             self.point_list.append(self.points)
             self.points = []
-            self.image_copy = copy.deepcopy(self.image)
+            self.image_copy = copy.deepcopy(self.image)                
             if len(self.point_list)>0:
                 for poly in self.point_list:
                     cv2.polylines(self.image_copy, np.array([poly]), False, colours["green"], self.line_width)
@@ -374,6 +381,20 @@ def _auto_text_size(image, **kwargs):
     text_size = int(factor * image_diagonal)
 
     return text_size
+
+
+
+def _create_generic_pype_config(location, preset):
+
+    config = _load_yaml(eval("presets." + preset))
+    pype_preset = {"pype":
+                       {"name": "pype_generic",
+                        "preset": "preset1",
+                        "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
+                        "date_last_used": None}}
+    pype_preset.update(config)
+    print("pype config generated from " + preset + ".")
+    return pype_preset, location
 
 
 
@@ -544,69 +565,58 @@ def _load_masks(obj_input, mask_list):
 
 def _load_yaml(string):
     yaml = YAML()
-    if os.path.isfile(string):
-        with open(string, 'r') as file:
-            file = yaml.load(file)
+    if string.__class__.__name__ == "str":
+        if os.path.isfile(string):
+            with open(string, 'r') as file:
+                file = yaml.load(file)
+        else:
+            file = yaml.load(string)
         return file
     else:
         warnings.warn("Not a valid path - couldn't load yaml.")
-        # file = yaml.load(string)
+        return
 
 
 
-
-def _load_pype_config(container, **kwargs):
+def _load_pype_config(obj_input, **kwargs):
     
     ## kwargs
-    config = kwargs.get("config", "pype_generic.yaml")
+    config = kwargs.get("config", default_pype_config_name)
+    preset = kwargs.get("preset", default_pype_preset)
 
-    dirpath = container.dirpath    
-    if os.path.isfile(config):
-        return _load_yaml(config), config
-    
-    pype_config_locations = [os.path.join(dirpath, "pype_" + config + ".yaml"),
-                             os.path.join(dirpath, config + ".yaml"),
-                             os.path.join(dirpath, config)]
-    for location in pype_config_locations:
-        if os.path.isfile(location):
-            return _load_yaml(location), location
+    ## concatenate config file name directory path
+    dirpath = obj_input.dirpath
+    config_location = os.path.join(dirpath, "pype_config_" + config + ".yaml")
 
-    warnings.warn("No pype configuration found under given name - defaulting to preset1")
-    pype_preset, location = _generic_pype_config(container)
-    return pype_preset, location
-
-
-
-def _generic_pype_config(container, **kwargs):
-
-    ## kwargs
-    preset = kwargs.get("preset", "preset1")
-    
-    dirpath = container.dirpath
-    location = os.path.join(dirpath, "pype_generic.yaml")
-    config = _load_yaml(eval("presets." + preset))
-    pype_preset = {"image": container.image_data,
-                   "pype":
-                       {"name": "pype_generic",
-                        "preset": "preset1",
-                        "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
-                        "date_last_used": None}}
-    pype_preset.update(config)
-    print("Generic pype config generated from " + preset + ".")
-    return pype_preset, location
+    ## check if exists, otherwise ask to create
+    if os.path.isfile(config_location):
+        return _load_yaml(config_location), config_location
+    elif not os.path.isfile(config_location):
+        create = input("Did not find \"pype_config_" + config + ".yaml\" - "
+                       + " create at following location? (y/n):\n" + config_location + "\n")
+        if create == "y" or create == "yes":
+            pype_preset, config_location = _create_generic_pype_config(config_location, preset)
+            config = {"image": copy.deepcopy(obj_input.image_data)}
+            config.update(pype_preset)
+            print("Created and saved new pype config \"" + os.path.basename(config_location) +
+                  "\" in folder " + os.path.dirname(config_location))
+            _save_yaml(config, config_location)
+            return pype_preset, config_location
+        else:
+            warnings.warn(("Did not find \"pype_config_" + config + ".yaml\" - abort."))
 
 
 
-def _show_yaml(ordereddict):
+def _show_yaml(odict):
     yaml = YAML()
-    yaml.dump(ordereddict, sys.stdout)
+    yaml.dump(odict, sys.stdout)
 
 
 
-def _save_yaml(ordereddict, filepath):
+def _save_yaml(odict, filepath):
     with open(filepath, 'w') as config_file:
         yaml = YAML()
-        yaml.dump(ordereddict, config_file)
+        yaml.dump(odict, config_file)
         
 # def get_median_grayscale(image, **kwargs):
 #     if (image.shape[0] + image.shape[1])/2 > 2000:
