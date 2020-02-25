@@ -146,20 +146,20 @@ class container(object):
             print("Save contours not yet implemented")
             
         ## landmarks
-        if hasattr(self, "df_landmarks") and hasattr(self, "ov_landmarks"):
+        if hasattr(self, "df_landmarks"):
+            path = os.path.join(self.dirpath, "landmarks_" + self.save_suffix + ".csv")
             while True:
-                path = os.path.join(self.dirpath, "landmarks_" + self.save_suffix + ".csv")
-                if os.path.isfile(path) and not self.ov_landmarks:
-                    warnings.warn("landmarks already saved (overwrite=False)")
-                    break
-                elif os.path.isfile(path) and self.ov_landmarks:
-                    print("Saved landmarks (overwritten)")
-                    pass
-                elif not os.path.isfile(path):
+                if os.path.isfile(path):
+                    saved_df_landmarks = pd.read_csv(path) 
+                    if saved_df_landmarks["date_phenopyped"][0] == self.df_landmarks["date_phenopyped"][0]:
+                        return
+                    else:
+                        print("Saved landmarks (overwritten)")
+                        break
+                else:
                     print("Saved landmarks")
-                    pass
-                self.df_landmarks.to_csv(path_or_buf=path, sep=",",index=False)
-                break
+                    break
+            self.df_landmarks.to_csv(path_or_buf=path, sep=",",index=False)
 
         ## polylines
         if hasattr(self, "df_polylines") and hasattr(self, "ov_polylines"):
