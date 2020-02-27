@@ -3,6 +3,8 @@ import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
 
+import time
+
 from datetime import datetime
 from stat import S_IWRITE
 from ruamel.yaml import YAML
@@ -46,9 +48,15 @@ class _image_viewer():
         image_width, image_height = image.shape[1], image.shape[0]
         if image_height > window_max_dimension or image_width > window_max_dimension:
             if image_width > image_height:
-                canvas = cv2.resize(image, (window_max_dimension, int((window_max_dimension/image_width) * image_height)), cv2.INTER_AREA)
+                canvas = cv2.resize(image, 
+                                    (window_max_dimension, 
+                                     int((window_max_dimension/image_width) * image_height)), 
+                                    cv2.INTER_AREA)
             else:
-                canvas = cv2.resize(image, (int((window_max_dimension/image_height) * image_width), window_max_dimension), cv2.INTER_AREA)
+                canvas = cv2.resize(image, 
+                                    (int((window_max_dimension/image_height) * image_width), 
+                                     window_max_dimension), 
+                                    cv2.INTER_AREA)
         else:
             canvas = copy.deepcopy(image)
 
@@ -88,12 +96,9 @@ class _image_viewer():
             prev_attr = kwargs.get("previous")
             prev_attr = {i:prev_attr[i] for i in prev_attr if i not in ["canvas_copy", "canvas", "image_copy","image"]}
             self.__dict__.update(prev_attr)
-            if hasattr(self, "rect_list"):
-                for (rx1, ry1, rx2, ry2) in self.rect_list:
-                            cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), colours["green"], self.line_width)
-            if hasattr(self, "poly_list"):
-                for poly in self.point_list:
-                    cv2.polylines(self.image_copy, np.array([poly]), False, colours["green"], self.line_width)
+            if hasattr(self, "point_list"):
+                for point in self.point_list:
+                    cv2.polylines(self.image_copy, np.array([point]), False, colours["green"], self.line_width)
             self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2,]
             self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
             self.canvas_copy = copy.deepcopy(self.canvas)
@@ -111,23 +116,24 @@ class _image_viewer():
             if cv2.waitKey() == 13:
                 self.done = True
                 cv2.destroyAllWindows()
-                if self.flag_tool == "polygon" or self.flag_tool == "free":
+                if self.flag_tool == "polygon"  or self.flag_tool == "poly" or self.flag_tool == "free":
                     if len(self.points)>2:
-                        self.points.append(self.points[0])
+                        if not self.points[0] == self.points[len(self.points)]:
+                            self.points.append(self.points[0])
                         self.point_list.append(self.points)
-                elif self.flag_tool == "polyline" or self.flag_tool == "polylines":
+                elif self.flag_tool == "polyline" or self.flag_tool == "polylines" or self.flag_tool == "lines":
                     if len(self.points)>0:
                         self.point_list.append(self.points)
-                elif self.flag_tool == "rectangle" or self.flag_tool == "box":
+                elif self.flag_tool == "rectangle" or self.flag_tool == "rect" or self.flag_tool == "box":
                     if len(self.rect_list)>0:
                         for rect in self.rect_list:
                             xmin, ymin, xmax, ymax = rect
-                            self.point_list.append([(xmin, ymin), (xmax,ymin), (xmax, ymax), (xmin, ymax)])
+                            self.point_list.append([(xmin, ymin), (xmax,ymin), (xmax, ymax), (xmin, ymax), (xmin, ymin)])
                 elif self.flag_tool == "landmarks" or self.flag_tool == "landmark":
                     self.point_list.append(self.points)
             elif cv2.waitKey() == 27:
                 cv2.destroyAllWindows()
-                sys.exit("User intterupt - closing phenopype window")
+                sys.exit("\n\nTERMINATE (by user)")
 
     def _on_mouse_plain(self, event, x, y, flags, params):
         if event == cv2.EVENT_MOUSEWHEEL and flags > 0:
@@ -315,9 +321,6 @@ class _image_viewer():
 class _yaml_file_monitor:
     def __init__(self, filepath, **kwargs):
 
-        ## kwargs       
-        self.flag_print = kwargs.get("print_settings", False)
-
         ## file, location and event action        
         self.dirpath = os.path.dirname(filepath)
         self.filename = os.path.basename(filepath)
@@ -333,11 +336,9 @@ class _yaml_file_monitor:
 
     def on_update(self, event):
         self.content = _load_yaml(self.filepath)
-        if self.flag_print == True:
-            print(_show_yaml(self.content), end="")
-        self.flag_update = True
         cv2.destroyAllWindows()
-
+        for i in range(5):
+            cv2.waitKey(1)
     def stop(self):
         self.observer.stop()
         self.observer.join()
@@ -384,12 +385,12 @@ def _auto_text_size(image, **kwargs):
 
 
 
-def _create_generic_pype_config(location, preset):
+def _create_generic_pype_config(location, preset, config_name):
 
     config = _load_yaml(eval("presets." + preset))
     pype_preset = {"pype":
-                       {"name": "pype_generic",
-                        "preset": "preset1",
+                       {"name": config_name,
+                        "preset": preset,
                         "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
                         "date_last_used": None}}
     pype_preset.update(config)
@@ -398,18 +399,22 @@ def _create_generic_pype_config(location, preset):
 
 
 
-def _create_mask_bin(image, coords):
+def _create_mask_bin(image, df_masks):
     mask_bin = np.zeros(image.shape[0:2], np.uint8)
-    for sub_coords in coords:
-        cv2.fillPoly(mask_bin, [np.array(sub_coords, dtype=np.int32)], colours["white"])
+    for index, row in df_masks.iterrows():
+        coords = eval(row["coords"])
+        cv2.fillPoly(mask_bin, [np.array(coords, dtype=np.int32)], colours["white"])
     return mask_bin
 
 
-def _create_mask_bool(image, coords):
+
+def _create_mask_bool(image, df_masks):
     mask_bin = np.zeros(image.shape[0:2], np.uint8)
-    for sub_coords in coords:
-        cv2.fillPoly(mask_bin, [np.array(sub_coords, dtype=np.int32)], colours["white"])
+    for index, row in df_masks.iterrows():
+        coords = eval(row["coords"])
+        cv2.fillPoly(mask_bin, [np.array(coords, dtype=np.int32)], colours["white"])
     return np.array(mask_bin, dtype=bool)
+
 
 
 def _del_rw(action, name, exc):
@@ -581,21 +586,21 @@ def _load_yaml(string):
 def _load_pype_config(obj_input, **kwargs):
     
     ## kwargs
-    config = kwargs.get("config", default_pype_config_name)
+    config_name = kwargs.get("config", default_pype_config_name)
     preset = kwargs.get("preset", default_pype_preset)
 
     ## concatenate config file name directory path
     dirpath = obj_input.dirpath
-    config_location = os.path.join(dirpath, "pype_config_" + config + ".yaml")
+    config_location = os.path.join(dirpath, "pype_config_" + config_name + ".yaml")
 
     ## check if exists, otherwise ask to create
     if os.path.isfile(config_location):
         return _load_yaml(config_location), config_location
     elif not os.path.isfile(config_location):
-        create = input("Did not find \"pype_config_" + config + ".yaml\" - "
+        create = input("Did not find \"pype_config_" + config_name + ".yaml\" - "
                        + " create at following location? (y/n):\n" + config_location + "\n")
         if create == "y" or create == "yes":
-            pype_preset, config_location = _create_generic_pype_config(config_location, preset)
+            pype_preset, config_location = _create_generic_pype_config(config_location, preset, config_name)
             config = {"image": copy.deepcopy(obj_input.image_data)}
             config.update(pype_preset)
             print("Created and saved new pype config \"" + os.path.basename(config_location) +
@@ -617,6 +622,12 @@ def _save_yaml(odict, filepath):
     with open(filepath, 'w') as config_file:
         yaml = YAML()
         yaml.dump(odict, config_file)
+        
+        
+    
+def _timestamp():
+    return datetime.today().strftime('%Y:%m:%d %H:%M:%S')
+
         
 # def get_median_grayscale(image, **kwargs):
 #     if (image.shape[0] + image.shape[1])/2 > 2000:

@@ -7,6 +7,7 @@ import pickle
 import platform
 import pprint
 import subprocess
+import time
 import ruamel.yaml
 
 from datetime import datetime
@@ -332,19 +333,21 @@ class pype:
             overwrite option, if a given pype config-file already exist
         """
         
-        if "_" in name:
-            sys.exit("no underscores allowed in pype name")
+        ## pype name check
+        for char in '[@_!#$%^&*()<>?/\|}{~:]':
+            if char in name:
+                sys.exit("no special characters allowed in pype name")
 
         ## kwargs
         flag_show = kwargs.get("show",True)
         flag_skip = kwargs.get("skip", None)
-        steps_exclude = kwargs.get("exclude",[]) 
-        steps_include = kwargs.get("include",[]) 
+        flag_autoload = kwargs.get("autoload", True)
+        flag_autosave = kwargs.get("autosave", True)
+        delay = kwargs.get("delay", 0.5)
         preset = kwargs.get("preset", default_pype_preset)
         print_settings = kwargs.get("print_settings",False)
         presetting = kwargs.get("presetting", False)
         flag_meta = kwargs.get("meta", True)
-        
         exif_fields = kwargs.get("fields", default_meta_data_fields)
         if not exif_fields.__class__.__name__ == "list":
             exif_fields = [exif_fields]
@@ -383,8 +386,7 @@ class pype:
 
         ## initialize
         self.FM = _yaml_file_monitor(self.config_location, print_settings=print_settings)
-        update = {}
-        iv = None
+        update, iv = {}, None
         
         # =============================================================================
         # pype
@@ -392,29 +394,29 @@ class pype:
         
         while True:
 
-            ## get config file and assemble pype
+            ## get config file and assemble pype (time delay will ensure proper loading)
             self.config = copy.deepcopy(self.FM.content)
+            # time.sleep(delay)
             if not self.config:
                 continue
 
+            ## reiterate
+            print("\n\n------------+++ new pype iteration " + 
+                  datetime.today().strftime('%Y:%m:%d %H:%M:%S') + 
+                  " +++--------------\n\n")
             self.container.load()
-
-            ## check steps
-            if not steps_include:
-                steps_pre = []
-                for item in self.config:
-                    steps_pre.append(item)
-                steps = [e for e in steps_pre if e not in steps_exclude]
-            elif steps_include:
-                steps = steps_include
+            restart = None
 
             ## apply pype
-            self.method_cache = {}
-            for step in steps:
+            for step in list(self.config.keys()):
                 if step in ["image", "meta", "pype"]:
                     continue
+                if not self.config[step]:
+                    continue
+                export_list = []
                 for item in self.config[step]:
                     try:
+                        
                         ## construct method name and arguments
                         if isinstance(item, str):
                             method_name = item
@@ -422,73 +424,56 @@ class pype:
                         else:
                             method_name = list(item)[0]
                             method_args = dict(list(dict(item).values())[0])
+                        
+                        if step == "export":
+                            export_list.append(method_name)
+                            self.export_list = export_list
+                            
+                        ## feedback
                         print(method_name)
                         
                         ## run method
-                        self.method_cache[method_name] = method_args
                         method_loaded = eval(step + "." + method_name)
-                        method_loaded(self.container, **method_args)
-
-                        ## check if visualization argument is given in config
-                        if method_name == "show_image":
-                            flag_vis = True
-                        if method_name == "create_mask":
-                            if "overwrite" in method_args:
-                                flag_overwrite_mask = method_args["overwrite"]
-                        if method_name == "landmarks":
-                            if "overwrite" in method_args:
-                                flag_overwrite_lm = method_args["overwrite"]
+                        restart = method_loaded(self.container, **method_args)
+                        
+                        ## control
+                        if restart:
+                            print("RESTART")
+                            cv2.destroyAllWindows()
+                            break
+                        
                     except Exception as ex:
                         location = step + "." + method_name + ": " + str(ex.__class__.__name__)
                         print(location + " - " + str(ex))
+                        
+                if restart:
+                    break
+            if restart:
+                continue
 
+            # save container content, and reset container
+            if not presetting:
+                self.container.save(export_list=export_list)
+
+            ## visualize output
             try:
+                if self.container.canvas.__class__.__name__ == "NoneType":
+                    self.container.canvas = copy.deepcopy(self.container.image_copy)
                 iv = _image_viewer(self.container.canvas, previous=update)
                 update = iv.__dict__
             except Exception as ex:
                 print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
-                    
-            ## close
-            if iv:
-                if iv.done:
-                    self.FM.stop()
-                    break
 
-
-            # ## show image and hold
-            # if flag_show:
-            #     try:
-            #         if not flag_vis:
-            #             self.container = visualization.show_image(self.container)
-            #         iv = _image_viewer(self.container.canvas, previous=update)
-
-            #         ## pass on settings for next call
-            #         update = iv.__dict__
-
-            #     except Exception as ex:
-            #         print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
-
-            #     ## close
-            #     if iv:
-            #         if iv.done:
-            #             self.FM.stop()
-            #             break
-            # else:
-            #     self.FM.stop()
-            #     break
-            
-            # save container content, and reset container
             if not presetting:
                 self.container.reset()
 
-            print("\n\n---------------new pype iteration---------------\n\n")
+            ## terminate
+            if iv:
+                if iv.done:
+                    self.FM.stop()
+                    print("\n\nTERMINATE")
+                    break
             
-            
-        ## save masks
-        if not presetting:
-            self.container.save()
-
-
 
 
 #%% functions

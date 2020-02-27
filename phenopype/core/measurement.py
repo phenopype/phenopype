@@ -59,7 +59,7 @@ def landmarks(obj_input, **kwargs):
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename":"unknown"})
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
+        image = obj_input.canvas
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_landmarks"):
             df_landmarks = obj_input.df_landmarks
@@ -77,14 +77,10 @@ def landmarks(obj_input, **kwargs):
     ## method
     while True:
         if not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == False:
-            warnings.warn("landmarks already set (overwrite=False)")
-            for label, x, y in zip(df_landmarks.landmark, df_landmarks.x, df_landmarks.y):
-                cv2.circle(image, (x,y), point_size, colours[point_col], -1)
-                cv2.putText(image, str(label), (x,y), 
-                    cv2.FONT_HERSHEY_SIMPLEX, label_size, colours[label_col], label_width, cv2.LINE_AA)
+            print("- landmarks already set (overwrite=False)")
             break
         elif not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            print("- set landmarks (overwrite)")
+            print("- set landmarks (overwriting)")
             pass
         elif df_landmarks.__class__.__name__ == "NoneType":
             print("- set landmarks")
@@ -98,7 +94,15 @@ def landmarks(obj_input, **kwargs):
                             label_width=label_width, 
                             label_col=label_col)
         coords = out.points
-        image = out.image_copy
+        
+        ## abort
+        if not out.done:
+            if obj_input.__class__.__name__ == "ndarray":
+                warnings.warn("terminated polyline creation")
+                return 
+            elif obj_input.__class__.__name__ == "container":
+                print("- terminated polyline creation")
+                return True
 
         ## make df
         df_landmarks = pd.DataFrame(coords, columns=['x', 'y'])
@@ -110,17 +114,21 @@ def landmarks(obj_input, **kwargs):
                                 df_landmarks.reset_index(drop=True)], axis=1)
         break
 
+    ## visualize
+    for label, x, y in zip(df_landmarks.landmark, df_landmarks.x, df_landmarks.y):
+        cv2.circle(image, (x,y), point_size, colours[point_col], -1)
+        cv2.putText(image, str(label), (x,y), 
+            cv2.FONT_HERSHEY_SIMPLEX, label_size, colours[label_col], label_width, cv2.LINE_AA)
+
     ## return
     if obj_input.__class__.__name__ == "ndarray":
             return image, df_landmarks
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_landmarks = df_landmarks
-        obj_input.ov_landmarks = flag_overwrite
-        obj_input.image = image
+        obj_input.canvas = image
 
 
-
-def polyline(obj_input, **kwargs):
+def polylines(obj_input, **kwargs):
     """
     
 
@@ -150,7 +158,7 @@ def polyline(obj_input, **kwargs):
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename":"unknown"})
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
+        image = obj_input.canvas
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_polylines"):
             df_polylines = obj_input.df_polylines
@@ -164,24 +172,30 @@ def polyline(obj_input, **kwargs):
     ## method
     while True:
         if not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == False:
-            warnings.warn("polylines already drawn (overwrite=False)")
-            for x_coords, y_coords in zip(df_polylines.x_coords, df_polylines.y_coords):
-                point_list = list(zip(eval(x_coords), eval(y_coords)))
-                cv2.polylines(image, np.array([point_list]), 
-                              False, colours["green"], line_width)
+            print("- polylines already drawn (overwrite=False)")
             break
         elif not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            print("- set polylines (overwrite)")
+            print("- draw polylines (overwriting)")
             pass
         elif df_polylines.__class__.__name__ == "NoneType":
-            print("- set polylines")
+            print("- draw polylines")
+            df_polylines = pd.DataFrame(columns=["polyline", "length", "x_coords", "y_coords"])
             pass
         
         out = _image_viewer(image, tool="polyline")
-        image = out.image_copy
-        idx = 0
-        df_polylines = pd.DataFrame(columns=["polyline", "length", "x_coords", "y_coords"])
-        if len(out.point_list) > 0:
+        coords = out.point_list
+        
+        ## abort
+        if not out.done:
+            if obj_input.__class__.__name__ == "ndarray":
+                warnings.warn("terminated polyline creation")
+                return 
+            elif obj_input.__class__.__name__ == "container":
+                print("- terminated polyline creation")
+                return True
+        
+        if len(coords) > 0:
+            idx = 0
             for point_list in out.point_list:
                 idx += 1
                 x_coords, y_coords = [], []
@@ -199,14 +213,19 @@ def polyline(obj_input, **kwargs):
         df_polylines = pd.concat([pd.concat([df_image_data]*len(df_polylines)).reset_index(drop=True), 
                                 df_polylines.reset_index(drop=True)], axis=1)
         break 
+    
+    ## visualize
+    for x_coords, y_coords in zip(df_polylines.x_coords, df_polylines.y_coords):
+        point_list = list(zip(eval(x_coords), eval(y_coords)))
+        cv2.polylines(image, np.array([point_list]), 
+                      False, colours["green"], line_width)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
             return image, df_polylines
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_polylines = df_polylines
-        obj_input.ov_polylines = flag_overwrite
-        obj_input.image = image
+        obj_input.canvas = image
 
 def colour(obj_input, **kwargs):
 

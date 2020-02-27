@@ -17,7 +17,7 @@ measurement:
 - colour:
     channels: [gray, rgb]
 visualization:
-- show_image:
+- select_canvas:
     canvas: image
 - show_contours:
     line_thickness: 2
@@ -51,7 +51,7 @@ measurement:
 - colour:
     channels: [gray, rgb]
 visualization:
-- show_image:
+- select_canvas:
     canvas: image
 - show_contours:
     line_thickness: 2
@@ -64,7 +64,7 @@ visualization:
 export:
 - save_results:
     overwrite: true
-- save_overlay:
+- save_canvas:
     resize: 0.5
     overwrite: true
 """
@@ -74,13 +74,11 @@ landmark_preset = """
 preprocessing:
 - create_mask:
     label: mask1
-- enter_data:
-    ID:
 measurement:
 - landmarks:
     show: True
 visualization:
-- show_image:
+- select_canvas:
     canvas: bin
 - show_landmarks:
     point_col: green
@@ -93,7 +91,7 @@ visualization:
 export:
 - save_results:
     overwrite: true
-- save_overlay:
+- save_canvas:
     resize: 0.5
     overwrite: true
 """

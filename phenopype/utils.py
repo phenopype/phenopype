@@ -11,6 +11,7 @@ from ruamel.yaml import YAML
 from phenopype.utils_lowlevel import _image_viewer 
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
 from phenopype.settings import *
+from phenopype.core.export import *
 
 #%% settings
 
@@ -32,7 +33,7 @@ class container(object):
         ----------
         image : TYPE
             DESCRIPTION.
-        df : TYPE
+        df_image_data: TYPE
             DESCRIPTION.
         **kwargs : TYPE
             DESCRIPTION.
@@ -42,21 +43,23 @@ class container(object):
         None.
 
         """
+
+        ## kwargs
+        self.save_suffix = kwargs.get("save_suffix", None)
+        
         self.image = image
         self.image_copy = copy.deepcopy(self.image)
         self.image_mod = copy.deepcopy(self.image)
         self.image_bin = None
         self.image_gray = None
-        self.canvas = None
+        self.canvas = copy.deepcopy(self.image)
         
         self.df_image_data = df_image_data
         self.df_image_data_copy = copy.deepcopy(self.df_image_data)
 
-
-        
         ## attributes
         self.dirpath = None
-        self.save_suffix = default_save_suffix
+        
 
     def reset(self):
         """
@@ -71,14 +74,11 @@ class container(object):
 
         """
         self.image = copy.deepcopy(self.image_copy)
-        self.canvas = None
-        
-        
+        self.canvas = copy.deepcopy(self.image_copy)
 
     def load(self):
         """
         
-
         Parameters
         ----------
         components : TYPE, optional
@@ -89,37 +89,64 @@ class container(object):
         None.
 
         """
-        if hasattr(self, "df_contours"):
+
+        files, loaded = [], []
+        if self.save_suffix:
+            for file in os.listdir(self.dirpath):
+                if self.save_suffix in file and not "pype_config" in file:
+                    files.append(file[0:file.rindex('_')])
+        else:
+            for file in os.listdir(self.dirpath):
+                files.append(file[0:file.rindex('.')])
+        
+        ## contours
+        if not hasattr(self, "df_contours") and "contours" in files:
             print("Load contours not yet implemented")
 
         ## landmarks
-        if not hasattr(self, "df_landmarks"):
+        if not hasattr(self, "df_landmarks") and "landmarks" in files:
             path = os.path.join(self.dirpath, "landmarks_" + self.save_suffix + ".csv")
             if os.path.isfile(path):
                 self.df_landmarks = pd.read_csv(path) 
+                loaded.append("landmarks_" + self.save_suffix + ".csv")
 
         ## polylines
         if not hasattr(self, "df_polyline"):
             path = os.path.join(self.dirpath, "polylines_" + self.save_suffix + ".csv")
             if os.path.isfile(path):
                 self.df_polylines = pd.read_csv(path) 
+                loaded.append("polylines_" + self.save_suffix + ".csv")
+
+        ## masks
+        if not hasattr(self, "df_masks"):
+            path = os.path.join(self.dirpath, "masks_" + self.save_suffix + ".csv")
+            if os.path.isfile(path):
+                self.df_masks = pd.read_csv(path) 
+                loaded.append("masks_" + self.save_suffix + ".csv")
+
+        ## feedback
+        if len(loaded)>0:
+            print("AUTOLOAD\n- " + '\n- '.join(loaded) )
             
-        if hasattr(self, "masks"):
-            if self.dirpath:
-                mask_path = os.path.join(self.dirpath, "masks.yaml")
-                if os.path.isfile(mask_path):
-                    masks = _load_yaml(mask_path)
-                    if masks:
-                        masks_l = []
-                        for mask in masks.values():
-                            self.masks[mask["label"]] = mask
-                            masks_l.append(mask["label"])
-                        print("Loaded masks " + ", ".join(masks_l) + " from file.")
-                        self.masks_copy = copy.deepcopy(self.masks)
-                    else:
-                        self.masks = {}
-                        self.masks_copy = {}
+
+        # if not hasattr(self, "df_masks"):
+        #     if self.dirpath:
+        #         mask_path = os.path.join(self.dirpath, "masks.yaml")
+        #         if os.path.isfile(mask_path):
+        #             masks = _load_yaml(mask_path)
+        #             if masks:
+        #                 masks_l = []
+        #                 for mask in masks.values():
+        #                     self.masks[mask["label"]] = mask
+        #                     masks_l.append(mask["label"])
+        #                 print("Loaded masks " + ", ".join(masks_l) + " from file.")
+        #                 self.masks_copy = copy.deepcopy(self.masks)
+        #             else:
+        #                 self.masks = {}
+        #                 self.masks_copy = {}
                         
+    # ## load mask and check if exists
+    # masks, mask_list = _load_masks(obj_input, label)
     def save(self, **kwargs):
         """
         
@@ -140,65 +167,32 @@ class container(object):
 
         """
         ## kwargs
-
+        export_list = kwargs.get("export_list",[])
         
-        if hasattr(self, "df_contours"):
-            print("Save contours not yet implemented")
-            
+        ## feedback
+        print("AUTOSAVE")
+        
+        ## canvas
+        if not self.canvas.__class__.__name__ == "NoneType" and not "save_canvas" in export_list:
+            save_canvas(self)
+
+        ## contours
+        if hasattr(self, "df_contours") and not "save_contours" in export_list:
+            save_contours(self, overwrite=False)
+
         ## landmarks
-        if hasattr(self, "df_landmarks"):
-            path = os.path.join(self.dirpath, "landmarks_" + self.save_suffix + ".csv")
-            while True:
-                if os.path.isfile(path):
-                    saved_df_landmarks = pd.read_csv(path) 
-                    if saved_df_landmarks["date_phenopyped"][0] == self.df_landmarks["date_phenopyped"][0]:
-                        return
-                    else:
-                        print("Saved landmarks (overwritten)")
-                        break
-                else:
-                    print("Saved landmarks")
-                    break
-            self.df_landmarks.to_csv(path_or_buf=path, sep=",",index=False)
+        if hasattr(self, "df_landmarks") and not "save_landmarks" in export_list:
+            save_landmarks(self, overwrite=False)
+
+        ## masks
+        if hasattr(self, "df_masks") and not "save_masks" in export_list:
+            save_masks(self, overwrite=False)
 
         ## polylines
-        if hasattr(self, "df_polylines") and hasattr(self, "ov_polylines"):
-            while True:
-                path = os.path.join(self.dirpath, "polylines_" + self.save_suffix + ".csv")
-                if os.path.isfile(path) and not self.ov_polylines:
-                    warnings.warn("polylines already saved (overwrite=False)")
-                    break
-                elif os.path.isfile(path) and self.ov_polylines:
-                    print("Saved polylines (overwritten)")
-                    pass
-                elif not os.path.isfile(path):
-                    print("Saved polylines")
-                    pass
-                self.df_polylines.to_csv(path_or_buf=path, sep=",",index=False)
-                break
+        if hasattr(self, "df_polylines") and not "save_polylines" in export_list:
+            save_polylines(self, overwrite=False)
 
-        if hasattr(self, "masks"):
-            mask_path = os.path.join(self.dirpath, "masks.yaml")
-            if os.path.isfile(mask_path):
-                saved_masks = _load_yaml(mask_path)
-                if not saved_masks:
-                    saved_masks = {}
-            else:
-                saved_masks = {}
-            for mask in self.masks.items():
-                if mask[0] in saved_masks and not flag_overwrite:
-                    if len(eval(saved_masks[mask[0]]["coords"])) == 0:
-                        saved_masks[mask[0]]=mask[1]
-                        print("Saved mask " + mask[0] + " (missing coords replaced).")
-                    # else:
-                    #     warnings.warn("Mask " +  mask[0] + " already exists - cannot save (overwrite=False).")
-                elif mask[0] in saved_masks and flag_overwrite:
-                    print("Saved mask " + mask[0] + " (overwritten).")
-                    saved_masks[mask[0]]=mask[1]
-                else:
-                    saved_masks[mask[0]]=mask[1]
-                    print("Saved mask " + mask[0])
-            _save_yaml(saved_masks, mask_path)
+
 
 
 
@@ -325,7 +319,7 @@ def load_image(obj_input, **kwargs):
         return ct
     elif flag_container == False:
         if flag_df:
-            return image, df
+            return image, df_image_data
         else:
             return image
 

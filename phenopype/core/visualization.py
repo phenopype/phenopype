@@ -18,25 +18,33 @@ def select_canvas(obj_input, **kwargs):
     
     ## kwargs
     canvas = kwargs.get("canvas", "mod")
-    
+
     ## method
     if canvas == "bin" or canvas == "binary":
         obj_input.canvas = copy.deepcopy(obj_input.image_bin)
+        print("- binary image")
     if canvas == "gray" or canvas == "grayscale":
         if obj_input.image_gray.__class__.__name__ == "NoneType":
             obj_input.image_gray = cv2.cvtColor(obj_input.image_copy,cv2.COLOR_BGR2GRAY)
         obj_input.canvas = copy.deepcopy(obj_input.image_gray)
+        print("- grayscale image")
     if canvas == "mod" or canvas == "modified":
         obj_input.canvas = copy.deepcopy(obj_input.image)
+        print("- modifed image")
     if canvas == "img" or canvas == "image":
         obj_input.canvas = copy.deepcopy(obj_input.image_copy)
+        print("- raw image")
     if canvas == "g" or canvas == "green":
         obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,0])
+        print("- green channel")
     if canvas == "r" or canvas == "red":
         obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,1])
+        print("- red channel")
     if canvas == "b" or canvas == "blue":
         obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,2])
+        print("- blue channel")
         
+    ## check if 3D
     if len(obj_input.canvas.shape)<3:
         obj_input.canvas = cv2.cvtColor(obj_input.canvas, cv2.COLOR_GRAY2BGR)
 
