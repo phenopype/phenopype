@@ -236,15 +236,16 @@ class project:
                 self.filepaths.append(raw_path)
                 self.fileattr[dirname] = attributes
 
-    def add_config(self,  **kwargs):
+    def add_config(self, name, **kwargs):
         """
         Add pype configuration presets to all project directories. 
 
         Parameters
         ----------
 
-        name (optional): str (default: "v1")
-            name of config-file
+        name: str
+            name of config-file. this gets appended to all files and serves as and
+            identifier of a specific analysis pipeline
         preset (optional): str (default: "preset1")
             chose from given presets in phenopype/settings/presets.py 
             (e.g. preset1, preset2, preset3, ...)
@@ -255,7 +256,6 @@ class project:
         """
 
         ## kwargs
-        pype_name = kwargs.get("name","v1")
         preset = kwargs.get("preset","preset1")
         flag_interactive = kwargs.get("interactive", None)
         flag_overwrite = kwargs.get("overwrite", False)
@@ -263,10 +263,10 @@ class project:
         ## modify
         if flag_interactive:
             container = load_directory(self.dirpaths[0])
-            config, template_path = _create_generic_pype_config(container, preset = preset)
+            config, template_path = _create_generic_pype_config(container, preset = preset, config_name=name)
             template_path = os.path.join(self.root_dir, "pype_template.yaml")
             _save_yaml(config, template_path)
-            p = pype(self.filepaths[0], exclude=["export"], config=template_path, presetting=True)
+            p = pype(self.filepaths[0], name="template-" + name, config=template_path, presetting=True)
             config = p.config
         else:
             config = _load_yaml(eval("presets." + preset))
@@ -276,23 +276,22 @@ class project:
             attr = _load_yaml(os.path.join(directory, "attributes.yaml"))
             pype_preset = {"image": attr["image"],
                            "pype":
-                               {"name": pype_name,
+                               {"name": name,
                                 "preset": preset,
-                                "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
-                                "date_last_used": None}}
+                                "date_created": datetime.today().strftime('%Y%m%d_%H%M%S')}}
             pype_preset.update(config)
 
             ## save config
-            preset_path = os.path.join(directory, "pype_" + pype_name + ".yaml")
+            preset_path = os.path.join(directory, "pype_" + name + ".yaml")
             dirname = attr["project"]["dirname"]
             if os.path.isfile(preset_path) and flag_overwrite==False:
-                print("pype_" + pype_name + ".yaml already exists in " + dirname +  " (overwrite=False)")
+                print("pype_" + name + ".yaml already exists in " + dirname +  " (overwrite=False)")
                 continue
             elif os.path.isfile(preset_path) and flag_overwrite==True:
-                print("pype_" + pype_name + ".yaml created for " + dirname + " (overwritten)")
+                print("pype_" + name + ".yaml created for " + dirname + " (overwritten)")
                 _save_yaml(pype_preset, preset_path)
             else:
-                print("pype_" + pype_name + ".yaml created for " + dirname)
+                print("pype_" + name + ".yaml created for " + dirname)
                 _save_yaml(pype_preset, preset_path)
 
 
@@ -343,6 +342,7 @@ class pype:
         flag_skip = kwargs.get("skip", None)
         flag_autoload = kwargs.get("autoload", True)
         flag_autosave = kwargs.get("autosave", True)
+        flag_autoshow = kwargs.get("autoshow", True)
         delay = kwargs.get("delay", 0.5)
         preset = kwargs.get("preset", default_pype_preset)
         print_settings = kwargs.get("print_settings",False)
@@ -394,9 +394,8 @@ class pype:
         
         while True:
 
-            ## get config file and assemble pype (time delay will ensure proper loading)
+            ## get config file and assemble pype
             self.config = copy.deepcopy(self.FM.content)
-            # time.sleep(delay)
             if not self.config:
                 continue
 
@@ -404,8 +403,10 @@ class pype:
             print("\n\n------------+++ new pype iteration " + 
                   datetime.today().strftime('%Y:%m:%d %H:%M:%S') + 
                   " +++--------------\n\n")
-            self.container.load()
+            if flag_autoload:
+                self.container.load()
             restart = None
+            export_list, show_list = [], []
 
             ## apply pype
             for step in list(self.config.keys()):
@@ -413,33 +414,35 @@ class pype:
                     continue
                 if not self.config[step]:
                     continue
-                export_list = []
+                print(step)
                 for item in self.config[step]:
                     try:
                         
                         ## construct method name and arguments
-                        if isinstance(item, str):
+                        if item.__class__.__name__ == "str":
                             method_name = item
                             method_args = {}
-                        else:
+                        elif item.__class__.__name__ == "CommentedMap":
                             method_name = list(item)[0]
-                            method_args = dict(list(dict(item).values())[0])
-                        
+                            if not list(dict(item).values())[0]:
+                                method_args = {}
+                            else:
+                                method_args = dict(list(dict(item).values())[0])
+
+                        ## collect save-calls
                         if step == "export":
                             export_list.append(method_name)
-                            self.export_list = export_list
-                            
-                        ## feedback
-                        print(method_name)
-                        
+                        elif step == "visualization":
+                            show_list.append(method_name)
+
                         ## run method
+                        print(method_name)
                         method_loaded = eval(step + "." + method_name)
                         restart = method_loaded(self.container, **method_args)
                         
                         ## control
                         if restart:
                             print("RESTART")
-                            cv2.destroyAllWindows()
                             break
                         
                     except Exception as ex:
@@ -453,7 +456,10 @@ class pype:
 
             # save container content, and reset container
             if not presetting:
-                self.container.save(export_list=export_list)
+                if flag_autosave:
+                    self.container.save(export_list=export_list)
+                if flag_autoshow:
+                    self.container.show(show_list=show_list)
 
             ## visualize output
             try:

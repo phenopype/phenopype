@@ -8,7 +8,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
 from phenopype.utils import load_image, load_meta_data, show_image, save_image
-from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin, _load_masks
+from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin #, _load_masks
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor, _auto_line_width
 
 #%% functions
@@ -51,7 +51,7 @@ def create_mask(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"})
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_image_data = obj_input.df_image_data
@@ -111,24 +111,24 @@ def create_mask(obj_input, **kwargs):
         else:
             warnings.warn("zero coordinates - redo mask!")
 
-        ## show image with window control
-        if flag_show:
-            overlay = np.zeros(image.shape, np.uint8) # make overlay
-            overlay[:,:,2] = 200 # start with all-red overlay
-            mask_bin = _create_mask_bin(image, df_masks)
-            mask_bool = np.array(mask_bin, dtype=bool)
-            if include:
-                overlay[mask_bool,1], overlay[mask_bool,2] = 200, 0
-            else:
-                overlay[np.invert(mask_bool),1], overlay[np.invert(mask_bool),2] = 200, 0
-            mask_overlay = cv2.addWeighted(image, .7, overlay, 0.5, 0)
-            show_image(mask_overlay)
-        break 
+    #     ## show image with window control
+    #     if flag_show:
+    #         overlay = np.zeros(image.shape, np.uint8) # make overlay
+    #         overlay[:,:,2] = 200 # start with all-red overlay
+    #         mask_bin = _create_mask_bin(image, df_masks)
+    #         mask_bool = np.array(mask_bin, dtype=bool)
+    #         if include:
+    #             overlay[mask_bool,1], overlay[mask_bool,2] = 200, 0
+    #         else:
+    #             overlay[np.invert(mask_bool),1], overlay[np.invert(mask_bool),2] = 200, 0
+    #         mask_overlay = cv2.addWeighted(image, .7, overlay, 0.5, 0)
+    #         show_image(mask_overlay)
+    #     break 
 
-    ## visualize
-    for index, row in df_masks.iterrows():
-        coords = eval(row["coords"])
-        cv2.polylines(image, np.array([coords]), False, colours["green"], line_width)
+    # ## visualize
+    # for index, row in df_masks.iterrows():
+    #     coords = eval(row["coords"])
+    #     cv2.polylines(image, np.array([coords]), False, colours["blue"], line_width)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

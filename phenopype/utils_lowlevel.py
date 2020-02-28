@@ -385,6 +385,15 @@ def _auto_text_size(image, **kwargs):
 
 
 
+def _contours_arr_tup(array):
+    coords_arr = array
+    coords_tup = []
+    for coord in coords_arr:
+        coords_tup.append((coord[0][0], coord[0][1]))
+    return coords_tup
+
+
+
 def _create_generic_pype_config(location, preset, config_name):
 
     config = _load_yaml(eval("presets." + preset))
@@ -399,20 +408,20 @@ def _create_generic_pype_config(location, preset, config_name):
 
 
 
-def _create_mask_bin(image, df_masks):
+def _create_mask_bin(image, masks):
     mask_bin = np.zeros(image.shape[0:2], np.uint8)
-    for index, row in df_masks.iterrows():
-        coords = eval(row["coords"])
-        cv2.fillPoly(mask_bin, [np.array(coords, dtype=np.int32)], colours["white"])
+    if masks.__class__.__name__ == "DataFrame":
+        for index, row in masks.iterrows():
+            coords = eval(row["coords"])
+            cv2.fillPoly(mask_bin, [np.array(coords, dtype=np.int32)], colours["white"])
+    elif masks.__class__.__name__ == "list":
+        cv2.fillPoly(mask_bin, [np.array(masks, dtype=np.int32)], colours["white"])
     return mask_bin
 
 
 
-def _create_mask_bool(image, df_masks):
-    mask_bin = np.zeros(image.shape[0:2], np.uint8)
-    for index, row in df_masks.iterrows():
-        coords = eval(row["coords"])
-        cv2.fillPoly(mask_bin, [np.array(coords, dtype=np.int32)], colours["white"])
+def _create_mask_bool(image, masks):
+    mask_bin = _create_mask_bin(image, masks)
     return np.array(mask_bin, dtype=bool)
 
 
@@ -529,42 +538,42 @@ def _file_walker(directory, **kwargs):
 
 
 
-def _load_masks(obj_input, mask_list):
-    if obj_input.__class__.__name__ == "ndarray":
-        if mask_list.__class__.__name__ == "dict" or mask_list.__class__.__name__ == "CommentedMap":
-            masks = []
-            for mask in  list(mask_list.items()):
-                masks.append(mask[1])
-        elif mask_list.__class__.__name__ == "str":
-            masks = []
-        elif mask_list.__class__.__name__ == "NoneType":
-            masks = []
-    elif obj_input.__class__.__name__ == "container":
-        if mask_list.__class__.__name__ == "dict" or mask_list.__class__.__name__ == "CommentedMap":
-            masks = []
-            for mask in  list(mask_list.items()):
-                masks.append(mask[1])
-        elif mask_list.__class__.__name__ == "list" or mask_list.__class__.__name__ == "CommentedSeq":
-            if all(isinstance(n, dict) for n in mask_list):
-                masks = mask_list            
-            elif all(isinstance(n, str) for n in mask_list):
-                masks = []
-                for mask in mask_list:
-                    if mask in obj_input.masks:
-                        masks.append(obj_input.masks[mask])
-        elif mask_list.__class__.__name__ == "str":
-            if obj_input.masks:
-                if mask_list in obj_input.masks:
-                    masks = [obj_input.masks[mask_list]]
-                else:
-                    masks = []
-            else:
-                masks = []
-        elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0: ## too confusing?
-            masks, mask_list = list(obj_input.masks.values()), list(obj_input.masks.keys())
-        elif mask_list.__class__.__name__ == "NoneType":
-            masks = []
-    return masks, mask_list
+# def _load_masks(obj_input, mask_list):
+#     if obj_input.__class__.__name__ == "ndarray":
+#         if mask_list.__class__.__name__ == "dict" or mask_list.__class__.__name__ == "CommentedMap":
+#             masks = []
+#             for mask in  list(mask_list.items()):
+#                 masks.append(mask[1])
+#         elif mask_list.__class__.__name__ == "str":
+#             masks = []
+#         elif mask_list.__class__.__name__ == "NoneType":
+#             masks = []
+#     elif obj_input.__class__.__name__ == "container":
+#         if mask_list.__class__.__name__ == "dict" or mask_list.__class__.__name__ == "CommentedMap":
+#             masks = []
+#             for mask in  list(mask_list.items()):
+#                 masks.append(mask[1])
+#         elif mask_list.__class__.__name__ == "list" or mask_list.__class__.__name__ == "CommentedSeq":
+#             if all(isinstance(n, dict) for n in mask_list):
+#                 masks = mask_list            
+#             elif all(isinstance(n, str) for n in mask_list):
+#                 masks = []
+#                 for mask in mask_list:
+#                     if mask in obj_input.masks:
+#                         masks.append(obj_input.masks[mask])
+#         elif mask_list.__class__.__name__ == "str":
+#             if obj_input.masks:
+#                 if mask_list in obj_input.masks:
+#                     masks = [obj_input.masks[mask_list]]
+#                 else:
+#                     masks = []
+#             else:
+#                 masks = []
+#         elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0: ## too confusing?
+#             masks, mask_list = list(obj_input.masks.values()), list(obj_input.masks.keys())
+#         elif mask_list.__class__.__name__ == "NoneType":
+#             masks = []
+#     return masks, mask_list
 
 
 

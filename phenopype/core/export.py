@@ -7,7 +7,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
 from phenopype.utils import * #load_image, load_meta_data, show_image, save_image
-from phenopype.utils_lowlevel import _image_viewer, _save_yaml, _load_yaml
+from phenopype.utils_lowlevel import _image_viewer, _save_yaml, _load_yaml, _contours_arr_tup
 
 #%% functions
 
@@ -197,47 +197,46 @@ def save_contours(obj_input, **kwargs):
     ## kwargs
     flag_overwrite = kwargs.get("overwrite", True)
     dirpath = kwargs.get("dirpath", None)
-    df = kwargs.get("df", None)
-        
+    save_suffix = kwargs.get("save_suffix", None)
+    convert_coords = kwargs.get("convert_coords", True)
+
     ## load df
-    if obj_input.__class__.__name__ == "ndarray":
+    if obj_input.__class__.__name__ == 'DataFrame':
+        df = obj_input
         if not dirpath:
-            warnings.warn("No save directory specified - cannot export results.")
-        elif not df:
-            warnings.warn("No df supplied - cannot export results.")
+            warnings.warn("No save directory specified - cannot save contours.")
     elif obj_input.__class__.__name__ == "container":
-        if not dirpath:
-            dirpath = obj_input.dirpath
-        df = obj_input.df
-
-    obj_output = {}
-    obj_output["image"] = obj_input.image_data
-    obj_output["contours"] = {}
-    
-    for contour in obj_input.contours.keys():
-        contour_dict = {}
-        contour_dict["label"] = contour
-        contour_dict["center"] = str((obj_input.contours[contour]["x"], obj_input.contours[contour]["y"]))
-        contour_dict["order"] = str(obj_input.contours[contour]["order"])
-        contour_dict["idx_child"] = 1 # str(obj_input.contours[contour]["idx_child"])
-        contour_dict["idx_parent"] = str(obj_input.contours[contour]["idx_parent"])
-        x_coords, y_coords = [], []
-        for coord in obj_input.contours[contour]["coords"]:
-            x_coords.append(coord[0][0])
-            y_coords.append(coord[0][1])
-        contour_dict["x_coords"], contour_dict["y_coords"] = str(x_coords), str(y_coords)
-        obj_output["contours"][contour] = contour_dict
-
-    path = os.path.join(dirpath, "contours.yaml")
-
-    if os.path.exists(path):
-        if flag_overwrite == True:
-             _save_yaml(obj_output, path)
+        df = copy.deepcopy(obj_input.df_contours)
+        dirpath = obj_input.dirpath
+        save_suffix = obj_input.save_suffix
     else:
-         _save_yaml(obj_output, path)
-         
-         
-         
+        warnings.warn("No df supplied - cannot export contours.")
+
+    ## convert contour coords to list of tuples
+    if convert_coords:
+        for idx, row in df.iterrows():
+            df.at[idx,"coords"] = _contours_arr_tup(row["coords"])
+
+    ## save
+    if save_suffix:
+        path = os.path.join(dirpath, "contours_" + save_suffix + ".csv")
+    else:
+        path = os.path.join(dirpath, "contours.csv")
+    while True:
+        if os.path.isfile(path) and flag_overwrite == False:
+            print("- contours not saved - file already exists (overwrite=False).")
+            break
+        elif os.path.isfile(path) and flag_overwrite == True:
+            print("- contours saved under " + path + " (overwritten).")
+            pass
+        elif not os.path.isfile(path):
+            print("- contours saved under " + path + ".")
+            pass
+        df.to_csv(path_or_buf=path, sep=",",index=False)
+        break
+
+
+
 def save_results(obj_input, **kwargs):
     """Save a pandas dataframe to csv. 
     

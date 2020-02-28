@@ -6,7 +6,7 @@ import pandas as pd
 import math
 
 from phenopype.settings import colours
-from phenopype.utils_lowlevel import _auto_line_width, _auto_point_size, _auto_text_width, _auto_text_size, _load_masks
+from phenopype.utils_lowlevel import _auto_line_width, _auto_point_size, _auto_text_width, _auto_text_size
 
 #%% settings
 
@@ -55,7 +55,8 @@ def select_canvas(obj_input, **kwargs):
 def show_contours(obj_input,**kwargs):
 
     ## kwargs
-    contours = kwargs.get("contours", None)
+    df_image_data = kwargs.get("df_image_data", None)
+    df_contours = kwargs.get("df_contours", None)
     flag_label = kwargs.get("label", True)
     flag_fill = kwargs.get("fill", 0.2)
     flag_child = kwargs.get("mark_holes", True)
@@ -67,12 +68,17 @@ def show_contours(obj_input,**kwargs):
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
-        if not contours:
-            warnings.warn("No contour list provided - cannot draw contours.")
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+        if df_contours.__class__.__name__ == "NoneType":
+            warnings.warn("No contour df provided - cannot draw contours.")
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
-        contours = obj_input.contours
-        
+        df_contours = obj_input.df_contours
+    else:
+        warnings.warn("wrong input format.")
+        return
+
     ## more kwargs
     flag_line_thickness = kwargs.get("line_thickness", _auto_line_width(image))
     text_thickness = kwargs.get("text_thickness", _auto_line_width(image))
@@ -81,9 +87,9 @@ def show_contours(obj_input,**kwargs):
     ## method
     idx = 0
     colour_mask = copy.deepcopy(image)
-    for label, contour in contours.items():
+    for index, row in df_contours.iterrows():
         if flag_child:
-            if contour["order"] == "child":
+            if row["order"] == "child":
                 fill_colour = colours["red"]
                 line_colour = colours["red"]
             else:
@@ -94,7 +100,7 @@ def show_contours(obj_input,**kwargs):
             line_colour = line_colour_sel
         if flag_fill > 0:
             cv2.drawContours(image=colour_mask, 
-                    contours=[contour["coords"]], 
+                    contours=[row["coords"]], 
                     contourIdx = idx,
                     thickness=-1, 
                     color=fill_colour, 
@@ -102,27 +108,25 @@ def show_contours(obj_input,**kwargs):
                     offset=offset_coords)
         if flag_line_thickness > 0: 
             cv2.drawContours(image=image, 
-                    contours=[contour["coords"]], 
+                    contours=[row["coords"]], 
                     contourIdx = idx,
                     thickness=flag_line_thickness, 
                     color=line_colour, 
                     maxLevel=level,
                     offset=offset_coords)
         if flag_label:
-            cv2.putText(image, label , (contour["x"],contour["y"]), cv2.FONT_HERSHEY_SIMPLEX, 
+            cv2.putText(image, row["contour"] , (row["center"]), cv2.FONT_HERSHEY_SIMPLEX, 
                         text_size, text_colour, text_thickness, cv2.LINE_AA)
-            cv2.putText(colour_mask, label , (contour["x"],contour["y"]), cv2.FONT_HERSHEY_SIMPLEX, 
+            cv2.putText(colour_mask, row["contour"] , (row["center"]), cv2.FONT_HERSHEY_SIMPLEX, 
                         text_size, text_colour, text_thickness, cv2.LINE_AA)
-    image = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) # combine
+    image = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) 
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
         return image
     elif obj_input.__class__.__name__ == "container":
-        if  obj_input.canvas.__class__.__name__ == "ndarray":
-            obj_input.canvas = image
-        else:
-            obj_input.image = image
+        obj_input.canvas = image
+
 
 
 
@@ -177,7 +181,7 @@ def show_landmarks(obj_input, **kwargs):
 
 
 
-def show_mask(obj_input, **kwargs):
+def show_masks(obj_input, **kwargs):
     """Mask maker method to draw rectangle or polygon mask onto image.
     
     Parameters
@@ -196,28 +200,35 @@ def show_mask(obj_input, **kwargs):
 
     ## kwargs
     colour = colours[kwargs.get("colour", "green")]
-    mask_list = kwargs.get("masks", None)
+    include = kwargs.get("include", None)
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
+        df_masks = obj_input.df_masks
 
     ## more kwargs
-    line_thickness = kwargs.get("line_thickness", _auto_line_width(image))
-
-    ## load masks
-    masks, mask_list = _load_masks(obj_input, mask_list)
-    if len(masks)==0:
-        warnings.warn("No mask-list provided - cannot draw mask outlines.")
+    line_width = kwargs.get("line_thickness", _auto_line_width(image))
 
     ## draw masks from mask obect
-    for mask in masks:
-        if mask["label"] in mask_list:
-            print(" - applying mask: " + mask["label"] + ".")
-            for coord in eval(mask["coords"]):
-                image = cv2.polylines(image, [np.array(coord, dtype=np.int32)], False, colour, line_thickness)
+    for index, row in df_masks.iterrows():
+            if not include.__class__.__name__ == "NoneType":
+                if row["mask"] in include:
+                    pass
+                else:
+                    continue
+            else:
+                pass
+            print(" - applying mask: " + row["mask"] + ".")
+            coords = eval(row["coords"])
+            cv2.polylines(image, np.array([coords]), False, colours["blue"], line_width)
+
+    # ## visualize
+    # for index, row in df_masks.iterrows():
+    #     coords = eval(row["coords"])
+    #     cv2.polylines(image, np.array([coords]), False, colours["blue"], line_width)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

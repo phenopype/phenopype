@@ -179,7 +179,6 @@ def polylines(obj_input, **kwargs):
             pass
         elif df_polylines.__class__.__name__ == "NoneType":
             print("- draw polylines")
-            df_polylines = pd.DataFrame(columns=["polyline", "length", "x_coords", "y_coords"])
             pass
         
         out = _image_viewer(image, tool="polyline")
@@ -193,7 +192,9 @@ def polylines(obj_input, **kwargs):
             elif obj_input.__class__.__name__ == "container":
                 print("- terminated polyline creation")
                 return True
-        
+
+        ## make data frame
+        df_polylines = pd.DataFrame(columns=["polyline", "length", "x_coords", "y_coords"])
         if len(coords) > 0:
             idx = 0
             for point_list in out.point_list:
@@ -213,7 +214,7 @@ def polylines(obj_input, **kwargs):
         df_polylines = pd.concat([pd.concat([df_image_data]*len(df_polylines)).reset_index(drop=True), 
                                 df_polylines.reset_index(drop=True)], axis=1)
         break 
-    
+
     ## visualize
     for x_coords, y_coords in zip(df_polylines.x_coords, df_polylines.y_coords):
         point_list = list(zip(eval(x_coords), eval(y_coords)))

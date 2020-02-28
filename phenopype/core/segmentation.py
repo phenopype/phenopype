@@ -5,7 +5,7 @@ import pandas as pd
 
 from math import inf
 
-from phenopype.utils_lowlevel import _create_mask_bin, _create_mask_bool, _load_masks
+from phenopype.utils_lowlevel import _create_mask_bin, _create_mask_bool #, _load_masks
 
 #%% functions
 
@@ -77,7 +77,7 @@ def find_contours(obj_input, **kwargs):
 
     """
     ## kwargs
-    df = kwargs.get("df", None)
+    df_image_data = kwargs.get("df", None)
     flag_ret_cont = kwargs.get("return_contours",True)
     retr = kwargs.get("retrieval", "ext")
     retr_alg = {"ext": cv2.RETR_EXTERNAL, ## only external
@@ -95,6 +95,19 @@ def find_contours(obj_input, **kwargs):
     min_diameter, max_diameter = kwargs.get('min_diameter', 0), kwargs.get('max_diameter', inf)
     min_area, max_area = kwargs.get('min_area', 0), kwargs.get('max_area', inf)
 
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename":"unknown"})
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.canvas
+        df_image_data = obj_input.df_image_data
+        if hasattr(obj_input, "df_contours"):
+            df_contours = obj_input.df_contours
+    else:
+        warnings.warn("wrong input format.")
+        return
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -121,7 +134,7 @@ def find_contours(obj_input, **kwargs):
             ## number of contour nodes
             if len(contour) > min_nodes and len(contour) < max_nodes:
                 center, radius = cv2.minEnclosingCircle(contour)
-                x,y = int(center[0]), int(center[1])
+                center = int(center[0]), int(center[1])
                 diameter = int(radius*2)
                 area = int(cv2.contourArea(contour))
                 if hier[3] == -1:
@@ -129,43 +142,33 @@ def find_contours(obj_input, **kwargs):
                 else:
                     cont_order = "child"
                 if all([
-                    ## contour diameter
                     diameter > min_diameter and diameter < max_diameter,
-                    ## contour area
                     area > min_area and area < max_area,
                     ]):
                         idx += 1
                         contour_label = str(idx)
                         contour_dict[contour_label] = {"contour":contour_label, 
-                                                     "x":x,
-                                                     "y":y,
-                                                     "diameter": diameter, 
-                                                     "area":area,
-                                                     "order": cont_order,
-                                                     "idx_child":hier[2],
-                                                     "idx_parent":hier[3],
-                                                     "coords":contour}
+                                                       "center": center,
+                                                       "diameter": diameter, 
+                                                       "area":area,
+                                                       "order": cont_order,
+                                                       "idx_child":hier[2],
+                                                       "idx_parent":hier[3],
+                                                       "coords":contour}
     else:
         warnings.warn("No contours found.")
         
     ## output
-    contour_df = pd.DataFrame(contour_dict).T
-    contour_df.reset_index(drop=True, inplace=True)
-    contour_df.drop(columns=["idx_child","idx_parent","coords"], inplace=True)
-    
+    df_contours = pd.DataFrame(contour_dict).T
+    df_contours.reset_index(drop=True, inplace=True)
+    df_contours = pd.concat([pd.concat([df_image_data]*len(df_contours)).reset_index(drop=True), 
+                             df_contours.reset_index(drop=True)], axis=1)
+
+
     if obj_input.__class__.__name__ == "ndarray":
-        if df.__class__.__name__ == "DataFrame":
-            contour_df = pd.concat([pd.concat([df]*len(contour_df)).reset_index(drop=True), contour_df.reset_index(drop=True)], axis=1)
-        if flag_ret_cont:
-            return image, contour_df, contour_dict
-        else:
-            return image, contour_df
+        return  df_contours
     elif obj_input.__class__.__name__ == "container":
-        obj_input.df = pd.concat([pd.concat([obj_input.df]*len(contour_df)).reset_index(drop=True), 
-                                  contour_df.reset_index(drop=True)], axis=1)
-        obj_input.contours = contour_dict
-
-
+        obj_input.df_contours = df_contours
 
 def morphology(obj_input, **kwargs):
     """
@@ -269,19 +272,17 @@ def threshold(obj_input, **kwargs):
     blocksize = kwargs.get("blocksize", 99)
     constant = kwargs.get("constant", 1)
     colourspace = kwargs.get("colourspace", "gray")
-    mask_list = kwargs.get("masks", None)
     method = kwargs.get("method", "otsu")
     value = kwargs.get("value", 127)
-
+    df_masks = kwargs.get("masks", None)
+    
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
-        # image = copy.deepcopy(obj_input.image_copy)
-
-    ## load mask 
-    masks, mask_list = _load_masks(obj_input, mask_list)
+        if hasattr(obj_input, "df_masks"):
+            df_masks = copy.deepcopy(obj_input.df_masks)
 
     ## colourspace
     if len(image.shape)==3:
@@ -303,14 +304,18 @@ def threshold(obj_input, **kwargs):
         ret, image = cv2.threshold(image, value, 255,cv2.THRESH_BINARY_INV)  
 
     ## apply masks
-    if len(masks)>0:
+    if not df_masks.__class__.__name__ == "NoneType":
         mask_bool = np.zeros(image.shape, np.bool)
-        for mask in masks:
-            print(" - applying mask: " + mask["label"] + ".")
-            if mask["include"]:
-                mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, eval(mask["coords"])))
-            if not mask["include"]:
-                mask_bool[_create_mask_bool(image, eval(mask["coords"]))] = False
+        label = ""
+        for index, row in df_masks.iterrows():
+            coords = eval(row["coords"])
+            if not row["mask"] == label:
+                label = row["mask"]
+                print(" - applying mask: " + label)
+            if row["include"]:
+                mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
+            if not row["include"]:
+                mask_bool[_create_mask_bool(image, coords)] = False
         image[mask_bool==0] = 0
 
     ## return

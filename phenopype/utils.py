@@ -12,6 +12,7 @@ from phenopype.utils_lowlevel import _image_viewer
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
 from phenopype.settings import *
 from phenopype.core.export import *
+from phenopype.core.visualization import *
 
 #%% settings
 
@@ -59,22 +60,8 @@ class container(object):
 
         ## attributes
         self.dirpath = None
-        
 
-    def reset(self):
-        """
-        Parameters
-        ----------
-        components : TYPE, optional
-            DESCRIPTION. The default is [].
 
-        Returns
-        -------
-        None.
-
-        """
-        self.image = copy.deepcopy(self.image_copy)
-        self.canvas = copy.deepcopy(self.image_copy)
 
     def load(self):
         """
@@ -101,7 +88,10 @@ class container(object):
         
         ## contours
         if not hasattr(self, "df_contours") and "contours" in files:
-            print("Load contours not yet implemented")
+            path = os.path.join(self.dirpath, "contours_" + self.save_suffix + ".csv")
+            if os.path.isfile(path):
+                self.df_contours = pd.read_csv(path) 
+                loaded.append("contours_" + self.save_suffix + ".csv")
 
         ## landmarks
         if not hasattr(self, "df_landmarks") and "landmarks" in files:
@@ -127,26 +117,26 @@ class container(object):
         ## feedback
         if len(loaded)>0:
             print("AUTOLOAD\n- " + '\n- '.join(loaded) )
-            
 
-        # if not hasattr(self, "df_masks"):
-        #     if self.dirpath:
-        #         mask_path = os.path.join(self.dirpath, "masks.yaml")
-        #         if os.path.isfile(mask_path):
-        #             masks = _load_yaml(mask_path)
-        #             if masks:
-        #                 masks_l = []
-        #                 for mask in masks.values():
-        #                     self.masks[mask["label"]] = mask
-        #                     masks_l.append(mask["label"])
-        #                 print("Loaded masks " + ", ".join(masks_l) + " from file.")
-        #                 self.masks_copy = copy.deepcopy(self.masks)
-        #             else:
-        #                 self.masks = {}
-        #                 self.masks_copy = {}
-                        
-    # ## load mask and check if exists
-    # masks, mask_list = _load_masks(obj_input, label)
+
+
+    def reset(self):
+        """
+        Parameters
+        ----------
+        components : TYPE, optional
+            DESCRIPTION. The default is [].
+
+        Returns
+        -------
+        None.
+
+        """
+        self.image = copy.deepcopy(self.image_copy)
+        self.canvas = copy.deepcopy(self.image_copy)
+
+
+
     def save(self, **kwargs):
         """
         
@@ -174,27 +164,78 @@ class container(object):
         
         ## canvas
         if not self.canvas.__class__.__name__ == "NoneType" and not "save_canvas" in export_list:
+            print("save_canvas")
             save_canvas(self)
 
         ## contours
         if hasattr(self, "df_contours") and not "save_contours" in export_list:
+            print("save_contours")
             save_contours(self, overwrite=False)
 
         ## landmarks
         if hasattr(self, "df_landmarks") and not "save_landmarks" in export_list:
+            print("save_landmarks")
             save_landmarks(self, overwrite=False)
 
         ## masks
         if hasattr(self, "df_masks") and not "save_masks" in export_list:
+            print("save_masks")
             save_masks(self, overwrite=False)
 
         ## polylines
         if hasattr(self, "df_polylines") and not "save_polylines" in export_list:
+            print("save_polylines")
             save_polylines(self, overwrite=False)
 
 
 
-
+    def show(self, **kwargs):
+        """
+        
+    
+        Parameters
+        ----------
+        components : TYPE, optional
+            DESCRIPTION. The default is [].
+        **kwargs : TYPE
+            DESCRIPTION.
+    
+        Returns
+        -------
+        None.
+    
+        cfg = "pype_config_v1.yaml"
+        cfg[cfg.rindex('_')+1:cfg.rindex('.')]
+    
+        """
+        ## kwargs
+        show_list = kwargs.get("show_list",[])
+        
+        ## feedback
+        print("AUTOSHOW")
+        
+        ## canvas
+        if not "select_canvas" in show_list:
+            select_canvas(self)
+    
+        ## contours
+        if hasattr(self, "df_contours") and not "show_contours" in show_list:
+            print("show_contours")
+            show_contours(self)
+    
+        ## landmarks
+        if hasattr(self, "df_landmarks") and not "save_landmarks" in export_list:
+            print("save_landmarks")
+            save_landmarks(self, overwrite=False)
+    
+        ## masks
+        if hasattr(self, "df_masks") and not "show_masks" in show_list:
+            print("show_masks")
+            show_masks(self)
+    
+        # ## polylines
+        # if hasattr(self, "df_polylines") and not "save_polylines" in export_list:
+        #     save_polylines(self, overwrite=False)
 
 #%% functions
             
