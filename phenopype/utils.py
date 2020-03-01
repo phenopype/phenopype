@@ -53,6 +53,7 @@ class container(object):
         self.image_mod = copy.deepcopy(self.image)
         self.image_bin = None
         self.image_gray = None
+
         self.canvas = copy.deepcopy(self.image)
         
         self.df_image_data = df_image_data
@@ -168,6 +169,11 @@ class container(object):
             save_canvas(self)
 
         ## contours
+        if hasattr(self, "df_colours") and not "save_colours" in export_list:
+            print("save_colours")
+            save_colours(self, overwrite=False)
+
+        ## contours
         if hasattr(self, "df_contours") and not "save_contours" in export_list:
             print("save_contours")
             save_contours(self, overwrite=False)
@@ -224,18 +230,19 @@ class container(object):
             show_contours(self)
     
         ## landmarks
-        if hasattr(self, "df_landmarks") and not "save_landmarks" in export_list:
-            print("save_landmarks")
-            save_landmarks(self, overwrite=False)
+        if hasattr(self, "df_landmarks") and not "show_landmarks" in show_list:
+            print("show_landmarks")
+            show_landmarks(self)
     
         ## masks
         if hasattr(self, "df_masks") and not "show_masks" in show_list:
             print("show_masks")
             show_masks(self)
     
-        # ## polylines
-        # if hasattr(self, "df_polylines") and not "save_polylines" in export_list:
-        #     save_polylines(self, overwrite=False)
+        ## polylines
+        if hasattr(self, "df_polylines") and not "show_polylines" in show_list:
+            print("show_polylines")
+            show_polylines(self)
 
 #%% functions
             

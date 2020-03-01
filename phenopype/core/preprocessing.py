@@ -64,71 +64,45 @@ def create_mask(obj_input, **kwargs):
     ## more kwargs
     line_width = kwargs.get("line_width", _auto_line_width(image))
 
-    ## method
-    while True:
-        if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False:
-            if label in df_masks["mask"].values:
-                print("- mask with label " + label + " already created (overwrite=False)")
-                break
-            else:
-                pass
-        elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            if label in df_masks["mask"].values:
-                df_masks.drop(df_masks[df_masks["mask"] == label].index, inplace=True)
-                print("- create mask (overwriting)")
-                pass
-            else:
-                pass
-        elif df_masks.__class__.__name__ == "NoneType":
-            print("- create mask")
-            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
-            pass
+    ## check if exists
+    if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False:
+        if label in df_masks["mask"].values:
+            print("- mask with label " + label + " already created (overwrite=False)")
+            return
+    elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
+        if label in df_masks["mask"].values:
+            df_masks.drop(df_masks[df_masks["mask"] == label].index, inplace=True)
+            print("- create mask (overwriting)")
+    elif df_masks.__class__.__name__ == "NoneType":
+        print("- create mask")
+        df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
 
-        ## create mask
-        out = _image_viewer(image, mode="interactive", 
-                                  max_dim = max_dim, 
-                                  tool=flag_tool)
-        coords = out.point_list
-        
-        ## abort
-        if not out.done:
-            if obj_input.__class__.__name__ == "ndarray":
-                warnings.warn("terminated mask creation")
-                return 
-            elif obj_input.__class__.__name__ == "container":
-                print("- terminated mask creation")
-                return True
+    ## create mask
+    out = _image_viewer(image, mode="interactive", 
+                              max_dim = max_dim, 
+                              tool=flag_tool)
+    coords = out.point_list
+    
+    ## abort
+    if not out.done:
+        if obj_input.__class__.__name__ == "ndarray":
+            warnings.warn("terminated mask creation")
+            return 
+        elif obj_input.__class__.__name__ == "container":
+            print("- terminated mask creation")
+            return True
 
-        ## create df
-        if len(coords) > 0:
-            for points in coords:
-                mask = {"mask": label,
-                        "include": include,
-                        "coords": str(points)}
-                df_masks = df_masks.append(mask, ignore_index=True, sort=False)
-            df_masks = pd.concat([pd.concat([df_image_data]*len(df_masks)).reset_index(drop=True), 
-                                    df_masks.reset_index(drop=True)], axis=1)
-        else:
-            warnings.warn("zero coordinates - redo mask!")
-
-    #     ## show image with window control
-    #     if flag_show:
-    #         overlay = np.zeros(image.shape, np.uint8) # make overlay
-    #         overlay[:,:,2] = 200 # start with all-red overlay
-    #         mask_bin = _create_mask_bin(image, df_masks)
-    #         mask_bool = np.array(mask_bin, dtype=bool)
-    #         if include:
-    #             overlay[mask_bool,1], overlay[mask_bool,2] = 200, 0
-    #         else:
-    #             overlay[np.invert(mask_bool),1], overlay[np.invert(mask_bool),2] = 200, 0
-    #         mask_overlay = cv2.addWeighted(image, .7, overlay, 0.5, 0)
-    #         show_image(mask_overlay)
-    #     break 
-
-    # ## visualize
-    # for index, row in df_masks.iterrows():
-    #     coords = eval(row["coords"])
-    #     cv2.polylines(image, np.array([coords]), False, colours["blue"], line_width)
+    ## create df
+    if len(coords) > 0:
+        for points in coords:
+            mask = {"mask": label,
+                    "include": include,
+                    "coords": str(points)}
+            df_masks = df_masks.append(mask, ignore_index=True, sort=False)
+        df_masks = pd.concat([pd.concat([df_image_data]*len(df_masks)).reset_index(drop=True), 
+                                df_masks.reset_index(drop=True)], axis=1)
+    else:
+        warnings.warn("zero coordinates - redo mask!")
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

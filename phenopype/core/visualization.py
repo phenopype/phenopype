@@ -29,7 +29,7 @@ def select_canvas(obj_input, **kwargs):
         obj_input.canvas = copy.deepcopy(obj_input.image_gray)
         print("- grayscale image")
     if canvas == "mod" or canvas == "modified":
-        obj_input.canvas = copy.deepcopy(obj_input.image)
+        obj_input.canvas = copy.deepcopy(obj_input.canvas)
         print("- modifed image")
     if canvas == "img" or canvas == "image":
         obj_input.canvas = copy.deepcopy(obj_input.image_copy)
@@ -52,18 +52,20 @@ def select_canvas(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         return obj_input
 
+
+
 def show_contours(obj_input,**kwargs):
 
     ## kwargs
     df_image_data = kwargs.get("df_image_data", None)
     df_contours = kwargs.get("df_contours", None)
+    offset_coords = kwargs.get("offset_coords", None)
     flag_label = kwargs.get("label", True)
     flag_fill = kwargs.get("fill", 0.2)
     flag_child = kwargs.get("mark_holes", True)
     level = kwargs.get("level", 3)
     line_colour_sel = colours[kwargs.get("line_colour", "green")]
     text_colour = colours[kwargs.get("text_colour", "black")]
-    offset_coords = kwargs.get("offset_coords", None)
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -144,7 +146,6 @@ def show_landmarks(obj_input, **kwargs):
         zoom into the scale with "rectangle" or "polygon".
         
     """
-    
 
     ## kwargs
     colour = colours[kwargs.get("colour", "green")]
@@ -155,20 +156,19 @@ def show_landmarks(obj_input, **kwargs):
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
+        df_landmarks = obj_input.df_landmarks
 
     point_size = kwargs.get("point_size", _auto_point_size(image))
-    point_col = colours[kwargs.get("point_col", "red")]
-    text_size = kwargs.get("label_size", _auto_text_size(image))
-    text_width = kwargs.get("label_width", _auto_text_width(image))
-    text_col = colours[kwargs.get("label_col", "black")]
+    point_col = kwargs.get("point_col", "red")
+    label_size = kwargs.get("label_size", _auto_text_size(image))
+    label_width = kwargs.get("label_width", _auto_text_width(image))
+    label_col = kwargs.get("label_col", "black")
 
-    ## draw landmarks
-    if obj_input.landmarks:
-        points = eval(obj_input.landmarks["landmarks"]["coords"])
-        for point, idx in zip(points, range(len(points))):
-            cv2.circle(image, point, point_size, point_col, -1)
-            cv2.putText(image, str(idx+1), point, 
-                cv2.FONT_HERSHEY_SIMPLEX, text_size, text_col, text_width, cv2.LINE_AA)
+    ## visualize
+    for label, x, y in zip(df_landmarks.landmark, df_landmarks.x, df_landmarks.y):
+        cv2.circle(image, (x,y), point_size, colours[point_col], -1)
+        cv2.putText(image, str(label), (x,y), 
+            cv2.FONT_HERSHEY_SIMPLEX, label_size, colours[label_col], label_width, cv2.LINE_AA)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
@@ -221,14 +221,56 @@ def show_masks(obj_input, **kwargs):
                     continue
             else:
                 pass
-            print(" - applying mask: " + row["mask"] + ".")
+            print(" - show mask: " + row["mask"] + ".")
             coords = eval(row["coords"])
             cv2.polylines(image, np.array([coords]), False, colours["blue"], line_width)
 
-    # ## visualize
-    # for index, row in df_masks.iterrows():
-    #     coords = eval(row["coords"])
-    #     cv2.polylines(image, np.array([coords]), False, colours["blue"], line_width)
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return image
+    elif obj_input.__class__.__name__ == "container":
+        if  obj_input.canvas.__class__.__name__ == "ndarray":
+            obj_input.canvas = image
+        else:
+            obj_input.image = image
+
+
+
+def show_polylines(obj_input, **kwargs):
+    """Mask maker method to draw rectangle or polygon mask onto image.
+    
+    Parameters
+    ----------        
+    
+    include: bool (default: True)
+        determine whether resulting mask is to include or exclude objects within
+    label: str (default: "area1")
+        passes a label to the mask
+    tool: str (default: "rectangle")
+        zoom into the scale with "rectangle" or "polygon".
+        
+    """
+
+    ## kwargs
+    colour = kwargs.get("colour", "green")
+
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.canvas
+        df_polylines = obj_input.df_polylines
+        
+    ## more kwargs
+    line_width = kwargs.get("line_thickness", _auto_line_width(image))
+
+    ## visualize
+    for polyline in df_polylines["polyline"].unique():
+        sub = df_polylines.groupby(["polyline"])
+        sub = sub.get_group(polyline)
+        coords = list(sub[["x","y"]].itertuples(index=False, name=None))
+        cv2.polylines(image, np.array([coords]), 
+                      False, colours[colour], line_width)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

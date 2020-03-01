@@ -118,8 +118,7 @@ class _image_viewer():
                 cv2.destroyAllWindows()
                 if self.flag_tool == "polygon"  or self.flag_tool == "poly" or self.flag_tool == "free":
                     if len(self.points)>2:
-                        if not self.points[0] == self.points[len(self.points)]:
-                            self.points.append(self.points[0])
+                        self.points.append(self.points[0])
                         self.point_list.append(self.points)
                 elif self.flag_tool == "polyline" or self.flag_tool == "polylines" or self.flag_tool == "lines":
                     if len(self.points)>0:
@@ -394,17 +393,16 @@ def _contours_arr_tup(array):
 
 
 
-def _create_generic_pype_config(location, preset, config_name):
+def _create_generic_pype_config(preset, config_name):
 
-    config = _load_yaml(eval("presets." + preset))
-    pype_preset = {"pype":
+    pype_preset = _load_yaml(eval("presets." + preset))
+    pype_config = {"pype":
                        {"name": config_name,
                         "preset": preset,
-                        "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
-                        "date_last_used": None}}
-    pype_preset.update(config)
+                        "date_created": datetime.today().strftime('%Y%m%d_%H%M%S')}}
+    pype_config.update(pype_preset)
     print("pype config generated from " + preset + ".")
-    return pype_preset, location
+    return pype_config
 
 
 
@@ -460,6 +458,7 @@ def _file_walker(directory, **kwargs):
     ## kwargs
     search_mode = kwargs.get("search_mode","dir")
     unique_mode = kwargs.get("unique_mode", "filepath")
+    pype_mode = kwargs.get("pype_mode", False)
     filetypes = kwargs.get("filetypes", [])
     if not filetypes.__class__.__name__ == "list":
         filetypes = [filetypes]
@@ -512,8 +511,8 @@ def _file_walker(directory, **kwargs):
 
     ## check if files found
     filepaths = filepaths4
-    if len(filepaths) == 0:
-        sys.exit("No files found under the given location that match given.")
+    if len(filepaths) == 0 and not pype_mode:
+        sys.exit("No files found under the given location that match given criteria.")
 
     ## allow unique filenames filepath or by filename only
     filenames, unique_filename, unique, duplicate = [],[],[],[]
@@ -593,14 +592,20 @@ def _load_yaml(string):
 
 
 def _load_pype_config(obj_input, **kwargs):
-    
-    ## kwargs
-    config_name = kwargs.get("config", default_pype_config_name)
-    preset = kwargs.get("preset", default_pype_preset)
 
-    ## concatenate config file name directory path
-    dirpath = obj_input.dirpath
-    config_location = os.path.join(dirpath, "pype_config_" + config_name + ".yaml")
+    ## kwargs
+    config_name = kwargs.get("config_name", default_pype_config_name)
+    preset = kwargs.get("preset", default_pype_config)
+
+    ## load config location
+    if obj_input.__class__.__name__ == "str":
+        config_location = obj_input
+        if os.path.isfile(config_location):
+            return _load_yaml(config_location), config_location
+    elif obj_input.__class__.__name__ == "container":
+        dirpath = obj_input.dirpath
+        config_location = os.path.join(dirpath, "pype_config_" + config_name + ".yaml")
+
 
     ## check if exists, otherwise ask to create
     if os.path.isfile(config_location):
@@ -609,7 +614,7 @@ def _load_pype_config(obj_input, **kwargs):
         create = input("Did not find \"pype_config_" + config_name + ".yaml\" - "
                        + " create at following location? (y/n):\n" + config_location + "\n")
         if create == "y" or create == "yes":
-            pype_preset, config_location = _create_generic_pype_config(config_location, preset, config_name)
+            pype_preset = _create_generic_pype_config(preset, config_name)
             config = {"image": copy.deepcopy(obj_input.image_data)}
             config.update(pype_preset)
             print("Created and saved new pype config \"" + os.path.basename(config_location) +
@@ -617,8 +622,9 @@ def _load_pype_config(obj_input, **kwargs):
             _save_yaml(config, config_location)
             return pype_preset, config_location
         else:
-            warnings.warn(("Did not find \"pype_config_" + config + ".yaml\" - abort."))
-
+            sys.exit("Did not find \"pype_config_" + config_name + ".yaml\" - abort.")
+    else:
+        sys.exit("Did not find \"pype_config_" + config_name + ".yaml\" - abort.")
 
 
 def _show_yaml(odict):

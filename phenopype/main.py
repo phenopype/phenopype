@@ -72,13 +72,13 @@ class project:
             if create=="y" or create == "yes":
                 if os.path.isdir(root_dir):
                     if flag_overwrite == True:
-                        rmtree(root_dir, ignore_errors=True, onerror=_del_rw) 
+                        rmtree(root_dir, onerror=_del_rw) 
                         print("\n\"" + root_dir + "\" created (overwritten)")
                         pass
                     else:
                         overwrite = input("Warning - project root_dir already exists - overwrite? (y/n)")
                         if overwrite == "y" or overwrite == "yes":
-                            rmtree(root_dir, ignore_errors=True, onerror=_del_rw) 
+                            rmtree(root_dir, onerror=_del_rw) 
                             print("\n\"" + root_dir + "\" created (overwritten)")
                             pass
                         else:
@@ -262,11 +262,12 @@ class project:
 
         ## modify
         if flag_interactive:
-            container = load_directory(self.dirpaths[0])
-            config, template_path = _create_generic_pype_config(container, preset = preset, config_name=name)
-            template_path = os.path.join(self.root_dir, "pype_template.yaml")
-            _save_yaml(config, template_path)
-            p = pype(self.filepaths[0], name="template-" + name, config=template_path, presetting=True)
+            image_location = os.path.join(self.root_dir,"template_image" + os.path.splitext(self.filenames[0])[1])
+            copyfile(self.filepaths[0], image_location)
+            config_location = os.path.join(self.root_dir, "pype_config_template-" + name + ".yaml")
+            config = _create_generic_pype_config(preset = preset, config_name=name)
+            _save_yaml(config, config_location)
+            p = pype(image_location, name="template-" + name, config_location=config_location, presetting=True)
             config = p.config
         else:
             config = _load_yaml(eval("presets." + preset))
@@ -282,7 +283,7 @@ class project:
             pype_preset.update(config)
 
             ## save config
-            preset_path = os.path.join(directory, "pype_" + name + ".yaml")
+            preset_path = os.path.join(directory, "pype_config_" + name + ".yaml")
             dirname = attr["project"]["dirname"]
             if os.path.isfile(preset_path) and flag_overwrite==False:
                 print("pype_" + name + ".yaml already exists in " + dirname +  " (overwrite=False)")
@@ -333,18 +334,23 @@ class pype:
         """
         
         ## pype name check
+        if "pype_config_" in name:
+            name = name.replace("pype_config_", "")
+        elif ".yaml" in name:
+            name = name.replace(".yaml", "")
         for char in '[@_!#$%^&*()<>?/\|}{~:]':
             if char in name:
                 sys.exit("no special characters allowed in pype name")
-
         ## kwargs
         flag_show = kwargs.get("show",True)
         flag_skip = kwargs.get("skip", None)
         flag_autoload = kwargs.get("autoload", True)
         flag_autosave = kwargs.get("autosave", True)
         flag_autoshow = kwargs.get("autoshow", True)
-        delay = kwargs.get("delay", 0.5)
-        preset = kwargs.get("preset", default_pype_preset)
+
+        preset = kwargs.get("preset", "preset1")
+        config_location = kwargs.get("config_location", None)
+
         print_settings = kwargs.get("print_settings",False)
         presetting = kwargs.get("presetting", False)
         flag_meta = kwargs.get("meta", True)
@@ -368,12 +374,19 @@ class pype:
 
         ## skip directories that already contain specified files
         if flag_skip:
-            filepaths, duplicates = _file_walker(self.container.dirpath, flag_skip)
+            filepaths, duplicates = _file_walker(self.container.dirpath, 
+                                                 include=flag_skip, 
+                                                 exclude=["pype_config"], 
+                                                 pype_mode=True)
             if len(filepaths)>0:
+                print("\nskipped\n")
                 return
 
         ## load config
-        self.config, self.config_location = _load_pype_config(self.container, config=name, preset=preset)
+        if config_location:
+            self.config, self.config_location = _load_pype_config(config_location)
+        else:
+            self.config, self.config_location = _load_pype_config(self.container, config_name=name, preset=preset)
 
         ## open config file with system viewer
         if flag_show:
@@ -414,6 +427,8 @@ class pype:
                     continue
                 if not self.config[step]:
                     continue
+                if step == "export" and presetting == True:
+                    continue
                 print(step)
                 for item in self.config[step]:
                     try:
@@ -432,6 +447,7 @@ class pype:
                         ## collect save-calls
                         if step == "export":
                             export_list.append(method_name)
+                            
                         elif step == "visualization":
                             show_list.append(method_name)
 
@@ -455,11 +471,11 @@ class pype:
                 continue
 
             # save container content, and reset container
+            if flag_autoshow:
+                self.container.show(show_list=show_list)
             if not presetting:
                 if flag_autosave:
                     self.container.save(export_list=export_list)
-                if flag_autoshow:
-                    self.container.show(show_list=show_list)
 
             ## visualize output
             try:
@@ -470,8 +486,8 @@ class pype:
             except Exception as ex:
                 print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
 
-            if not presetting:
-                self.container.reset()
+            ## reset canvas
+            self.container.reset()
 
             ## terminate
             if iv:

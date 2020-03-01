@@ -70,28 +70,26 @@ export:
 """
 
 
-landmark_preset = """
+landmarking1 = """
 preprocessing:
-- create_mask:
-    label: mask1
+- create_mask
 measurement:
-- landmarks:
-    show: True
+- landmarks
+- polylines
 visualization:
-- select_canvas:
-    canvas: bin
 - show_landmarks:
+    point_size: 25
     point_col: green
-    point_size: 20
-    label_size: 4
-    label_width: 10
-- show_mask:
+    label_size: 3
+    label_width: 5
+- show_masks:
+    colour: blue
+    line_thickness: 5
+- show_polylines:
     colour: blue
     line_thickness: 5
 export:
-- save_results:
-    overwrite: true
-- save_canvas:
-    resize: 0.5
-    overwrite: true
+- save_landmarks
+- save_masks
+- save_polylines
 """
