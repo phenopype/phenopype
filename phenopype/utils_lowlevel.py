@@ -82,7 +82,7 @@ class _image_viewer():
         if self.flag_tool:
             self.points, self.point_list = [], []
             self.line_width = kwargs.get("line_width", _auto_line_width(image))
-            if self.flag_tool== "rectangle" or self.flag_tool == "box":
+            if self.flag_tool== "rectangle" or self.flag_tool == "template":
                 self.rect_list, self.rect_start = [], None
             elif self.flag_tool == "landmarks" or self.flag_tool == "landmark":
                 self.point_size = kwargs.get("point_size", _auto_point_size(image))
@@ -160,7 +160,11 @@ class _image_viewer():
                 self._on_mouse_polygon(event, x, y, flags)
             elif self.flag_tool == "polyline" or self.flag_tool == "polylines":
                 self._on_mouse_polygon(event, x, y, flags, polyline=True)
-
+            elif self.flag_tool == "scale":
+                self._on_mouse_polygon(event, x, y, flags, scale=True)
+            elif self.flag_tool == "template":
+                self._on_mouse_rectangle(event, x, y, flags, template=True)
+                
     def _on_mouse_landmark(self, event, x, y):
         if event == cv2.EVENT_LBUTTONDOWN: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
             self.coords_original = int(self.zoom_x1+(x * self.global_fx)), int(self.zoom_y1+(y * self.global_fy))
@@ -186,15 +190,26 @@ class _image_viewer():
                 cv2.imshow(self.window_name, self.canvas)
                 
     def _on_mouse_polygon(self, event, x, y, flags, **kwargs):
+        
+        ## kwargs
         polyline = kwargs.get("polyline", False)
+        scale = kwargs.get("scale", False)
+
         if event == cv2.EVENT_MOUSEMOVE:
+            if scale and len(self.points) == 2:
+                return
             self.coords_original = int(self.zoom_x1+(x * self.global_fx)), int(self.zoom_y1+(y * self.global_fy))
             if len(self.points) > 0:
                 self.coords_prev = int((self.points[-1][0]-self.zoom_x1)/self.global_fx), int((self.points[-1][1]-self.zoom_y1)//self.global_fy)
                 self.canvas = copy.deepcopy(self.canvas_copy)
                 cv2.line(self.canvas, self.coords_prev, (x,y), colours["blue"], self.line_width)
+            elif scale and len(self.points) > 2:
+                pass
             cv2.imshow(self.window_name, self.canvas)
         if event == cv2.EVENT_LBUTTONDOWN: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
+            if scale and len(self.points) == 2:
+                print("already two points selected")
+                return
             self.coords_original = int(self.zoom_x1+(x * self.global_fx)), int(self.zoom_y1+(y * self.global_fy))
             self.points.append(self.coords_original)
             cv2.polylines(self.image_copy, np.array([self.points]), False, colours["green"], self.line_width)
@@ -205,6 +220,9 @@ class _image_viewer():
             self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
             self.canvas_copy = copy.deepcopy(self.canvas)
             cv2.imshow(self.window_name, self.canvas)
+            if scale and len(self.points) == 2:
+                print("Scale set")
+                self.scale_coords = self.points
         if event == cv2.EVENT_RBUTTONDOWN:
             if len(self.points)>0:
                 self.points = self.points[:-1]
@@ -238,41 +256,50 @@ class _image_viewer():
             self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
             self.canvas_copy = copy.deepcopy(self.canvas)
 
-    def _on_mouse_rectangle(self, event, x, y, flags):
-            if event == cv2.EVENT_LBUTTONDOWN: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
-                self.rect_start = x, y
-                self.canvas_copy = copy.deepcopy(self.canvas)
-            if event == cv2.EVENT_LBUTTONUP: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
-                self.rect_start = None
-                self.rect_list.append([
-                        int(self.zoom_x1 + (self.global_fx * self.rect_minpos[0])), 
-                        int(self.zoom_y1 + (self.global_fy * self.rect_minpos[1])),
-                        int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])), 
-                        int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1]))])
+    def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
+        ## kwargs
+        template = kwargs.get("template", False)
+        
+        if event == cv2.EVENT_LBUTTONDOWN: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
+            if template == True and len(self.rect_list)==1:
+                return
+            self.rect_start = x, y
+            self.canvas_copy = copy.deepcopy(self.canvas)
+        if event == cv2.EVENT_LBUTTONUP: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
+            if template == True and len(self.rect_list)==1:
+                return
+            self.rect_start = None
+            self.rect_list.append([
+                    int(self.zoom_x1 + (self.global_fx * self.rect_minpos[0])), 
+                    int(self.zoom_y1 + (self.global_fy * self.rect_minpos[1])),
+                    int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])), 
+                    int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1]))])
+            for (rx1, ry1, rx2, ry2) in self.rect_list:
+                cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), colours["green"], self.line_width)
+            self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
+            self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
+            self.canvas_copy = copy.deepcopy(self.canvas)
+            cv2.imshow(self.window_name, self.canvas)
+            if template == True and len(self.rect_list)==1:
+                print("Template selected")
+        if event == cv2.EVENT_RBUTTONDOWN:
+            if len(self.rect_list)>0:
+                self.rect_list = self.rect_list[:-1]
+                self.image_copy = copy.deepcopy(self.image)
                 for (rx1, ry1, rx2, ry2) in self.rect_list:
                     cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), colours["green"], self.line_width)
                 self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                 self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                 self.canvas_copy = copy.deepcopy(self.canvas)
                 cv2.imshow(self.window_name, self.canvas)
-            if event == cv2.EVENT_RBUTTONDOWN:
-                if len(self.rect_list)>0:
-                    self.rect_list = self.rect_list[:-1]
-                    self.image_copy = copy.deepcopy(self.image)
-                    for (rx1, ry1, rx2, ry2) in self.rect_list:
-                        cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), colours["green"], self.line_width)
-                    self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
-                    self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
-                    self.canvas_copy = copy.deepcopy(self.canvas)
-                    cv2.imshow(self.window_name, self.canvas)
-            elif self.rect_start:
-                if flags & cv2.EVENT_FLAG_LBUTTON: ##  and (flags & cv2.EVENT_FLAG_CTRLKEY)
-                    self.canvas = copy.deepcopy(self.canvas_copy)
-                    self.rect_minpos = min(self.rect_start[0], x), min(self.rect_start[1], y)
-                    self.rect_maxpos = max(self.rect_start[0], x), max(self.rect_start[1], y)
-                    cv2.rectangle(self.canvas, self.rect_minpos, self.rect_maxpos, 
-                                  colours["red"], max(2,_auto_line_width(self.canvas)))
-                    cv2.imshow(self.window_name, self.canvas)
+        elif self.rect_start:
+            if flags & cv2.EVENT_FLAG_LBUTTON: ##  and (flags & cv2.EVENT_FLAG_CTRLKEY)
+                self.canvas = copy.deepcopy(self.canvas_copy)
+                self.rect_minpos = min(self.rect_start[0], x), min(self.rect_start[1], y)
+                self.rect_maxpos = max(self.rect_start[0], x), max(self.rect_start[1], y)
+                cv2.rectangle(self.canvas, self.rect_minpos, self.rect_maxpos, 
+                              colours["red"], max(2,_auto_line_width(self.canvas)))
+                cv2.imshow(self.window_name, self.canvas)
 
     def _zoom_fun(self,x,y):
         """Helper function for image_viewer. Takes current xy coordinates and zooms in within a rectangle around mouse coordinates. 
@@ -368,7 +395,7 @@ def _auto_text_width(image, **kwargs):
     factor = kwargs.get("factor", 0.0005)
     image_height,image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) /2
-    text_tickness = int(factor * image_diagonal)
+    text_tickness = max(int(factor * image_diagonal),1)
 
     return text_tickness
 
@@ -378,7 +405,7 @@ def _auto_text_size(image, **kwargs):
     factor = kwargs.get("factor", 0.00025)
     image_height,image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) /2
-    text_size = int(factor * image_diagonal)
+    text_size = max(int(factor * image_diagonal),1)
 
     return text_size
 

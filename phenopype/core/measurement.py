@@ -123,6 +123,81 @@ def landmarks(obj_input, **kwargs):
         obj_input.canvas = image
 
 
+
+def colour(obj_input, **kwargs):
+
+    ## kwargs
+    channels = kwargs.get("channels", ["gray"])
+    df_contours = kwargs.get("df_contours", None)
+
+    ## load image
+    df_contours = None
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename":"unknown"})
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.canvas
+        df_image_data = obj_input.df_image_data
+        if hasattr(obj_input, "df_contours"):
+            df_contours = obj_input.df_contours
+    else:
+        warnings.warn("wrong input format.")
+        return
+
+    ## make df
+    df_colours = pd.DataFrame(df_contours["contour"])
+
+    ## create forgeround mask
+    image_bin = np.zeros(image.shape[:2], np.uint8)
+    for index, row in df_contours.iterrows():
+        if row["order"]=="parent":
+            image_bin = cv2.fillPoly(image_bin, [row["coords"]], 255)
+        elif row["order"]=="child":
+            image_bin = cv2.fillPoly(image_bin, [row["coords"]], 0)
+    foreground_mask = np.invert(np.array(image_bin, dtype=np.bool))
+
+    
+    ## grayscale
+    if "gray" in channels:
+        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        new_cols = {"gray_mean":"NA",
+                    "gray_sd":"NA"}
+        df_colours = df_colours.assign(**new_cols)
+        for index, row in df_contours.iterrows():
+            rx,ry,rw,rh = cv2.boundingRect(row["coords"])
+            grayscale =  ma.array(data=image_gray[ry:ry+rh,rx:rx+rw], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
+            df_colours.at[index, ["gray_mean","gray_sd"]] = np.ma.mean(grayscale), np.ma.std(grayscale)
+
+    ## red, green, blue
+    if "rgb" in channels:
+        df_colours = df_colours.assign(**{"red_mean":"NA",
+                           "red_sd":"NA",
+                           "green_mean":"NA",
+                           "green_sd":"NA",
+                           "blue_mean":"NA",
+                           "blue_sd":"NA"})
+        for index, row in df_contours.iterrows():
+            rx,ry,rw,rh = cv2.boundingRect(row["coords"])
+            blue =  ma.array(data=image[ry:ry+rh,rx:rx+rw,0], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
+            green =  ma.array(data=image[ry:ry+rh,rx:rx+rw,1], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
+            red =  ma.array(data=image[ry:ry+rh,rx:rx+rw,2], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
+            df_colours.at[index, ["red_mean","red_sd"]]  = np.ma.mean(red), np.ma.std(red)
+            df_colours.at[index, ["green_mean","green_sd"]]  = np.ma.mean(green), np.ma.std(green)
+            df_colours.at[index, ["blue_mean","blue_sd"]]  = np.ma.mean(blue), np.ma.std(blue)
+
+    ## merge with existing image_data frame
+    df_colours = pd.concat([pd.concat([df_image_data]*len(df_colours)).reset_index(drop=True), 
+                            df_colours.reset_index(drop=True)], axis=1)
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return df_colours
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df_colours = df_colours
+
+
+
 def polylines(obj_input, **kwargs):
     """
     
@@ -214,75 +289,3 @@ def polylines(obj_input, **kwargs):
         obj_input.canvas = image
 
 
-
-def colour(obj_input, **kwargs):
-
-    ## kwargs
-    channels = kwargs.get("channels", ["gray"])
-    df_contours = kwargs.get("df_contours", None)
-
-    ## load image
-    df_contours = None
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"})
-    elif obj_input.__class__.__name__ == "container":
-        image = obj_input.canvas
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_contours"):
-            df_contours = obj_input.df_contours
-    else:
-        warnings.warn("wrong input format.")
-        return
-
-    ## make df
-    df_colours = pd.DataFrame(df_contours["contour"])
-
-    ## create forgeround mask
-    image_bin = np.zeros(image.shape[:2], np.uint8)
-    for index, row in df_contours.iterrows():
-        if row["order"]=="parent":
-            image_bin = cv2.fillPoly(image_bin, [row["coords"]], 255)
-        elif row["order"]=="child":
-            image_bin = cv2.fillPoly(image_bin, [row["coords"]], 0)
-    foreground_mask = np.invert(np.array(image_bin, dtype=np.bool))
-
-    
-    ## grayscale
-    if "gray" in channels:
-        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        new_cols = {"gray_mean":"NA",
-                    "gray_sd":"NA"}
-        df_colours = df_colours.assign(**new_cols)
-        for index, row in df_contours.iterrows():
-            rx,ry,rw,rh = cv2.boundingRect(row["coords"])
-            grayscale =  ma.array(data=image_gray[ry:ry+rh,rx:rx+rw], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
-            df_colours.at[index, ["gray_mean","gray_sd"]] = np.ma.mean(grayscale), np.ma.std(grayscale)
-
-    ## red, green, blue
-    if "rgb" in channels:
-        df_colours = df_colours.assign(**{"red_mean":"NA",
-                           "red_sd":"NA",
-                           "green_mean":"NA",
-                           "green_sd":"NA",
-                           "blue_mean":"NA",
-                           "blue_sd":"NA"})
-        for index, row in df_contours.iterrows():
-            rx,ry,rw,rh = cv2.boundingRect(row["coords"])
-            blue =  ma.array(data=image[ry:ry+rh,rx:rx+rw,0], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
-            green =  ma.array(data=image[ry:ry+rh,rx:rx+rw,1], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
-            red =  ma.array(data=image[ry:ry+rh,rx:rx+rw,2], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
-            df_colours.at[index, ["red_mean","red_sd"]]  = np.ma.mean(red), np.ma.std(red)
-            df_colours.at[index, ["green_mean","green_sd"]]  = np.ma.mean(green), np.ma.std(green)
-            df_colours.at[index, ["blue_mean","blue_sd"]]  = np.ma.mean(blue), np.ma.std(blue)
-
-    ## merge with existing image_data frame
-    df_colours = pd.concat([pd.concat([df_image_data]*len(df_colours)).reset_index(drop=True), 
-                            df_colours.reset_index(drop=True)], axis=1)
-
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_colours
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_colours = df_colours
