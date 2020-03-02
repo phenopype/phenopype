@@ -86,7 +86,15 @@ class container(object):
         else:
             for file in os.listdir(self.dirpath):
                 files.append(file[0:file.rindex('.')])
-        
+
+        ## other data from attributes file
+        attr_path = os.path.join(self.dirpath, "attributes.yaml")
+        if not hasattr(self, "df_other_data") and os.path.isfile(attr_path):
+            attr = _load_yaml(attr_path)
+            if "other" in attr:
+                self.df_other_data = pd.DataFrame(attr["other"], index=[0])
+                loaded.append("columns " + ', '.join(list(self.df_other_data)) + " from attributes.yaml")
+
         ## contours
         if not hasattr(self, "df_contours") and "contours" in files:
             path = os.path.join(self.dirpath, "contours_" + self.save_suffix + ".csv")
@@ -102,14 +110,14 @@ class container(object):
                 loaded.append("landmarks_" + self.save_suffix + ".csv")
 
         ## polylines
-        if not hasattr(self, "df_polyline"):
+        if not hasattr(self, "df_polylines") and "polylines" in files:
             path = os.path.join(self.dirpath, "polylines_" + self.save_suffix + ".csv")
             if os.path.isfile(path):
                 self.df_polylines = pd.read_csv(path) 
                 loaded.append("polylines_" + self.save_suffix + ".csv")
 
         ## masks
-        if not hasattr(self, "df_masks"):
+        if not hasattr(self, "df_masks") and "masks" in files:
             path = os.path.join(self.dirpath, "masks_" + self.save_suffix + ".csv")
             if os.path.isfile(path):
                 self.df_masks = pd.read_csv(path) 
@@ -135,6 +143,7 @@ class container(object):
         """
         self.image = copy.deepcopy(self.image_copy)
         self.canvas = copy.deepcopy(self.image_copy)
+        self.df_image_data = copy.deepcopy(self.df_image_data_copy)
 
 
 
@@ -177,6 +186,11 @@ class container(object):
         if hasattr(self, "df_contours") and not "save_contours" in export_list:
             print("save_contours")
             save_contours(self, overwrite=False)
+
+        ## entered data
+        if hasattr(self, "df_other_data") and not "save_data_entry" in export_list:
+            print("save_data_entry")
+            save_data_entry(self, overwrite=False)
 
         ## landmarks
         if hasattr(self, "df_landmarks") and not "save_landmarks" in export_list:
@@ -246,13 +260,13 @@ class container(object):
 
 #%% functions
             
-def load_directory(obj_input, **kwargs):
+def load_directory(directory_path, **kwargs):
     """
     
 
     Parameters
     ----------
-    obj_input : TYPE
+    directory_path : TYPE
         DESCRIPTION.
     **kwargs : TYPE
         DESCRIPTION.
@@ -269,13 +283,15 @@ def load_directory(obj_input, **kwargs):
     exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
-        
-    if not os.path.isdir(obj_input):
+
+    ## check if directory
+    if not os.path.isdir(directory_path):
         sys.exit("Not a valid phenoype directory - cannot load files.")
-        
-    attr = _load_yaml(os.path.join(obj_input, "attributes.yaml"))
+
+    ## load attributes-file
+    attr = _load_yaml(os.path.join(directory_path, "attributes.yaml"))
     image = cv2.imread(attr["project"]["raw_path"])
-    df = pd.DataFrame({"filename": attr["image"]["filename"],
+    df_image_data = pd.DataFrame({"filename": attr["image"]["filename"],
                        "width": attr["image"]["width"],
                        "height": attr["image"]["height"]
                        }, index=[0])
@@ -287,21 +303,17 @@ def load_directory(obj_input, **kwargs):
             if field in exif_data_all:
                 exif_data[field] = exif_data_all[field]
         exif_data = dict(sorted(exif_data.items()))
-        df = pd.concat([df.reset_index(drop=True), pd.DataFrame(exif_data, index=[0])], axis=1)
+        df_image_data = pd.concat([df_image_data.reset_index(drop=True), pd.DataFrame(exif_data, index=[0])], axis=1)
 
     ## return
     if flag_container == True:
-        ct = container(image, df)
-        ct.dirpath = obj_input
+        ct = container(image, df_image_data)
+        ct.dirpath = directory_path
         ct.image_data = attr["image"]
-        
-    ## check for masks
-    masks_path = os.path.join(obj_input, "masks.yaml")
-    if os.path.isfile(masks_path):
-        ct.masks = _load_yaml(masks_path)
 
-    ## for future release 
-    # ==> here, other objects from directory can be loaded and injected to container
+    # ## other, saved data to pass on
+    # if "other" in attr:
+    #    ct.df_other = pd.DataFrame(attr["other"], index=[0])
 
     if flag_container == True:
         return ct

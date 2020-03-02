@@ -63,6 +63,9 @@ def landmarks(obj_input, **kwargs):
     else:
         warnings.warn("wrong input format.")
         return
+    
+    ## only landmark df
+    df_landmarks = df_landmarks[df_landmarks.columns.intersection(['landmark','x','y'])]
 
     ## more kwargs
     point_size = kwargs.get("point_size", _auto_point_size(image))
@@ -71,38 +74,44 @@ def landmarks(obj_input, **kwargs):
     label_width = kwargs.get("label_width", _auto_text_width(image))
     label_col = kwargs.get("label_col", "black")
 
-    ## check if exists
-    if not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == False:
-        print("- landmarks already set (overwrite=False)")
-        return
-    elif not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == True:
-        print("- set landmarks (overwriting)")
-    elif df_landmarks.__class__.__name__ == "NoneType":
-        print("- set landmarks")
-
-    ## set landmarks
-    out = _image_viewer(image, tool="landmarks", 
-                        point_size=point_size, 
-                        point_col=point_col, 
-                        label_size=label_size,
-                        label_width=label_width, 
-                        label_col=label_col)
-    coords = out.points
+    while True:
+        ## check if exists
+        if not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == False:
+            print("- landmarks already set (overwrite=False)")
+            break
+        elif not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == True:
+            print("- set landmarks (overwriting)")
+            pass
+        elif df_landmarks.__class__.__name__ == "NoneType":
+            print("- set landmarks")
+            pass
+        
+        ## set landmarks
+        out = _image_viewer(image, tool="landmarks", 
+                            point_size=point_size, 
+                            point_col=point_col, 
+                            label_size=label_size,
+                            label_width=label_width, 
+                            label_col=label_col)
+        coords = out.points
+        
+        ## abort
+        if not out.done:
+            if obj_input.__class__.__name__ == "ndarray":
+                warnings.warn("terminated polyline creation")
+                return 
+            elif obj_input.__class__.__name__ == "container":
+                print("- terminated polyline creation")
+                return True
     
-    ## abort
-    if not out.done:
-        if obj_input.__class__.__name__ == "ndarray":
-            warnings.warn("terminated polyline creation")
-            return 
-        elif obj_input.__class__.__name__ == "container":
-            print("- terminated polyline creation")
-            return True
+        ## make df
+        df_landmarks = pd.DataFrame(coords, columns=["x","y"])
+        df_landmarks.reset_index(inplace=True)
+        df_landmarks.rename(columns={"index": "landmark"},inplace=True)
+        df_landmarks["landmark"] = df_landmarks["landmark"] + 1
+        break
 
-    ## make df
-    df_landmarks = pd.DataFrame(coords, columns=["x","y"])
-    df_landmarks.reset_index(inplace=True)
-    df_landmarks.rename(columns={"index": "landmark"},inplace=True)
-    df_landmarks["landmark"] = df_landmarks["landmark"] + 1
+    ## merge with existing image_data frame
     df_landmarks = pd.concat([pd.concat([df_image_data]*len(df_landmarks)).reset_index(drop=True), 
                             df_landmarks.reset_index(drop=True)], axis=1)
 

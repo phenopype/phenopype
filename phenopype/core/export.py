@@ -193,6 +193,62 @@ def save_contours(obj_input, **kwargs):
 
 
 
+def save_data_entry(obj_input, **kwargs):
+    """Save a pandas dataframe to csv. 
+    
+    Parameters
+    ----------
+    name: str (optional, default: "results")
+        name for saved csv
+    dirpath: str (default: None)
+        location to save df
+    round: int (optional, default: 1)
+        number of digits to round to
+    overwrite: bool (optional, default: False)
+        overwrite csv if it already exists
+    silent: bool (optional, default: True)
+        do not print where file was saved
+    """
+    ## kwargs
+    flag_overwrite = kwargs.get("overwrite", True)
+    dirpath = kwargs.get("directory", None)
+    round_digits = kwargs.get("round",1)
+    save_suffix = kwargs.get("save_suffix", None)
+
+    ## load df
+    if obj_input.__class__.__name__ == 'DataFrame':
+        df = obj_input
+        if not dirpath:
+            warnings.warn("No save directory specified - cannot export results.")
+    elif obj_input.__class__.__name__ == "container":
+        if not dirpath:
+            dirpath = obj_input.dirpath
+        df = obj_input.df_other_data
+    else:
+        warnings.warn("No df supplied - cannot export results.")
+
+    attr_path = os.path.join(dirpath, "attributes.yaml")
+    attr = _load_yaml(attr_path)
+    if not "other" in attr:
+        attr["other"] = {}
+
+    while True:
+        for col in list(df):
+            if col in attr["other"] and flag_overwrite == False:
+                print("- column " + col + " not saved (overwrite=False)")
+                continue
+            elif col in attr["other"] and flag_overwrite == True:
+                print("- add column " + col + " (overwriting)")
+                pass
+            else:
+                print("- add column " + col)
+                pass
+            attr["other"][col] = df[col][0]
+        break
+
+    _save_yaml(attr, attr_path)
+
+
 def save_landmarks(obj_input, **kwargs):
     """
     
