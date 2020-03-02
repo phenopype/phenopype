@@ -64,45 +64,54 @@ def create_mask(obj_input, **kwargs):
     ## more kwargs
     line_width = kwargs.get("line_width", _auto_line_width(image))
 
+    ## mask df only
+    df_masks = df_masks[df_masks.columns.intersection(["mask", "include", "coords"])]
+
     ## check if exists
-    if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False:
-        if label in df_masks["mask"].values:
-            print("- mask with label " + label + " already created (overwrite=False)")
-            return
-    elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
-        if label in df_masks["mask"].values:
-            df_masks.drop(df_masks[df_masks["mask"] == label].index, inplace=True)
-            print("- create mask (overwriting)")
-    elif df_masks.__class__.__name__ == "NoneType":
-        print("- create mask")
-        df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
+    while True:
+        if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False:
+            if label in df_masks["mask"].values:
+                print("- mask with label " + label + " already created (overwrite=False)")
+                break
+        elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
+            if label in df_masks["mask"].values:
+                df_masks.drop(df_masks[df_masks["mask"] == label].index, inplace=True)
+                print("- create mask (overwriting)")
+                pass
+        elif df_masks.__class__.__name__ == "NoneType":
+            print("- create mask")
+            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
+            pass
 
-    ## create mask
-    out = _image_viewer(image, mode="interactive", 
-                              max_dim = max_dim, 
-                              tool=flag_tool)
-    coords = out.point_list
+        ## create mask
+        out = _image_viewer(image, mode="interactive", 
+                                  max_dim = max_dim, 
+                                  tool=flag_tool)
+        coords = out.point_list
+        
+        ## abort
+        if not out.done:
+            if obj_input.__class__.__name__ == "ndarray":
+                warnings.warn("terminated mask creation")
+                return 
+            elif obj_input.__class__.__name__ == "container":
+                print("- terminated mask creation")
+                return True
     
-    ## abort
-    if not out.done:
-        if obj_input.__class__.__name__ == "ndarray":
-            warnings.warn("terminated mask creation")
-            return 
-        elif obj_input.__class__.__name__ == "container":
-            print("- terminated mask creation")
-            return True
+        ## create df
+        if len(coords) > 0:
+            for points in coords:
+                mask = {"mask": label,
+                        "include": include,
+                        "coords": str(points)}
+                df_masks = df_masks.append(mask, ignore_index=True, sort=False)
+        else:
+            warnings.warn("zero coordinates - redo mask!")
+        break
 
-    ## create df
-    if len(coords) > 0:
-        for points in coords:
-            mask = {"mask": label,
-                    "include": include,
-                    "coords": str(points)}
-            df_masks = df_masks.append(mask, ignore_index=True, sort=False)
-        df_masks = pd.concat([pd.concat([df_image_data]*len(df_masks)).reset_index(drop=True), 
-                                df_masks.reset_index(drop=True)], axis=1)
-    else:
-        warnings.warn("zero coordinates - redo mask!")
+    ## merge with existing image_data frame
+    df_masks = pd.concat([pd.concat([df_image_data]*len(df_masks)).reset_index(drop=True), 
+                            df_masks.reset_index(drop=True)], axis=1)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
