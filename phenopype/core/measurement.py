@@ -157,42 +157,52 @@ def polylines(obj_input, **kwargs):
     else:
         warnings.warn("wrong input format.")
         return
+    
+
+    ## only landmark df
+    df_polylines = df_polylines[df_polylines.columns.intersection(['polyline','length','x','y'])]
 
     ## more kwargs
     line_width = kwargs.get("line_width", _auto_line_width(image))
 
-    ## check if exists
-    if not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == False:
-        print("- polylines already drawn (overwrite=False)")
-        return
-    elif not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == True:
-        print("- draw polylines (overwriting)")
-    elif df_polylines.__class__.__name__ == "NoneType":
-        print("- draw polylines")
-        
-    ## method
-    out = _image_viewer(image, tool="polyline")
-    coords = out.point_list
-    
-    ## abort
-    if not out.done:
-        if obj_input.__class__.__name__ == "ndarray":
-            warnings.warn("terminated polyline creation")
-            return 
-        elif obj_input.__class__.__name__ == "container":
-            print("- terminated polyline creation")
-            return True
+    while True:
+        ## check if exists
+        if not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == False:
+            print("- polylines already drawn (overwrite=False)")
+            break
+        elif not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == True:
+            print("- draw polylines (overwriting)")
+            pass
+        elif df_polylines.__class__.__name__ == "NoneType":
+            print("- draw polylines")
+            pass
 
-    ## create df
-    df_polylines = pd.DataFrame(columns=["polyline", "length", "x", "y"])
-    idx = 0
-    for point_list in out.point_list:
-        idx += 1
-        arc_length = int(cv2.arcLength(np.array(point_list), closed=False))
-        df_sub = pd.DataFrame(point_list, columns=["x","y"])
-        df_sub["polyline"] = idx
-        df_sub["length"] = arc_length
-        df_polylines = df_polylines.append(df_sub, ignore_index=True, sort=False)
+        ## method
+        out = _image_viewer(image, tool="polyline")
+        coords = out.point_list
+        
+        ## abort
+        if not out.done:
+            if obj_input.__class__.__name__ == "ndarray":
+                warnings.warn("terminated polyline creation")
+                return 
+            elif obj_input.__class__.__name__ == "container":
+                print("- terminated polyline creation")
+                return True
+
+        ## create df
+        df_polylines = pd.DataFrame(columns=["polyline", "length", "x", "y"])
+        idx = 0
+        for point_list in out.point_list:
+            idx += 1
+            arc_length = int(cv2.arcLength(np.array(point_list), closed=False))
+            df_sub = pd.DataFrame(point_list, columns=["x","y"])
+            df_sub["polyline"] = idx
+            df_sub["length"] = arc_length
+            df_polylines = df_polylines.append(df_sub, ignore_index=True, sort=False)
+        break
+    
+    ## merge with existing image_data frame
     df_polylines = pd.concat([pd.concat([df_image_data]*len(df_polylines)).reset_index(drop=True), 
                             df_polylines.reset_index(drop=True)], axis=1)
 
@@ -226,6 +236,9 @@ def colour(obj_input, **kwargs):
         warnings.warn("wrong input format.")
         return
 
+    ## make df
+    df_colours = pd.DataFrame(df_contours["contour"])
+
     ## create forgeround mask
     image_bin = np.zeros(image.shape[:2], np.uint8)
     for index, row in df_contours.iterrows():
@@ -235,8 +248,6 @@ def colour(obj_input, **kwargs):
             image_bin = cv2.fillPoly(image_bin, [row["coords"]], 0)
     foreground_mask = np.invert(np.array(image_bin, dtype=np.bool))
 
-    ## make df
-    df_colours = df_contours.drop(columns=['center','diameter','area','order','idx_child','idx_parent','coords'])
     
     ## grayscale
     if "gray" in channels:
@@ -265,6 +276,10 @@ def colour(obj_input, **kwargs):
             df_colours.at[index, ["red_mean","red_sd"]]  = np.ma.mean(red), np.ma.std(red)
             df_colours.at[index, ["green_mean","green_sd"]]  = np.ma.mean(green), np.ma.std(green)
             df_colours.at[index, ["blue_mean","blue_sd"]]  = np.ma.mean(blue), np.ma.std(blue)
+
+    ## merge with existing image_data frame
+    df_colours = pd.concat([pd.concat([df_image_data]*len(df_colours)).reset_index(drop=True), 
+                            df_colours.reset_index(drop=True)], axis=1)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

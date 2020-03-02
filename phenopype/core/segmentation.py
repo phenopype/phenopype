@@ -164,7 +164,6 @@ def find_contours(obj_input, **kwargs):
     df_contours = pd.concat([pd.concat([df_image_data]*len(df_contours)).reset_index(drop=True), 
                              df_contours.reset_index(drop=True)], axis=1)
 
-
     if obj_input.__class__.__name__ == "ndarray":
         return  df_contours
     elif obj_input.__class__.__name__ == "container":

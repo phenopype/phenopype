@@ -416,6 +416,7 @@ class pype:
             print("\n\n------------+++ new pype iteration " + 
                   datetime.today().strftime('%Y:%m:%d %H:%M:%S') + 
                   " +++--------------\n\n")
+            self.container.reset()
             if flag_autoload:
                 self.container.load()
             restart = None
@@ -429,7 +430,7 @@ class pype:
                     continue
                 if step == "export" and presetting == True:
                     continue
-                print(step)
+                print(step.upper())
                 for item in self.config[step]:
                     try:
                         
@@ -485,9 +486,6 @@ class pype:
                 update = iv.__dict__
             except Exception as ex:
                 print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
-
-            ## reset canvas
-            self.container.reset()
 
             ## terminate
             if iv:
