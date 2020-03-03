@@ -65,7 +65,7 @@ def landmarks(obj_input, **kwargs):
         return
     
     ## only landmark df
-    df_landmarks = df_landmarks[df_landmarks.columns.intersection(['landmark','x','y'])]
+   
 
     ## more kwargs
     point_size = kwargs.get("point_size", _auto_point_size(image))
@@ -77,6 +77,7 @@ def landmarks(obj_input, **kwargs):
     while True:
         ## check if exists
         if not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == False:
+            df_landmarks = df_landmarks[df_landmarks.columns.intersection(['landmark','x','y'])]
             print("- landmarks already set (overwrite=False)")
             break
         elif not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == True:
@@ -232,10 +233,6 @@ def polylines(obj_input, **kwargs):
     else:
         warnings.warn("wrong input format.")
         return
-    
-
-    ## only landmark df
-    df_polylines = df_polylines[df_polylines.columns.intersection(['polyline','length','x','y'])]
 
     ## more kwargs
     line_width = kwargs.get("line_width", _auto_line_width(image))
@@ -243,6 +240,7 @@ def polylines(obj_input, **kwargs):
     while True:
         ## check if exists
         if not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == False:
+            df_polylines = df_polylines[df_polylines.columns.intersection(['polyline','length','x','y'])]
             print("- polylines already drawn (overwrite=False)")
             break
         elif not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == True:

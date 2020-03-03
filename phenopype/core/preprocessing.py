@@ -9,7 +9,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
 from phenopype.utils import load_image, load_meta_data, show_image, save_image
-from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin #, _load_masks
+from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin, _equalize_histogram, _contours_arr_tup
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor, _auto_line_width, _auto_text_size, _auto_text_width
 
 #%% functions
@@ -65,16 +65,15 @@ def create_mask(obj_input, **kwargs):
     ## more kwargs
     line_width = kwargs.get("line_width", _auto_line_width(image))
 
-    ## mask df only
-    df_masks = df_masks[df_masks.columns.intersection(["mask", "include", "coords"])]
-
     ## check if exists
     while True:
         if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False:
+            df_masks = df_masks[df_masks.columns.intersection(["mask", "include", "coords"])]
             if label in df_masks["mask"].values:
                 print("- mask with label " + label + " already created (overwrite=False)")
                 break
         elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
+            df_masks = df_masks[df_masks.columns.intersection(["mask", "include", "coords"])]
             if label in df_masks["mask"].values:
                 df_masks.drop(df_masks[df_masks["mask"] == label].index, inplace=True)
                 print("- create mask (overwriting)")
@@ -154,22 +153,173 @@ def create_scale(obj_input, **kwargs):
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
-    df_scale = pd.DataFrame({}, index=[0])
 
+    ## method
     out = _image_viewer(image, tool="scale")
     points = out.scale_coords
-    df_scale["distance_px"] = int(sqrt(((points[0][0]-points[1][0])**2)+((points[0][1]-points[1][1])**2)))
-    df = enter_data(out.canvas, columns="length")
-    df_scale["distance_mm"] = df["length"][0]
-    
+    distance_px = int(sqrt(((points[0][0]-points[1][0])**2)+((points[0][1]-points[1][1])**2)))
+    entry = enter_data(out.canvas, columns="length")
+    distance_mm = int(entry["length"][0])
+    px_mm_ratio = int(distance_px / distance_mm)
+
+    ## create template for image registration
     if flag_template:
         out = _image_viewer(image, tool="template")
         template = image[out.rect_list[0][1]:out.rect_list[0][3],out.rect_list[0][0]:out.rect_list[0][2]]
-
-    if not flag_template:
-        return df_scale
     else:
-        return df_scale, template
+        template = None
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return px_mm_ratio, template
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.scale_px_mm_ratio = px_mm_ratio
+        obj_input.scale_template = template
+
+
+
+def find_scale(obj_input, **kwargs):
+
+    """Find scale from a defined template inside an image and update pixel 
+    ratio. Image registration is run by the "AKAZE" algorithm 
+    (http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf). 
+    Future implementations will include more algorithms to select from.
+    Prior to running detect_scale, measure_scale and make_scale_template 
+    have to be run once to pass on reference scale size and template of 
+    scale reference card (gets passed on internally by calling detect_scale 
+    from the same instance of scale_maker.
+    
+    Parameters
+    -----------
+    obj_input: array or phenopype-container
+        input for processing
+    resize: num (optional, default: 1 or 0.5 for images with diameter > 5000px)
+        resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)
+    show: bool (optional, default: False)
+        show result of scale detection procedure on current image  
+    """
+
+    ## kwargs
+    flag_overwrite = kwargs.get("overwrite", False)
+    min_matches = kwargs.get('min_matches', 10)
+    flag_show = kwargs.get('show', False)
+    flag_equalize = kwargs.get('equalize', True)
+
+    px_mm_ratio_old = kwargs.get("px_mm_ratio", None)
+    template = kwargs.get("template", None)
+
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.image_copy
+        df_image_data = obj_input.df_image_data
+        if hasattr(obj_input, "scale_template_px_mm_ratio"):
+            px_mm_ratio_old = obj_input.scale_template_px_mm_ratio
+        if hasattr(obj_input, "scale_template"):
+            template = obj_input.scale_template
+        if hasattr(obj_input, "df_masks"):
+            df_masks = obj_input.df_masks
+        else:
+            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
+
+    ## check if all info has been prvided
+    while True:
+        if any([px_mm_ratio_old.__class__.__name__ == "NoneType", 
+                template.__class__.__name__ == "NoneType"]):
+            print("- scale information missing - abort")
+            break
+        if hasattr(obj_input, "scale_current_px_mm_ratio") and not flag_overwrite:
+            print("- scale already detected (overwrite=False)")
+            break    
+        elif hasattr(obj_input, "scale_current_px_mm_ratio") and flag_overwrite:
+            print(" - detecting scale (overwriting)")
+            pass
+
+        ## if image diameter bigger than 2000 px, then automatically resize
+        if (image.shape[0] + image.shape[1])/2 > 5000:
+            resize_factor = kwargs.get('resize', 0.5)
+            warnings.warn("large image - resizing by factor " + str(resize_factor) + " to avoid slow image registration")
+        else:
+            resize_factor = kwargs.get('resize', 1)
+        image_resized = cv2.resize(image, (0,0), fx=1*resize_factor, fy=1*resize_factor) 
+    
+        ## method
+        akaze = cv2.AKAZE_create()
+        kp1, des1 = akaze.detectAndCompute(template, None)
+        kp2, des2 = akaze.detectAndCompute(image_resized, None)       
+        matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
+        matches = matcher.knnMatch(des1, des2, 2)
+    
+        # keep only good matches
+        good = []
+        for m,n in matches:
+            if m.distance < 0.7 * n.distance:
+                good.append(m)
+        
+        # find and transpose coordinates of matches
+        if len(good) >= min_matches:
+            ## find homography betweeen detected keypoints
+            src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
+            dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+            
+            ## transform boundary box of template
+            rect_old = np.array([[[0, 0]], 
+                                   [[0, template.shape[0]]],  
+                                   [[template.shape[1], template.shape[0]]], 
+                                   [[template.shape[1], 0]]], dtype= np.float32)
+            rect_new = cv2.perspectiveTransform(rect_old,M)/resize_factor
+    
+            # calculate template diameter
+            rect_new = rect_new.astype(np.int32)
+            (x,y),radius = cv2.minEnclosingCircle(rect_new)
+            diameter_new = (radius * 2)
+    
+            # calculate transformed diameter
+            rect_old = rect_old.astype(np.int32)
+            (x,y),radius = cv2.minEnclosingCircle(rect_old)
+            diameter_old = (radius * 2)
+    
+            ## calculate ratios
+            diameter_ratio = (diameter_new / diameter_old)
+            px_mm_ratio_new = round(diameter_ratio * px_mm_ratio_old, 1)
+    
+            ## feedback
+            print("---------------------------------------------------")
+            print("Reference card found with %d keypoint matches:" % len(good))
+            print("template image has %s pixel per mm." % (px_mm_ratio_old))
+            print("current image has %s pixel per mm." % (px_mm_ratio_new))
+            print("= %s %% of template image." % round(diameter_ratio * 100, 3))
+            print("---------------------------------------------------")
+    
+            ## do histogram equalization
+            if flag_equalize:
+                image = _equalize_histogram(image, template)
+    
+            coords = _contours_arr_tup(rect_new)
+            coords.append(coords[0])
+    
+            mask = {"mask": "scale",
+                    "include": False,
+                    "coords": str(coords)}
+            df_masks = df_masks.append(mask, ignore_index=True, sort=False)
+
+            scale_current_px_mm_ratio = px_mm_ratio_new
+            break
+
+    ## merge with existing image_data frame
+    df_image_data["px_mm_ratio"] = scale_current_px_mm_ratio
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        image = cv2.polylines(image,[rect_new], True,colours["red"],5, cv2.LINE_AA)
+        return px_mm_ratio_new, image
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df_masks = df_masks
+        obj_input.scale_current_px_mm_ratio = px_mm_ratio_new
+
+
 
 def enter_data(obj_input, **kwargs):
     """
@@ -280,136 +430,6 @@ def enter_data(obj_input, **kwargs):
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_image_data = df_image_data
         obj_input.df_other_data = df_other_data
-
-
-def find_scale(obj_input, **kwargs):
-
-    """Find scale from a defined template inside an image and update pixel ratio. Image registration is run by the "AKAZE" algorithm 
-    (http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf). Future implementations will include more algorithms to select from.
-    Prior to running detect_scale, measure_scale and make_scale_template have to be run once to pass on reference scale size and template of 
-    scale reference card (gets passed on internally by calling detect_scale from the same instance of scale_maker.
-    
-    Parameters
-    -----------
-    target_image: str or array
-        absolute or relative path to OR numpy array of targeted image that contains the scale reference card
-    resize: num (optional, default: 1 or 0.5 for images with diameter > 5000px)
-        resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)
-    show: bool (optional, default: False)
-        show result of scale detection procedure on current image  
-    """
-
-    ## load image
-    df_scale = pd.DataFrame({}, index=[0])
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-    elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image_copy
-        if hasattr(obj_input, "df_scale"):
-            df_scale = obj_input.df_scale
-
-
-    ## kwargs
-    min_matches = kwargs.get('min_matches', 10)
-    flag_show = kwargs.get('show', False)
-    flag_equalize = kwargs.get('equalize', False)
-    # template = kwargs.get("template", load_image(obj_input.template_path))
-        
-    if not len(image.shape)==3:
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        
-    ## if image diameter bigger than 2000 px, then automatically resize
-    if (image.shape[0] + image.shape[1])/2 > 2000:
-        resize_factor = kwargs.get('resize', 0.5)
-        warnings.warn("large image - resizing by factor " + str(resize_factor))
-    else:
-        resize_factor = kwargs.get('resize', 1)
-    image = cv2.resize(image, (0,0), fx=1*resize_factor, fy=1*resize_factor) 
-
-    # =============================================================================
-    # AKAZE detector
-    # =============================================================================     
-    akaze = cv2.AKAZE_create()
-    kp1, des1 = akaze.detectAndCompute(template, None)
-    kp2, des2 = akaze.detectAndCompute(image, None)       
-    matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
-    matches = matcher.knnMatch(des1, des2, 2)
-
-    # keep only good matches
-    good = []
-    for m,n in matches:
-        if m.distance < 0.7*n.distance:
-            good.append(m)
-    nkp = len(good)
-    
-    # find and transpose coordinates of matches
-    if nkp >= min_matches:
-        src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
-        dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-        box_mask = np.zeros(template.shape[0:2], np.uint8)
-        box_mask.fill(255)
-        ret, contours, hierarchy = cv2.findContours(box_mask,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_TC89_L1)
-        box = contours[0].astype(np.float32)
-        rect  = cv2.perspectiveTransform(box,M).astype(np.int32)
-
-        ## draw onto image
-        image = cv2.polylines(image,[rect],True,colours["red"],5, cv2.LINE_AA)
-
-        # update current scale using reference
-        rect = rect/resize_factor
-        rect = np.array(rect, dtype=np.int32)
-        (x,y),radius = cv2.minEnclosingCircle(rect)
-        detected_diameter 
-        
-        rect_old = np.array(box, dtype=np.int32)
-        (x,y),radius = cv2.minEnclosingCircle(rect_old)        
-        reference_diameter = (radius * 2)
-        
-        diff_ratio = (detected_diameter / reference_diameter)
-        current = round(scale_ratio * diff_ratio,1)
-
-
-        ## resize target image back to original size
-        target_image = cv2.resize(target_image, (0,0), fx=1/resize_factor, fy=1/resize_factor) 
-        
-        # create mask of detected scale reference card
-        zeros = np.zeros(target_image.shape[0:2], np.uint8)
-        mask_bin = cv2.fillPoly(zeros, [np.array(rect)], colours.white)       
-        detected_mask = np.array(mask_bin, dtype=bool)
-        
-        # cut out target reference card
-        (rx,ry,w,h) = cv2.boundingRect(rect)
-        target_detected = target_image_original[ry:ry+h,rx:rx+w]
-        
-        print("\n")
-        print("---------------------------------------------------")
-        print("Reference card found with %d keypoint matches:" % nkp)
-        print("current image has %s pixel per mm." % (scale_ratio))
-        print("= %s %% of template image." % round(diff_ratio * 100,3))
-        print("---------------------------------------------------")
-        print("\n")
-        
-        ## do histogram equalization
-        if flag_equalize:
-            _equalize()
-
-        ## show results
-        if flag_show:
-            show_img([template_image, target_image, target_image_corrected])
-            
-        return target_image_corrected, (detected_mask, "scale-detected", False), current       
-
-    
-    else:
-        print("\n")
-        print("---------------------------------------------------")
-        print("Reference card not found - only %d/%d keypoint matches" % (nkp, min_matches))
-        print("---------------------------------------------------")
-        print("\n")
-        
-        return "no current scale", "no scale mask"
-
 
 
 

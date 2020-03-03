@@ -103,7 +103,6 @@ class project:
             self.dirpaths = []
             self.filenames = []
             self.filepaths = []
-            self.fileattr = {}
 
             ## global project attributes
             project_data = {
@@ -234,7 +233,6 @@ class project:
                 self.dirpaths.append(dirpath)
                 self.filenames.append(image_data["filename"])
                 self.filepaths.append(raw_path)
-                self.fileattr[dirname] = attributes
 
     def add_config(self, name, **kwargs):
         """
@@ -262,7 +260,7 @@ class project:
 
         ## modify
         if flag_interactive:
-            image_location = os.path.join(self.root_dir,"template_image" + os.path.splitext(self.filenames[0])[1])
+            image_location = os.path.join(self.root_dir,"pype_template_image" + os.path.splitext(self.filenames[0])[1])
             copyfile(self.filepaths[0], image_location)
             config_location = os.path.join(self.root_dir, "pype_config_template-" + name + ".yaml")
             config = _create_generic_pype_config(preset = preset, config_name=name)
@@ -296,6 +294,75 @@ class project:
                 _save_yaml(pype_preset, preset_path)
 
 
+
+    def add_scale(self, template_image, **kwargs):
+        """
+        Add pype configuration presets to all project directories. 
+
+        Parameters
+        ----------
+
+        template_image: str
+            name of template image, either project directory or file link. template 
+            image gets stored in root directory, and information appended to all 
+            attributes files in the project directories
+        overwrite (optional): bool (default: False)
+            overwrite option, if a given pype config-file already exist
+        """
+
+        ## kwargs
+        flag_overwrite = kwargs.get("overwrite", False)
+        flag_template = kwargs.get("template", False)
+
+        ## load template image
+        if template_image.__class__.__name__ == "str":
+            if os.path.isfile(template_image):
+                template_image = cv2.imread(template_image)
+            elif os.path.isdir(template_image):
+                attr = _load_yaml(os.path.join(template_image, "attributes.yaml"))
+                template_image = cv2.imread(attr["project"]["raw_path"])
+            elif template_image in self.dirnames:
+                attr = _load_yaml(os.path.join(self.data_dir, template_image, "attributes.yaml"))
+                template_image = cv2.imread(attr["project"]["raw_path"])
+        elif template_image.__class__.__name__ == "ndarray":
+            pass
+        elif template_image.__class__.__name__ == "int":
+            template_image =  cv2.imread(self.filepaths[template_image])
+            
+        ## measure scale
+        px_mm_ratio, template  = preprocessing.create_scale(template_image, template=flag_template)
+
+        ## save template
+        if not template.__class__.__name__ == "NoneType":
+            template_path = os.path.join(self.root_dir, "scale_template.jpg")
+            while True:
+                if os.path.isfile(template_path) and flag_overwrite == False:
+                    print("- scale template not saved - file already exists (overwrite=False).")
+                    break
+                elif os.path.isfile(template_path) and flag_overwrite == True:
+                    print("- scale template saved under " + template_path + " (overwritten).")
+                    pass
+                elif not os.path.isfile(template_path):
+                    print("- scale template saved under " + template_path + ".")
+                    pass
+                cv2.imwrite(template_path, template)
+                break
+
+        ## save scale information
+        for directory in self.dirpaths:
+            attr = _load_yaml(os.path.join(directory, "attributes.yaml"))
+            if not "scale" in attr:
+                print("added scale information to " + attr["project"]["dirname"])
+                pass
+            elif "scale" in attr and flag_overwrite:
+                print("added scale information to " + attr["project"]["dirname"] + " (overwritten)")
+                pass
+            elif "scale" in attr and not flag_overwrite:
+                print("could not add scale information to " + attr["project"]["dirname"] + " (overwrite=False)")
+                continue
+            attr["scale"] = {"template_path": template_path,
+                             "template_px_mm_ratio": px_mm_ratio}
+            _save_yaml(attr, os.path.join(directory, "attributes.yaml"))
 
 class pype:
     def __init__(self, image, name, **kwargs):

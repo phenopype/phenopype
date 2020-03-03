@@ -564,42 +564,28 @@ def _file_walker(directory, **kwargs):
 
 
 
-# def _load_masks(obj_input, mask_list):
-#     if obj_input.__class__.__name__ == "ndarray":
-#         if mask_list.__class__.__name__ == "dict" or mask_list.__class__.__name__ == "CommentedMap":
-#             masks = []
-#             for mask in  list(mask_list.items()):
-#                 masks.append(mask[1])
-#         elif mask_list.__class__.__name__ == "str":
-#             masks = []
-#         elif mask_list.__class__.__name__ == "NoneType":
-#             masks = []
-#     elif obj_input.__class__.__name__ == "container":
-#         if mask_list.__class__.__name__ == "dict" or mask_list.__class__.__name__ == "CommentedMap":
-#             masks = []
-#             for mask in  list(mask_list.items()):
-#                 masks.append(mask[1])
-#         elif mask_list.__class__.__name__ == "list" or mask_list.__class__.__name__ == "CommentedSeq":
-#             if all(isinstance(n, dict) for n in mask_list):
-#                 masks = mask_list            
-#             elif all(isinstance(n, str) for n in mask_list):
-#                 masks = []
-#                 for mask in mask_list:
-#                     if mask in obj_input.masks:
-#                         masks.append(obj_input.masks[mask])
-#         elif mask_list.__class__.__name__ == "str":
-#             if obj_input.masks:
-#                 if mask_list in obj_input.masks:
-#                     masks = [obj_input.masks[mask_list]]
-#                 else:
-#                     masks = []
-#             else:
-#                 masks = []
-#         elif mask_list.__class__.__name__ == "NoneType" and len(obj_input.masks) > 0: ## too confusing?
-#             masks, mask_list = list(obj_input.masks.values()), list(obj_input.masks.keys())
-#         elif mask_list.__class__.__name__ == "NoneType":
-#             masks = []
-#     return masks, mask_list
+def _equalize_histogram(image, template):
+    """Histogram equalization via interpolation, upscales the results from the detected reference card to the entire image.
+    May become a standalone function at some point in the future. THIS STRONGLY DEPENDS ON THE QUALITY OF YOUR TEMPLATE.
+    Mostly inspired by this SO question: https://stackoverflow.com/questions/32655686/histogram-matching-of-two-images-in-python-2-x
+    More theory here: https://docs.opencv.org/master/d4/d1b/tutorial_histogram_equalization.html
+    """ 
+    image_ravel = image.ravel()
+    template_ravel = template.ravel()
+    
+    target_counts = np.bincount(image_ravel, minlength = 256)
+    target_quantiles = np.cumsum(target_counts).astype(np.float64)
+    target_quantiles /= target_quantiles[-1]
+    
+    template_values =  np.arange(0, 256,1, dtype=np.uint8)
+    template_counts = np.bincount(template_ravel, minlength = 256)
+    template_quantiles = np.cumsum(template_counts).astype(np.float64)
+    template_quantiles /= template_quantiles[-1]
+    
+    interp_template_values = np.interp(target_quantiles, template_quantiles, template_values)
+    interp_template_values = interp_template_values.astype(image.dtype)
+    
+    return interp_template_values[image]
 
 
 

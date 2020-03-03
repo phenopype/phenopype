@@ -57,7 +57,8 @@ def blur(obj_input, **kwargs):
         obj_input.image = image
     else:
         return image
-    
+
+
 
 def find_contours(obj_input, **kwargs):
     """
@@ -224,6 +225,23 @@ def morphology(obj_input, **kwargs):
 
 
 def skeletonize(img):
+    """
+    
+
+    Parameters
+    ----------
+    img : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    skeleton : TYPE
+        DESCRIPTION.
+    iters : TYPE
+        DESCRIPTION.
+
+    """
+
     skeleton = np.zeros(img.shape,np.uint8)
     eroded = np.zeros(img.shape,np.uint8)
     temp = np.zeros(img.shape,np.uint8)

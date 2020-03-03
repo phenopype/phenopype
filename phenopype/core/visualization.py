@@ -223,7 +223,11 @@ def show_masks(obj_input, **kwargs):
                 pass
             print(" - show mask: " + row["mask"] + ".")
             coords = eval(row["coords"])
-            cv2.polylines(image, np.array([coords]), False, colours["blue"], line_width)
+            if not row["mask"] == "scale":
+                col = colours["blue"]
+            else:
+                col = colours["red"]
+            cv2.polylines(image, np.array([coords]), False, col, line_width)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

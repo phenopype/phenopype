@@ -212,8 +212,6 @@ def save_data_entry(obj_input, **kwargs):
     ## kwargs
     flag_overwrite = kwargs.get("overwrite", True)
     dirpath = kwargs.get("directory", None)
-    round_digits = kwargs.get("round",1)
-    save_suffix = kwargs.get("save_suffix", None)
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -405,3 +403,57 @@ def save_polylines(obj_input, **kwargs):
             pass
         df.to_csv(path_or_buf=path, sep=",",index=False)
         break
+
+
+
+def save_scale(obj_input, **kwargs):
+    """Save a pandas dataframe to csv. 
+    
+    Parameters
+    ----------
+    name: str (optional, default: "results")
+        name for saved csv
+    dirpath: str (default: None)
+        location to save df
+    round: int (optional, default: 1)
+        number of digits to round to
+    overwrite: bool (optional, default: False)
+        overwrite csv if it already exists
+    silent: bool (optional, default: True)
+        do not print where file was saved
+    """
+    ## kwargs
+    flag_overwrite = kwargs.get("overwrite", True)
+    dirpath = kwargs.get("directory", None)
+
+    ## load df
+    if obj_input.__class__.__name__ == 'ndarray':
+        scale_current_px_mm_ratio = obj_input
+        if not dirpath:
+            warnings.warn("No save directory specified - cannot export results.")
+    elif obj_input.__class__.__name__ == "container":
+        if not dirpath:
+            dirpath = obj_input.dirpath
+        scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
+    else:
+        warnings.warn("No scale supplied - cannot export results.")
+
+    attr_path = os.path.join(dirpath, "attributes.yaml")
+    attr = _load_yaml(attr_path)
+    if not "scale" in attr:
+        attr["scale"] = {}
+
+    while True:
+        if "current_px_mm_ratio" in attr["scale"] and flag_overwrite == False:
+            print("- scale not saved (overwrite=False)")
+            break
+        elif "current_px_mm_ratio" in attr["scale"] and flag_overwrite == True:
+            print("- save scale to attributes (overwriting)")
+            pass
+        else:
+            print("- save scale to attributes")
+            pass
+        attr["scale"]["current_px_mm_ratio"] = scale_current_px_mm_ratio
+        break
+
+    _save_yaml(attr, attr_path)

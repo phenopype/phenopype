@@ -63,7 +63,6 @@ class container(object):
         self.dirpath = None
 
 
-
     def load(self):
         """
         
@@ -87,14 +86,27 @@ class container(object):
             for file in os.listdir(self.dirpath):
                 files.append(file[0:file.rindex('.')])
 
-        ## other data from attributes file
+        ## data from attributes file
         attr_path = os.path.join(self.dirpath, "attributes.yaml")
+
+        ## other data
         if not hasattr(self, "df_other_data") and os.path.isfile(attr_path):
             attr = _load_yaml(attr_path)
             if "other" in attr:
                 self.df_other_data = pd.DataFrame(attr["other"], index=[0])
                 loaded.append("columns " + ', '.join(list(self.df_other_data)) + " from attributes.yaml")
 
+        ## scale
+        if not hasattr(self, "scale_template_px_mm_ratio") and os.path.isfile(attr_path):
+            attr = _load_yaml(attr_path)
+            if "scale" in attr:
+                self.scale_template_px_mm_ratio = attr["scale"]["template_px_mm_ratio"]
+                if "current_px_mm_ratio" in attr["scale"]:
+                    self.scale_current_px_mm_ratio = attr["scale"]["current_px_mm_ratio"]
+                    loaded.append("scale information loaded from attributes.yaml")
+                if "template_path" in attr["scale"]:
+                    self.scale_template = cv2.imread(attr["scale"]["template_path"])
+                    loaded.append("template loaded from root directory")
         ## contours
         if not hasattr(self, "df_contours") and "contours" in files:
             path = os.path.join(self.dirpath, "contours_" + self.save_suffix + ".csv")
@@ -177,7 +189,7 @@ class container(object):
             print("save_canvas")
             save_canvas(self)
 
-        ## contours
+        ## colours
         if hasattr(self, "df_colours") and not "save_colours" in export_list:
             print("save_colours")
             save_colours(self, overwrite=False)
@@ -207,7 +219,10 @@ class container(object):
             print("save_polylines")
             save_polylines(self, overwrite=False)
 
-
+        ## scale
+        if hasattr(self, "scale_current_px_mm_ratio") and not "save_scale" in export_list:
+            print("save_scale")
+            save_scale(self, overwrite=False)
 
     def show(self, **kwargs):
         """
