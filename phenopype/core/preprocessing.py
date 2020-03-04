@@ -5,6 +5,8 @@ import pandas as pd
 
 from datetime import datetime
 from math import sqrt
+import numpy.ma as ma
+
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
@@ -44,7 +46,6 @@ def create_mask(obj_input, **kwargs):
     label = kwargs.get("label","mask1")
     max_dim = kwargs.get("max_dim", 1000)
     include = kwargs.get("include",True)
-    flag_show = kwargs.get("show",False)
     flag_tool = kwargs.get("tool","rectangle")
     
     ## load image
@@ -62,9 +63,6 @@ def create_mask(obj_input, **kwargs):
         warnings.warn("wrong input format.")
         return
 
-    ## more kwargs
-    line_width = kwargs.get("line_width", _auto_line_width(image))
-
     ## check if exists
     while True:
         if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False:
@@ -75,7 +73,7 @@ def create_mask(obj_input, **kwargs):
         elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
             df_masks = df_masks[df_masks.columns.intersection(["mask", "include", "coords"])]
             if label in df_masks["mask"].values:
-                df_masks.drop(df_masks[df_masks["mask"] == label].index, inplace=True)
+                df_masks = df_masks.drop(df_masks[df_masks["mask"] == label].index)
                 print("- create mask (overwriting)")
                 pass
         elif df_masks.__class__.__name__ == "NoneType":
@@ -83,7 +81,7 @@ def create_mask(obj_input, **kwargs):
             df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
             pass
 
-        ## create mask
+        ## method
         out = _image_viewer(image, mode="interactive", 
                                   max_dim = max_dim, 
                                   tool=flag_tool)
@@ -101,10 +99,8 @@ def create_mask(obj_input, **kwargs):
         ## create df
         if len(coords) > 0:
             for points in coords:
-                mask = {"mask": label,
-                        "include": include,
-                        "coords": str(points)}
-                df_masks = df_masks.append(mask, ignore_index=True, sort=False)
+                df_masks = df_masks.append({"mask": label, "include": include, "coords": str(coords)}, 
+                                ignore_index=True, sort=False)
         else:
             warnings.warn("zero coordinates - redo mask!")
         break
@@ -201,10 +197,8 @@ def find_scale(obj_input, **kwargs):
 
     ## kwargs
     flag_overwrite = kwargs.get("overwrite", False)
-    min_matches = kwargs.get('min_matches', 10)
-    flag_show = kwargs.get('show', False)
     flag_equalize = kwargs.get('equalize', True)
-
+    min_matches = kwargs.get('min_matches', 10)
     px_mm_ratio_old = kwargs.get("px_mm_ratio", None)
     template = kwargs.get("template", None)
 
@@ -219,7 +213,7 @@ def find_scale(obj_input, **kwargs):
         if hasattr(obj_input, "scale_template"):
             template = obj_input.scale_template
         if hasattr(obj_input, "df_masks"):
-            df_masks = obj_input.df_masks
+            df_masks = copy.deepcopy(obj_input.df_masks)
         else:
             df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
 
@@ -243,48 +237,48 @@ def find_scale(obj_input, **kwargs):
         else:
             resize_factor = kwargs.get('resize', 1)
         image_resized = cv2.resize(image, (0,0), fx=1*resize_factor, fy=1*resize_factor) 
-    
+
         ## method
         akaze = cv2.AKAZE_create()
         kp1, des1 = akaze.detectAndCompute(template, None)
         kp2, des2 = akaze.detectAndCompute(image_resized, None)       
         matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
         matches = matcher.knnMatch(des1, des2, 2)
-    
+
         # keep only good matches
         good = []
         for m,n in matches:
             if m.distance < 0.7 * n.distance:
                 good.append(m)
-        
+
         # find and transpose coordinates of matches
         if len(good) >= min_matches:
             ## find homography betweeen detected keypoints
             src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
             dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
             M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-            
+
             ## transform boundary box of template
             rect_old = np.array([[[0, 0]], 
                                    [[0, template.shape[0]]],  
                                    [[template.shape[1], template.shape[0]]], 
                                    [[template.shape[1], 0]]], dtype= np.float32)
             rect_new = cv2.perspectiveTransform(rect_old,M)/resize_factor
-    
+
             # calculate template diameter
             rect_new = rect_new.astype(np.int32)
             (x,y),radius = cv2.minEnclosingCircle(rect_new)
             diameter_new = (radius * 2)
-    
+
             # calculate transformed diameter
             rect_old = rect_old.astype(np.int32)
             (x,y),radius = cv2.minEnclosingCircle(rect_old)
             diameter_old = (radius * 2)
-    
+
             ## calculate ratios
             diameter_ratio = (diameter_new / diameter_old)
             px_mm_ratio_new = round(diameter_ratio * px_mm_ratio_old, 1)
-    
+
             ## feedback
             print("---------------------------------------------------")
             print("Reference card found with %d keypoint matches:" % len(good))
@@ -292,19 +286,24 @@ def find_scale(obj_input, **kwargs):
             print("current image has %s pixel per mm." % (px_mm_ratio_new))
             print("= %s %% of template image." % round(diameter_ratio * 100, 3))
             print("---------------------------------------------------")
-    
+
             ## do histogram equalization
             if flag_equalize:
-                image = _equalize_histogram(image, template)
-    
+                detected_rect_mask = np.zeros(image.shape, np.uint8)
+                cv2.fillPoly(detected_rect_mask, [np.array(rect_new)], colours["white"]) 
+                (rx,ry,rw,rh) = cv2.boundingRect(rect_new)
+                detected_rect_mask =  ma.array(data=image[ry:ry+rh,rx:rx+rw], mask = detected_rect_mask[ry:ry+rh,rx:rx+rw])
+                image = _equalize_histogram(image, detected_rect_mask, template)
+
+            ## create mask from new coordinates
             coords = _contours_arr_tup(rect_new)
             coords.append(coords[0])
-    
-            mask = {"mask": "scale",
-                    "include": False,
-                    "coords": str(coords)}
-            df_masks = df_masks.append(mask, ignore_index=True, sort=False)
-
+            if "scale" in df_masks['mask'].values:
+                df_masks.drop(df_masks.loc[df_masks["mask"]=="scale"].index, inplace=True)
+            row_scale = pd.DataFrame({"mask": "scale", "include": False, "coords": str([coords])}, index=[0])
+            row_scale = pd.concat([pd.concat([df_image_data]*len(row_scale)).reset_index(drop=True), 
+                        row_scale.reset_index(drop=True)], axis=1)
+            df_masks = df_masks.append(row_scale, sort=False)  
             scale_current_px_mm_ratio = px_mm_ratio_new
             break
 
@@ -318,7 +317,8 @@ def find_scale(obj_input, **kwargs):
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_masks = df_masks
         obj_input.scale_current_px_mm_ratio = px_mm_ratio_new
-
+        if flag_equalize:
+            obj_input.image_copy = image
 
 
 def enter_data(obj_input, **kwargs):

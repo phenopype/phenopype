@@ -564,27 +564,27 @@ def _file_walker(directory, **kwargs):
 
 
 
-def _equalize_histogram(image, template):
+def _equalize_histogram(image, detected_rect_mask, template):
     """Histogram equalization via interpolation, upscales the results from the detected reference card to the entire image.
     May become a standalone function at some point in the future. THIS STRONGLY DEPENDS ON THE QUALITY OF YOUR TEMPLATE.
     Mostly inspired by this SO question: https://stackoverflow.com/questions/32655686/histogram-matching-of-two-images-in-python-2-x
     More theory here: https://docs.opencv.org/master/d4/d1b/tutorial_histogram_equalization.html
     """ 
-    image_ravel = image.ravel()
+    detected_ravel = detected_rect_mask.ravel()
     template_ravel = template.ravel()
     
-    target_counts = np.bincount(image_ravel, minlength = 256)
-    target_quantiles = np.cumsum(target_counts).astype(np.float64)
-    target_quantiles /= target_quantiles[-1]
+    detected_counts = np.bincount(detected_ravel, minlength = 256)
+    detected_quantiles = np.cumsum(detected_counts).astype(np.float64)
+    detected_quantiles /= detected_quantiles[-1]
     
     template_values =  np.arange(0, 256,1, dtype=np.uint8)
     template_counts = np.bincount(template_ravel, minlength = 256)
     template_quantiles = np.cumsum(template_counts).astype(np.float64)
     template_quantiles /= template_quantiles[-1]
     
-    interp_template_values = np.interp(target_quantiles, template_quantiles, template_values)
+    interp_template_values = np.interp(detected_quantiles, template_quantiles, template_values)
     interp_template_values = interp_template_values.astype(image.dtype)
-    
+
     return interp_template_values[image]
 
 

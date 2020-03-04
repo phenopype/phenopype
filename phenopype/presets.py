@@ -93,3 +93,35 @@ export:
 - save_masks
 - save_polylines
 """
+
+
+inverted1 = """
+pype:
+  name: v1
+  preset: preset1
+  date_created: '20200304_155635'
+preprocessing:
+- invert_image  
+segmentation:
+- blur:
+    kernel_size: 5
+- threshold:
+    method: binary
+    value: 180
+    colourspace: blue
+- morphology:
+    operation: open
+    shape: cross
+    kernel_size: 5
+    iterations: 3
+- find_contours:
+    retrieval: ccomp
+    min_diameter: 0
+    min_area: 500
+visualization:
+- show_contours:
+    line_thickness: 2
+    text_thickness: 1
+    text_size: 1
+    fill: 0.3
+"""

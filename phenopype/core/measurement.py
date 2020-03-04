@@ -1,10 +1,10 @@
 #%% modules
 import cv2, copy, os, sys, warnings
 import numpy as np
-import numpy.ma as ma
 import pandas as pd
 
 from datetime import datetime
+import numpy.ma as ma
 
 from phenopype.utils_lowlevel import _image_viewer, _auto_line_width, _auto_point_size, _auto_text_width, _auto_text_size
 from phenopype.settings import colours
@@ -138,7 +138,7 @@ def colour(obj_input, **kwargs):
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename":"unknown"})
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.canvas
+        image = obj_input.image
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_contours"):
             df_contours = obj_input.df_contours
