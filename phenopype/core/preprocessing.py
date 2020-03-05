@@ -224,6 +224,7 @@ def find_scale(obj_input, **kwargs):
             print("- scale information missing - abort")
             break
         if hasattr(obj_input, "scale_current_px_mm_ratio") and not flag_overwrite:
+            scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
             print("- scale already detected (overwrite=False)")
             break    
         elif hasattr(obj_input, "scale_current_px_mm_ratio") and flag_overwrite:
@@ -287,14 +288,6 @@ def find_scale(obj_input, **kwargs):
             print("= %s %% of template image." % round(diameter_ratio * 100, 3))
             print("---------------------------------------------------")
 
-            ## do histogram equalization
-            if flag_equalize:
-                detected_rect_mask = np.zeros(image.shape, np.uint8)
-                cv2.fillPoly(detected_rect_mask, [np.array(rect_new)], colours["white"]) 
-                (rx,ry,rw,rh) = cv2.boundingRect(rect_new)
-                detected_rect_mask =  ma.array(data=image[ry:ry+rh,rx:rx+rw], mask = detected_rect_mask[ry:ry+rh,rx:rx+rw])
-                image = _equalize_histogram(image, detected_rect_mask, template)
-
             ## create mask from new coordinates
             coords = _contours_arr_tup(rect_new)
             coords.append(coords[0])
@@ -307,16 +300,28 @@ def find_scale(obj_input, **kwargs):
             scale_current_px_mm_ratio = px_mm_ratio_new
             break
 
+    ## rectangle coords of scale in image
+    rect_new = eval(df_masks.loc[df_masks["mask"]=="scale", "coords"].reset_index(drop=True)[0])
+
+    ## do histogram equalization
+    if flag_equalize:
+        detected_rect_mask = np.zeros(image.shape, np.uint8)
+        cv2.fillPoly(detected_rect_mask, [np.array(rect_new)], colours["white"]) 
+        (rx,ry,rw,rh) = cv2.boundingRect(np.array(rect_new))
+        detected_rect_mask =  ma.array(data=image[ry:ry+rh,rx:rx+rw], mask = detected_rect_mask[ry:ry+rh,rx:rx+rw])
+        image = _equalize_histogram(image, detected_rect_mask, template)
+
+    
     ## merge with existing image_data frame
     df_image_data["px_mm_ratio"] = scale_current_px_mm_ratio
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
         image = cv2.polylines(image,[rect_new], True,colours["red"],5, cv2.LINE_AA)
-        return px_mm_ratio_new, image
+        return scale_current_px_mm_ratio, image
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_masks = df_masks
-        obj_input.scale_current_px_mm_ratio = px_mm_ratio_new
+        obj_input.scale_current_px_mm_ratio = scale_current_px_mm_ratio
         if flag_equalize:
             obj_input.image_copy = image
 
