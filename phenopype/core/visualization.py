@@ -5,7 +5,7 @@ import pandas as pd
 
 import math
 
-from phenopype.settings import colours
+from phenopype.settings import *
 from phenopype.utils_lowlevel import _auto_line_width, _auto_point_size, _auto_text_width, _auto_text_size
 
 #%% settings
@@ -35,13 +35,13 @@ def select_canvas(obj_input, **kwargs):
         obj_input.canvas = copy.deepcopy(obj_input.image_copy)
         print("- raw image")
     if canvas == "g" or canvas == "green":
-        obj_input.canvas = copy.deepcopy(obj_input.image[:,:,0])
+        obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,0])
         print("- green channel")
     if canvas == "r" or canvas == "red":
-        obj_input.canvas = copy.deepcopy(obj_input.image[:,:,1])
+        obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,1])
         print("- red channel")
     if canvas == "b" or canvas == "blue":
-        obj_input.canvas = copy.deepcopy(obj_input.image[:,:,2])
+        obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,2])
         print("- blue channel")
         
     ## check if 3D

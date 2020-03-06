@@ -100,7 +100,7 @@ def find_contours(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"})
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
         df_image_data = obj_input.df_image_data
@@ -169,6 +169,8 @@ def find_contours(obj_input, **kwargs):
         return  df_contours
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_contours = df_contours
+
+
 
 def morphology(obj_input, **kwargs):
     """
@@ -341,3 +343,84 @@ def threshold(obj_input, **kwargs):
     elif obj_input.__class__.__name__ == "container":
         obj_input.image = image
         obj_input.image_bin = image
+
+
+
+def watershed(obj_input, **kwargs):
+    """
+    If the input array was single channel, the threshold method can only use the 
+    grayscale space to, but if multiple channels were provided, then one can either chose 
+    to coerce the color image to grayscale or use one of the color channels directly.  
+
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    image : TYPE
+        DESCRIPTION.
+
+    """
+
+    ## kwargs
+    iterclose = kwargs.get("iterclose",3)
+    kernelclose = kwargs.get("kernelclose",9)
+    iteropen = kwargs.get("iteropen",5)
+    kernelopen = kwargs.get("kernelopen",7)
+    # blocksize = kwargs.get("blocksize", 99)
+    # constant = kwargs.get("constant", 1)
+    # colourspace = kwargs.get("colourspace", "gray")
+    # method = kwargs.get("method", "otsu")
+    # value = kwargs.get("value", 127)
+
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        thresh = copy.deepcopy(obj_input.image_bin)
+        image = copy.deepcopy(obj_input.image_copy)
+
+    if len(thresh)<3:
+        thresh = cv2.cvtColor(thresh,cv2.COLOR_BGR2GRAY)
+    
+    ## sure background
+    sure_bg = morphology(thresh, operation="close", kernel_size=kernelclose, iterations=iterclose)
+    opened = morphology(sure_bg, operation="open", shape="ellipse", kernel_size=kernelopen, iterations=iteropen)
+    
+    ## sure foreground 
+    dist_transform = cv2.distanceTransform(opened,cv2.DIST_L2,cv2.DIST_MASK_PRECISE)
+    cv2.normalize(dist_transform, dist_transform, 0,1.0, cv2.NORM_MINMAX)
+    ret, sure_fg = cv2.threshold(dist_transform,0.1,1,0)
+    
+    ## finding unknown region
+    sure_fg = np.uint8(sure_fg)
+    unknown = cv2.subtract(sure_bg,sure_fg)
+    
+    ## marker labelling
+    ret, markers = cv2.connectedComponents(sure_fg)
+    markers = markers+1
+    markers[unknown==255] = 0
+    
+    ## watershed
+    markers = cv2.watershed(image, markers)
+    image = np.zeros(image.shape[:2], np.uint8)
+    image[markers == -1] = 255
+    
+    ## convert to contours
+    markers1 = markers.astype(np.uint8)
+    ret, image = cv2.threshold(markers1, 0, 255, cv2.THRESH_BINARY|cv2.THRESH_OTSU)
+    image[0:image.shape[0], 0] = 0
+    image[0:image.shape[0], image.shape[1]-1] = 0
+    image[0, 0:image.shape[1]] = 0
+    image[image.shape[0]-1,  0:image.shape[1]] = 0
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return image
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.image = image

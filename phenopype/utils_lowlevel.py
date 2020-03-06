@@ -367,12 +367,12 @@ class _yaml_file_monitor:
 
     def on_update(self, event):
         self.content = _load_yaml(self.filepath)
-        if time.time() > self.ref_time + 1:
-            for i in range(200):
-                cv2.waitKey(1)
-                cv2.destroyAllWindows()
-            self.ref_time = time.time()
-            print("\n\nreload pype_config\n\n")
+        # if time.time() > self.ref_time + 1:
+        cv2.destroyAllWindows()
+        for i in range(10):
+            cv2.waitKey(1)
+        self.ref_time = time.time()
+        print("\n\nreload pype_config\n\n")
 
     def stop(self):
         self.observer.stop()

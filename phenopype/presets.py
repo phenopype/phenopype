@@ -69,6 +69,46 @@ export:
     overwrite: true
 """
 
+preset3="""
+preprocessing:
+- create_mask:
+    label: mask1
+    tool: polygon
+segmentation:
+- blur:
+    kernel_size: 15
+- threshold:
+    method: adaptive
+    colourspace: red
+    blocksize: 199
+    constant: 1
+- morphology:
+    operation: close
+    shape: ellipse
+    kernel_size: 5
+    iterations: 3
+- find_contours:
+    retrieval: ext
+    min_diameter: 0
+    min_area: 0
+- watershed:
+    iterclose: 3
+    iteropen: 7
+    kernelclose: 3
+    kernelopen: 5
+measurement:
+- colour:
+    channels: [gray, rgb]
+visualization:
+- select_canvas:
+    canvas: image_mod
+- show_contours:
+    line_thickness: 2
+    text_thickness: 1
+    text_size: 1
+    fill: 0
+"""
+
 
 landmarking1 = """
 preprocessing:
