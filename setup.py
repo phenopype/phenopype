@@ -21,7 +21,7 @@ setup(
 		"pandas",
 		"Pillow",
 		"pytest",
-		"opencv-contrib-python==3.4.5.20",
+		"opencv-contrib-python==3.4.8.29",
         "ruamel.yaml",
 		"trackpy==0.4.1",
         "watchdog"

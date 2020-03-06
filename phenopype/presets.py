@@ -24,7 +24,7 @@ visualization:
     text_thickness: 1
     text_size: 1
     fill: 0.3
-- show_mask:
+- show_masks:
     colour: blue
     line_thickness: 5
 """
@@ -58,7 +58,7 @@ visualization:
     text_thickness: 1
     text_size: 1
     fill: 0.3
-- show_mask:
+- show_masks:
     colour: blue
     line_thickness: 5
 export:

@@ -107,12 +107,13 @@ class container(object):
                 if "template_path" in attr["scale"]:
                     self.scale_template = cv2.imread(attr["scale"]["template_path"])
                     loaded.append("template loaded from root directory")
-        ## contours
-        if not hasattr(self, "df_contours") and "contours" in files:
-            path = os.path.join(self.dirpath, "contours_" + self.save_suffix + ".csv")
-            if os.path.isfile(path):
-                self.df_contours = pd.read_csv(path) 
-                loaded.append("contours_" + self.save_suffix + ".csv")
+
+        # ## contours
+        # if not hasattr(self, "df_contours") and "contours" in files:
+        #     path = os.path.join(self.dirpath, "contours_" + self.save_suffix + ".csv")
+        #     if os.path.isfile(path):
+        #         self.df_contours = pd.read_csv(path) 
+        #         loaded.append("contours_" + self.save_suffix + ".csv")
 
         ## landmarks
         if not hasattr(self, "df_landmarks") and "landmarks" in files:
@@ -157,7 +158,11 @@ class container(object):
         self.canvas = copy.deepcopy(self.image_copy)
         self.df_image_data = copy.deepcopy(self.df_image_data_copy)
 
+        # if hasattr(self, "df_masks"):
+        #     del(self.df_masks)
 
+        # if hasattr(self, "df_contours"):
+        #     del(self.df_contours)
 
     def save(self, **kwargs):
         """
@@ -245,33 +250,29 @@ class container(object):
         """
         ## kwargs
         show_list = kwargs.get("show_list",[])
-        
+
         ## feedback
         print("AUTOSHOW")
         
-        ## canvas
-        if not "select_canvas" in show_list:
-            select_canvas(self)
+        # ## contours
+        # if hasattr(self, "df_contours") and not "show_contours" in show_list:
+        #     print("show_contours")
+        #     show_contours(self)
     
-        ## contours
-        if hasattr(self, "df_contours") and not "show_contours" in show_list:
-            print("show_contours")
-            show_contours(self)
+        # ## landmarks
+        # if hasattr(self, "df_landmarks") and not "show_landmarks" in show_list:
+        #     print("show_landmarks")
+        #     show_landmarks(self)
     
-        ## landmarks
-        if hasattr(self, "df_landmarks") and not "show_landmarks" in show_list:
-            print("show_landmarks")
-            show_landmarks(self)
+        # ## masks
+        # if hasattr(self, "df_masks") and not "show_masks" in show_list:
+        #     print("show_masks")
+        #     show_masks(self)
     
-        ## masks
-        if hasattr(self, "df_masks") and not "show_masks" in show_list:
-            print("show_masks")
-            show_masks(self)
-    
-        ## polylines
-        if hasattr(self, "df_polylines") and not "show_polylines" in show_list:
-            print("show_polylines")
-            show_polylines(self)
+        # ## polylines
+        # if hasattr(self, "df_polylines") and not "show_polylines" in show_list:
+        #     print("show_polylines")
+        #     show_polylines(self)
 
 #%% functions
             

@@ -116,6 +116,8 @@ class _image_viewer():
             if cv2.waitKey() == 13:
                 self.done = True
                 cv2.destroyAllWindows()
+                for i in range(10):
+                    cv2.waitKey(1)
                 if self.flag_tool == "polygon"  or self.flag_tool == "poly" or self.flag_tool == "free":
                     if len(self.points)>2:
                         self.points.append(self.points[0])
@@ -132,6 +134,8 @@ class _image_viewer():
                     self.point_list.append(self.points)
             elif cv2.waitKey() == 27:
                 cv2.destroyAllWindows()
+                for i in range(10):
+                    cv2.waitKey(1)
                 sys.exit("\n\nTERMINATE (by user)")
 
     def _on_mouse_plain(self, event, x, y, flags, params):
@@ -359,12 +363,17 @@ class _yaml_file_monitor:
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
         self.observer.start()
+        self.ref_time = time.time()
 
     def on_update(self, event):
         self.content = _load_yaml(self.filepath)
-        cv2.destroyAllWindows()
-        for i in range(5):
-            cv2.waitKey(1)
+        if time.time() > self.ref_time + 1:
+            for i in range(200):
+                cv2.waitKey(1)
+                cv2.destroyAllWindows()
+            self.ref_time = time.time()
+            print("\n\nreload pype_config\n\n")
+
     def stop(self):
         self.observer.stop()
         self.observer.join()
@@ -522,7 +531,7 @@ def _file_walker(directory, **kwargs):
 
     ## include
     if len(include)>0:
-        for filepath in filepaths2:   
+        for filepath in filepaths2:
             if any(inc in os.path.basename(filepath) for inc in include):
                 filepaths3.append(filepath)
     else:

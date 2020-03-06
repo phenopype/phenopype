@@ -413,7 +413,7 @@ class pype:
         flag_skip = kwargs.get("skip", None)
         flag_autoload = kwargs.get("autoload", True)
         flag_autosave = kwargs.get("autosave", True)
-        flag_autoshow = kwargs.get("autoshow", True)
+        flag_autoshow = kwargs.get("autoshow", False)
 
         preset = kwargs.get("preset", "preset1")
         config_location = kwargs.get("config_location", None)
@@ -486,6 +486,7 @@ class pype:
             self.container.reset()
             if flag_autoload:
                 self.container.load()
+
             restart = None
             export_list, show_list = [], []
 
@@ -497,10 +498,12 @@ class pype:
                     continue
                 if step == "export" and presetting == True:
                     continue
+                elif step == "visualization" and not "select_canvas" in self.config[step]:
+                    visualization.select_canvas(self.container)
                 print(step.upper())
                 for item in self.config[step]:
                     try:
-                        
+
                         ## construct method name and arguments
                         if item.__class__.__name__ == "str":
                             method_name = item
@@ -538,7 +541,7 @@ class pype:
             if restart:
                 continue
 
-            # save container content, and reset container
+            # save container 
             if flag_autoshow:
                 self.container.show(show_list=show_list)
             if not presetting:
