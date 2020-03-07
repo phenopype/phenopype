@@ -5,7 +5,8 @@ import pandas as pd
 
 from math import inf
 
-from phenopype.utils_lowlevel import _create_mask_bin, _create_mask_bool #, _load_masks
+from phenopype.settings import *
+from phenopype.utils_lowlevel import _create_mask_bin, _create_mask_bool, _image_viewer, _auto_line_width
 
 #%% functions
 
@@ -57,6 +58,107 @@ def blur(obj_input, **kwargs):
         obj_input.image = image
     else:
         return image
+
+
+
+def draw(obj_input, **kwargs):
+    """
+    
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    ## kwargs
+    flag_overwrite = kwargs.get("overwrite", False)
+    flag_tool = kwargs.get("tool", "line")
+    line_col = kwargs.get("colour", "black")
+
+    ## load image
+    df_draw, df_image_data = None, None
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename":"unknown"})
+    elif obj_input.__class__.__name__ == "container":
+        image = obj_input.image
+        df_image_data = obj_input.df_image_data
+        if hasattr(obj_input, "df_draw"):
+            df_draw = obj_input.df_draw
+    else:
+        warnings.warn("wrong input format.")
+        return
+
+    ## more kwargs
+    if flag_tool in ["rect", "rectangle", "poly", "polygon"]:
+        line_width = -1
+    else:
+        line_width = kwargs.get("line_width", max(1,_auto_line_width(image)))
+
+    while True:
+        ## check if exists
+        if not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == False:
+            print("- polylines already drawn (overwrite=False)")
+            break
+        elif not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == True:
+            print("- draw polylines (overwriting)")
+            pass
+        elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
+            print("- draw polylines (editing)")
+            pass
+        elif df_draw.__class__.__name__ == "NoneType":
+            print("- draw polylines")
+            pass
+        
+        ## method
+        out = _image_viewer(image, 
+                            tool=flag_tool, 
+                            draw=True,
+                            line_width=line_width,
+                            line_col=line_col)
+        
+        ## abort
+        if not out.done:
+            if obj_input.__class__.__name__ == "ndarray":
+                warnings.warn("terminated polyline creation")
+                return 
+            elif obj_input.__class__.__name__ == "container":
+                print("- terminated polyline creation")
+                return True
+
+        ## create df
+        df_draw = pd.DataFrame({"tool": flag_tool}, index=[0])
+        df_draw["line_width"] = line_width
+        df_draw["colour"] = line_col
+        df_draw["coords"] = str(out.point_list)
+        
+        break
+
+    ## draw
+    for idx, row in df_draw.iterrows():
+        coord_list = eval(row["coords"])
+        for coords in coord_list:
+            if flag_tool == "line" or flag_tool == "lines":
+                cv2.polylines(image, np.array([coords]), False, colours[row["colour"]], row["line_width"])
+            elif flag_tool == "rect" or flag_tool == "rectangle":
+                cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        df_draw = pd.concat([pd.concat([df_image_data]*len(df_draw)).reset_index(drop=True), 
+                        df_draw.reset_index(drop=True)], axis=1)
+        return image, df_draw
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df_draw = df_draw
+        obj_input.image = image
 
 
 
@@ -382,7 +484,7 @@ def watershed(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
-        thresh = copy.deepcopy(obj_input.image_bin)
+        thresh = copy.deepcopy(obj_input.image)
         image = copy.deepcopy(obj_input.image_copy)
 
     if len(thresh)<3:

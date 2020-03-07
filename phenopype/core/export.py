@@ -7,7 +7,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
 from phenopype.utils import * #load_image, load_meta_data, show_image, save_image
-from phenopype.utils_lowlevel import _image_viewer, _save_yaml, _load_yaml, _contours_arr_tup
+from phenopype.utils_lowlevel import _image_viewer, _save_yaml, _load_yaml, _show_yaml ,_contours_arr_tup
 
 #%% functions
 
@@ -190,6 +190,61 @@ def save_contours(obj_input, **kwargs):
             pass
         df.to_csv(path_or_buf=path, sep=",",index=False)
         break
+
+
+
+def save_drawing(obj_input, **kwargs):
+    """Save a pandas dataframe to csv. 
+    
+    Parameters
+    ----------
+    name: str (optional, default: "results")
+        name for saved csv
+    dirpath: str (default: None)
+        location to save df
+    round: int (optional, default: 1)
+        number of digits to round to
+    overwrite: bool (optional, default: False)
+        overwrite csv if it already exists
+    silent: bool (optional, default: True)
+        do not print where file was saved
+    """
+    ## kwargs
+    flag_overwrite = kwargs.get("overwrite", True)
+    dirpath = kwargs.get("directory", None)
+
+    ## load df
+    if obj_input.__class__.__name__ == 'DataFrame':
+        df = obj_input
+        if not dirpath:
+            warnings.warn("No save directory specified - cannot export results.")
+    elif obj_input.__class__.__name__ == "container":
+        if not dirpath:
+            dirpath = obj_input.dirpath
+        df = obj_input.df_draw
+    else:
+        warnings.warn("No df supplied - cannot export results.")
+
+    attr_path = os.path.join(dirpath, "attributes.yaml")
+    attr = _load_yaml(attr_path)
+
+    while True:
+        if "drawing" in attr and flag_overwrite == False:
+            print("- drawing not saved (overwrite=False)")
+            break
+        elif "drawing" in attr and flag_overwrite == True:
+            print("- drawing saved (overwriting)")
+            pass
+        elif not "drawing" in attr:
+            attr["drawing"] = {}
+            print("- drawing saved")
+            pass
+        for idx, row in df.iterrows():
+            dict(row)
+            attr["drawing"][idx+1] = dict(row)
+        _save_yaml(attr, attr_path)
+        break
+
 
 
 

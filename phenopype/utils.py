@@ -88,25 +88,33 @@ class container(object):
 
         ## data from attributes file
         attr_path = os.path.join(self.dirpath, "attributes.yaml")
+        if os.path.isfile(attr_path):
 
-        ## other data
-        if not hasattr(self, "df_other_data") and os.path.isfile(attr_path):
-            attr = _load_yaml(attr_path)
-            if "other" in attr:
-                self.df_other_data = pd.DataFrame(attr["other"], index=[0])
-                loaded.append("columns " + ', '.join(list(self.df_other_data)) + " from attributes.yaml")
+            ## other data
+            if not hasattr(self, "df_other_data"):
+                attr = _load_yaml(attr_path)
+                if "other" in attr:
+                    self.df_other_data = pd.DataFrame(attr["other"], index=[0])
+                    loaded.append("columns " + ', '.join(list(self.df_other_data)) + " from attributes.yaml")
+    
+            ## scale
+            if not hasattr(self, "scale_template_px_mm_ratio"):
+                attr = _load_yaml(attr_path)
+                if "scale" in attr:
+                    self.scale_template_px_mm_ratio = attr["scale"]["template_px_mm_ratio"]
+                    if "current_px_mm_ratio" in attr["scale"]:
+                        self.scale_current_px_mm_ratio = attr["scale"]["current_px_mm_ratio"]
+                        loaded.append("scale information loaded from attributes.yaml")
+                    if "template_path" in attr["scale"]:
+                        self.scale_template = cv2.imread(attr["scale"]["template_path"])
+                        loaded.append("template loaded from root directory")
 
-        ## scale
-        if not hasattr(self, "scale_template_px_mm_ratio") and os.path.isfile(attr_path):
-            attr = _load_yaml(attr_path)
-            if "scale" in attr:
-                self.scale_template_px_mm_ratio = attr["scale"]["template_px_mm_ratio"]
-                if "current_px_mm_ratio" in attr["scale"]:
-                    self.scale_current_px_mm_ratio = attr["scale"]["current_px_mm_ratio"]
-                    loaded.append("scale information loaded from attributes.yaml")
-                if "template_path" in attr["scale"]:
-                    self.scale_template = cv2.imread(attr["scale"]["template_path"])
-                    loaded.append("template loaded from root directory")
+            ## scale
+            if not hasattr(self, "df_draw"):
+                attr = _load_yaml(attr_path)
+                if "drawing" in attr:
+                    self.df_draw = pd.DataFrame(attr["drawing"]).T
+                    loaded.append("drawing loaded from attributes.yaml")
 
         # ## contours
         # if not hasattr(self, "df_contours") and "contours" in files:
@@ -203,6 +211,11 @@ class container(object):
         if hasattr(self, "df_contours") and not "save_contours" in export_list:
             print("save_contours")
             save_contours(self, overwrite=False)
+
+        ## contours
+        if hasattr(self, "df_draw") and not "save_drawing" in export_list:
+            print("save_drawing")
+            save_drawing(self, overwrite=False)
 
         ## entered data
         if hasattr(self, "df_other_data") and not "save_data_entry" in export_list:
