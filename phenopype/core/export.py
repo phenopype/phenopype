@@ -170,7 +170,7 @@ def save_contours(obj_input, **kwargs):
         for idx, row in df.iterrows():
             df.at[idx,"coords"] = _contours_arr_tup(row["coords"])
         df = df.explode("coords")
-        df[["x","y"]] = pd.DataFrame(df["coords"].tolist(), columns=["x","y"])
+        df = pd.concat([df.reset_index(drop=True), pd.DataFrame(df["coords"].tolist(), columns=["x","y"])], axis=1)
         df.drop(columns="coords", inplace=True)
 
     ## save
