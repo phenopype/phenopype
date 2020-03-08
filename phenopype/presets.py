@@ -71,37 +71,31 @@ export:
 
 preset3="""
 preprocessing:
-- create_mask:
+- create_mask: # with this you create the boundary around the plates (gets saved after first run)
     label: mask1
     tool: polygon
+- find_scale # if you have determined the scale before, it will find it in the image
 segmentation:
-- blur:
+- blur: 
     kernel_size: 15
-- threshold:
+- threshold: 
     method: adaptive
-    colourspace: red
-    blocksize: 199
-    constant: 1
+    colourspace: red # does thresholding on red colour channel
+    blocksize: 199 # higher values = higher sensitivity
+    constant: 3 # higher values = more gets removed after thresholding
 - morphology:
-    operation: close
+    operation: close # connect pixels
     shape: ellipse
-    kernel_size: 5
+    kernel_size: 3
     iterations: 3
+- draw # connect or disconnect contours (e.g. armour plates)
 - find_contours:
     retrieval: ext
     min_diameter: 0
-    min_area: 0
-- watershed:
-    iterclose: 3
-    iteropen: 7
-    kernelclose: 3
-    kernelopen: 5
-measurement:
-- colour:
-    channels: [gray, rgb]
+    min_area: 500
 visualization:
 - select_canvas:
-    canvas: image_mod
+    canvas: red
 - show_contours:
     line_thickness: 2
     text_thickness: 1
