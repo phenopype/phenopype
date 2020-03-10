@@ -80,7 +80,7 @@ segmentation:
     kernel_size: 15
 - threshold: 
     method: adaptive
-    colourspace: red # does thresholding on red colour channel
+    channel: red # does thresholding on red colour channel
     blocksize: 199 # higher values = higher sensitivity
     constant: 3 # higher values = more gets removed after thresholding
 - morphology:
@@ -142,7 +142,7 @@ segmentation:
 - threshold:
     method: binary
     value: 180
-    colourspace: blue
+    channel: blue
 - morphology:
     operation: open
     shape: cross

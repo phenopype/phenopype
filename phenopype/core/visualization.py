@@ -23,24 +23,25 @@ def select_canvas(obj_input, **kwargs):
     if canvas == "bin" or canvas == "binary":
         obj_input.canvas = copy.deepcopy(obj_input.image_bin)
         print("- binary image")
-    if canvas == "gray" or canvas == "grayscale":
+    elif canvas == "gray" or canvas == "image_gray":
         if obj_input.image_gray.__class__.__name__ == "NoneType":
-            obj_input.image_gray = cv2.cvtColor(obj_input.image,cv2.COLOR_BGR2GRAY)
+            obj_input.image_gray = cv2.cvtColor(obj_input.image_copy,cv2.COLOR_BGR2GRAY)
+            print("CVT")
         obj_input.canvas = copy.deepcopy(obj_input.image_gray)
         print("- grayscale image")
-    if "image_mod":
+    elif canvas == "image_mod" or canvas == "mod":
         obj_input.canvas = copy.deepcopy(obj_input.image)
         print("- modifed image")
-    if canvas == "image_raw":
+    elif canvas == "image_raw":
         obj_input.canvas = copy.deepcopy(obj_input.image_copy)
         print("- raw image")
-    if canvas == "g" or canvas == "green":
+    elif canvas == "g" or canvas == "green":
         obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,0])
         print("- green channel")
-    if canvas == "r" or canvas == "red":
+    elif canvas == "r" or canvas == "red":
         obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,1])
         print("- red channel")
-    if canvas == "b" or canvas == "blue":
+    elif canvas == "b" or canvas == "blue":
         obj_input.canvas = copy.deepcopy(obj_input.image_copy[:,:,2])
         print("- blue channel")
         
@@ -57,7 +58,7 @@ def select_canvas(obj_input, **kwargs):
 def show_contours(obj_input,**kwargs):
 
     ## kwargs
-    df_image_data = kwargs.get("df_image_data", None)
+    df_image_data = kwargs.get("df", None)
     df_contours = kwargs.get("df_contours", None)
     offset_coords = kwargs.get("offset_coords", None)
     flag_label = kwargs.get("label", True)

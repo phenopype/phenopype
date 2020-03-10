@@ -240,7 +240,7 @@ class container(object):
         ## scale
         if hasattr(self, "scale_current_px_mm_ratio") and not "save_scale" in export_list:
             print("save_scale")
-            save_scale(self, overwrite=False)
+            save_scale(self, overwrite=True)
 
     def show(self, **kwargs):
         """

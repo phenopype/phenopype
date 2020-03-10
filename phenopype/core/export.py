@@ -32,6 +32,7 @@ def save_canvas(obj_input, **kwargs):
     ## kwargs
     flag_overwrite = kwargs.get("overwrite", True)
     dirpath = kwargs.get("directory", None)
+    name = kwargs.get("name", "") 
     save_suffix = kwargs.get("save_suffix", None)
     resize = kwargs.get("resize", 0.5)
 
@@ -52,10 +53,12 @@ def save_canvas(obj_input, **kwargs):
         image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize) 
 
     ## save
+    if len(name)>0:
+        name = "_" + name 
     if save_suffix:
-        path = os.path.join(dirpath, "canvas_" + save_suffix + ".jpg")
+        path = os.path.join(dirpath, "canvas" + name + "_" + save_suffix + ".jpg")
     else:
-        path = os.path.join(dirpath, "canvas.jpg")
+        path = os.path.join(dirpath, "canvas" + name + ".jpg")
     while True:
         if os.path.isfile(path) and flag_overwrite == False:
             print("- canvas not saved - file already exists (overwrite=False).")

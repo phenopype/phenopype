@@ -125,7 +125,7 @@ def landmarks(obj_input, **kwargs):
 
 
 
-def colour(obj_input, **kwargs):
+def colour_intensity(obj_input, **kwargs):
 
     ## kwargs
     channels = kwargs.get("channels", ["gray"])

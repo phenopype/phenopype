@@ -392,7 +392,7 @@ def threshold(obj_input, **kwargs):
     ## kwargs
     blocksize = kwargs.get("blocksize", 99)
     constant = kwargs.get("constant", 1)
-    colourspace = kwargs.get("colourspace", "gray")
+    channel = kwargs.get("channel", "gray")
     method = kwargs.get("method", "otsu")
     value = kwargs.get("value", 127)
     df_masks = kwargs.get("masks", None)
@@ -405,15 +405,15 @@ def threshold(obj_input, **kwargs):
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
 
-    ## colourspace
+    ## channel
     if len(image.shape)==3:
-        if colourspace == "gray" or colourspace=="grayscale":
+        if channel == "gray" or channel=="grayscale":
             image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-        elif colourspace == "g" or colourspace== "green":
+        elif channel == "g" or channel== "green":
             image = image[:,:,0]
-        elif colourspace == "r" or colourspace== "red":
+        elif channel == "r" or channel== "red":
             image = image[:,:,1]
-        elif colourspace == "blue" or colourspace== "b":
+        elif channel == "blue" or channel== "b":
             image = image[:,:,2]
             
     ## method
@@ -476,7 +476,7 @@ def watershed(obj_input, **kwargs):
     kernelopen = kwargs.get("kernelopen",7)
     # blocksize = kwargs.get("blocksize", 99)
     # constant = kwargs.get("constant", 1)
-    # colourspace = kwargs.get("colourspace", "gray")
+    # channel = kwargs.get("channel", "gray")
     # method = kwargs.get("method", "otsu")
     # value = kwargs.get("value", 127)
 
