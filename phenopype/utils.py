@@ -215,7 +215,7 @@ class container(object):
         ## contours
         if hasattr(self, "df_draw") and not "save_drawing" in export_list:
             print("save_drawing")
-            save_drawing(self, overwrite=False)
+            save_drawing(self, overwrite=True)
 
         ## entered data
         if hasattr(self, "df_other_data") and not "save_data_entry" in export_list:
@@ -374,6 +374,7 @@ def load_image(obj_input, **kwargs):
     flag_container = kwargs.get("container", False)
     flag_df = kwargs.get("df", False)
     flag_meta = kwargs.get("meta", False)
+    flag_resize = kwargs.get("resize", None)
     exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
@@ -382,12 +383,19 @@ def load_image(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "str":
         if os.path.isfile(obj_input):
             image = cv2.imread(obj_input)
+            dirpath = os.path.split(obj_input)[0]
         else:
             sys.exit("Invalid image path - cannot load image from str.")
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
+        dirpath = os.getcwd()
+
     else:
         sys.exit("Invalid input format - cannot load image.")
+
+    # ## resize
+    # if flag_resize:
+        
 
     ## load image data
     image_data = load_image_data(obj_input)
@@ -404,7 +412,7 @@ def load_image(obj_input, **kwargs):
     if flag_container == True:
         ct = container(image, df_image_data)
         ct.image_data = image_data
-        ct.dirpath = os.getcwd()
+        ct.dirpath = dirpath
         return ct
     elif flag_container == False:
         if flag_df:
@@ -615,45 +623,45 @@ def show_image(image, **kwargs):
 
 
 
-def save_image(image, name, **kwargs):
-    """Save an image (array) to jpg.
+# def save_image(image, name, **kwargs):
+#     """Save an image (array) to jpg.
     
-    Parameters
-    ----------
-    image: array
-        image to save
-    name: str
-        name for saved image
-    save_dir: str
-        location to save image
-    append: str ("")
-        append image name with string to prevent overwriting
-    extension: str ("")
-        file extension to save image with
-    overwrite: bool (optional, default: False)
-        overwrite images if name exists
-    """
-    # set dir and names
-    out_dir = kwargs.get('save_dir', os.getcwd())     
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+#     Parameters
+#     ----------
+#     image: array
+#         image to save
+#     name: str
+#         name for saved image
+#     save_dir: str
+#         location to save image
+#     append: str ("")
+#         append image name with string to prevent overwriting
+#     extension: str ("")
+#         file extension to save image with
+#     overwrite: bool (optional, default: False)
+#         overwrite images if name exists
+#     """
+#     # set dir and names
+#     out_dir = kwargs.get('save_dir', os.getcwd())     
+#     if not os.path.exists(out_dir):
+#         os.makedirs(out_dir)
 
-    app = kwargs.get('append',"")
-    new_name = os.path.splitext(name)[0] + app
+#     app = kwargs.get('append',"")
+#     new_name = os.path.splitext(name)[0] + app
         
-    ext = kwargs.get('extension',os.path.splitext(name)[1])
-    new_name = new_name + ext
+#     ext = kwargs.get('extension',os.path.splitext(name)[1])
+#     new_name = new_name + ext
     
-    im_path=os.path.join(out_dir , new_name)
+#     im_path=os.path.join(out_dir , new_name)
     
-    if "resize" in kwargs:
-        factor = kwargs.get('resize')
-        image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
+#     if "resize" in kwargs:
+#         factor = kwargs.get('resize')
+#         image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
     
-    if kwargs.get('overwrite',False) == False:
-        if not os.path.exists(im_path):
-            cv2.imwrite(im_path, image)
-    else:
-        cv2.imwrite(im_path, image)
+#     if kwargs.get('overwrite',False) == False:
+#         if not os.path.exists(im_path):
+#             cv2.imwrite(im_path, image)
+#     else:
+#         cv2.imwrite(im_path, image)
 
 

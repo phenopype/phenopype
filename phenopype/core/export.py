@@ -229,7 +229,10 @@ def save_drawing(obj_input, **kwargs):
         warnings.warn("No df supplied - cannot export results.")
 
     attr_path = os.path.join(dirpath, "attributes.yaml")
-    attr = _load_yaml(attr_path)
+    if os.path.isfile(attr_path):
+        attr = _load_yaml(attr_path)
+    else: 
+        attr = {}
 
     while True:
         if "drawing" in attr and flag_overwrite == False:

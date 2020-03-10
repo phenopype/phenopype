@@ -102,7 +102,40 @@ visualization:
     text_size: 1
     fill: 0
 """
-
+preset4="""
+preprocessing:
+- resize_image:
+    factor: 0.5
+- create_mask: # with this you create the boundary around the plates (gets saved after first run)
+    label: mask1
+    tool: polygon
+segmentation:
+- blur: 
+    kernel_size: 15
+- threshold: 
+    method: adaptive
+    channel: red # does thresholding on red colour channel
+    blocksize: 199 # higher values = higher sensitivity
+    constant: 3 # higher values = more gets removed after thresholding
+- morphology:
+    operation: close # connect pixels
+    shape: ellipse
+    kernel_size: 3
+    iterations: 3
+- draw # connect or disconnect contours (e.g. armour plates)
+- find_contours:
+    retrieval: ext
+    min_diameter: 0
+    min_area: 500
+visualization:
+- select_canvas:
+    canvas: red
+- show_contours:
+    line_thickness: 2
+    text_thickness: 1
+    text_size: 1
+    fill: 0
+"""
 
 landmarking1 = """
 preprocessing:

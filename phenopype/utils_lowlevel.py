@@ -389,7 +389,7 @@ class _yaml_file_monitor:
     def on_update(self, event):
         self.content = _load_yaml(self.filepath)
         # if time.time() > self.ref_time + 1:
-        cv2.destroyAllWindows()
+        cv2.destroyWindow("phenopype")
         for i in range(10):
             cv2.waitKey(1)
         self.ref_time = time.time()

@@ -436,8 +436,10 @@ class pype:
             elif os.path.isdir(image):
                 self.container = load_directory(image, meta=flag_meta, fields=exif_fields)
                 self.container.save_suffix = name
+            else:
+                sys.exit("Invalid path - cannot run pype.")
         else:
-            sys.exit("Wrong input - cannot run pype.")
+            sys.exit("Wrong input format - cannot run pype.")
 
         ## skip directories that already contain specified files
         if flag_skip:

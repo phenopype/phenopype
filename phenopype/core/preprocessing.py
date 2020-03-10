@@ -10,7 +10,7 @@ import numpy.ma as ma
 from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype.settings import colours
-from phenopype.utils import load_image, load_meta_data, show_image, save_image
+from phenopype.utils import load_image, load_meta_data, show_image
 from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin, _equalize_histogram, _contours_arr_tup
 from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor, _auto_line_width, _auto_text_size, _auto_text_width
 
@@ -99,7 +99,7 @@ def create_mask(obj_input, **kwargs):
         ## create df
         if len(coords) > 0:
             for points in coords:
-                df_masks = df_masks.append({"mask": label, "include": include, "coords": str(coords)}, 
+                df_masks = df_masks.append({"mask": label, "include": include, "coords": str(points)}, 
                                 ignore_index=True, sort=False)
         else:
             warnings.warn("zero coordinates - redo mask!")
@@ -472,3 +472,44 @@ def invert_image(obj_input, **kwargs):
         return image
     
 
+
+def resize_image(obj_input, **kwargs):
+    """
+    
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    image : TYPE
+        DESCRIPTION.
+
+    """
+    factor = kwargs.get("factor", 0.5)
+    
+    ## load image and check if pp-project
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        image = copy.deepcopy(obj_input.image)
+        df_image_data = obj_input.df_image_data
+
+    ## method
+    image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor, interpolation=cv2.INTER_AREA)
+                
+    df_image_data["resized"] = factor
+    
+    ## return 
+    if obj_input.__class__.__name__ == "container":
+        obj_input.image = image
+        obj_input.image_copy = image
+        obj_input.canvas = image
+        obj_input.df_image_data = df_image_data
+    else:
+        return image
+    
