@@ -29,7 +29,7 @@ def select_canvas(obj_input, **kwargs):
             print("CVT")
         obj_input.canvas = copy.deepcopy(obj_input.image_gray)
         print("- grayscale image")
-    elif canvas == "image_mod" or canvas == "mod":
+    elif canvas in ["image_mod", "mod"]:
         obj_input.canvas = copy.deepcopy(obj_input.image)
         print("- modifed image")
     elif canvas == "image_raw":

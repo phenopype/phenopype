@@ -481,20 +481,26 @@ def _create_mask_bool(image, masks):
 
 
 
+def _decode_fourcc(cc):
+    return "".join([chr((int(cc) >> 8 * i) & 0xFF) for i in range(4)])
+
+
+
 def _del_rw(action, name, exc):
     os.chmod(name, S_IWRITE)
     os.remove(name)
 
 
 
-def _file_walker(directory, **kwargs):
+def _file_walker(directory, filetypes=".jpg", include=[], exclude=[],
+                  raw_mode="copy", search_mode="dir", unique_mode="path", **kwargs):
     """
     
     Parameters
     ----------
-    directory : TYPE
-        DESCRIPTION.
-    search_mode (optional): str (default: "dir")
+    directory : str
+        path to directory to search for files
+    search_mode: {"dir", "recursive"}, str, optional
         "dir" searches current directory for valid files; "recursive" walks through all subdirectories
     filetypes (optional): list of str
         single or multiple string patterns to target files with certain endings
@@ -513,23 +519,17 @@ def _file_walker(directory, **kwargs):
 
     """
     ## kwargs
-    search_mode = kwargs.get("search_mode","dir")
-    unique_mode = kwargs.get("unique_mode", "filepath")
     pype_mode = kwargs.get("pype_mode", False)
-    filetypes = kwargs.get("filetypes", [])
     if not filetypes.__class__.__name__ == "list":
         filetypes = [filetypes]
-    include = kwargs.get("include", [])
     if not include.__class__.__name__ == "list":
         include = [include]
-    exclude = kwargs.get("exclude", [])
     if not exclude.__class__.__name__ == "list":
         exclude = [exclude]
 
 
     ## find files 
     filepaths1, filepaths2, filepaths3, filepaths4 = [],[],[],[]
-    
     if search_mode == "recursive":
         for root, dirs, files in os.walk(directory):
             for file in os.listdir(root):
@@ -575,14 +575,13 @@ def _file_walker(directory, **kwargs):
     filenames, unique_filename, unique, duplicate = [],[],[],[]
     for filepath in filepaths:
         filenames.append(os.path.basename(filepath))
-        
-    if unique_mode=="filepaths" or unique_mode=="filepath":
+    if unique_mode in ["filepaths", "filepath", "path"]:
         for filename, filepath in zip(filenames, filepaths):
             if not filepath in unique:
                 unique.append(filepath)
             else:
                 duplicate.append(filepath)
-    elif unique_mode=="filenames" or unique_mode=="filename":
+    elif  unique_mode in ["filenames", "filename", "name"]:
         for filename, filepath in zip(filenames, filepaths):
             if not filename in unique_filename:
                 unique_filename.append(filename)

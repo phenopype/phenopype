@@ -7,7 +7,10 @@ import cv2
 import os
 import pprint
 
-from phenopype.utils import (blur, decode_fourcc, show_img)
+
+from phenopype.utils import show_image
+from phenopype.utils_lowlevel import _decode_fourcc
+from phenopype.core.segmentation import blur
 from phenopype.settings import colours
 
 #%% classes
@@ -40,7 +43,7 @@ class motion_tracker(object):
         self.name = os.path.basename(self.path)
         self.nframes = capture.get(cv2.CAP_PROP_FRAME_COUNT) 
         self.fps = capture.get(cv2.CAP_PROP_FPS)
-        self.fourcc_str = decode_fourcc(capture.get(cv2.CAP_PROP_FOURCC))
+        self.fourcc_str = _decode_fourcc(capture.get(cv2.CAP_PROP_FOURCC))
         self.length = str(int(( self.nframes / self.fps)/60)).zfill(2) + ":" +str(int((((self.nframes / self.fps)/60)-int((self.nframes / self.fps)/60))*60)).zfill(2)
         self.dimensions = tuple(reversed(frame.shape[0:2]))
         if frame.shape[2] == 3:

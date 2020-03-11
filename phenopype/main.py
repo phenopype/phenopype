@@ -31,44 +31,38 @@ ruamel.yaml.Representer.add_representer(ordereddict, ruamel.yaml.Representer.rep
 #%% classes
 
 class project: 
-    def __init__(self, root, name, **kwargs):
-        """
-        Initialize a phenopype project with a root directory path and a (folder) name.
+    """
+    Initialize a phenopype project with a root directory path. Phenopype 
+    will create the project folder at the provided location. 
 
-        Parameters
-        ----------
+    Parameters
+    ----------
 
-        root: str
-            path to root directory of the project where folder gets created
-        name: str
-            name of your project and the project folder
-        overwrite (optional): bool (default: False)
-            overwrite option, if a given root directory already exist 
-            (WARNING: also removes all folders inside)
-        query(optional: bool (default: False)
-            create project without requiring input
-        """
+    rootdir: str
+        path to root directory of the project where folder gets created
+    overwrite: bool, optional
+        overwrite option, if a given root directory already exist 
+        (WARNING: also removes all folders inside)
+
+    Returns
+    -------
+
+    None
+    """
+    def __init__(self, root_dir, overwrite=False):
 
         ## kwargs
-        flag_overwrite = kwargs.get("overwrite", False)
-        flag_query = kwargs.get("query", True)
-
-        ## form dirpath from root-location and name
-        root_dir = os.path.join(root, name)
+        flag_overwrite = overwrite
 
         ## feedback
         print("\n")
         print("--------------------------------------------")
-        print("phenopype will create a new project named \"" + name + "\". " +
-              "The full path of the project's root directory will be:\n")
+        print("phenopype will create a new project at:\n")
         print(root_dir)
 
         ## decision tree if directory exists
         while True:
-            if flag_query == False:
-                create = "y"
-            else:
-                create = input("Proceed? (y/n)\n")
+            create = input("Proceed? (y/n)\n")
             if create=="y" or create == "yes":
                 if os.path.isdir(root_dir):
                     if flag_overwrite == True:
@@ -98,7 +92,6 @@ class project:
             os.makedirs(self.data_dir)
 
             ## lists for files to add
-            self.name = name
             self.dirnames = []
             self.dirpaths = []
             self.filenames = []
@@ -106,7 +99,6 @@ class project:
 
             ## global project attributes
             project_data = {
-                "name": name,
                 "date_created": datetime.today().strftime('%Y%m%d_%H%M%S'),
                 "date_changed": datetime.today().strftime('%Y%m%d_%H%M%S'),
                 "root_dir": self.root_dir,
@@ -118,9 +110,11 @@ class project:
             print("--------------------------------------------")
             break
 
-
-    def add_files(self, image_dir, **kwargs):
-        """Add files to your project from a directory, can look recursively. 
+    def add_files(self, image_dir, filetypes=["jpg","tif","png"], include=[], exclude=[],
+                  raw_mode="copy", search_mode="dir", unique_mode="path", overwrite=False,
+                  resize=1, **kwargs):
+        """
+        Add files to your project from a directory, can look recursively. 
         Specify in- or exclude arguments, filetypes, duplicate-action and copy 
         or link raw files to save memory on the harddrive.
     
@@ -129,22 +123,22 @@ class project:
     
         image_dir: str 
             path to directory with images
-        filetypes (optional): list or str
+        filetypes: list or str, optional
             single or multiple string patterns to target files with certain endings
-        include (optional): list or str
+        include: list or str, optional
             single or multiple string patterns to target certain files to include
-        exclude (optional): list or str
+        exclude: list or str, optional
             single or multiple string patterns to target certain files to exclude - 
             can overrule "include"
-        raw_mode (optional): str (default: "copy")
+        raw_mode: {"copy", "link"} str, optional
             how should the raw files be passed on to the phenopype directory tree: 
             "copy" will make a copy of the original file, "link" will only send the 
             link to the original raw file to attributes, but not copy the actual 
             file (useful for big files)
-        search_mode (optional): str (default: "dir")
+        search_mode: {"dir", "recursive"}, str, optional
             "dir" searches current directory for valid files; "recursive" walks 
             through all subdirectories
-        unique_mode (optional): str (default: "filepath"):
+        unique_mode: {"filepath", "filename"}, str, optional:
             how to deal with image duplicates - "filepath" is useful if identically 
             named files exist in different subfolders (folder structure will be 
             collapsed and goes into the filename), whereas filename will ignore 
@@ -152,17 +146,12 @@ class project:
         """
         
         ## kwargs
-        flag_overwrite = kwargs.get("overwrite",False)
-        flag_raw = kwargs.get("raw_mode", "copy")
-        resize = kwargs.get("resize",1)
-        search_mode = kwargs.get("search_mode","dir")
-        filetypes = kwargs.get("filetypes", [])
-        include = kwargs.get("include", [])
-        exclude = kwargs.get("exclude", [])
-        unique_mode = kwargs.get("unique_mode", "filepath")
+        flag_raw_mode = raw_mode
+        flag_overwrite = overwrite
+        flag_resize = resize
 
         ## collect filepaths
-        filepaths, duplicates = _file_walker(image_dir, 
+        filepaths, duplicates = _file_walker(directory=image_dir, 
                                              search_mode=search_mode, 
                                              unique_mode=unique_mode, 
                                              filetypes=filetypes, 
@@ -195,34 +184,40 @@ class project:
                 print("phenopype-project folder " + dirname + " created")
                 os.mkdir(dirpath)
 
+            ## load image
+            image = load_image(filepath, resize=flag_resize)
+            
             ## copy or link raw files
-            if flag_raw == "copy":
+            if flag_raw_mode == "copy":
                 raw_path = os.path.join(dirpath, "raw" + os.path.splitext(os.path.basename(filepath))[1])
                 if resize < 1:
-                    image = cv2.imread(filepath)
-                    image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize) 
                     cv2.imwrite(raw_path, image)
                 else:
                     copyfile(filepath, raw_path)
-            elif flag_raw == "link":
+            elif flag_raw_mode == "link":
+                if resize < 1:
+                    warnings.warn("cannot resize image in link mode")
                 raw_path = filepath
 
             ## collect attribute-data and save
-            image_data = load_image_data(filepath)
+            image_data = load_image_data(filepath, flag_resize)
             meta_data = load_meta_data(filepath)
             project_data = {
-                "project_name": self.name,
                 "dirname": dirname,
                 "dirpath": dirpath,
-                "raw_mode": flag_raw,
-                "raw_path": raw_path,
-                "resize_factor": resize
+                "raw_mode": flag_raw_mode,
+                "raw_path": raw_path
                 }
             
-            attributes = {
-                "image": image_data,
-                "meta": meta_data,
-                "project": project_data}
+            if meta_data:
+                attributes = {
+                    "image": image_data,
+                    "meta": meta_data,
+                    "project": project_data}
+            else:
+                attributes = {
+                    "image": image_data,
+                    "project": project_data}
 
             ## write attributes file
             _save_yaml(attributes, os.path.join(dirpath, "attributes.yaml"))
@@ -234,9 +229,13 @@ class project:
                 self.filenames.append(image_data["filename"])
                 self.filepaths.append(raw_path)
 
-    def add_config(self, name, **kwargs):
+    def add_config(self, name, preset="preset1", interactive=False, overwrite=False, 
+                   **kwargs):
         """
-        Add pype configuration presets to all project directories. 
+        Add pype configuration presets to all project directories, either by using
+        the templates included in the presets folder, or by adding your own templates
+        by providing a path to a yaml file. Can be tested and modified using the 
+        interactive flag before distributing the config files.
 
         Parameters
         ----------
@@ -244,40 +243,47 @@ class project:
         name: str
             name of config-file. this gets appended to all files and serves as and
             identifier of a specific analysis pipeline
-        preset (optional): str (default: "preset1")
-            chose from given presets in phenopype/settings/presets.py 
-            (e.g. preset1, preset2, preset3, ...)
-        interactive (optional): bool (default: False)
+        preset: str, optional
+            can be either a string denoting a template name (e.g. preset1, preset2, 
+            landamarking1, ... - in "phenopype/settings/presets.py") or a path to a 
+            compatible yaml file
+        interactive: bool, optional
             start a pype and modify preset before saving it to phenopype directories
-        overwrite (optional): bool (default: False)
+        overwrite: bool, optional
             overwrite option, if a given pype config-file already exist
         """
 
         ## kwargs
-        preset = kwargs.get("preset","preset1")
-        flag_interactive = kwargs.get("interactive", None)
-        flag_overwrite = kwargs.get("overwrite", False)
+        # preset = kwargs.get("preset","preset1")
+        flag_interactive = interactive
+        flag_overwrite = overwrite
+
+        ## load config
+        if hasattr(presets, preset):
+            config = _create_generic_pype_config(preset = preset, config_name=name)
+        elif os.path.isfile(preset):
+            config = {"pype":{"name": name,
+                              "preset": preset,
+                              "date_created": datetime.today().strftime('%Y%m%d_%H%M%S')}}
+            config.update(_load_yaml(preset))
+            print(config)
+        else:
+            print("defaulting to preset " + default_pype_config)
+            config = _load_yaml(eval("presets." + default_pype_config))
 
         ## modify
         if flag_interactive:
             image_location = os.path.join(self.root_dir,"pype_template_image" + os.path.splitext(self.filenames[0])[1])
             copyfile(self.filepaths[0], image_location)
             config_location = os.path.join(self.root_dir, "pype_config_template-" + name + ".yaml")
-            config = _create_generic_pype_config(preset = preset, config_name=name)
             _save_yaml(config, config_location)
             p = pype(image_location, name="template-" + name, config_location=config_location, presetting=True)
             config = p.config
-        else:
-            config = _load_yaml(eval("presets." + preset))
 
         ## go through project directories
         for directory in self.dirpaths:
             attr = _load_yaml(os.path.join(directory, "attributes.yaml"))
-            pype_preset = {"image": attr["image"],
-                           "pype":
-                               {"name": name,
-                                "preset": preset,
-                                "date_created": datetime.today().strftime('%Y%m%d_%H%M%S')}}
+            pype_preset = {"image": attr["image"]}
             pype_preset.update(config)
 
             ## save config
@@ -364,50 +370,55 @@ class project:
                              "template_px_mm_ratio": px_mm_ratio}
             _save_yaml(attr, os.path.join(directory, "attributes.yaml"))
 
-class pype:
-    def __init__(self, image, name, **kwargs):
-        """
-        The pype is phenopype’s core method that allows running all functions 
-        that are available in the program’s library in sequence. Executing the pype routine 
-        will trigger two actions: it will open a yaml configuration file 
-        containing instructions for image processing using the default OS text viewer, 
-        and a phenopype-window showing the image that was passed on to the pype 
-        function as an array, or a character string containing the path to an 
-        image on the harddrive (or a directory). Phenopype will parse all functions 
-        contained in the config-file in sequence and attempt to apply them to the image 
-        (exceptions will be passed, but exceptions returned for diagnostics). 
-        The user immediately sees the result and can decide to make changes directly to 
-        the opened config-file (e.g. either change function parameters or add new functions), 
-        and run the pype again, or to terminate the pype and save all results. 
-        The user can store the processed image, any extracted phenotypic information, 
-        as well as the modified config-file inside the image directory. 
-        By providing unique names, users can store different pype configurations and 
-        the associated results side by side. 
-        
-        Parameters
-        ----------
 
-        image: array or str 
-            can be either a numpy array or a string that provides the path to source image file 
-            or path to a valid phenopype directory
-        name: str
-            name of pype-config - will be prepended to all results files
-        config (optional): str (default: "preset1")
-            chose from given presets in phenopype/settings/pype_presets.py (e.g. preset1, preset2, ...)
-        interactive (optional): bool (default: False)
-            start a pype, modify loaded preset before saving it to phenopype directories
-        overwrite (optional): bool (default: False)
-            overwrite option, if a given pype config-file already exist
-        """
+
+class pype:
+    """
+    The pype is phenopype’s core method that allows running all functions 
+    that are available in the program’s library in sequence. Executing the pype routine 
+    will trigger two actions: it will open a yaml configuration file 
+    containing instructions for image processing using the default OS text viewer, 
+    and a phenopype-window showing the image that was passed on to the pype 
+    function as an array, or a character string containing the path to an 
+    image on the harddrive (or a directory). Phenopype will parse all functions 
+    contained in the config-file in sequence and attempt to apply them to the image 
+    (exceptions will be passed, but exceptions returned for diagnostics). 
+    The user immediately sees the result and can decide to make changes directly to 
+    the opened config-file (e.g. either change function parameters or add new functions), 
+    and run the pype again, or to terminate the pype and save all results. 
+    The user can store the processed image, any extracted phenotypic information, 
+    as well as the modified config-file inside the image directory. 
+    By providing unique names, users can store different pype configurations and 
+    the associated results side by side. 
+    
+    Parameters
+    ----------
+
+    image: array or str 
+        can be either a numpy array or a string that provides the path to source image file 
+        or path to a valid phenopype directory
+    name: str
+        name of pype-config - will be prepended to all results files
+    config: str, optional
+        chose from given presets in phenopype/settings/pype_presets.py 
+        (e.g. preset1, preset2, ...)
+    interactive: bool, optional
+        start a pype, modify loaded preset before saving it to phenopype directories
+    overwrite: bool, optional
+        overwrite option, if a given pype config-file already exist
+    """
+    def __init__(self, image, name, config="preset1", interactive=False, overwrite=False, **kwargs):
+
         
         ## pype name check
         if "pype_config_" in name:
             name = name.replace("pype_config_", "")
         elif ".yaml" in name:
             name = name.replace(".yaml", "")
-        for char in '[@_!#$%^&*()<>?/\|}{~:]':
+        for char in '[@_!#$%^&*()<>?/|}{~:]\\':
             if char in name:
                 sys.exit("no special characters allowed in pype name")
+
         ## kwargs
         flag_show = kwargs.get("show",True)
         flag_skip = kwargs.get("skip", None)
@@ -431,7 +442,7 @@ class pype:
             self.container.save_suffix = name
         elif image.__class__.__name__ == "str":
             if os.path.isfile(image):
-                self.container = load_image(image, container=True, meta=flag_meta, fields=exif_fields)
+                self.container = load_image(image, container=True, meta=False)
                 self.container.save_suffix = name
             elif os.path.isdir(image):
                 self.container = load_directory(image, meta=flag_meta, fields=exif_fields)
@@ -481,14 +492,15 @@ class pype:
             if not self.config:
                 continue
 
-            ## reiterate
+            ## feedback
             print("\n\n------------+++ new pype iteration " + 
                   datetime.today().strftime('%Y:%m:%d %H:%M:%S') + 
                   " +++--------------\n\n")
+
+            # reset values            
             self.container.reset()
             if flag_autoload:
                 self.container.load()
-
             restart = None
             export_list, show_list = [], []
 
@@ -500,8 +512,6 @@ class pype:
                     continue
                 if step == "export" and presetting == True:
                     continue
-                elif step == "visualization" and not "select_canvas" in self.config[step]:
-                    visualization.select_canvas(self.container)
                 print(step.upper())
                 for item in self.config[step]:
                     try:
@@ -552,8 +562,9 @@ class pype:
 
             ## visualize output
             try:
-                if self.container.canvas.__class__.__name__ == "NoneType":
-                    self.container.canvas = copy.deepcopy(self.container.image_copy)
+                if not "visualization" in list(self.config.keys()):
+                    print("select")
+                    visualization.select_canvas(self.container)
                 iv = _image_viewer(self.container.canvas, previous=update)
                 update = iv.__dict__
             except Exception as ex:

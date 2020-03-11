@@ -322,17 +322,18 @@ def load_directory(directory_path, **kwargs):
     image = cv2.imread(attr["project"]["raw_path"])
     df_image_data = pd.DataFrame({"filename": attr["image"]["filename"],
                        "width": attr["image"]["width"],
-                       "height": attr["image"]["height"]
+                       "height": attr["image"]["height"],
+                       "size_ratio_original": attr["image"]["size_ratio_original"]
                        }, index=[0])
 
-    ## add meta-data 
-    if flag_meta:
-        exif_data_all, exif_data = attr["meta"], {}
-        for field in exif_fields:
-            if field in exif_data_all:
-                exif_data[field] = exif_data_all[field]
-        exif_data = dict(sorted(exif_data.items()))
-        df_image_data = pd.concat([df_image_data.reset_index(drop=True), pd.DataFrame(exif_data, index=[0])], axis=1)
+    # ## add meta-data 
+    # if flag_meta:
+    #     exif_data_all, exif_data = attr["meta"], {}
+    #     for field in exif_fields:
+    #         if field in exif_data_all:
+    #             exif_data[field] = exif_data_all[field]
+    #     exif_data = dict(sorted(exif_data.items()))
+    #     df_image_data = pd.concat([df_image_data.reset_index(drop=True), pd.DataFrame(exif_data, index=[0])], axis=1)
 
     ## return
     if flag_container == True:
@@ -354,7 +355,8 @@ def load_directory(directory_path, **kwargs):
 
 
 
-def load_image(obj_input, **kwargs):
+def load_image(obj_input, df=False, meta=False, resize=1,
+               **kwargs):
     """
     
 
@@ -371,10 +373,11 @@ def load_image(obj_input, **kwargs):
 
     """
     ## kwargs 
+    flag_resize = resize
+    flag_df = df
+    flag_meta = meta
     flag_container = kwargs.get("container", False)
-    flag_df = kwargs.get("df", False)
-    flag_meta = kwargs.get("meta", False)
-    flag_resize = kwargs.get("resize", None)
+    
     exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
@@ -389,19 +392,19 @@ def load_image(obj_input, **kwargs):
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         dirpath = os.getcwd()
-
     else:
         sys.exit("Invalid input format - cannot load image.")
 
-    # ## resize
-    # if flag_resize:
-        
+    ## resize
+    if flag_resize < 1:
+        image = cv2.resize(image, (0,0), fx=1*flag_resize, fy=1*flag_resize, interpolation=cv2.INTER_AREA)
 
     ## load image data
-    image_data = load_image_data(obj_input)
+    image_data = load_image_data(obj_input, flag_resize)
     df_image_data = pd.DataFrame({"filename": image_data["filename"],
-          "width": image_data["width"],
-          "height": image_data["height"]}, index=[0])
+          "width": int(image_data["width"]*flag_resize),
+          "height": int(image_data["height"]*flag_resize),
+          "size_ratio_original": flag_resize}, index=[0])
 
     ## add meta-data 
     if flag_meta:
@@ -422,7 +425,7 @@ def load_image(obj_input, **kwargs):
 
 
 
-def load_image_data(obj_input):
+def load_image_data(obj_input, resize=1):
     """
     
 
@@ -450,8 +453,9 @@ def load_image_data(obj_input):
             "filename": os.path.split(obj_input)[1],
             "filepath": obj_input,
             "filetype": os.path.splitext(obj_input)[1],
-            "width": width,
-            "height": height
+            "width": int(width*resize),
+            "height": int(height*resize),
+            "size_ratio_original": resize
             }
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
@@ -460,8 +464,9 @@ def load_image_data(obj_input):
                 "filename": "unknown",
                 "filepath": "unkown",
                 "filetype": "array_type",
-                "width": width,
-                "height": height
+                "width": int(width*resize),
+                "height": int(height*resize),
+                "size_ratio_original": resize
             }
     else:
         warnings.warn("Not a valid image file - cannot read image data.")
@@ -527,6 +532,7 @@ def load_meta_data(obj_input, **kwargs):
         exif_data_all = dict(sorted(exif_data_all.items()))
     except Exception:
         warnings.warn("No exif data found.")
+        return None
 
     if flag_show:
         print("--------------------------------------------")
