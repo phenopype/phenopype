@@ -1,14 +1,17 @@
 *dev*
+.doctrees
 .buildinfo
 .eggs
 .installed.cfg
 .ipynb_checkpoints
 __pycache__/
 _config.yml
-_images
-_sources
+
 bin
-build
+docs/_build
+docs/_images
+docs/_sources
+docs/_temp
 develop-eggs
 dist
 doctrees/
@@ -18,6 +21,4 @@ lib64
 local
 parts
 phenopype.egg-info/
-source
 src/*.egg-info
-temp
