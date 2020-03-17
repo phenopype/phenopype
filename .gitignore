@@ -11,6 +11,7 @@ bin
 docs/_temp
 docs/make.bat
 docs/Makefile
+docs/source
 develop-eggs
 dist
 eggs
