@@ -8,10 +8,7 @@ __pycache__/
 _config.yml
 
 bin
-docs/_temp
-docs/make.bat
-docs/Makefile
-docs/source
+docs_source
 develop-eggs
 dist
 eggs
