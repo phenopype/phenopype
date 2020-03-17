@@ -113,7 +113,7 @@ class container(object):
             if not hasattr(self, "df_draw"):
                 attr = _load_yaml(attr_path)
                 if "drawing" in attr:
-                    self.df_draw = pd.DataFrame(attr["drawing"]).T
+                    self.df_draw = pd.DataFrame(attr["drawing"], index=[0])
                     loaded.append("drawing loaded from attributes.yaml")
 
         # ## contours
@@ -322,9 +322,11 @@ def load_directory(directory_path, **kwargs):
     image = cv2.imread(attr["project"]["raw_path"])
     df_image_data = pd.DataFrame({"filename": attr["image"]["filename"],
                        "width": attr["image"]["width"],
-                       "height": attr["image"]["height"],
-                       "size_ratio_original": attr["image"]["size_ratio_original"]
+                       "height": attr["image"]["height"]
                        }, index=[0])
+    
+    if "size_ratio_original "in attr["image"]:
+        df_image_data["size_ratio_original"] = attr["image"]["size_ratio_original"]
 
     # ## add meta-data 
     # if flag_meta:

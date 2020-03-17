@@ -146,9 +146,9 @@ def draw(obj_input, **kwargs):
     for idx, row in df_draw.iterrows():
         coord_list = eval(row["coords"])
         for coords in coord_list:
-            if flag_tool == "line" or flag_tool == "lines":
+            if row["tool"] in ["line", "lines"]:
                 cv2.polylines(image, np.array([coords]), False, colours[row["colour"]], row["line_width"])
-            elif flag_tool == "rect" or flag_tool == "rectangle":
+            elif row["tool"] in ["rect", "rectangle"]:
                 cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
 
     ## return

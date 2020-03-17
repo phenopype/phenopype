@@ -246,8 +246,8 @@ def save_drawing(obj_input, **kwargs):
             print("- drawing saved")
             pass
         for idx, row in df.iterrows():
-            dict(row)
-            attr["drawing"][idx+1] = dict(row)
+            # if not row["coords"] == attr["drawing"]["coords"]:
+            attr["drawing"] = dict(row)
         _save_yaml(attr, attr_path)
         break
 
