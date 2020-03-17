@@ -8,13 +8,11 @@ __pycache__/
 _config.yml
 
 bin
-docs/_build
-docs/_images
-docs/_sources
 docs/_temp
+docs/make.bat
+docs/Makefile
 develop-eggs
 dist
-doctrees/
 eggs
 lib
 lib64
