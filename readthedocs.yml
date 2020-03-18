@@ -9,4 +9,4 @@ python:
    version: 3.7
    install:
       - method: pip
-        path: ../phenopype
+        path: phenopype
