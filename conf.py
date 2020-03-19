@@ -22,7 +22,7 @@ project = 'phenopype'
 copyright = '2020, Moritz Lürig'
 author = 'Moritz Lürig'
 
-version = phenopype._version.__version__
+from phenopype._version import __version__ as version
 release = version
 
 

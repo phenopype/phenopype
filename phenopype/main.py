@@ -371,6 +371,37 @@ class project:
             _save_yaml(attr, os.path.join(directory, "attributes.yaml"))
 
 
+    def save(project):
+        """
+        Save project to root directory
+    
+        Parameters
+        ----------
+    
+        project: phenopype.main.project
+            save project file to root dir of project (saves ONLY the python object needed to call file-lists, NOT collected data),
+            which needs to be saved separately with the appropriate functions (e.g. "save_csv" and "save_img")
+        """
+        output_str = os.path.join(project.root_dir, 'project.data')
+        with open(output_str, 'wb') as output:
+            pickle.dump(project, output, pickle.HIGHEST_PROTOCOL)
+    
+    
+    
+    def load(path):
+        """
+        Load phenoype project.data file to python namespace
+    
+        Parameters
+        ----------
+    
+        path: path to project.data
+            load project file saved to root dir of project
+        """
+        with open(path, 'rb') as output:
+            return pickle.load(output)
+
+
 
 class pype:
     """
@@ -576,37 +607,3 @@ class pype:
                     self.FM.stop()
                     print("\n\nTERMINATE")
                     break
-            
-
-
-#%% functions
-
-def save_project(project):
-    """
-    Save project to root directory
-
-    Parameters
-    ----------
-
-    project: phenopype.main.project
-        save project file to root dir of project (saves ONLY the python object needed to call file-lists, NOT collected data),
-        which needs to be saved separately with the appropriate functions (e.g. "save_csv" and "save_img")
-    """
-    output_str = os.path.join(project.root_dir, 'project.data')
-    with open(output_str, 'wb') as output:
-        pickle.dump(project, output, pickle.HIGHEST_PROTOCOL)
-
-
-
-def load_project(path):
-    """
-    Load phenoype project.data file to python namespace
-
-    Parameters
-    ----------
-
-    path: path to project.data
-        load project file saved to root dir of project
-    """
-    with open(path, 'rb') as output:
-        return pickle.load(output)
