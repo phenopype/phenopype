@@ -23,7 +23,7 @@ setup(
 		"numpy",
 		"pandas",
 		"Pillow",
-		"opencv-contrib-python==3.4.9",
+		"opencv-contrib-python==3.*",
         "ruamel.yaml",
         "watchdog"
 ],

@@ -28,20 +28,25 @@ warnings.simplefilter('always', UserWarning)
 #%% classes
 
 class container(object):
-    def __init__(self, image, df_image_data, **kwargs):
+    def __init__(self, image, df_image_data):
+
         """
+        A phenopype container is a Python class where loaded images, dataframes, 
+        detected contours, intermediate output, etc. are stored so that they are 
+        available for inspection or storage at the end of the analysis. The 
+        advantage of using containers is that they don’t litter the global environment 
+        and namespace, while still containing all intermediate steps (e.g. binary 
+        masks or contour DataFrames). Containers can be used manually to analyse images, 
+        but typically they are used automatically within the pype-routine. 
+        
         Parameters
         ----------
-        image : TYPE
-            DESCRIPTION.
-        df_image_data: TYPE
-            DESCRIPTION.
-        **kwargs : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
+        image : ndarray
+            single or multi-channel iamge as an array (can be created using load_image 
+            or load_directory).
+        df_image_data: DataFrame
+            a dataframe that contains meta-data of the provided image to be passed on
+            to all results-DataFrames
 
         """
 
@@ -289,7 +294,8 @@ class container(object):
 
 #%% functions
             
-def load_directory(directory_path, **kwargs):
+def load_directory(directory_path, cont=False, df=False, meta=False, resize=1, 
+                   **kwargs):
     """
     
 
@@ -297,12 +303,19 @@ def load_directory(directory_path, **kwargs):
     ----------
     directory_path : TYPE
         DESCRIPTION.
+    cont : TYPE, optional
+        DESCRIPTION. The default is False.
+    df : TYPE, optional
+        DESCRIPTION. The default is False.
+    meta : TYPE, optional
+        DESCRIPTION. The default is False.
+    resize : TYPE, optional
+        DESCRIPTION. The default is 1.
     **kwargs : TYPE
         DESCRIPTION.
 
     Returns
     -------
-    None.
 
     """
     ## kwargs
@@ -357,17 +370,25 @@ def load_directory(directory_path, **kwargs):
 
 
 
-def load_image(obj_input, df=False, meta=False, resize=1,
+def load_image(obj_input, cont=False, df=False, meta=False, resize=1,
                **kwargs):
     """
     
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
+    obj_input: str or ndarray
+        can be a path to an image stored on the harddrive OR an array already loaded 
+        to Python.
+    cont: bool, optional
+        should the loaded image (and DataFrame) be returned as a phenopype container
+    df: bool, optional
+        should a DataFrame containing image information (e.g. dimensions) be returned.
+    meta: bool, optional
+        should the DataFrame encompass image meta data (e.g. from exif-data). This works 
+        only when obj_input is a path string to the original file.
+    resize: float
+        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of original size).
 
     Returns
     -------
@@ -378,7 +399,7 @@ def load_image(obj_input, df=False, meta=False, resize=1,
     flag_resize = resize
     flag_df = df
     flag_meta = meta
-    flag_container = kwargs.get("container", False)
+    flag_container = cont
     
     exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
@@ -420,7 +441,7 @@ def load_image(obj_input, df=False, meta=False, resize=1,
         ct.dirpath = dirpath
         return ct
     elif flag_container == False:
-        if flag_df:
+        if flag_df or flag_meta:
             return image, df_image_data
         else:
             return image
