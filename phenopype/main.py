@@ -469,11 +469,11 @@ class pype:
 
         ## load image as cointainer from array, file, or directory
         if image.__class__.__name__ == "ndarray":
-            self.container = load_image(image, container=True, meta=flag_meta)
+            self.container = load_image(image, cont=True, meta=flag_meta)
             self.container.save_suffix = name
         elif image.__class__.__name__ == "str":
             if os.path.isfile(image):
-                self.container = load_image(image, container=True, meta=False)
+                self.container = load_image(image, cont=True, meta=False)
                 self.container.save_suffix = name
             elif os.path.isdir(image):
                 self.container = load_directory(image, meta=flag_meta, fields=exif_fields)

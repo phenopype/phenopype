@@ -28,7 +28,7 @@ warnings.simplefilter('always', UserWarning)
 #%% classes
 
 class container(object):
-    def __init__(self, image, df_image_data):
+    def __init__(self, image, df_image_data, **kwargs):
 
         """
         A phenopype container is a Python class where loaded images, dataframes, 
@@ -68,7 +68,7 @@ class container(object):
         self.dirpath = None
 
 
-    def load(self):
+    def load(self, **kwargs):
         """
         
         Parameters
@@ -81,16 +81,7 @@ class container(object):
         None.
 
         """
-
-        files, loaded = [], []
-        if self.save_suffix:
-            for file in os.listdir(self.dirpath):
-                if self.save_suffix in file and not "pype_config" in file:
-                    files.append(file[0:file.rindex('_')])
-        else:
-            for file in os.listdir(self.dirpath):
-                files.append(file[0:file.rindex('.')])
-
+        
         ## data from attributes file
         attr_path = os.path.join(self.dirpath, "attributes.yaml")
         if os.path.isfile(attr_path):
@@ -120,6 +111,24 @@ class container(object):
                 if "drawing" in attr:
                     self.df_draw = pd.DataFrame(attr["drawing"], index=[0])
                     loaded.append("drawing loaded from attributes.yaml")
+
+        if self.save_suffix.__class__.__name__ == 'NoneType':
+            if "save_suffix" in kwargs:
+                self.save_suffix = kwargs.get("save_suffix")
+            else:
+                print("Save_suffix missing - not loading saved results.")
+                return
+
+        files, loaded = [], []
+        if self.save_suffix:
+            for file in os.listdir(self.dirpath):
+                if self.save_suffix in file and not "pype_config" in file:
+                    files.append(file[0:file.rindex('_')])
+        else:
+            for file in os.listdir(self.dirpath):
+                files.append(file[0:file.rindex('.')])
+
+
 
         # ## contours
         # if not hasattr(self, "df_contours") and "contours" in files:
@@ -294,34 +303,42 @@ class container(object):
 
 #%% functions
             
-def load_directory(directory_path, cont=False, df=False, meta=False, resize=1, 
+def load_directory(directory_path, cont=True, df=True, meta=True, resize=1, 
                    **kwargs):
     """
-    
-
     Parameters
     ----------
-    directory_path : TYPE
-        DESCRIPTION.
-    cont : TYPE, optional
-        DESCRIPTION. The default is False.
-    df : TYPE, optional
-        DESCRIPTION. The default is False.
-    meta : TYPE, optional
-        DESCRIPTION. The default is False.
-    resize : TYPE, optional
-        DESCRIPTION. The default is 1.
-    **kwargs : TYPE
-        DESCRIPTION.
+    directory_path: str or ndarray
+        path to a phenopype project directory containing raw image, attributes 
+        file, masks files, results df, etc.
+    cont: bool, optional
+        should the loaded image (and DataFrame) be returned as a phenopype 
+        container
+    df: bool, optional
+        should a DataFrame containing image information (e.g. dimensions) 
+        be returned.
+    meta: bool, optional
+        should the DataFrame encompass image meta data (e.g. from exif-data). 
+        This works only when obj_input is a path string to the original file.
+    resize: float
+        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
+        original size).
 
     Returns
     -------
+    container
+        A phenopype container is a Python class where loaded images, 
+        dataframes, detected contours, intermediate output, etc. are stored 
+        so that they are available for inspection or storage at the end of 
+        the analysis. 
 
     """
     ## kwargs
-    flag_container = kwargs.get("container", True)
-    flag_df = kwargs.get("df", False)
-    flag_meta = kwargs.get("meta", True)
+    ## kwargs 
+    flag_resize = resize
+    flag_df = df
+    flag_meta = meta
+    flag_container = cont
     exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
@@ -348,7 +365,8 @@ def load_directory(directory_path, cont=False, df=False, meta=False, resize=1,
     #         if field in exif_data_all:
     #             exif_data[field] = exif_data_all[field]
     #     exif_data = dict(sorted(exif_data.items()))
-    #     df_image_data = pd.concat([df_image_data.reset_index(drop=True), pd.DataFrame(exif_data, index=[0])], axis=1)
+    #     df_image_data = pd.concat([df_image_data.reset_index(drop=True), 
+    # pd.DataFrame(exif_data, index=[0])], axis=1)
 
     ## return
     if flag_container == True:
@@ -370,29 +388,40 @@ def load_directory(directory_path, cont=False, df=False, meta=False, resize=1,
 
 
 
-def load_image(obj_input, cont=False, df=False, meta=False, resize=1,
-               **kwargs):
+def load_image(obj_input, cont=False, df=False, meta=False, resize=1, **kwargs):
     """
-    
+    Create ndarray from image path or return or resize exising array.
 
     Parameters
     ----------
     obj_input: str or ndarray
-        can be a path to an image stored on the harddrive OR an array already loaded 
-        to Python.
+        can be a path to an image stored on the harddrive OR an array already 
+        loaded to Python.
     cont: bool, optional
-        should the loaded image (and DataFrame) be returned as a phenopype container
+        should the loaded image (and DataFrame) be returned as a phenopype 
+        container
     df: bool, optional
-        should a DataFrame containing image information (e.g. dimensions) be returned.
+        should a DataFrame containing image information (e.g. dimensions) be 
+        returned.
     meta: bool, optional
-        should the DataFrame encompass image meta data (e.g. from exif-data). This works 
-        only when obj_input is a path string to the original file.
+        should the DataFrame encompass image meta data (e.g. from exif-data). 
+        This works only when obj_input is a path string to the original file.
     resize: float
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of original size).
+        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
+        original size).
 
     Returns
     -------
-    None.
+    ct: container
+        A phenopype container is a Python class where loaded images, 
+        dataframes, detected contours, intermediate output, etc. are stored 
+        so that they are available for inspection or storage at the end of 
+        the analysis. 
+    image: ndarray
+        original image (resized, if selected)
+    df_image_data: DataFrame
+        contains image data (+meta data), if selected
+    
 
     """
     ## kwargs 
@@ -400,7 +429,6 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1,
     flag_df = df
     flag_meta = meta
     flag_container = cont
-    
     exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
@@ -420,7 +448,8 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1,
 
     ## resize
     if flag_resize < 1:
-        image = cv2.resize(image, (0,0), fx=1*flag_resize, fy=1*flag_resize, interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image, (0,0), fx=1*flag_resize, fy=1*flag_resize, 
+                           interpolation=cv2.INTER_AREA)
 
     ## load image data
     image_data = load_image_data(obj_input, flag_resize)
@@ -432,7 +461,9 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1,
     ## add meta-data 
     if flag_meta:
         meta_data = load_meta_data(obj_input, fields=exif_fields)        
-        df_image_data = pd.concat([df_image_data.reset_index(drop=True), pd.DataFrame(meta_data, index=[0])], axis=1)
+        df_image_data = pd.concat([df_image_data.reset_index(drop=True), 
+                                   pd.DataFrame(meta_data, index=[0])], 
+                                  axis=1)
 
     ## return
     if flag_container == True:
@@ -450,17 +481,21 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1,
 
 def load_image_data(obj_input, resize=1):
     """
-    
+    Create a DataFreame with image information (e.g. dimensions).
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
+    obj_input: str or ndarray
+        can be a path to an image stored on the harddrive OR an array already 
+        loaded to Python.
+    resize: float
+        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
+        original size). gets stored to a DataFrame column
 
     Returns
     -------
-    image_data : TYPE
-        DESCRIPTION.
+    image_data: dict
+        contains image data (+meta data, if selected)
 
     """
     if obj_input.__class__.__name__ == "str":
@@ -496,22 +531,24 @@ def load_image_data(obj_input, resize=1):
 
     ## issue warnings for large images
     if width*height > 125000000:
-        warnings.warn("Large image - expect slow processing and consider resizing.")
+        warnings.warn("Large image - expect slow processing and consider \
+                      resizing.")
     elif width*height > 250000000:
-        warnings.warn("Extremely large image - expect very slow processing and consider resizing.")
+        warnings.warn("Extremely large image - expect very slow processing \
+                      and consider resizing.")
 
     ## return image data
     return image_data
 
 
 
-def load_meta_data(obj_input, **kwargs):
+def load_meta_data(image_path, **kwargs):
     """
-    
+    Extracts metadata (mostly Exif) from original image
 
     Parameters
     ----------
-    obj_input : TYPE
+    image_path : str path to image on harddrive
         DESCRIPTION.
     **kwargs : TYPE
         DESCRIPTION.
@@ -527,7 +564,7 @@ def load_meta_data(obj_input, **kwargs):
     exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
-        
+
     # ## check if basic fields are present
     # if exif_fields.__class__.__name__ == "list":
     #     if not len(exif_fields) == 0:
@@ -535,9 +572,9 @@ def load_meta_data(obj_input, **kwargs):
     #         exif_fields = prepend + exif_fields
 
     ## read image
-    if obj_input.__class__.__name__ == "str":
-        if os.path.isfile(obj_input):
-            image = Image.open(obj_input)
+    if image_path.__class__.__name__ == "str":
+        if os.path.isfile(image_path):
+            image = Image.open(image_path)
         else:
             warnings.warn("Not a valid image file - cannot read exif data.")
             return {}
@@ -578,29 +615,29 @@ def load_meta_data(obj_input, **kwargs):
 
 
 
-
-
-
-def show_image(image, **kwargs):
-    """Show one or multiple images by providing path string or array or list of either.
+def show_image(image, max_dim=1200, pos_offset=25, pos_reset=True,
+               window_aspect="free"):
+    """
+    Show one or multiple images by providing path string or array or list of 
+    either.
     
     Parameters
     ----------
     image: str, array, or list
-        the image or list of images to be displayed. can be path to image (string), array-type, or list of strings or arrays
+        the image or list of images to be displayed. can be path to image 
+        (string), array-type, or list of strings or arrays
     window_aspect: str (default: "fixed")
         "fixed" or "free" aspect ratio
     position_reset: bool
-        flag whether image positions should be reset when reopening list of images
+        flag whether image positions should be reset when reopening list of 
+        images
     position_offset: int 
-        if image is list, the distance in pixels betweeen the positions of each newly opened window (only works in conjunction with "position_reset")
+        if image is list, the distance in pixels betweeen the positions of 
+        each newly opened window (only works in conjunction with 
+        "position_reset")
     """
-    
-    ## kwargs
-    max_dim = kwargs.get("max_dim", 1200)
-    pos_offset = kwargs.get("position_offset", 25)
-    pos_reset = kwargs.get("position_reset", False)
-    window_aspect = kwargs.get("aspect", "free")
+
+    ## select window type
     if window_aspect == "free":
         window_aspect = cv2.WINDOW_NORMAL
     elif window_aspect == "fixed":
@@ -612,8 +649,15 @@ def show_image(image, **kwargs):
         if isinstance(image, list):
             if len(image)>10:
                 warning_banner = np.zeros((30,900,3))
-                warning_string = "WARNING: trying to open " + str(len(image)) + " images - proceed (Enter) or stop (Esc)?"
-                warning_image = cv2.putText(warning_banner,  warning_string ,(11,22), cv2.FONT_HERSHEY_SIMPLEX  , 0.75, colours.green,1,cv2.LINE_AA)
+                warning_string = "WARNING: trying to open " + str(len(image)) \
+                    + " images - proceed (Enter) or stop (Esc)?"
+                warning_image = cv2.putText(warning_banner,  
+                                            warning_string ,(11,22), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 
+                                            0.75, 
+                                            colours["green"],
+                                            1,
+                                            cv2.LINE_AA)
                 cv2.namedWindow('phenopype' ,cv2.WINDOW_AUTOSIZE )
                 cv2.imshow('phenopype', warning_image)
                 k = cv2.waitKey(0)
@@ -633,7 +677,9 @@ def show_image(image, **kwargs):
                               window_control="external",
                               max_dim=max_dim)
                 if pos_reset == True:
-                    cv2.moveWindow('phenopype' + " - " + str(idx),idx+idx*pos_offset,idx+idx*pos_offset)
+                    cv2.moveWindow('phenopype' + " - " + str(idx),
+                                   idx + idx*pos_offset,
+                                   idx + idx*pos_offset)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             break
