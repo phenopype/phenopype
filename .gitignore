@@ -17,4 +17,5 @@ lib64
 local
 parts
 phenopype.egg-info/
+spyder-debug.log
 src/*.egg-info
