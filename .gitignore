@@ -8,6 +8,7 @@ __pycache__/
 _config.yml
 
 bin
+docs/_temp
 docs_source
 develop-eggs
 dist
