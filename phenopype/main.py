@@ -55,7 +55,6 @@ class project:
         flag_overwrite = overwrite
 
         ## feedback
-        print("\n")
         print("--------------------------------------------")
         print("phenopype will create a new project at:\n")
         print(root_dir)
@@ -110,13 +109,22 @@ class project:
             print("--------------------------------------------")
             break
 
-    def add_files(self, image_dir, filetypes=["jpg","tif","png"], include=[], exclude=[],
+    def add_files(self, image_dir, filetypes=default_filetypes, include=[], exclude=[],
                   raw_mode="copy", search_mode="dir", unique_mode="path", overwrite=False,
                   resize=1, **kwargs):
         """
         Add files to your project from a directory, can look recursively. 
         Specify in- or exclude arguments, filetypes, duplicate-action and copy 
-        or link raw files to save memory on the harddrive.
+        or link raw files to save memory on the harddrive. For each found image,
+        a folder will be created in the "data" folder within the projects root
+        directory. If found images are in subfolders and search_mode is 
+        recursive, the respective phenopype directories will be created with 
+        flattened path as prefix. E.g., with "raw_files" as folder with the original
+        image files and "phenopype_proj" as rootfolder:
+        
+        raw_files/file.jpg ==> phenopype_proj/data/file.jpg
+        raw_files/subdir1/file.jpg ==> phenopype_proj/data/1__subdir1__file.jpg
+        raw_files/subdir1/subdir2/file.jpg ==> phenopype_proj/data/2__subdir1__subdir2__file.jpg
     
         Parameters
         ----------
@@ -157,6 +165,20 @@ class project:
                                              filetypes=filetypes, 
                                              exclude=exclude, 
                                              include=include)
+        
+        ## feedback
+        print("--------------------------------------------")
+        print("phenopype will search for files at\n")
+        print(image_dir)
+        print("\nusing the following settings:\n")
+        print("filetypes: " + str(filetypes) 
+              + ", include: " + str(include)
+              + ", exclude: " + str(exclude)
+              + ", raw_mode: " + str(raw_mode)
+              + ", search_mode: " + str(search_mode)
+              + ", unique_mode: " + str(unique_mode)
+              + "\n"
+              )
 
         ## loop through files
         for filepath in filepaths:
@@ -174,14 +196,20 @@ class project:
 
             ## make image-specific directories
             if os.path.isdir(dirpath) and flag_overwrite==False:
-                warnings.warn(dirname + " already exists (overwrite=False)")
+                print("Found image " + relpath 
+                      + " - " 
+                      + dirname + " already exists (overwrite=False)")
                 continue
             if os.path.isdir(dirpath) and flag_overwrite==True:
                 rmtree(dirpath, ignore_errors=True, onerror=_del_rw)
-                print("phenopype-project folder " + dirname + " created (overwritten)")
+                print("Found image " + relpath +
+                      " - " 
+                      + "phenopype-project folder " + dirname + " created (overwritten)")
                 os.mkdir(dirpath)
             else:
-                print("phenopype-project folder " + dirname + " created")
+                print("Found image " + relpath +
+                      " - " 
+                      + "phenopype-project folder " + dirname + " created")
                 os.mkdir(dirpath)
 
             ## load image
@@ -228,6 +256,9 @@ class project:
                 self.dirpaths.append(dirpath)
                 self.filenames.append(image_data["filename"])
                 self.filepaths.append(raw_path)
+                
+        print("\nFound {} files".format(len(filepaths)))
+        print("--------------------------------------------")
 
     def add_config(self, name, preset="preset1", interactive=False, overwrite=False, 
                    **kwargs):

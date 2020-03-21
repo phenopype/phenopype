@@ -9,6 +9,7 @@ _config.yml
 
 bin
 docs_source
+docs_temp
 develop-eggs
 dist
 eggs

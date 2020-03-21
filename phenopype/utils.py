@@ -81,7 +81,8 @@ class container(object):
         None.
 
         """
-        
+        files, loaded = [], []
+
         ## data from attributes file
         attr_path = os.path.join(self.dirpath, "attributes.yaml")
         if os.path.isfile(attr_path):
@@ -119,7 +120,6 @@ class container(object):
                 print("Save_suffix missing - not loading saved results.")
                 return
 
-        files, loaded = [], []
         if self.save_suffix:
             for file in os.listdir(self.dirpath):
                 if self.save_suffix in file and not "pype_config" in file:
@@ -436,7 +436,10 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1, **kwargs):
     ## method
     if obj_input.__class__.__name__ == "str":
         if os.path.isfile(obj_input):
-            image = cv2.imread(obj_input)
+            if flag_resize < 1:
+                image = cv2.imread(obj_input)
+            else:
+                image = None
             dirpath = os.path.split(obj_input)[0]
         else:
             sys.exit("Invalid image path - cannot load image from str.")
@@ -576,10 +579,10 @@ def load_meta_data(image_path, **kwargs):
         if os.path.isfile(image_path):
             image = Image.open(image_path)
         else:
-            warnings.warn("Not a valid image file - cannot read exif data.")
+            print("Not a valid image file - cannot read exif data.")
             return {}
     else:
-        warnings.warn("Not a valid image file - cannot read exif data.")
+        print("Not a valid image file - cannot read exif data.")
         return {}
 
     ## populate dictionary
@@ -591,7 +594,6 @@ def load_meta_data(image_path, **kwargs):
                 exif_data_all[ExifTags.TAGS[k]] = v
         exif_data_all = dict(sorted(exif_data_all.items()))
     except Exception:
-        warnings.warn("No exif data found.")
         return None
 
     if flag_show:
