@@ -469,7 +469,8 @@ class pype:
     overwrite: bool, optional
         overwrite option, if a given pype config-file already exist
     """
-    def __init__(self, image, name, config="preset1", interactive=False, overwrite=False, **kwargs):
+    def __init__(self, image, name, config="preset1", interactive=False, overwrite=False, 
+                 dirpath=None, **kwargs):
 
         
         ## pype name check
@@ -513,6 +514,9 @@ class pype:
                 sys.exit("Invalid path - cannot run pype.")
         else:
             sys.exit("Wrong input format - cannot run pype.")
+        
+        if not dirpath.__class__.__nadme__ == "NoneType":
+            self.container.dirpath = dirpath
 
         ## skip directories that already contain specified files
         if flag_skip:

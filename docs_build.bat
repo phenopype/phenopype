@@ -1,3 +1,5 @@
-RMDIR "docs" /S /Q
-md docs/_temp
-sphinx-multibuild -c E:\git_repos\phenopype -i tutorials -i docs_source -s docs_temp -o docs
+rmdir E:\git_repos\phenopype\_temp\docs /S /Q
+rmdir E:\git_repos\phenopype\docs /S /Q
+mkdir E:\git_repos\phenopype\_temp\docs
+mkdir E:\git_repos\phenopype\docs
+sphinx-multibuild -c E:\git_repos\phenopype -i tutorials -i _source -s _temp/docs -o docs

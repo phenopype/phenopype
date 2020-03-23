@@ -432,7 +432,7 @@ def threshold(obj_input, **kwargs):
             coords = eval(row["coords"])
             if not row["mask"] == label:
                 label = row["mask"]
-                print(" - applying mask: " + label)
+                print("- applying mask: " + label)
             if row["include"]:
                 mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
             if not row["include"]:

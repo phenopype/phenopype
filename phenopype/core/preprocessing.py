@@ -473,7 +473,7 @@ def invert_image(obj_input, **kwargs):
     
 
 
-def resize_image(obj_input, **kwargs):
+def resize_image(obj_input, resize=1):
     """
     
 
@@ -490,7 +490,6 @@ def resize_image(obj_input, **kwargs):
         DESCRIPTION.
 
     """
-    factor = kwargs.get("factor", 0.5)
     
     ## load image and check if pp-project
     if obj_input.__class__.__name__ == "ndarray":
@@ -500,12 +499,11 @@ def resize_image(obj_input, **kwargs):
         df_image_data = obj_input.df_image_data
 
     ## method
-    image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor, interpolation=cv2.INTER_AREA)
-                
-    df_image_data["resized"] = factor
-    
+    image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize, interpolation=cv2.INTER_AREA)
+
     ## return 
     if obj_input.__class__.__name__ == "container":
+        df_image_data["resized"] = resize
         obj_input.image = image
         obj_input.image_copy = image
         obj_input.canvas = image

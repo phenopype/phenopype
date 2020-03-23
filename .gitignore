@@ -4,8 +4,12 @@
 .eggs
 .installed.cfg
 .ipynb_checkpoints
+
 __pycache__/
 _config.yml
+_local
+_source
+_temp
 
 bin
 docs_source

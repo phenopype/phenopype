@@ -436,10 +436,7 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1, **kwargs):
     ## method
     if obj_input.__class__.__name__ == "str":
         if os.path.isfile(obj_input):
-            if flag_resize < 1:
-                image = cv2.imread(obj_input)
-            else:
-                image = None
+            image = cv2.imread(obj_input)
             dirpath = os.path.split(obj_input)[0]
         else:
             sys.exit("Invalid image path - cannot load image from str.")
@@ -698,47 +695,60 @@ def show_image(image, max_dim=1200, pos_offset=25, pos_reset=True,
 
 
 
-
-
-# def save_image(image, name, **kwargs):
-#     """Save an image (array) to jpg.
+def save_image(image, name, save_dir=os.getcwd(), resize=1, append="", 
+               extension="jpg", overwrite=False, **kwargs):
+    """Save an image (array) to jpg.
     
-#     Parameters
-#     ----------
-#     image: array
-#         image to save
-#     name: str
-#         name for saved image
-#     save_dir: str
-#         location to save image
-#     append: str ("")
-#         append image name with string to prevent overwriting
-#     extension: str ("")
-#         file extension to save image with
-#     overwrite: bool (optional, default: False)
-#         overwrite images if name exists
-#     """
-#     # set dir and names
-#     out_dir = kwargs.get('save_dir', os.getcwd())     
-#     if not os.path.exists(out_dir):
-#         os.makedirs(out_dir)
+    Parameters
+    ----------
+    image: array
+        image to save
+    name: str
+        name for saved image
+    save_dir: str, optional
+        directory to save image
+    append: str, optional
+        append image name with string to prevent overwriting
+    extension: str ("")
+        file extension to save image with
+    overwrite: bool (optional, default: False)
+        overwrite images if name exists
+    """
 
-#     app = kwargs.get('append',"")
-#     new_name = os.path.splitext(name)[0] + app
-        
-#     ext = kwargs.get('extension',os.path.splitext(name)[1])
-#     new_name = new_name + ext
-    
-#     im_path=os.path.join(out_dir , new_name)
-    
-#     if "resize" in kwargs:
-#         factor = kwargs.get('resize')
-#         image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor) 
-    
-#     if kwargs.get('overwrite',False) == False:
-#         if not os.path.exists(im_path):
-#             cv2.imwrite(im_path, image)
-#     else:
-#         cv2.imwrite(im_path, image)
+    ## kwargs 
+    flag_overwrite = overwrite
 
+    # set dir and names
+    if "." in name:
+        warnings.warn("need name and extension specified separately")
+        return
+    if append == "":
+        append = ""
+    else:
+        append = "_" + append
+    if "." not in extension:
+        extension = "." + extension 
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
+    ## resize
+    if resize < 1:
+        image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize, interpolation=cv2.INTER_AREA)
+
+    ## construct save path
+    new_name = name + append + extension
+    path = os.path.join(save_dir, new_name)
+
+    ## save
+    while True:
+        if os.path.isfile(path) and flag_overwrite == False:
+            print("Image not saved - file already exists (overwrite=False).")
+            break
+        elif os.path.isfile(path) and flag_overwrite == True:
+            print("Image saved under " + path + " (overwritten).")
+            pass
+        elif not os.path.isfile(path):
+            print("Image saved under " + path + ".")
+            pass
+        cv2.imwrite(path, image)
+        break

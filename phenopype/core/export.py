@@ -134,39 +134,45 @@ def save_colours(obj_input, **kwargs):
         break
 
 
-def save_contours(obj_input, **kwargs):
-    """Save a pandas dataframe to csv. 
-    
+def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None, 
+                  **kwargs):
+    """Save contour df to csv. 
+
     Parameters
     ----------
-    df: df
-        object_finder outpur (pandas data frame) to save
-    name: str
-        name for saved df
-    save_dir: str
-        location to save df
-    append: str (optional)
-        append df name with string to prevent overwriting
-    overwrite: bool (optional, default: False)
-        overwrite df if name exists
+    obj_input : DataFrame or container 
+        object containing the contours
+    overwrite : bool, optional
+        overwrite flag in case file exists
+    dirpath : str, optional
+        folder to save csv in 
+    save_suffix : str, optional
+        suffix to append to filename contours_XX.csv
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", True)
-    dirpath = kwargs.get("dirpath", None)
-    save_suffix = kwargs.get("save_suffix", None)
     convert_coords = kwargs.get("convert_coords", True)
+    flag_overwrite = overwrite
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
         df = obj_input
-        if not dirpath:
+        if dirpath.__class__.__name__ == "NoneType":
             warnings.warn("No save directory specified - cannot save contours.")
+            return
     elif obj_input.__class__.__name__ == "container":
         df = copy.deepcopy(obj_input.df_contours)
         dirpath = obj_input.dirpath
         save_suffix = obj_input.save_suffix
     else:
-        warnings.warn("No df supplied - cannot export contours.")
+        warnings.warn("No contour df supplied - cannot export contours.")
+        return
 
     ## convert contour coords to list of tuples
     if convert_coords:
@@ -176,11 +182,22 @@ def save_contours(obj_input, **kwargs):
         df = pd.concat([df.reset_index(drop=True), pd.DataFrame(df["coords"].tolist(), columns=["x","y"])], axis=1)
         df.drop(columns="coords", inplace=True)
 
-    ## save
+    ## suffix
     if save_suffix:
         path = os.path.join(dirpath, "contours_" + save_suffix + ".csv")
     else:
         path = os.path.join(dirpath, "contours.csv")
+
+    ## dirpath
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in ["True", "true", "y", "yes"]:
+            os.makedirs(dirpath)
+        else: 
+            print("Directory not created - aborting")
+            return
+
+    ## save
     while True:
         if os.path.isfile(path) and flag_overwrite == False:
             print("- contours not saved - file already exists (overwrite=False).")

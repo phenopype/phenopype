@@ -62,7 +62,7 @@ visualization:
     colour: blue
     line_thickness: 5
 export:
-- save_results:
+- save_contours:
     overwrite: true
 - save_canvas:
     resize: 0.5
@@ -161,6 +161,45 @@ export:
 - save_polylines
 """
 
+demo1 = """
+preprocessing:
+- create_mask: 
+    tool: polygon
+segmentation:
+- blur:
+    kernel_size: 15
+- threshold:
+    method: adaptive
+    channel: red
+    blocksize: 199
+    constant: 5
+- morphology:
+    operation: close
+    shape: ellipse
+    kernel_size: 3
+    iterations: 3
+- find_contours:
+    retrieval: ext
+    min_diameter: 0
+    min_area: 15
+visualization:
+- select_canvas:
+    canvas: image
+- show_contours:
+    line_thickness: 2
+    text_thickness: 1
+    text_size: 1
+    fill: 0.3
+- show_masks:
+    colour: blue
+    line_thickness: 5
+export:
+- save_contours:
+    overwrite: true
+- save_canvas:
+    resize: 0.5
+    overwrite: true
+"""
 
 inverted1 = """
 pype:

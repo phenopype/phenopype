@@ -38,8 +38,8 @@ release = version
 extensions = [
     'sphinx.ext.autodoc', 
     'sphinx.ext.coverage',
-	'sphinx.ext.napoleon',
-	'sphinx.ext.githubpages',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.githubpages',
     "nbsphinx"
 ]
 
@@ -90,9 +90,9 @@ html_show_sourcelink = True
 # documentation.
 #
 html_theme_options = {
-        "navbar_links": [
-        ("back to github", "https://github.com/mluerig/phenopype", True)] }
-            
+    "navbar_links": [("back to github", "https://github.com/mluerig/phenopype", True)]
+}
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
@@ -106,8 +106,11 @@ html_static_path = []
 # default: ``['localtoc.html', 'relations.html', 'sourcelink.html',
 # 'searchbox.html']``.
 #
-# html_sidebars = {}
-
+# html_sidebars = {'**': ['localtoc.html', 'sourcelink.html', 'searchbox.html']}
+html_sidebars = {
+    '**': ['localtoc.html'],
+    'index': []
+}
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
