@@ -515,7 +515,7 @@ class pype:
         else:
             sys.exit("Wrong input format - cannot run pype.")
         
-        ## emergencycheck
+        ## emergency check
         if not self.container.image or self.container.image.__class__.__name__ == "NoneType":
             sys.exit("Internal error - no image loaded.")
 
