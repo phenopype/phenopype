@@ -516,7 +516,7 @@ class pype:
             sys.exit("Wrong input format - cannot run pype.")
         
         ## emergency check
-        if not self.container.image or self.container.image.__class__.__name__ == "NoneType":
+        if not hasattr(self.container, "image") or self.container.image.__class__.__name__ == "NoneType":
             sys.exit("Internal error - no image loaded.")
 
         ## supply dirpath manually
