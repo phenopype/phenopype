@@ -7,6 +7,18 @@ phenopype is a high throughput phenotyping package for Python. It aims at suppor
 
 ## Getting started
 
-Instructions for [installation](https://mluerig.github.io/phenopype/installation.html), a complete [API-reference list](https://mluerig.github.io/phenopype/api.html), and comprehensive [tutorials](https://mluerig.github.io/phenopype/#tutorials) and [examples](https://mluerig.github.io/phenopype/#examples) can be found here: https://mluerig.github.io/phenopype/
+Full documentation is here: https://mluerig.github.io/phenopype/
+
+### Installation 
+https://mluerig.github.io/phenopype/installation ==> `pip install phenopype`
+
+### API-reference 
+https://mluerig.github.io/phenopype/api_ref ==> overview of currently implemented CV functions
+
+### Tutorials 
+https://mluerig.github.io/phenopype/tutorial_2_phenopype_workflow ==> phenopype has different workflows
+
+### Example cases 
+https://mluerig.github.io/phenopype/example_1_detect_objects_isopods ==> more to be added 
 
 
