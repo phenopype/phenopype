@@ -515,7 +515,7 @@ class pype:
         else:
             sys.exit("Wrong input format - cannot run pype.")
         
-        if not dirpath.__class__.__nadme__ == "NoneType":
+        if not dirpath.__class__.__name__ == "NoneType":
             self.container.dirpath = dirpath
 
         ## skip directories that already contain specified files
