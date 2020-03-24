@@ -12,6 +12,7 @@ _source
 _temp
 
 bin
+docs/_temp
 docs_source
 docs_temp
 develop-eggs
