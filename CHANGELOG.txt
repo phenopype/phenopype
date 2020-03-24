@@ -1,36 +1,23 @@
 Unreleased / planned
 ====================
-
-tutorial:
-- explicit vs. implicit in pype-config (e.g. mask labels)
-
-
-shortterm:
-- update readme (better looks for phenopype)
-- fix tutorials, and make more (by function)
-- add tutorial: tracking
-- add testing: tracking, landmark, mask 
-
-midterm:
-- change rectangle method for mask_maker
-- internalize zoom method (with canvas) to show_img or interact_img
-- make ret options for methods
-- declutter modules / remove self. references
-
-longterm:
-- internal: decluttering of base module / outhousing of classes and methods 
-- watershed algorithms
-- implement gapless zooming as a choice
-- project management globally acessible through base functions
-- object_finder returns histogram of length, area and grayscale of all objects
-- a quick-thresholding method in marked area for single images 
+- add missing tutorials and examples
+- add missing API info
 
 Known bugs
 ==========
-- object_finder: resizing of image not resizing masks (try to build a size-matcher)
-- high GUI / windows sometimes crash. Stop Kernel and use "cv2.destroyAllWindows()"
+- high GUI / windows sometimes crashes. Stop Kernel and use "cv2.destroyAllWindows()"
 
+1.0.1
+------
+bugfix:
+- if resize==1, load_images will pass none to pype
 
+- tutorial 1 (Python intro) and tutorial 2 (phenopype workflow) added
+- added update and nightly to installation doc
+
+1.0.0
+------
+new major release - breaks all existing versions
 
 0.10.0
 ------
