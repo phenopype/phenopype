@@ -81,10 +81,10 @@ def landmarks(obj_input, **kwargs):
             print("- landmarks already set (overwrite=False)")
             break
         elif not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            print("- set landmarks (overwriting)")
+            print("- setting landmarks (overwriting)")
             pass
         elif df_landmarks.__class__.__name__ == "NoneType":
-            print("- set landmarks")
+            print("- setting landmarks")
             pass
         
         ## set landmarks
