@@ -23,3 +23,4 @@ parts
 phenopype.egg-info/
 spyder-debug.log
 src/*.egg-info
+tutorials/_assets
