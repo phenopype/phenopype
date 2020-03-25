@@ -11,30 +11,36 @@ from phenopype.utils_lowlevel import _image_viewer, _save_yaml, _load_yaml, _sho
 
 #%% functions
 
-def save_canvas(obj_input, **kwargs):
-    """Save a pandas dataframe to csv. 
-    
+def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None, 
+                name="", resize=0.5, **kwargs):
+    """
+    Save a canvas (processed image). Less flexible than "save_image", should
+    only be used for low and high throughput worklow. 
+
     Parameters
     ----------
-    df: df
-        object_finder outpur (pandas data frame) to save
+    obj_input : array or container
+        input object
+    overwrite : bool, optional
+        overwrite flag in case file exists
+    dirpath : str, optional
+        folder to save file in 
+    save_suffix : str, optional
+        suffix to append to filename
     name: str
-        name for saved df
-    save_dir: str
-        location to save df
-    append: str (optional)
-        append df name with string to prevent overwriting
-    overwrite: bool (optional, default: False)
-        overwrite df if name exists
-    silent: bool (optional, default: True)
-        do not print where file was saved
+        custom name for file
+    resize: float
+        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
+        original size).
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", True)
-    dirpath = kwargs.get("directory", None)
-    name = kwargs.get("name", "") 
-    save_suffix = kwargs.get("save_suffix", None)
-    resize = kwargs.get("resize", 0.5)
+    flag_overwrite = overwrite
 
     ## load df
     if obj_input.__class__.__name__ == 'ndarray':
@@ -43,14 +49,25 @@ def save_canvas(obj_input, **kwargs):
             warnings.warn("No save directory specified - cannot save canvas.")
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
-        save_suffix = obj_input.save_suffix
-        dirpath = obj_input.dirpath
+        if not save_suffix:
+            save_suffix = obj_input.save_suffix
+        if not dirpath:
+            dirpath = obj_input.dirpath
     else:
         warnings.warn("No image supplied - cannot save canvas.")
 
     ## resize
     if resize < 1:
         image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize) 
+
+    ## dirpath
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in ["True", "true", "y", "yes"]:
+            os.makedirs(dirpath)
+        else: 
+            print("Directory not created - aborting")
+            return
 
     ## save
     if len(name)>0:
@@ -75,7 +92,8 @@ def save_canvas(obj_input, **kwargs):
 
 
 
-def save_colours(obj_input, **kwargs):
+def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
+                 **kwargs):
     """Save a pandas dataframe to csv. 
     
     Parameters
@@ -92,10 +110,8 @@ def save_colours(obj_input, **kwargs):
         do not print where file was saved
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", True)
-    dirpath = kwargs.get("directory", None)
+    flag_overwrite = overwrite
     round_digits = kwargs.get("round",1)
-    save_suffix = kwargs.get("save_suffix", None)
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -103,10 +119,11 @@ def save_colours(obj_input, **kwargs):
         if not dirpath:
             warnings.warn("No save directory specified - cannot export results.")
     elif obj_input.__class__.__name__ == "container":
+        df = obj_input.df_colours
+        if not save_suffix:
+            save_suffix = obj_input.save_suffix
         if not dirpath:
             dirpath = obj_input.dirpath
-        df = obj_input.df_colours
-        save_suffix = obj_input.save_suffix
     else:
         warnings.warn("No df supplied - cannot export results.")
 
@@ -134,7 +151,7 @@ def save_colours(obj_input, **kwargs):
         break
 
 
-def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None, 
+def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
                   **kwargs):
     """Save contour df to csv. 
 
@@ -145,9 +162,9 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     overwrite : bool, optional
         overwrite flag in case file exists
     dirpath : str, optional
-        folder to save csv in 
+        folder to save file in 
     save_suffix : str, optional
-        suffix to append to filename contours_XX.csv
+        suffix to append to filename
     **kwargs : TYPE
         DESCRIPTION.
 
@@ -157,8 +174,8 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
     """
     ## kwargs
-    convert_coords = kwargs.get("convert_coords", True)
     flag_overwrite = overwrite
+    convert_coords = kwargs.get("convert_coords", True)
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -168,8 +185,10 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
             return
     elif obj_input.__class__.__name__ == "container":
         df = copy.deepcopy(obj_input.df_contours)
-        dirpath = obj_input.dirpath
-        save_suffix = obj_input.save_suffix
+        if not save_suffix:
+            save_suffix = obj_input.save_suffix
+        if not dirpath:
+            dirpath = obj_input.dirpath
     else:
         warnings.warn("No contour df supplied - cannot export contours.")
         return
@@ -213,7 +232,8 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
 
 
-def save_drawing(obj_input, **kwargs):
+def save_drawing(obj_input, overwrite=True, dirpath=None, save_suffix=None,
+                 **kwargs):
     """Save a pandas dataframe to csv. 
     
     Parameters
@@ -230,8 +250,7 @@ def save_drawing(obj_input, **kwargs):
         do not print where file was saved
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", True)
-    dirpath = kwargs.get("directory", None)
+    flag_overwrite = overwrite
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -239,9 +258,11 @@ def save_drawing(obj_input, **kwargs):
         if not dirpath:
             warnings.warn("No save directory specified - cannot export results.")
     elif obj_input.__class__.__name__ == "container":
+        df = obj_input.df_draw
+        if not save_suffix:
+            save_suffix = obj_input.save_suffix
         if not dirpath:
             dirpath = obj_input.dirpath
-        df = obj_input.df_draw
     else:
         warnings.warn("No df supplied - cannot export results.")
 
@@ -271,7 +292,8 @@ def save_drawing(obj_input, **kwargs):
 
 
 
-def save_data_entry(obj_input, **kwargs):
+def save_data_entry(obj_input, overwrite=True, dirpath=None, save_suffix=None,
+                    **kwargs):
     """Save a pandas dataframe to csv. 
     
     Parameters
@@ -288,8 +310,7 @@ def save_data_entry(obj_input, **kwargs):
         do not print where file was saved
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", True)
-    dirpath = kwargs.get("directory", None)
+    flag_overwrite = overwrite
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -297,9 +318,11 @@ def save_data_entry(obj_input, **kwargs):
         if not dirpath:
             warnings.warn("No save directory specified - cannot export results.")
     elif obj_input.__class__.__name__ == "container":
+        df = obj_input.df_other_data
+        if not save_suffix:
+            save_suffix = obj_input.save_suffix
         if not dirpath:
             dirpath = obj_input.dirpath
-        df = obj_input.df_other_data
     else:
         warnings.warn("No df supplied - cannot export results.")
 
@@ -325,7 +348,8 @@ def save_data_entry(obj_input, **kwargs):
     _save_yaml(attr, attr_path)
 
 
-def save_landmarks(obj_input, **kwargs):
+def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None,
+                   **kwargs):
     """
     
 
@@ -342,9 +366,7 @@ def save_landmarks(obj_input, **kwargs):
 
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", True)
-    dirpath = kwargs.get("directory", None)
-    save_suffix = kwargs.get("save_suffix", None)
+    flag_overwrite = overwrite
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -353,10 +375,21 @@ def save_landmarks(obj_input, **kwargs):
             warnings.warn("No save directory specified - cannot save landmarks.")
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_landmarks
-        dirpath = obj_input.dirpath
-        save_suffix = obj_input.save_suffix
+        if not save_suffix:
+            save_suffix = obj_input.save_suffix
+        if not dirpath:
+            dirpath = obj_input.dirpath
     else:
         warnings.warn("No df supplied - cannot export results.")
+
+    ## dirpath
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in ["True", "true", "y", "yes"]:
+            os.makedirs(dirpath)
+        else: 
+            print("Directory not created - aborting")
+            return
 
     ## save
     if save_suffix:
@@ -378,7 +411,8 @@ def save_landmarks(obj_input, **kwargs):
 
 
 
-def save_masks(obj_input, **kwargs):
+def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None,
+               **kwargs):
     """
     
 
@@ -395,9 +429,7 @@ def save_masks(obj_input, **kwargs):
 
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", True)
-    dirpath = kwargs.get("directory", None)
-    save_suffix = kwargs.get("save_suffix", None)
+    flag_overwrite = overwrite
     
     ## load df
     if obj_input.__class__.__name__ == 'ndarray':
@@ -406,8 +438,10 @@ def save_masks(obj_input, **kwargs):
             warnings.warn("No save directory specified - cannot save masks.")
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_masks
-        save_suffix = obj_input.save_suffix
-        dirpath = obj_input.dirpath
+        if not save_suffix:
+            save_suffix = obj_input.save_suffix
+        if not dirpath:
+            dirpath = obj_input.dirpath
     else:
         warnings.warn("No mask df supplied - cannot save mask.")
     
@@ -431,7 +465,8 @@ def save_masks(obj_input, **kwargs):
 
 
 
-def save_polylines(obj_input, **kwargs):
+def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None,
+                   **kwargs):
     """
     
 
@@ -448,9 +483,7 @@ def save_polylines(obj_input, **kwargs):
 
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", True)
-    dirpath = kwargs.get("directory", None)
-    save_suffix = kwargs.get("save_suffix", None)
+    flag_overwrite = overwrite
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -459,8 +492,10 @@ def save_polylines(obj_input, **kwargs):
             warnings.warn("No save directory specified - cannot save polylines.")
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_polylines
-        dirpath = obj_input.dirpath
-        save_suffix = obj_input.save_suffix
+        if not save_suffix:
+            save_suffix = obj_input.save_suffix
+        if not dirpath:
+            dirpath = obj_input.dirpath
     else:
         warnings.warn("No df supplied - cannot export results.")
 
@@ -484,7 +519,7 @@ def save_polylines(obj_input, **kwargs):
 
 
 
-def save_scale(obj_input, **kwargs):
+def save_scale(obj_input, overwrite=True, dirpath=None,**kwargs):
     """Save a pandas dataframe to csv. 
     
     Parameters
@@ -501,8 +536,7 @@ def save_scale(obj_input, **kwargs):
         do not print where file was saved
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", True)
-    dirpath = kwargs.get("directory", None)
+    flag_overwrite = overwrite
 
     ## load df
     if obj_input.__class__.__name__ == 'ndarray':
@@ -510,9 +544,9 @@ def save_scale(obj_input, **kwargs):
         if not dirpath:
             warnings.warn("No save directory specified - cannot export results.")
     elif obj_input.__class__.__name__ == "container":
+        scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
         if not dirpath:
             dirpath = obj_input.dirpath
-        scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
     else:
         warnings.warn("No scale supplied - cannot export results.")
 

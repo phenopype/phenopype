@@ -437,21 +437,22 @@ class project:
 class pype:
     """
     The pype is phenopype’s core method that allows running all functions 
-    that are available in the program’s library in sequence. Executing the pype routine 
-    will trigger two actions: it will open a yaml configuration file 
-    containing instructions for image processing using the default OS text viewer, 
-    and a phenopype-window showing the image that was passed on to the pype 
-    function as an array, or a character string containing the path to an 
-    image on the harddrive (or a directory). Phenopype will parse all functions 
-    contained in the config-file in sequence and attempt to apply them to the image 
-    (exceptions will be passed, but exceptions returned for diagnostics). 
-    The user immediately sees the result and can decide to make changes directly to 
-    the opened config-file (e.g. either change function parameters or add new functions), 
-    and run the pype again, or to terminate the pype and save all results. 
-    The user can store the processed image, any extracted phenotypic information, 
-    as well as the modified config-file inside the image directory. 
-    By providing unique names, users can store different pype configurations and 
-    the associated results side by side. 
+    that are available in the program’s library in sequence. Users can execute 
+    the pype method on a filepath, an array, or a phenopype directory, which 
+    always will trigger three actions:
+
+    1. open the contained yaml configuration with the default OS text editor
+    2. parse the contained functions and execute them in the sequence (exceptions
+       will be passed, but returned for diagnostics)
+    3. open a Python-window showing the processed image.
+    
+    After one iteration of these steps, users can evaluate the results and decide
+    to modify the opened configuration file (e.g. either change function parameters or 
+    add new functions), and run the pype again, or to terminate the pype and 
+    save all results. The processed image, any extracted phenotypic information, 
+    as well as the modified config-file is stored inside the image directory, or
+    a user-specified directory. By providing unique names, users can store different
+    pype configurations and the associated results side by side. 
     
     Parameters
     ----------

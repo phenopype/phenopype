@@ -713,6 +713,9 @@ def save_image(image, name, save_dir=os.getcwd(), resize=1, append="",
         file extension to save image with
     overwrite: bool (optional, default: False)
         overwrite images if name exists
+    resize: float
+        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
+        original size).
     """
 
     ## kwargs 
