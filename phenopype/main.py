@@ -119,12 +119,14 @@ class project:
         a folder will be created in the "data" folder within the projects root
         directory. If found images are in subfolders and search_mode is 
         recursive, the respective phenopype directories will be created with 
-        flattened path as prefix. E.g., with "raw_files" as folder with the original
-        image files and "phenopype_proj" as rootfolder:
+        flattened path as prefix. 
         
-        raw_files/file.jpg ==> phenopype_proj/data/file.jpg
-        raw_files/subdir1/file.jpg ==> phenopype_proj/data/1__subdir1__file.jpg
-        raw_files/subdir1/subdir2/file.jpg ==> phenopype_proj/data/2__subdir1__subdir2__file.jpg
+        E.g., with "raw_files" as folder with the original image files 
+        and "phenopype_proj" as rootfolder:
+        
+        - raw_files/file.jpg ==> phenopype_proj/data/file.jpg
+        - raw_files/subdir1/file.jpg ==> phenopype_proj/data/1__subdir1__file.jpg
+        - raw_files/subdir1/subdir2/file.jpg ==> phenopype_proj/data/2__subdir1__subdir2__file.jpg
     
         Parameters
         ----------

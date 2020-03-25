@@ -28,27 +28,26 @@ warnings.simplefilter('always', UserWarning)
 #%% classes
 
 class container(object):
+    """
+    A phenopype container is a Python class where loaded images, dataframes, 
+    detected contours, intermediate output, etc. are stored so that they are 
+    available for inspection or storage at the end of the analysis. The 
+    advantage of using containers is that they don’t litter the global environment 
+    and namespace, while still containing all intermediate steps (e.g. binary 
+    masks or contour DataFrames). Containers can be used manually to analyse images, 
+    but typically they are used automatically within the pype-routine. 
+    
+    Parameters
+    ----------
+    image : ndarray
+        single or multi-channel iamge as an array (can be created using load_image 
+        or load_directory).
+    df_image_data: DataFrame
+        a dataframe that contains meta-data of the provided image to be passed on
+        to all results-DataFrames
+
+    """
     def __init__(self, image, df_image_data, **kwargs):
-
-        """
-        A phenopype container is a Python class where loaded images, dataframes, 
-        detected contours, intermediate output, etc. are stored so that they are 
-        available for inspection or storage at the end of the analysis. The 
-        advantage of using containers is that they don’t litter the global environment 
-        and namespace, while still containing all intermediate steps (e.g. binary 
-        masks or contour DataFrames). Containers can be used manually to analyse images, 
-        but typically they are used automatically within the pype-routine. 
-        
-        Parameters
-        ----------
-        image : ndarray
-            single or multi-channel iamge as an array (can be created using load_image 
-            or load_directory).
-        df_image_data: DataFrame
-            a dataframe that contains meta-data of the provided image to be passed on
-            to all results-DataFrames
-
-        """
 
         ## kwargs
         self.save_suffix = kwargs.get("save_suffix", None)
