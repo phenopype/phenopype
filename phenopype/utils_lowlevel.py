@@ -370,7 +370,7 @@ class _image_viewer():
 
 
 class _yaml_file_monitor:
-    def __init__(self, filepath, **kwargs):
+    def __init__(self, filepath):
 
         ## file, location and event action        
         self.dirpath = os.path.dirname(filepath)
@@ -388,11 +388,9 @@ class _yaml_file_monitor:
 
     def on_update(self, event):
         self.content = _load_yaml(self.filepath)
-        # if time.time() > self.ref_time + 1:
         cv2.destroyWindow("phenopype")
         for i in range(10):
             cv2.waitKey(1)
-        self.ref_time = time.time()
         print("\n\nreload pype_config\n\n")
 
     def stop(self):

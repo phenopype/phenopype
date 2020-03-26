@@ -7,18 +7,28 @@ Known bugs
 ==========
 - high GUI / windows sometimes crashes. Stop Kernel and use "cv2.destroyAllWindows()"
 
+1.0.2
+-----
+
+- Tutorials 1 + 2 improved
+- Example 2 added
+- Docstrings to all functions is complete
+
 1.0.1
 ------
 bugfix:
 - if resize==1, load_images will pass none to pype
 
-- tutorial 1 (Python intro) and tutorial 2 (phenopype workflow) added
-- added update and nightly to installation doc
+- Tutorial 1 (Python intro) and Tutorial 2 (Phenopype workflow) added
+- added update and development to installation doc
 
 1.0.0
 ------
 new major release - breaks all existing versions
 
+
+
+--------------------------------------------------------------------------------------------
 0.10.0
 ------
 bugfix:

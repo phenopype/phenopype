@@ -134,7 +134,8 @@ class project:
         image_dir: str 
             path to directory with images
         filetypes: list or str, optional
-            single or multiple string patterns to target files with certain endings
+            single or multiple string patterns to target files with certain endings.
+            "default_filetypes" are configured in settings.py
         include: list or str, optional
             single or multiple string patterns to target certain files to include
         exclude: list or str, optional
@@ -206,12 +207,16 @@ class project:
                 rmtree(dirpath, ignore_errors=True, onerror=_del_rw)
                 print("Found image " + relpath +
                       " - " 
-                      + "phenopype-project folder " + dirname + " created (overwritten)")
+                      + "phenopype-project folder " 
+                      + dirname 
+                      + " created (overwritten)")
                 os.mkdir(dirpath)
             else:
                 print("Found image " + relpath +
                       " - " 
-                      + "phenopype-project folder " + dirname + " created")
+                      + "phenopype-project folder " 
+                      + dirname 
+                      + " created")
                 os.mkdir(dirpath)
 
             ## load image
@@ -219,7 +224,9 @@ class project:
             
             ## copy or link raw files
             if flag_raw_mode == "copy":
-                raw_path = os.path.join(dirpath, "raw" + os.path.splitext(os.path.basename(filepath))[1])
+                raw_path = os.path.join(dirpath, 
+                                        "raw" 
+                                        + os.path.splitext(os.path.basename(filepath))[1])
                 if resize < 1:
                     cv2.imwrite(raw_path, image)
                 else:
@@ -472,8 +479,8 @@ class pype:
     overwrite: bool, optional
         overwrite option, if a given pype config-file already exist
     """
-    def __init__(self, image, name, config="preset1", interactive=False, overwrite=False, 
-                 dirpath=None, **kwargs):
+    def __init__(self, image, name, config="preset1", config_location=None, 
+                 dirpath=None, skip=None, feedback=True, **kwargs):
 
         
         ## pype name check
@@ -486,17 +493,15 @@ class pype:
                 sys.exit("no special characters allowed in pype name")
 
         ## kwargs
-        flag_show = kwargs.get("show",True)
-        flag_skip = kwargs.get("skip", None)
+        flag_feedback = feedback
+        flag_skip = skip
         flag_autoload = kwargs.get("autoload", True)
         flag_autosave = kwargs.get("autosave", True)
         flag_autoshow = kwargs.get("autoshow", False)
-
-        preset = kwargs.get("preset", "preset1")
-        config_location = kwargs.get("config_location", None)
-
-        print_settings = kwargs.get("print_settings",False)
+    
         presetting = kwargs.get("presetting", False)
+        preset = kwargs.get("preset", default_pype_config)
+    
         flag_meta = kwargs.get("meta", True)
         exif_fields = kwargs.get("fields", default_meta_data_fields)
         if not exif_fields.__class__.__name__ == "list":
@@ -527,9 +532,13 @@ class pype:
             self.container.dirpath = dirpath
 
         ## skip directories that already contain specified files
-        if flag_skip:
+        if not flag_skip.__class__.__name__ == "NoneType":
+            if flag_skip == True:
+                search_string = name
+            elif flag_skip.__class__.__name__ == "str":
+                search_string = flag_skip
             filepaths, duplicates = _file_walker(self.container.dirpath, 
-                                                 include=flag_skip, 
+                                                 include=search_string,
                                                  exclude=["pype_config"], 
                                                  pype_mode=True)
             if len(filepaths)>0:
@@ -543,7 +552,7 @@ class pype:
             self.config, self.config_location = _load_pype_config(self.container, config_name=name, preset=preset)
 
         ## open config file with system viewer
-        if flag_show:
+        if flag_feedback:
             if platform.system() == 'Darwin':       # macOS
                 subprocess.call(('open', self.config_location))
             elif platform.system() == 'Windows':    # Windows
@@ -552,8 +561,8 @@ class pype:
                 subprocess.call(('xdg-open', self.config_location))
 
         ## initialize
-        self.FM = _yaml_file_monitor(self.config_location, print_settings=print_settings)
-        update, iv = {}, None
+        self.FM = _yaml_file_monitor(self.config_location)
+        update, terminate, iv = {}, False, None
         
         # =============================================================================
         # pype
@@ -566,7 +575,7 @@ class pype:
             if not self.config:
                 continue
 
-            ## feedback
+            ## new iteration
             print("\n\n------------+++ new pype iteration " + 
                   datetime.today().strftime('%Y:%m:%d %H:%M:%S') + 
                   " +++--------------\n\n")
@@ -635,18 +644,17 @@ class pype:
                     self.container.save(export_list=export_list)
 
             ## visualize output
-            try:
-                if not "visualization" in list(self.config.keys()):
-                    print("select")
-                    visualization.select_canvas(self.container)
-                iv = _image_viewer(self.container.canvas, previous=update)
-                update = iv.__dict__
-            except Exception as ex:
-                print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
+            if flag_feedback:
+                try:
+                    if not "visualization" in list(self.config.keys()):
+                        visualization.select_canvas(self.container)
+                    iv = _image_viewer(self.container.canvas, previous=update)
+                    update, terminate = iv.__dict__, iv.done
+                except Exception as ex:
+                    print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
 
             ## terminate
-            if iv:
-                if iv.done:
-                    self.FM.stop()
-                    print("\n\nTERMINATE")
-                    break
+            if terminate or not flag_feedback:
+                self.FM.stop()
+                print("\n\nTERMINATE")
+                break
