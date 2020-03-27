@@ -35,7 +35,7 @@ class container(object):
     advantage of using containers is that they don’t litter the global environment 
     and namespace, while still containing all intermediate steps (e.g. binary 
     masks or contour DataFrames). Containers can be used manually to analyse images, 
-    but typically they are used automatically within the pype-routine. 
+    but typically they are created dynamically within the pype-routine. 
     
     Parameters
     ----------
@@ -45,21 +45,21 @@ class container(object):
     df_image_data: DataFrame
         a dataframe that contains meta-data of the provided image to be passed on
         to all results-DataFrames
+    save_suffix : str, optional
+        suffix to append to filename of results files
 
     """
-    def __init__(self, image, df_image_data, **kwargs):
+    def __init__(self, image, df_image_data, save_suffix=None):
 
-        ## kwargs
-        self.save_suffix = kwargs.get("save_suffix", None)
-        
+        ## images
         self.image = image
         self.image_copy = copy.deepcopy(self.image)
         self.image_mod = copy.deepcopy(self.image)
         self.image_bin = None
         self.image_gray = None
-
         self.canvas = copy.deepcopy(self.image)
         
+        ## data frames
         self.df_image_data = df_image_data
         self.df_image_data_copy = copy.deepcopy(self.df_image_data)
 
@@ -67,17 +67,16 @@ class container(object):
         self.dirpath = None
 
 
-    def load(self, **kwargs):
+    def load(self, save_suffix=None):
         """
+        Autoload function for container: loads results files with given save_suffix
+        into the container. Can be used manually, but is typically used within the
+        pype routine.
         
         Parameters
         ----------
-        components : TYPE, optional
-            DESCRIPTION. The default is [].
-
-        Returns
-        -------
-        None.
+        save_suffix : str, optional
+            suffix to include when looking for files to load
 
         """
         files, loaded = [], []
@@ -127,15 +126,6 @@ class container(object):
             for file in os.listdir(self.dirpath):
                 files.append(file[0:file.rindex('.')])
 
-
-
-        # ## contours
-        # if not hasattr(self, "df_contours") and "contours" in files:
-        #     path = os.path.join(self.dirpath, "contours_" + self.save_suffix + ".csv")
-        #     if os.path.isfile(path):
-        #         self.df_contours = pd.read_csv(path) 
-        #         loaded.append("contours_" + self.save_suffix + ".csv")
-
         ## landmarks
         if not hasattr(self, "df_landmarks") and "landmarks" in files:
             path = os.path.join(self.dirpath, "landmarks_" + self.save_suffix + ".csv")
@@ -165,14 +155,8 @@ class container(object):
 
     def reset(self):
         """
-        Parameters
-        ----------
-        components : TYPE, optional
-            DESCRIPTION. The default is [].
-
-        Returns
-        -------
-        None.
+        Resets modified images, canvas and df_image_data to original state. Can be used manually, but is typically used within the
+        pype routine.
 
         """
         self.image = copy.deepcopy(self.image_copy)
@@ -185,100 +169,102 @@ class container(object):
         # if hasattr(self, "df_contours"):
         #     del(self.df_contours)
 
-    def save(self, **kwargs):
+    def save(self, export_list=[], overwrite=False):
         """
-        
+        Autosave function for container. 
 
         Parameters
         ----------
-        components : TYPE, optional
-            DESCRIPTION. The default is [].
-        **kwargs : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
-        cfg = "pype_config_v1.yaml"
-        cfg[cfg.rindex('_')+1:cfg.rindex('.')]
+        export_list: list, optional
+            used in pype rountine to check against already performed saving operations.
+            running container.save() with an empty export_list will assumed that nothing
+            has been saved so far, and will try 
+        overwrite : bool, optional
+            gloabl overwrite flag in case file exists
 
         """
-        ## kwargs
-        export_list = kwargs.get("export_list",[])
-        
+
+        ## kwargs 
+        flag_overwrite = overwrite
+
         ## feedback
         print("AUTOSAVE")
-        
+
+        ## visualization
+
         ## canvas
         if not self.canvas.__class__.__name__ == "NoneType" and not "save_canvas" in export_list:
             print("save_canvas")
             save_canvas(self)
 
+        ## results
+
         ## colours
         if hasattr(self, "df_colours") and not "save_colours" in export_list:
             print("save_colours")
-            save_colours(self, overwrite=False)
+            save_colours(self, overwrite=flag_overwrite)
 
         ## contours
         if hasattr(self, "df_contours") and not "save_contours" in export_list:
             print("save_contours")
-            save_contours(self, overwrite=False)
-
-        ## contours
-        if hasattr(self, "df_draw") and not "save_drawing" in export_list:
-            print("save_drawing")
-            save_drawing(self, overwrite=True)
+            save_contours(self, overwrite=flag_overwrite)
 
         ## entered data
         if hasattr(self, "df_other_data") and not "save_data_entry" in export_list:
             print("save_data_entry")
-            save_data_entry(self, overwrite=False)
+            save_data_entry(self, overwrite=flag_overwrite)
 
         ## landmarks
         if hasattr(self, "df_landmarks") and not "save_landmarks" in export_list:
             print("save_landmarks")
-            save_landmarks(self, overwrite=False)
+            save_landmarks(self, overwrite=flag_overwrite)
 
         ## masks
         if hasattr(self, "df_masks") and not "save_masks" in export_list:
             print("save_masks")
-            save_masks(self, overwrite=False)
+            save_masks(self, overwrite=flag_overwrite)
 
         ## polylines
         if hasattr(self, "df_polylines") and not "save_polylines" in export_list:
             print("save_polylines")
-            save_polylines(self, overwrite=False)
+            save_polylines(self, overwrite=flag_overwrite)
+
+        ## other data
+        
+        ## drawing
+        if hasattr(self, "df_draw") and not "save_drawing" in export_list:
+            print("save_drawing")
+            save_drawing(self, overwrite=True)
 
         ## scale
         if hasattr(self, "scale_current_px_mm_ratio") and not "save_scale" in export_list:
             print("save_scale")
             save_scale(self, overwrite=True)
 
-    def show(self, **kwargs):
-        """
+    # def show(self, **kwargs):
+    #     """
         
     
-        Parameters
-        ----------
-        components : TYPE, optional
-            DESCRIPTION. The default is [].
-        **kwargs : TYPE
-            DESCRIPTION.
+    #     Parameters
+    #     ----------
+    #     components : TYPE, optional
+    #         DESCRIPTION. The default is [].
+    #     **kwargs : TYPE
+    #         DESCRIPTION.
     
-        Returns
-        -------
-        None.
+    #     Returns
+    #     -------
+    #     None.
     
-        cfg = "pype_config_v1.yaml"
-        cfg[cfg.rindex('_')+1:cfg.rindex('.')]
+    #     cfg = "pype_config_v1.yaml"
+    #     cfg[cfg.rindex('_')+1:cfg.rindex('.')]
     
-        """
-        ## kwargs
-        show_list = kwargs.get("show_list",[])
+    #     """
+    #     ## kwargs
+    #     show_list = kwargs.get("show_list",[])
 
-        ## feedback
-        print("AUTOSHOW")
+    #     ## feedback
+    #     print("AUTOSHOW")
         
         # ## contours
         # if hasattr(self, "df_contours") and not "show_contours" in show_list:
@@ -319,10 +305,12 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
     meta: bool, optional
         should the DataFrame encompass image meta data (e.g. from exif-data). 
         This works only when obj_input is a path string to the original file.
-    resize: float
+    resize: float, optional
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
         original size).
-
+    kwargs: 
+        developer options
+        
     Returns
     -------
     container
@@ -405,9 +393,11 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1, **kwargs):
     meta: bool, optional
         should the DataFrame encompass image meta data (e.g. from exif-data). 
         This works only when obj_input is a path string to the original file.
-    resize: float
+    resize: float, optional
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
         original size).
+    kwargs: 
+        developer options
 
     Returns
     -------
@@ -420,7 +410,6 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1, **kwargs):
         original image (resized, if selected)
     df_image_data: DataFrame
         contains image data (+meta data), if selected
-    
 
     """
     ## kwargs 
@@ -541,26 +530,30 @@ def load_image_data(obj_input, resize=1):
 
 
 
-def load_meta_data(image_path, **kwargs):
+def load_meta_data(image_path, show_fields=False, 
+                   fields=default_meta_data_fields):
     """
     Extracts metadata (mostly Exif) from original image
 
     Parameters
     ----------
-    image_path : str path to image on harddrive
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
+    image_path : str 
+        path to image on harddrive
+    show_fields: bool, optional
+        show which exif data fields are available from given image
+    fields: list or str
+        which exif data fields should be extracted. default fields can be 
+        modified in settings
 
     Returns
     -------
-    TYPE
-        DESCRIPTION.
+    exif_data: dict
+        image meta data (exif)
 
     """
     ## kwargs
-    flag_show = kwargs.get("show_fields", False)
-    exif_fields = kwargs.get("fields", default_meta_data_fields)
+    flag_show = show_fields
+    exif_fields = fields
     if not exif_fields.__class__.__name__ == "list":
         exif_fields = [exif_fields]
 
@@ -613,7 +606,7 @@ def load_meta_data(image_path, **kwargs):
 
 
 
-def show_image(image, max_dim=1200, pos_offset=25, pos_reset=True,
+def show_image(image, max_dim=1200, position_reset=True, position_offset=25, 
                window_aspect="free"):
     """
     Show one or multiple images by providing path string or array or list of 
@@ -624,12 +617,14 @@ def show_image(image, max_dim=1200, pos_offset=25, pos_reset=True,
     image: str, array, or list
         the image or list of images to be displayed. can be path to image 
         (string), array-type, or list of strings or arrays
-    window_aspect: str (default: "fixed")
-        "fixed" or "free" aspect ratio
-    position_reset: bool
+    max_dim: int, optional
+        maximum dimension on either acis
+    window_aspect: {"fixed", "free"} str, optional
+        type of opencv window ("free" is resizeable)
+    position_reset: bool, optional
         flag whether image positions should be reset when reopening list of 
         images
-    position_offset: int 
+    position_offset: int, optional
         if image is list, the distance in pixels betweeen the positions of 
         each newly opened window (only works in conjunction with 
         "position_reset")
@@ -674,10 +669,10 @@ def show_image(image, max_dim=1200, pos_offset=25, pos_reset=True,
                               window_name='phenopype' + " - " + str(idx), 
                               window_control="external",
                               max_dim=max_dim)
-                if pos_reset == True:
+                if position_reset == True:
                     cv2.moveWindow('phenopype' + " - " + str(idx),
-                                   idx + idx*pos_offset,
-                                   idx + idx*pos_offset)
+                                   idx + idx*position_offset,
+                                   idx + idx*position_offset)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             break
@@ -708,13 +703,15 @@ def save_image(image, name, save_dir=os.getcwd(), resize=1, append="",
         directory to save image
     append: str, optional
         append image name with string to prevent overwriting
-    extension: str ("")
-        file extension to save image with
-    overwrite: bool (optional, default: False)
+    extension: str, optional
+        file extension to save image as
+    overwrite: boo, optional
         overwrite images if name exists
-    resize: float
+    resize: float, optional
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
         original size).
+    kwargs: 
+        developer options
     """
 
     ## kwargs 
@@ -735,7 +732,11 @@ def save_image(image, name, save_dir=os.getcwd(), resize=1, append="",
 
     ## resize
     if resize < 1:
-        image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize, interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image, 
+                           (0,0), 
+                           fx=1*resize, 
+                           fy=1*resize, 
+                           interpolation=cv2.INTER_AREA)
 
     ## construct save path
     new_name = name + append + extension

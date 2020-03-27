@@ -21,7 +21,9 @@ def create_mask(obj_input, **kwargs):
     
     Parameters
     ----------        
-    
+
+    obj_input : array or container
+        input object
     include (optional): bool (default: True)
         determine whether resulting mask is to include or exclude objects within
     label(optional): str (default: "mask1")
@@ -118,31 +120,22 @@ def create_mask(obj_input, **kwargs):
 
 
 
-def create_scale(obj_input, **kwargs):
+def create_scale(obj_input, template=False):
     """Mask maker method to draw rectangle or polygon mask onto image.
     
     Parameters
     ----------        
-    
-    include (optional): bool (default: True)
-        determine whether resulting mask is to include or exclude objects within
-    label(optional): str (default: "mask1")
-        passes a label to the mask
-    max_dim (optional): int (default: 1000)
-        maximum dimension of the window along any axis in pixel
-    overwrite (optional): bool (default: False)
-        if working using a container, or from a phenopype project directory, should
-        existing masks with the same label be overwritten
-    show (otpional): bool (default: False)
-        should the drawn mask be shown as an overlay on the image
-    tool (optional): str (default: "rectangle")
-        draw mask by draging a rectangle (option: "rectangle") or by settings 
-        points for a polygon (option: "polygon").
+    obj_input : array or container
+        input object
+    template: bool, optional
+        should a template for scale detection be created. with an existing 
+        template, phenopype can try to find a reference card in a given image,
+        measure its dimensions, and adjust pixel-to-mm-ratio and colour space
         
     """
     
     ## kwargs 
-    flag_template = kwargs.get("template", True)
+    flag_template = template
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -153,7 +146,8 @@ def create_scale(obj_input, **kwargs):
     ## method
     out = _image_viewer(image, tool="scale")
     points = out.scale_coords
-    distance_px = int(sqrt(((points[0][0]-points[1][0])**2)+((points[0][1]-points[1][1])**2)))
+    distance_px = int(sqrt(((points[0][0]-points[1][0])**2)
+                           + ((points[0][1]-points[1][1])**2)))
     entry = enter_data(out.canvas, columns="length")
     distance_mm = int(entry["length"][0])
     px_mm_ratio = int(distance_px / distance_mm)
@@ -161,7 +155,8 @@ def create_scale(obj_input, **kwargs):
     ## create template for image registration
     if flag_template:
         out = _image_viewer(image, tool="template")
-        template = image[out.rect_list[0][1]:out.rect_list[0][3],out.rect_list[0][0]:out.rect_list[0][2]]
+        template = image[out.rect_list[0][1]:out.rect_list[0][3],
+                         out.rect_list[0][0]:out.rect_list[0][2]]
     else:
         template = None
 
@@ -175,8 +170,8 @@ def create_scale(obj_input, **kwargs):
 
 
 def find_scale(obj_input, **kwargs):
-
-    """Find scale from a defined template inside an image and update pixel 
+    """
+    Find scale from a defined template inside an image and update pixel 
     ratio. Image registration is run by the "AKAZE" algorithm 
     (http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf). 
     Future implementations will include more algorithms to select from.
@@ -190,7 +185,8 @@ def find_scale(obj_input, **kwargs):
     obj_input: array or phenopype-container
         input for processing
     resize: num (optional, default: 1 or 0.5 for images with diameter > 5000px)
-        resize image to speed up detection process (WARNING: too low values may result in poor detection results or even crashes)
+        resize image to speed up detection process (WARNING: too low 
+        values may result in poor detection results or even crashes)
     show: bool (optional, default: False)
         show result of scale detection procedure on current image  
     """

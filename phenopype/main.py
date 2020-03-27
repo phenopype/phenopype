@@ -154,9 +154,11 @@ class project:
             named files exist in different subfolders (folder structure will be 
             collapsed and goes into the filename), whereas filename will ignore 
             all similar named files after their first occurrence.
+        kwargs: 
+            developer options
         """
         
-        ## kwargs
+        # kwargs
         flag_raw_mode = raw_mode
         flag_overwrite = overwrite
         flag_resize = resize
@@ -199,24 +201,14 @@ class project:
 
             ## make image-specific directories
             if os.path.isdir(dirpath) and flag_overwrite==False:
-                print("Found image " + relpath 
-                      + " - " 
-                      + dirname + " already exists (overwrite=False)")
+                print("Found image " + relpath + " - " + dirname + " already exists (overwrite=False)")
                 continue
             if os.path.isdir(dirpath) and flag_overwrite==True:
                 rmtree(dirpath, ignore_errors=True, onerror=_del_rw)
-                print("Found image " + relpath +
-                      " - " 
-                      + "phenopype-project folder " 
-                      + dirname 
-                      + " created (overwritten)")
+                print("Found image " + relpath + " - " + "phenopype-project folder " + dirname + " created (overwritten)")
                 os.mkdir(dirpath)
             else:
-                print("Found image " + relpath +
-                      " - " 
-                      + "phenopype-project folder " 
-                      + dirname 
-                      + " created")
+                print("Found image " + relpath + " - " + "phenopype-project folder " + dirname + " created")
                 os.mkdir(dirpath)
 
             ## load image
@@ -225,8 +217,7 @@ class project:
             ## copy or link raw files
             if flag_raw_mode == "copy":
                 raw_path = os.path.join(dirpath, 
-                                        "raw" 
-                                        + os.path.splitext(os.path.basename(filepath))[1])
+                                        "raw" + os.path.splitext(os.path.basename(filepath))[1])
                 if resize < 1:
                     cv2.imwrite(raw_path, image)
                 else:
@@ -250,11 +241,13 @@ class project:
                 attributes = {
                     "image": image_data,
                     "meta": meta_data,
-                    "project": project_data}
+                    "project": project_data
+                    }
             else:
                 attributes = {
                     "image": image_data,
-                    "project": project_data}
+                    "project": project_data
+                    }
 
             ## write attributes file
             _save_yaml(attributes, os.path.join(dirpath, "attributes.yaml"))
@@ -269,7 +262,7 @@ class project:
         print("\nFound {} files".format(len(filepaths)))
         print("--------------------------------------------")
 
-    def add_config(self, name, preset="preset1", interactive=False, overwrite=False, 
+    def add_config(self, name, config_preset="preset1", interactive=False, overwrite=False, 
                    **kwargs):
         """
         Add pype configuration presets to all project directories, either by using
@@ -291,21 +284,22 @@ class project:
             start a pype and modify preset before saving it to phenopype directories
         overwrite: bool, optional
             overwrite option, if a given pype config-file already exist
+        kwargs: 
+            developer options
         """
 
         ## kwargs
-        # preset = kwargs.get("preset","preset1")
         flag_interactive = interactive
         flag_overwrite = overwrite
 
         ## load config
-        if hasattr(presets, preset):
-            config = _create_generic_pype_config(preset = preset, config_name=name)
-        elif os.path.isfile(preset):
+        if hasattr(presets, config_preset):
+            config = _create_generic_pype_config(preset = config_preset, config_name=name)
+        elif os.path.isfile(config_preset):
             config = {"pype":{"name": name,
-                              "preset": preset,
+                              "preset": config_preset,
                               "date_created": datetime.today().strftime('%Y%m%d_%H%M%S')}}
-            config.update(_load_yaml(preset))
+            config.update(_load_yaml(config_preset))
             print(config)
         else:
             print("defaulting to preset " + default_pype_config)
@@ -341,42 +335,47 @@ class project:
 
 
 
-    def add_scale(self, template_image, **kwargs):
+    def add_scale(self, reference_image, overwrite=False, template=False):
         """
         Add pype configuration presets to all project directories. 
 
         Parameters
         ----------
 
-        template_image: str
+        reference_image: str
             name of template image, either project directory or file link. template 
             image gets stored in root directory, and information appended to all 
             attributes files in the project directories
-        overwrite (optional): bool (default: False)
+        overwrite: bool, optional
             overwrite option, if a given pype config-file already exist
+        template: bool, optional
+            should a template for scale detection be created. with an existing 
+            template, phenopype can try to find a reference card in a given image,
+            measure its dimensions, and adjust pixel-to-mm-ratio and colour space
         """
 
         ## kwargs
-        flag_overwrite = kwargs.get("overwrite", False)
-        flag_template = kwargs.get("template", False)
+        flag_overwrite = overwrite
+        flag_template = template 
 
         ## load template image
-        if template_image.__class__.__name__ == "str":
-            if os.path.isfile(template_image):
-                template_image = cv2.imread(template_image)
-            elif os.path.isdir(template_image):
-                attr = _load_yaml(os.path.join(template_image, "attributes.yaml"))
-                template_image = cv2.imread(attr["project"]["raw_path"])
-            elif template_image in self.dirnames:
-                attr = _load_yaml(os.path.join(self.data_dir, template_image, "attributes.yaml"))
-                template_image = cv2.imread(attr["project"]["raw_path"])
-        elif template_image.__class__.__name__ == "ndarray":
+        if reference_image.__class__.__name__ == "str":
+            if os.path.isfile(reference_image):
+                reference_image = cv2.imread(reference_image)
+            elif os.path.isdir(reference_image):
+                attr = _load_yaml(os.path.join(reference_image, "attributes.yaml"))
+                reference_image = cv2.imread(attr["project"]["raw_path"])
+            elif reference_image in self.dirnames:
+                attr = _load_yaml(os.path.join(self.data_dir, reference_image, "attributes.yaml"))
+                reference_image = cv2.imread(attr["project"]["raw_path"])
+        elif reference_image.__class__.__name__ == "ndarray":
             pass
-        elif template_image.__class__.__name__ == "int":
-            template_image =  cv2.imread(self.filepaths[template_image])
+        elif reference_image.__class__.__name__ == "int":
+            reference_image =  cv2.imread(self.filepaths[reference_image])
             
         ## measure scale
-        px_mm_ratio, template  = preprocessing.create_scale(template_image, template=flag_template)
+        px_mm_ratio, template  = preprocessing.create_scale(reference_image, 
+                                                            template=flag_template)
 
         ## save template
         if not template.__class__.__name__ == "NoneType":
@@ -410,8 +409,8 @@ class project:
                              "template_px_mm_ratio": px_mm_ratio}
             _save_yaml(attr, os.path.join(directory, "attributes.yaml"))
 
-
-    def save(project):
+    @staticmethod
+    def save(project, overwrite=False):
         """
         Save project to root directory
     
@@ -419,24 +418,44 @@ class project:
         ----------
     
         project: phenopype.main.project
-            save project file to root dir of project (saves ONLY the python object needed to call file-lists, NOT collected data),
-            which needs to be saved separately with the appropriate functions (e.g. "save_csv" and "save_img")
+            save project file to root dir of project (saves ONLY the python object 
+            needed to call file-lists, NOT collected data), which needs to be saved 
+            separately with the appropriate export functions (e.g. 
+            :func:`phenopype.export.save_contours` or :func:`phenopype.export.save_canvas`)
+        overwrite: bool, optional
+            should existing project data be overwritten
         """
-        output_str = os.path.join(project.root_dir, 'project.data')
-        with open(output_str, 'wb') as output:
-            pickle.dump(project, output, pickle.HIGHEST_PROTOCOL)
+        ## kwargs 
+        flag_overwrite = overwrite
+        
+        ## save project
+        output_path = os.path.join(project.root_dir, 'project.data')
+        while True:
+            if os.path.isfile(output_path) and flag_overwrite == False:
+                print("Project data not saved - file already exists (overwrite=False).")
+                break
+            elif os.path.isfile(output_path) and flag_overwrite == True:
+                print("Project data saved under " + template_path + " (overwritten).")
+                pass
+            elif not os.path.isfile(output_path):
+                print("Project data saved under " + output_path + ".")
+                pass
+            with open(output_path, 'wb') as output:
+                pickle.dump(project, output, pickle.HIGHEST_PROTOCOL)
+            break
+
     
     
-    
+    @staticmethod
     def load(path):
         """
-        Load phenoype project.data file to python namespace
+        Load phenoype project.data file to Python namespace.
     
         Parameters
         ----------
     
-        path: path to project.data
-            load project file saved to root dir of project
+        path: str
+            path to project.data, loads project file saved to root dir of project
         """
         with open(path, 'rb') as output:
             return pickle.load(output)
@@ -467,20 +486,27 @@ class pype:
     ----------
 
     image: array or str 
-        can be either a numpy array or a string that provides the path to source image file 
-        or path to a valid phenopype directory
+        can be either a numpy array or a string that provides the path to 
+        source image file or path to a valid phenopype directory
     name: str
-        name of pype-config - will be prepended to all results files
-    config: str, optional
+        name of pype-config - will be appended to all results files
+    config_preset: str, optional
         chose from given presets in phenopype/settings/pype_presets.py 
         (e.g. preset1, preset2, ...)
-    interactive: bool, optional
-        start a pype, modify loaded preset before saving it to phenopype directories
-    overwrite: bool, optional
-        overwrite option, if a given pype config-file already exist
+    config_location: str, optional
+        custom path to a pype template (needs to adhere to yaml syntax and 
+        phenopype structure)
+    dirpath: str, optional
+        path to an existing directory where all output should be stored
+    skip: bool, optional
+        skip directories that already have "name" as a suffix in the filename
+    feedback: bool, optional
+        don't open text editor or window, just apply functions and terminate
+    kwargs: 
+        developer options
     """
-    def __init__(self, image, name, config="preset1", config_location=None, 
-                 dirpath=None, skip=None, feedback=True, **kwargs):
+    def __init__(self, image, name, config_preset="preset1", config_location=None, 
+                 dirpath=None, skip=False, feedback=True, **kwargs):
 
         
         ## pype name check
@@ -498,9 +524,7 @@ class pype:
         flag_autoload = kwargs.get("autoload", True)
         flag_autosave = kwargs.get("autosave", True)
         flag_autoshow = kwargs.get("autoshow", False)
-    
-        presetting = kwargs.get("presetting", False)
-        preset = kwargs.get("preset", default_pype_config)
+        flag_presetting = kwargs.get("presetting", False)
     
         flag_meta = kwargs.get("meta", True)
         exif_fields = kwargs.get("fields", default_meta_data_fields)
@@ -532,24 +556,20 @@ class pype:
             self.container.dirpath = dirpath
 
         ## skip directories that already contain specified files
-        if not flag_skip.__class__.__name__ == "NoneType":
-            if flag_skip == True:
-                search_string = name
-            elif flag_skip.__class__.__name__ == "str":
-                search_string = flag_skip
+        if flag_skip == True:
             filepaths, duplicates = _file_walker(self.container.dirpath, 
-                                                 include=search_string,
+                                                 include=name,
                                                  exclude=["pype_config"], 
                                                  pype_mode=True)
             if len(filepaths)>0:
-                print("\nskipped\n")
+                print("\n found existing result files containing \"" + name + "\" - skipped\n")
                 return
 
         ## load config
         if config_location:
             self.config, self.config_location = _load_pype_config(config_location)
         else:
-            self.config, self.config_location = _load_pype_config(self.container, config_name=name, preset=preset)
+            self.config, self.config_location = _load_pype_config(self.container, config_name=name, preset=config_preset)
 
         ## open config file with system viewer
         if flag_feedback:
@@ -593,7 +613,7 @@ class pype:
                     continue
                 if not self.config[step]:
                     continue
-                if step == "export" and presetting == True:
+                if step == "export" and flag_presetting == True:
                     continue
                 print(step.upper())
                 for item in self.config[step]:
@@ -639,7 +659,7 @@ class pype:
             # save container 
             if flag_autoshow:
                 self.container.show(show_list=show_list)
-            if not presetting:
+            if not flag_presetting:
                 if flag_autosave:
                     self.container.save(export_list=export_list)
 

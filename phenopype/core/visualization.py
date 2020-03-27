@@ -26,7 +26,6 @@ def select_canvas(obj_input, **kwargs):
     elif canvas == "gray" or canvas == "image_gray":
         if obj_input.image_gray.__class__.__name__ == "NoneType":
             obj_input.image_gray = cv2.cvtColor(obj_input.image_copy,cv2.COLOR_BGR2GRAY)
-            print("CVT")
         obj_input.canvas = copy.deepcopy(obj_input.image_gray)
         print("- grayscale image")
     elif canvas in ["image_mod", "mod"]:
