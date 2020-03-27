@@ -9,10 +9,11 @@ Known bugs
 
 1.0.2
 -----
-
+bugfix:
+- pype: check if container has image or is NoneType
 - Tutorials 1 + 2 improved
-- Example 2 added
-- Docstrings to all functions is complete
+- Example 2 added (low throughput
+- Docstrings to main, utils and preprocessing added
 
 1.0.1
 ------
