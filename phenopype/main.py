@@ -368,11 +368,17 @@ class project:
             elif reference_image in self.dirnames:
                 attr = _load_yaml(os.path.join(self.data_dir, reference_image, "attributes.yaml"))
                 reference_image = cv2.imread(attr["project"]["raw_path"])
+            else:
+                print("wrong path - cannot load reference image")
+                return
         elif reference_image.__class__.__name__ == "ndarray":
             pass
         elif reference_image.__class__.__name__ == "int":
             reference_image =  cv2.imread(self.filepaths[reference_image])
-            
+        else:
+            print("wrong type - cannot load reference image")
+            return
+
         ## measure scale
         px_mm_ratio, template  = preprocessing.create_scale(reference_image, 
                                                             template=flag_template)

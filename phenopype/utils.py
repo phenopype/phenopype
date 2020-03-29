@@ -65,7 +65,7 @@ class container(object):
 
         ## attributes
         self.dirpath = None
-
+        self.save_suffix = None
 
     def load(self, save_suffix=None):
         """

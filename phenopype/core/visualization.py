@@ -181,7 +181,7 @@ def show_landmarks(obj_input, **kwargs):
 
 
 
-def show_masks(obj_input, **kwargs):
+def show_masks(obj_input, colour="blue", select=None, **kwargs):
     """Mask maker method to draw rectangle or polygon mask onto image.
     
     Parameters
@@ -199,8 +199,7 @@ def show_masks(obj_input, **kwargs):
     # mask_list = ["mask1"]
 
     ## kwargs
-    colour = colours[kwargs.get("colour", "green")]
-    include = kwargs.get("include", None)
+    line_col = colours[colour]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -214,8 +213,8 @@ def show_masks(obj_input, **kwargs):
 
     ## draw masks from mask obect
     for index, row in df_masks.iterrows():
-            if not include.__class__.__name__ == "NoneType":
-                if row["mask"] in include:
+            if not select.__class__.__name__ == "NoneType":
+                if row["mask"] in select:
                     pass
                 else:
                     continue
@@ -223,11 +222,9 @@ def show_masks(obj_input, **kwargs):
                 pass
             print(" - show mask: " + row["mask"] + ".")
             coords = eval(row["coords"])
-            if not row["mask"] == "scale":
-                col = colours["blue"]
-            else:
-                col = colours["red"]
-            cv2.polylines(image, np.array([coords]), False, col, line_width)
+            if row["mask"] == "scale":
+                line_col = colours["red"]
+            cv2.polylines(image, np.array([coords]), False, line_col, line_width)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

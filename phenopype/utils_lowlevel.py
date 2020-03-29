@@ -391,7 +391,6 @@ class _yaml_file_monitor:
         cv2.destroyWindow("phenopype")
         for i in range(10):
             cv2.waitKey(1)
-        print("\n\nreload pype_config\n\n")
 
     def stop(self):
         self.observer.stop()

@@ -147,6 +147,9 @@ def create_scale(obj_input, template=False):
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
+    else:
+        warnings.warn("wrong input format.")
+        return
 
     ## method
     out = _image_viewer(image, tool="scale")
@@ -174,7 +177,7 @@ def create_scale(obj_input, template=False):
 
 
 
-def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=5, 
+def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3, 
                font_col="red"):
     """
     Enter generic data that can be added as columns to an existing DataFrame. 
@@ -300,7 +303,7 @@ def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=5,
 
 
 def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10, 
-               resize=1, px_mm_ratio_old=None, template=None):
+               resize=1, px_mm_ratio_ref=None, template=None):
     """
     Find scale from a defined template inside an image and update pixel 
     ratio. Image registration is run by the "AKAZE" algorithm 
@@ -326,7 +329,7 @@ def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10,
         images' histogram
     min_matches : int, optional
        minimum key point matches for image registration
-    px_mm_ratio_old : int, optional
+    px_mm_ratio_ref : int, optional
         pixel-to-mm-ratio of the template image
     template : array, optional
         reference image of scale
@@ -355,7 +358,7 @@ def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10,
         image = obj_input.image_copy
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "scale_template_px_mm_ratio"):
-            px_mm_ratio_old = obj_input.scale_template_px_mm_ratio
+            px_mm_ratio_ref = obj_input.scale_template_px_mm_ratio
         if hasattr(obj_input, "scale_template"):
             template = obj_input.scale_template
         if hasattr(obj_input, "df_masks"):
@@ -365,7 +368,7 @@ def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10,
 
     ## check if all info has been prvided
     while True:
-        if any([px_mm_ratio_old.__class__.__name__ == "NoneType", 
+        if any([px_mm_ratio_ref.__class__.__name__ == "NoneType", 
                 template.__class__.__name__ == "NoneType"]):
             print("- scale information missing - abort")
             break
@@ -426,12 +429,12 @@ def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10,
 
             ## calculate ratios
             diameter_ratio = (diameter_new / diameter_old)
-            px_mm_ratio_new = round(diameter_ratio * px_mm_ratio_old, 1)
+            px_mm_ratio_new = round(diameter_ratio * px_mm_ratio_ref, 1)
 
             ## feedback
             print("---------------------------------------------------")
             print("Reference card found with %d keypoint matches:" % len(good))
-            print("template image has %s pixel per mm." % (px_mm_ratio_old))
+            print("template image has %s pixel per mm." % (px_mm_ratio_ref))
             print("current image has %s pixel per mm." % (px_mm_ratio_new))
             print("= %s %% of template image." % round(diameter_ratio * 100, 3))
             print("---------------------------------------------------")

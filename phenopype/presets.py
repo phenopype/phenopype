@@ -137,12 +137,32 @@ visualization:
     fill: 0
 """
 
-landmarking1 = """
-preprocessing:
-- create_mask
+landmarks_1 = """
 measurement:
-- landmarks
-- polylines
+- landmarks:
+    point_size: 25
+    point_col: green
+    label_size: 3
+    label_width: 5
+visualization:
+- show_landmarks:
+    point_size: 25
+    point_col: green
+    label_size: 3
+    label_width: 5
+export:
+- save_landmarks
+"""
+
+landmarks_2 = """
+preprocessing:
+- find_scale
+measurement:
+- landmarks:
+    point_size: 25
+    point_col: green
+    label_size: 3
+    label_width: 5
 visualization:
 - show_landmarks:
     point_size: 25
@@ -151,14 +171,9 @@ visualization:
     label_width: 5
 - show_masks:
     colour: blue
-    line_thickness: 5
-- show_polylines:
-    colour: blue
-    line_thickness: 5
 export:
 - save_landmarks
 - save_masks
-- save_polylines
 """
 
 demo1 = """

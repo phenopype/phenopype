@@ -392,7 +392,7 @@ def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None,
             return
 
     ## save
-    if save_suffix:
+    if not save_suffix.__class__.__name__ == "NoneType":
         path = os.path.join(dirpath, "landmarks_" + save_suffix + ".csv")
     else:
         path = os.path.join(dirpath, "landmarks.csv")
