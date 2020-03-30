@@ -1,6 +1,6 @@
 # Phenopype: a phenotyping pipeline for Python
 
-<img src="dosc/_images/logo.png">
+<img src="docs/_images/logo.png">
 
 <div align="justify">
 
