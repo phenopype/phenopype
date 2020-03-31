@@ -265,7 +265,7 @@ class project:
     def add_config(self, name, config_preset="preset1", interactive=False, overwrite=False, 
                    **kwargs):
         """
-        Add pype configuration presets to all project directories, either by using
+        Add pype configuration presets to all image folders in the project, either by using
         the templates included in the presets folder, or by adding your own templates
         by providing a path to a yaml file. Can be tested and modified using the 
         interactive flag before distributing the config files.
@@ -441,7 +441,7 @@ class project:
                 print("Project data not saved - file already exists (overwrite=False).")
                 break
             elif os.path.isfile(output_path) and flag_overwrite == True:
-                print("Project data saved under " + template_path + " (overwritten).")
+                print("Project data saved under " + output_path + " (overwritten).")
                 pass
             elif not os.path.isfile(output_path):
                 print("Project data saved under " + output_path + ".")

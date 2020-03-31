@@ -29,27 +29,14 @@ visualization:
     line_thickness: 5
 """
 
-preset2 = """
-preprocessing:
-- create_mask:
-    label: mask1
+object_detection_plain = """
 segmentation:
-- blur:
-    kernel_size: 15
 - threshold:
     method: otsu
-- morphology:
-    operation: close
-    shape: ellipse
-    kernel_size: 3
-    iterations: 10
 - find_contours:
     retrieval: ccomp
     min_diameter: 0
     min_area: 0
-measurement:
-- colour:
-    channels: [gray, rgb]
 visualization:
 - select_canvas:
     canvas: image
@@ -58,14 +45,8 @@ visualization:
     text_thickness: 1
     text_size: 1
     fill: 0.3
-- show_masks:
-    colour: blue
-    line_thickness: 5
 export:
 - save_contours:
-    overwrite: true
-- save_canvas:
-    resize: 0.5
     overwrite: true
 """
 
@@ -137,7 +118,7 @@ visualization:
     fill: 0
 """
 
-landmarks_1 = """
+landmarks_plain = """
 measurement:
 - landmarks:
     point_size: 25
