@@ -415,6 +415,22 @@ class project:
                              "template_px_mm_ratio": px_mm_ratio}
             _save_yaml(attr, os.path.join(directory, "attributes.yaml"))
 
+    # def collect_results(self,**kwargs):
+    #     from shutil import copyfile
+
+    #     results ="E:\\Python\\phenopype_projects\\stickle_stained\\dominique_test\\results" ## needs to exist already
+        
+    #     found, duplicates = pp.utils_lowlevel._file_walker(
+    #         "E:\\Python\\phenopype_projects\\stickle_stained\\dominique_test\\data", 
+    #         search_mode="recursive",
+    #         include=["test"])
+        
+    #     for filepath in found:
+    #         filename = os.path.basename(os.path.dirname(filepath)) + "_" + os.path.basename(filepath)
+    #         newpath = os.path.join(results, filename)
+    #         copyfile(filepath, newpath)
+
+
     @staticmethod
     def save(project, overwrite=False):
         """
