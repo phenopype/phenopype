@@ -1,15 +1,17 @@
 object_detection_plain = """
+preprocessing:
 segmentation:
 - threshold:
     method: otsu 
     blocksize: 99      ## for adaptive 
     constant: 1        ## for adaptive 
     value: 127         ## for binary
-    colourspace: gray
+    channel: gray
 - find_contours:
     retrieval: ccomp
     min_diameter: 0
     min_area: 0
+measurement:
 visualization:
 - select_canvas:
     canvas: image
@@ -34,7 +36,7 @@ segmentation:
     blocksize: 99      ## for adaptive 
     constant: 1        ## for adaptive 
     value: 127         ## for binary
-    colourspace: gray
+    channel: gray
 - morphology:
     operation: close
     shape: ellipse
@@ -67,10 +69,11 @@ segmentation:
 - blur: 
     kernel_size: 15
 - threshold: 
-    method: adaptive
-    channel: red # does thresholding on red colour channel
-    blocksize: 199 # higher values = higher sensitivity
-    constant: 3 # higher values = more gets removed after thresholding
+    method: otsu 
+    blocksize: 99      ## for adaptive 
+    constant: 1        ## for adaptive 
+    value: 127         ## for binary
+    channel: gray
 - morphology:
     operation: close # connect pixels
     shape: ellipse
@@ -101,10 +104,11 @@ segmentation:
 - blur: 
     kernel_size: 15
 - threshold: 
-    method: adaptive
-    channel: red # does thresholding on red colour channel
-    blocksize: 199 # higher values = higher sensitivity
-    constant: 3 # higher values = more gets removed after thresholding
+    method: otsu 
+    blocksize: 99      ## for adaptive 
+    constant: 1        ## for adaptive 
+    value: 127         ## for binary
+    channel: gray
 - morphology:
     operation: close # connect pixels
     shape: ellipse
@@ -169,13 +173,11 @@ preprocessing:
 - create_mask: 
     tool: polygon
 segmentation:
-- blur:
-    kernel_size: 15
 - threshold:
-    method: adaptive
-    channel: red
+    method: adaptive 
     blocksize: 199
     constant: 5
+    channel: red
 - morphology:
     operation: close
     shape: ellipse
@@ -184,7 +186,8 @@ segmentation:
 - find_contours:
     retrieval: ext
     min_diameter: 0
-    min_area: 15
+    min_area: 150
+measurement:
 visualization:
 - select_canvas:
     canvas: image
@@ -193,9 +196,7 @@ visualization:
     text_thickness: 1
     text_size: 1
     fill: 0.3
-- show_masks:
-    colour: blue
-    line_thickness: 5
+- show_masks
 export:
 - save_contours:
     overwrite: true

@@ -67,7 +67,7 @@ class container(object):
         self.dirpath = None
         self.save_suffix = None
 
-    def load(self, save_suffix=None):
+    def load(self, contours=False, **kwargs):
         """
         Autoload function for container: loads results files with given save_suffix
         into the container. Can be used manually, but is typically used within the
@@ -80,6 +80,10 @@ class container(object):
 
         """
         files, loaded = [], []
+
+        ## data flags
+        flag_contours = contours
+
 
         ## data from attributes file
         attr_path = os.path.join(self.dirpath, "attributes.yaml")
@@ -125,6 +129,14 @@ class container(object):
         else:
             for file in os.listdir(self.dirpath):
                 files.append(file[0:file.rindex('.')])
+
+        ## contours
+        if flag_contours:
+            if not hasattr(self, "df_contours") and "contours" in files:
+                path = os.path.join(self.dirpath, "contours_" + self.save_suffix + ".csv")
+                if os.path.isfile(path):
+                    self.df_contours = pd.read_csv(path) 
+                    loaded.append("contours_" + self.save_suffix + ".csv")
 
         ## landmarks
         if not hasattr(self, "df_landmarks") and "landmarks" in files:
