@@ -69,7 +69,7 @@ def select_canvas(obj_input, canvas="image_mod"):
 
 def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords=None,
                   label=True, fill=0.3, mark_holes=True, level=3, line_colour="green",
-                  text_colour="black"):
+                  label_size=None, label_col="black", line_width=None, label_width=None):
     """
     
 
@@ -93,9 +93,15 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
         DESCRIPTION. The default is 3.
     line_colour : TYPE, optional
         DESCRIPTION. The default is "green".
-    text_colour : TYPE, optional
-        DESCRIPTION. The default is "black".
-
+    line_width: int, optional
+        line width
+    label_col : {"black", "white", "green", "red", "blue"} str, optional
+        contour label colour.
+    label_size: int, optional
+        contour label font size (scaled to image)
+    label_width: int, optional
+        contour label font thickness 
+        
     Returns
     -------
     image: array or container
@@ -106,8 +112,9 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
     flag_label = label
     flag_fill = fill
     flag_child = mark_holes
+    flag_line_width = line_width
     line_colour_sel = colours[line_colour]
-    text_colour = colours[text_colour]
+    text_colour = colours[label_col]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -121,10 +128,15 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
         warnings.warn("wrong input format.")
         return
 
+
     ## more kwargs
-    flag_line_thickness = kwargs.get("line_thickness", _auto_line_width(image))
-    text_thickness = kwargs.get("text_thickness", _auto_line_width(image))
-    text_size = kwargs.get("text_size", _auto_text_size(image))
+    if line_width.__class__.__name__ == "NoneType":
+        flag_line_width = _auto_line_width(image)
+    if label_width.__class__.__name__ == "NoneType":
+        text_thickness = _auto_text_width(image)
+    if label_size.__class__.__name__ == "NoneType":
+        text_size = _auto_text_size(image)
+
 
     ## method
     idx = 0
@@ -148,11 +160,11 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
                     color=fill_colour, 
                     maxLevel=level,
                     offset=offset_coords)
-        if flag_line_thickness > 0: 
+        if flag_line_width > 0: 
             cv2.drawContours(image=image, 
                     contours=[row["coords"]], 
                     contourIdx = idx,
-                    thickness=flag_line_thickness, 
+                    thickness=flag_line_width, 
                     color=line_colour, 
                     maxLevel=level,
                     offset=offset_coords)

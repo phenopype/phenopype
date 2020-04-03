@@ -217,6 +217,9 @@ def create_scale(obj_input, template=False, df_masks=None, df_image_data=None,
     elif len(coords) > 0:
         df_masks = df_masks.append(df_mask_temp)
 
+    ## merge with existing image_data frame
+    df_image_data["px_mm_ratio"] = px_mm_ratio
+
     ## return
     if obj_input.__class__.__name__ == "ndarray":
         return px_mm_ratio, template, df_masks
@@ -224,6 +227,7 @@ def create_scale(obj_input, template=False, df_masks=None, df_image_data=None,
         obj_input.scale_px_mm_ratio = px_mm_ratio
         obj_input.scale_template = template
         obj_input.df_masks = df_masks
+        obj_input.df_image_data = df_image_data
 
 
 def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3, 
