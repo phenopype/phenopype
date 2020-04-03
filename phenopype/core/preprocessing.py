@@ -21,7 +21,7 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
     """Mask maker method to draw rectangle or polygon mask onto image.
     
     Parameters
-    ----------        
+    ----------
 
     obj_input : array or container
         input object
@@ -85,8 +85,6 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
         ## method
         out = _image_viewer(image, mode="interactive", 
                                   tool=flag_tool)
-        coords = out.point_list
-        
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":
@@ -95,7 +93,9 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
             elif obj_input.__class__.__name__ == "container":
                 print("- terminated mask creation")
                 return True
-    
+        else:
+            coords = out.point_list
+
         ## create df
         if len(coords) > 0:
             for points in coords:
@@ -118,7 +118,8 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
 
 
 
-def create_scale(obj_input, template=False):
+def create_scale(obj_input, template=False, df_masks=None, df_image_data=None,
+                 overwrite=False):
     """Mask maker method to draw rectangle or polygon mask onto image.
     
     Parameters
@@ -136,20 +137,36 @@ def create_scale(obj_input, template=False):
         pixel to mm ratio
     template: array or container
         template for reference card detection
+    df_masks: 
     """
 
     
     ## kwargs 
     flag_template = template
-
+    flag_overwrite = overwrite
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
+        df_image_data = obj_input.df_image_data
+        scale_px_mm_ratio = obj_input.scale_px_mm_ratio
+        if hasattr(obj_input, "df_masks"):
+            df_masks = copy.deepcopy(obj_input.df_masks)
     else:
         warnings.warn("wrong input format.")
         return
+
+    ## check if exists
+    if not scale_px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
+        print("- scale pixel-to-mm-ratio already measured (overwrite=False)")
+        return
+    elif not scale_px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
+        print("- measure pixel-to-mm-ratio (overwritten)")
+    elif scale_px_mm_ratio.__class__.__name__ == "NoneType":
+        print("- measure pixel-to-mm-ratio")
 
     ## method
     out = _image_viewer(image, tool="scale")
@@ -163,18 +180,49 @@ def create_scale(obj_input, template=False):
     ## create template for image registration
     if flag_template:
         out = _image_viewer(image, tool="template")
+
+        ## make template and mask
         template = image[out.rect_list[0][1]:out.rect_list[0][3],
                          out.rect_list[0][0]:out.rect_list[0][2]]
+        coords = out.point_list
+        
+        ## check if exists
+        if df_masks.__class__.__name__ == "NoneType":
+            print("- create mask df and add scale mask")
+            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
+
+        while True:
+            if "scale" in df_masks['mask'].values and flag_overwrite == False:
+                print("- scale template mask already created (overwrite=False)")
+                break
+            elif "scale" in df_masks['mask'].values and flag_overwrite == True:
+                print("- add scale template mask (overwritten)")
+                df_masks.drop(df_masks.loc[df_masks["mask"]=="scale"].index, inplace=True)
+                pass
+
+            ## add to df
+            if len(coords) > 0:
+                points = coords[0]
+                df_masks = df_masks.append({"mask": "scale", "include": False, "coords": str(points)}, 
+                                    ignore_index=True, sort=False)
+                break
+            else:
+                warnings.warn("zero coordinates - redo template!")
+                break
     else:
         template = None
 
+    ## merge with existing image_data frame
+    df_masks = pd.concat([pd.concat([df_image_data]*len(df_masks)).reset_index(drop=True), 
+                            df_masks.reset_index(drop=True)], axis=1)
+
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-        return px_mm_ratio, template
+        return px_mm_ratio, template, df_masks
     elif obj_input.__class__.__name__ == "container":
         obj_input.scale_px_mm_ratio = px_mm_ratio
         obj_input.scale_template = template
-
+        obj_input.df_masks = df_masks
 
 
 def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3, 

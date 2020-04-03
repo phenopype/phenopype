@@ -14,10 +14,26 @@ inf = math.inf
 
 #%% functions
 
-def select_canvas(obj_input, **kwargs):
-    
-    ## kwargs
-    canvas = kwargs.get("canvas", "image_mod")
+def select_canvas(obj_input, canvas="image_mod"):
+    """
+    Select the canvas for the pype method.
+
+    Parameters
+    ----------
+    obj_input : container
+        phenopype container
+    canvas : {"mod", "bin", "gray", "raw", "red", "green", "blue"} str, optional
+        the type of canvas to be used for visual feedback. some types require a
+        function to be run first, e.g. "bin" needs a segmentation algorithm to be
+        run first. black/white images don't have colour channels. coerced to 3D
+        array
+
+    Returns
+    -------
+    obj_input : container
+        canvas can be called with "obj_input.canvas".
+
+    """
 
     ## method
     if canvas == "bin" or canvas == "binary":
@@ -25,13 +41,14 @@ def select_canvas(obj_input, **kwargs):
         print("- binary image")
     elif canvas == "gray" or canvas == "image_gray":
         if obj_input.image_gray.__class__.__name__ == "NoneType":
-            obj_input.image_gray = cv2.cvtColor(obj_input.image_copy,cv2.COLOR_BGR2GRAY)
+            obj_input.image_gray = cv2.cvtColor(obj_input.image_copy,
+                                                cv2.COLOR_BGR2GRAY)
         obj_input.canvas = copy.deepcopy(obj_input.image_gray)
         print("- grayscale image")
     elif canvas in ["image_mod", "mod"]:
         obj_input.canvas = copy.deepcopy(obj_input.image)
         print("- modifed image")
-    elif canvas == "image_raw":
+    elif canvas in ["image_raw", "raw"]:
         obj_input.canvas = copy.deepcopy(obj_input.image_copy)
         print("- raw image")
     elif canvas == "g" or canvas == "green":
@@ -48,32 +65,55 @@ def select_canvas(obj_input, **kwargs):
     if len(obj_input.canvas.shape)<3:
         obj_input.canvas = cv2.cvtColor(obj_input.canvas, cv2.COLOR_GRAY2BGR)
 
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return obj_input
 
 
+def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords=None,
+                  label=True, fill=0.3, mark_holes=True, level=3, line_colour="green",
+                  text_colour="black"):
+    """
+    
 
-def show_contours(obj_input,**kwargs):
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    df_image_data : TYPE, optional
+        DESCRIPTION. The default is None.
+    df_contours : TYPE, optional
+        DESCRIPTION. The default is None.
+    offset_coords : TYPE, optional
+        DESCRIPTION. The default is None.
+    label : TYPE, optional
+        DESCRIPTION. The default is True.
+    fill : TYPE, optional
+        DESCRIPTION. The default is 0.3.
+    mark_holes : TYPE, optional
+        DESCRIPTION. The default is True.
+    level : TYPE, optional
+        DESCRIPTION. The default is 3.
+    line_colour : TYPE, optional
+        DESCRIPTION. The default is "green".
+    text_colour : TYPE, optional
+        DESCRIPTION. The default is "black".
 
+    Returns
+    -------
+    image: array or container
+        image with contours
+
+    """
     ## kwargs
-    df_image_data = kwargs.get("df", None)
-    df_contours = kwargs.get("df_contours", None)
-    offset_coords = kwargs.get("offset_coords", None)
-    flag_label = kwargs.get("label", True)
-    flag_fill = kwargs.get("fill", 0.2)
-    flag_child = kwargs.get("mark_holes", True)
-    level = kwargs.get("level", 3)
-    line_colour_sel = colours[kwargs.get("line_colour", "green")]
-    text_colour = colours[kwargs.get("text_colour", "black")]
+    flag_label = label
+    flag_fill = fill
+    flag_child = mark_holes
+    line_colour_sel = colours[line_colour]
+    text_colour = colours[text_colour]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
         if df_contours.__class__.__name__ == "NoneType":
-            warnings.warn("No contour df provided - cannot draw contours.")
+            warnings.warn("No df provided - cannot draw contours.")
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_contours = obj_input.df_contours
@@ -117,10 +157,13 @@ def show_contours(obj_input,**kwargs):
                     maxLevel=level,
                     offset=offset_coords)
         if flag_label:
-            cv2.putText(image, row["contour"] , (row["center"]), cv2.FONT_HERSHEY_SIMPLEX, 
-                        text_size, text_colour, text_thickness, cv2.LINE_AA)
-            cv2.putText(colour_mask, row["contour"] , (row["center"]), cv2.FONT_HERSHEY_SIMPLEX, 
-                        text_size, text_colour, text_thickness, cv2.LINE_AA)
+            cv2.putText(image, row["contour"] , (row["center"]), 
+                        cv2.FONT_HERSHEY_SIMPLEX, text_size, text_colour, 
+                        text_thickness, cv2.LINE_AA)
+            cv2.putText(colour_mask, row["contour"] , (row["center"]), 
+                        cv2.FONT_HERSHEY_SIMPLEX, text_size, text_colour, 
+                        text_thickness, cv2.LINE_AA)
+
     image = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) 
 
     ## return
@@ -132,43 +175,65 @@ def show_contours(obj_input,**kwargs):
 
 
 
-def show_landmarks(obj_input, **kwargs):
-    """Mask maker method to draw rectangle or polygon mask onto image.
-    
+def show_landmarks(obj_input, df_landmarks=None, point_col="green", 
+                   point_size=None, label_col="black", label_size=None, 
+                   label_width=None):
+    """
+    Draw landmarks on image.
+
     Parameters
-    ----------        
-    
-    include: bool (default: True)
-        determine whether resulting mask is to include or exclude objects within
-    label: str (default: "area1")
-        passes a label to the mask
-    tool: str (default: "rectangle")
-        zoom into the scale with "rectangle" or "polygon".
-        
+    ----------
+    obj_input : array or container
+        input object
+    df_landmarks: DataFrame, optional
+        should contain contour coordinates as an array in a df cell
+    point_col: {"green", "blue", "red", "black", "white"} str, optional
+        landmark point colour
+    point_size: int, optional
+        landmark point size in pixels
+    label_col : {"black", "white", "green", "red", "blue"} str, optional
+        landmark label colour.
+    label_size: int, optional
+        landmark label size (scaled to image)
+    label_width: int, optional
+        text thickness 
+
+    Returns
+    -------
+    image: array or container
+        image with landmarks
+
     """
 
     ## kwargs
-    colour = colours[kwargs.get("colour", "green")]
-    mask_list = kwargs.get("masks", None)
+    point_col = colours[point_col]
+    label_col = colours[label_col]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
+        if df_landmarks.__class__.__name__ == "NoneType":
+            warnings.warn("No df provided - cannot draw landmarks.")
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_landmarks = obj_input.df_landmarks
+    else:
+        warnings.warn("wrong input format.")
+        return
 
-    point_size = kwargs.get("point_size", _auto_point_size(image))
-    point_col = kwargs.get("point_col", "red")
-    label_size = kwargs.get("label_size", _auto_text_size(image))
-    label_width = kwargs.get("label_width", _auto_text_width(image))
-    label_col = kwargs.get("label_col", "black")
+    ## more kwargs
+    if point_size.__class__.__name__ == "NoneType":
+        point_size = _auto_point_size(image)
+    if label_size.__class__.__name__ == "NoneType":
+        label_size = _auto_text_size(image)
+    if label_width.__class__.__name__ == "NoneType":
+        label_width = _auto_text_width(image)
 
     ## visualize
     for label, x, y in zip(df_landmarks.landmark, df_landmarks.x, df_landmarks.y):
-        cv2.circle(image, (x,y), point_size, colours[point_col], -1)
-        cv2.putText(image, str(label), (x,y), 
-            cv2.FONT_HERSHEY_SIMPLEX, label_size, colours[label_col], label_width, cv2.LINE_AA)
+        cv2.circle(image, (x,y), point_size, point_col, -1)
+        cv2.putText(image, str(label), (x,y), cv2.FONT_HERSHEY_SIMPLEX, 
+                    label_size, label_col, label_width, cv2.LINE_AA)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

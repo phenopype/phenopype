@@ -36,11 +36,12 @@ release = version
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc', 
+    'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
     'sphinx.ext.githubpages',
-    "nbsphinx",
+    'nbsphinx',
+#    'numpydoc',
     'sphinx.ext.autosectionlabel'
 ]
 
@@ -74,7 +75,7 @@ language = None
 exclude_patterns = ['.ipynb_checkpoints/*.ipynb']
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = None
+pygments_style = 'sphinx'
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -85,13 +86,14 @@ pygments_style = None
 html_theme = 'bootstrap'
 html_show_sourcelink = True
 
-
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 html_theme_options = {
-    "navbar_links": [("Phenopype on Github", "https://github.com/mluerig/phenopype", True)]
+    "navbar_links": [("Phenopype on Github", "https://github.com/mluerig/phenopype", True)],
+    'bootswatch_theme': "simplex", #journal
+    'bootstrap_version': "3"
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

@@ -66,6 +66,7 @@ class container(object):
         ## attributes
         self.dirpath = None
         self.save_suffix = None
+        self.scale_px_mm_ratio = None
 
     def load(self, contours=False, **kwargs):
         """

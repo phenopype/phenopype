@@ -129,7 +129,7 @@ class _image_viewer():
                 elif self.flag_tool == "polyline" or self.flag_tool == "polylines" or self.flag_tool == "lines":
                     if len(self.points)>0:
                         self.point_list.append(self.points)
-                elif self.flag_tool == "rectangle" or self.flag_tool == "rect" or self.flag_tool == "box":
+                elif self.flag_tool == "rectangle" or self.flag_tool == "rect" or self.flag_tool == "template":
                     if len(self.rect_list)>0:
                         for rect in self.rect_list:
                             xmin, ymin, xmax, ymax = rect

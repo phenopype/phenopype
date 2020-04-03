@@ -3,8 +3,6 @@ import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
 
-from ruamel.yaml.comments import CommentedMap as ordereddict
-
 from phenopype.settings import colours
 from phenopype.utils import * #load_image, load_meta_data, show_image, save_image
 from phenopype.utils_lowlevel import _image_viewer, _save_yaml, _load_yaml, _show_yaml ,_contours_arr_tup
