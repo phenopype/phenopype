@@ -187,10 +187,6 @@ def create_scale(obj_input, template=False, df_masks=None, df_image_data=None,
         coords = out.point_list
         
         ## check if exists
-        if df_masks.__class__.__name__ == "NoneType":
-            print("- create mask df and add scale mask")
-            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
-
         while True:
             if "scale" in df_masks['mask'].values and flag_overwrite == False:
                 print("- scale template mask already created (overwrite=False)")
@@ -203,8 +199,11 @@ def create_scale(obj_input, template=False, df_masks=None, df_image_data=None,
             ## add to df
             if len(coords) > 0:
                 points = coords[0]
-                df_masks = df_masks.append({"mask": "scale", "include": False, "coords": str(points)}, 
-                                    ignore_index=True, sort=False)
+                df_mask_temp = pd.DataFrame({"mask": "scale", 
+                                         "include": False, 
+                                         "coords": str(points)}, index=[0])
+                df_mask_temp = pd.concat([df_image_data, df_mask_temp], axis=1)
+                
                 break
             else:
                 warnings.warn("zero coordinates - redo template!")
@@ -212,9 +211,11 @@ def create_scale(obj_input, template=False, df_masks=None, df_image_data=None,
     else:
         template = None
 
-    ## merge with existing image_data frame
-    df_masks = pd.concat([pd.concat([df_image_data]*len(df_masks)).reset_index(drop=True), 
-                            df_masks.reset_index(drop=True)], axis=1)
+    ## merge with existing mask data frame
+    if df_masks.__class__.__name__ == "NoneType" and len(coords) > 0:
+        df_masks = df_mask_temp
+    elif len(coords) > 0:
+        df_masks = df_masks.append(df_mask_temp)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
