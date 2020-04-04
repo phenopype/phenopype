@@ -16,9 +16,9 @@ visualization:
 - select_canvas:
     canvas: image
 - show_contours:
-    line_thickness: 2
-    text_thickness: 1
-    text_size: 1
+    line_width: 2
+    label_width: 1
+    label_size: 1
     fill: 0.3
 export:
 - save_contours:
@@ -50,9 +50,9 @@ visualization:
 - select_canvas:
     canvas: image
 - show_contours:
-    line_thickness: 2
-    text_thickness: 1
-    text_size: 1
+    line_width: 2
+    label_width: 1
+    label_size: 1
     fill: 0.3
 export:
 - save_contours:
@@ -88,9 +88,9 @@ visualization:
 - select_canvas:
     canvas: red
 - show_contours:
-    line_thickness: 2
-    text_thickness: 1
-    text_size: 1
+    line_width: 2
+    label_width: 1
+    label_size: 1
     fill: 0
 """
 preset4="""
@@ -123,9 +123,9 @@ visualization:
 - select_canvas:
     canvas: red
 - show_contours:
-    line_thickness: 2
-    text_thickness: 1
-    text_size: 1
+    line_width: 2
+    label_width: 1
+    label_size: 1
     fill: 0
 """
 
@@ -162,7 +162,7 @@ visualization:
     label_size: 3
     label_width: 5
 - show_masks:
-    colour: blue
+    line_colour: blue
 export:
 - save_landmarks
 - save_masks
@@ -192,9 +192,9 @@ visualization:
 - select_canvas:
     canvas: image
 - show_contours:
-    line_thickness: 2
-    text_thickness: 1
-    text_size: 1
+    line_width: 2
+    label_width: 1
+    label_size: 1
     fill: 0.3
 - show_masks
 export:
@@ -230,8 +230,8 @@ segmentation:
     min_area: 500
 visualization:
 - show_contours:
-    line_thickness: 2
-    text_thickness: 1
-    text_size: 1
+    line_width: 2
+    label_width: 1
+    label_size: 1
     fill: 0.3
 """

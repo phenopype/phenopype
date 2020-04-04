@@ -111,10 +111,9 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-            return image, df_masks
+            return df_masks
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_masks = df_masks
-        obj_input.canvas = image
 
 
 
@@ -144,7 +143,9 @@ def create_scale(obj_input, template=False, df_masks=None, df_image_data=None,
     ## kwargs 
     flag_template = template
     flag_overwrite = overwrite
+
     ## load image
+    px_mm_ratio = None
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
@@ -152,7 +153,7 @@ def create_scale(obj_input, template=False, df_masks=None, df_image_data=None,
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_image_data = obj_input.df_image_data
-        scale_px_mm_ratio = obj_input.scale_px_mm_ratio
+        px_mm_ratio = obj_input.scale_px_mm_ratio
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
     else:
@@ -160,12 +161,12 @@ def create_scale(obj_input, template=False, df_masks=None, df_image_data=None,
         return
 
     ## check if exists
-    if not scale_px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
+    if not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
         print("- scale pixel-to-mm-ratio already measured (overwrite=False)")
         return
-    elif not scale_px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
+    elif not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
         print("- measure pixel-to-mm-ratio (overwritten)")
-    elif scale_px_mm_ratio.__class__.__name__ == "NoneType":
+    elif px_mm_ratio.__class__.__name__ == "NoneType":
         print("- measure pixel-to-mm-ratio")
 
     ## method

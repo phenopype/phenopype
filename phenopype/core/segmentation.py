@@ -274,15 +274,23 @@ def find_contours(obj_input, **kwargs):
 
 
 
-def morphology(obj_input, **kwargs):
+def morphology(obj_input, kernel_size=5, shape="rect", operation="close", 
+               iterations=1):
     """
     
+
     Parameters
     ----------
     obj_input : TYPE
         DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
+    kernel_size : TYPE, optional
+        DESCRIPTION. The default is 5.
+    shape : TYPE, optional
+        DESCRIPTION. The default is "rect".
+    operation : TYPE, optional
+        DESCRIPTION. The default is "close".
+    iterations : TYPE, optional
+        DESCRIPTION. The default is 1.
 
     Returns
     -------
@@ -290,14 +298,10 @@ def morphology(obj_input, **kwargs):
         DESCRIPTION.
 
     """
-    ## kwargs   
-    kernel_size = kwargs.get("kernel_size", 5)
-    shape = kwargs.get("shape", "rect")
+    ## kwargs
     shape_list = {"cross": cv2.MORPH_CROSS, 
                 "rect": cv2.MORPH_RECT, 
                 "ellipse": cv2.MORPH_ELLIPSE}
-    kernel = cv2.getStructuringElement(shape_list[shape], (kernel_size, kernel_size))
-    operation = kwargs.get("operation", "close")
     operation_list = {"erode": cv2.MORPH_ERODE, 
                       "dilate": cv2.MORPH_DILATE,
                       "open": cv2.MORPH_OPEN, 
@@ -306,8 +310,8 @@ def morphology(obj_input, **kwargs):
                       "tophad ": cv2.MORPH_TOPHAT, 
                       "blackhat": cv2.MORPH_BLACKHAT, 
                       "hitmiss": cv2.MORPH_HITMISS}  
-    iterations = kwargs.get("iterations", 1)
-    
+    kernel = cv2.getStructuringElement(shape_list[shape], (kernel_size, kernel_size))
+
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
@@ -368,19 +372,29 @@ def skeletonize(img):
 
 
 
-def threshold(obj_input, **kwargs):
+def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99, 
+              value=127, channel="gray"):
     """
     If the input array was single channel, the threshold method can only use the 
     grayscale space to, but if multiple channels were provided, then one can either chose 
     to coerce the color image to grayscale or use one of the color channels directly.  
 
-
     Parameters
     ----------
     obj_input : TYPE
         DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
+    df_masks : TYPE, optional
+        DESCRIPTION. The default is None.
+    method : TYPE, optional
+        DESCRIPTION. The default is "otsu".
+    constant : TYPE, optional
+        DESCRIPTION. The default is 1.
+    blocksize : TYPE, optional
+        DESCRIPTION. The default is 99.
+    value : TYPE, optional
+        DESCRIPTION. The default is 127.
+    channel : TYPE, optional
+        DESCRIPTION. The default is gray.
 
     Returns
     -------
@@ -389,17 +403,10 @@ def threshold(obj_input, **kwargs):
 
     """
 
-    ## kwargs
-    blocksize = kwargs.get("blocksize", 99)
-    constant = kwargs.get("constant", 1)
-    channel = kwargs.get("channel", "gray")
-    method = kwargs.get("method", "otsu")
-    value = kwargs.get("value", 127)
-    df_masks = kwargs.get("masks", None)
-    
+
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
+        image = copy.deepcopy(obj_input)
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
         if hasattr(obj_input, "df_masks"):
@@ -427,10 +434,9 @@ def threshold(obj_input, **kwargs):
     ## apply masks
     if not df_masks.__class__.__name__ == "NoneType":
         mask_bool = np.zeros(image.shape, np.bool)
-        label = ""
         for index, row in df_masks.iterrows():
             coords = eval(row["coords"])
-            if not row["mask"] == label:
+            if not row["mask"] == "":
                 label = row["mask"]
                 print("- applying mask: " + label)
             if row["include"]:

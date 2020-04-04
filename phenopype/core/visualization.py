@@ -69,7 +69,7 @@ def select_canvas(obj_input, canvas="image_mod"):
 
 def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords=None,
                   label=True, fill=0.3, mark_holes=True, level=3, line_colour="green",
-                  label_size=None, label_col="black", line_width=None, label_width=None):
+                  label_size=None, label_colour="black", line_width=None, label_width=None):
     """
     
 
@@ -95,7 +95,7 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
         DESCRIPTION. The default is "green".
     line_width: int, optional
         line width
-    label_col : {"black", "white", "green", "red", "blue"} str, optional
+    label_colour : {"black", "white", "green", "red", "blue"} str, optional
         contour label colour.
     label_size: int, optional
         contour label font size (scaled to image)
@@ -114,13 +114,14 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
     flag_child = mark_holes
     flag_line_width = line_width
     line_colour_sel = colours[line_colour]
-    text_colour = colours[label_col]
+    label_colour = colours[label_colour]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
+        image = copy.deepcopy(obj_input)
         if df_contours.__class__.__name__ == "NoneType":
             warnings.warn("No df provided - cannot draw contours.")
+            return
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_contours = obj_input.df_contours
@@ -133,10 +134,9 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
     if line_width.__class__.__name__ == "NoneType":
         flag_line_width = _auto_line_width(image)
     if label_width.__class__.__name__ == "NoneType":
-        text_thickness = _auto_text_width(image)
+        label_width = _auto_text_width(image)
     if label_size.__class__.__name__ == "NoneType":
-        text_size = _auto_text_size(image)
-
+        label_size = _auto_text_size(image)
 
     ## method
     idx = 0
@@ -170,11 +170,11 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
                     offset=offset_coords)
         if flag_label:
             cv2.putText(image, row["contour"] , (row["center"]), 
-                        cv2.FONT_HERSHEY_SIMPLEX, text_size, text_colour, 
-                        text_thickness, cv2.LINE_AA)
+                        cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
+                        label_width, cv2.LINE_AA)
             cv2.putText(colour_mask, row["contour"] , (row["center"]), 
-                        cv2.FONT_HERSHEY_SIMPLEX, text_size, text_colour, 
-                        text_thickness, cv2.LINE_AA)
+                        cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
+                        label_width, cv2.LINE_AA)
 
     image = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) 
 
@@ -191,7 +191,7 @@ def show_landmarks(obj_input, df_landmarks=None, point_col="green",
                    point_size=None, label_col="black", label_size=None, 
                    label_width=None):
     """
-    Draw landmarks on image.
+    Draw landmarks into an image.
 
     Parameters
     ----------
@@ -226,6 +226,7 @@ def show_landmarks(obj_input, df_landmarks=None, point_col="green",
         image = obj_input
         if df_landmarks.__class__.__name__ == "NoneType":
             warnings.warn("No df provided - cannot draw landmarks.")
+            return
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_landmarks = obj_input.df_landmarks
@@ -251,42 +252,58 @@ def show_landmarks(obj_input, df_landmarks=None, point_col="green",
     if obj_input.__class__.__name__ == "ndarray":
         return image
     elif obj_input.__class__.__name__ == "container":
-        if  obj_input.canvas.__class__.__name__ == "ndarray":
-            obj_input.canvas = image
-        else:
-            obj_input.image = image
+        obj_input.canvas = image
 
 
 
-def show_masks(obj_input, colour="blue", select=None, **kwargs):
-    """Mask maker method to draw rectangle or polygon mask onto image.
+def show_masks(obj_input, select=None, df_masks=None, line_colour="blue", 
+               line_width=None, label=False, label_size=None, 
+               label_col="black", label_width=None):
+    
+    
+    """Draw masks into an image.
     
     Parameters
     ----------        
     
-    include: bool (default: True)
-        determine whether resulting mask is to include or exclude objects within
+    select: str or list
+        select a subset of masks to display
+    df_masks: DataFrame
+        contains mask coordinates and label
     label: str (default: "area1")
         passes a label to the mask
     tool: str (default: "rectangle")
         zoom into the scale with "rectangle" or "polygon".
         
     """
-    
-    # mask_list = ["mask1"]
-
     ## kwargs
-    line_col = colours[colour]
+    flag_label = label
+    line_colour_sel = colours[line_colour]
+    label_colour = colours[label_col]
+    if not select.__class__.__name__ == "NoneType":
+        if not select.__class__.__name__ == "list":
+            select = [select]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
+        image = copy.deepcopy(obj_input)
+        if df_masks.__class__.__name__ == "NoneType":
+            warnings.warn("No df provided - cannot draw masks.")
+            return
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_masks = obj_input.df_masks
+    else:
+        warnings.warn("wrong input format.")
+        return
 
     ## more kwargs
-    line_width = kwargs.get("line_thickness", _auto_line_width(image))
+    if line_width.__class__.__name__ == "NoneType":
+        line_width = _auto_line_width(image)
+    if label_width.__class__.__name__ == "NoneType":
+        label_width = _auto_text_width(image)
+    if label_size.__class__.__name__ == "NoneType":
+        label_size = _auto_text_size(image)
 
     ## draw masks from mask obect
     for index, row in df_masks.iterrows():
@@ -300,17 +317,17 @@ def show_masks(obj_input, colour="blue", select=None, **kwargs):
             print(" - show mask: " + row["mask"] + ".")
             coords = eval(row["coords"])
             if row["mask"] == "scale":
-                line_col = colours["red"]
-            cv2.polylines(image, np.array([coords]), False, line_col, line_width)
+                line_colour = colours["red"]
+            else:
+                line_colour = line_colour_sel
+            cv2.polylines(image, np.array([coords]), False, line_colour, line_width)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
         return image
     elif obj_input.__class__.__name__ == "container":
-        if  obj_input.canvas.__class__.__name__ == "ndarray":
-            obj_input.canvas = image
-        else:
-            obj_input.image = image
+        obj_input.canvas = image
+
 
 
 
@@ -354,7 +371,4 @@ def show_polylines(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         return image
     elif obj_input.__class__.__name__ == "container":
-        if  obj_input.canvas.__class__.__name__ == "ndarray":
-            obj_input.canvas = image
-        else:
-            obj_input.image = image
+        obj_input.canvas = image
