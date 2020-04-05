@@ -92,7 +92,8 @@ html_show_sourcelink = True
 #
 html_theme_options = {
     "navbar_links": [("Phenopype on Github", "https://github.com/mluerig/phenopype", True)],
-    'bootswatch_theme': "simplex", #journal
+    'bootswatch_theme': "simplex", 
+    'navbar_sidebarrel': True,
     'bootstrap_version': "3"
 }
 
