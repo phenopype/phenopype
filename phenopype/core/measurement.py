@@ -125,18 +125,21 @@ def landmarks(obj_input, **kwargs):
 
 
 
-def colour_intensity(obj_input, **kwargs):
+def colour_intensity(obj_input, df_image_data=None, df_contours=None, 
+                     channels="gray", **kwargs):
 
     ## kwargs
-    channels = kwargs.get("channels", ["gray"])
-    df_contours = kwargs.get("df_contours", None)
+    if channels.__class__.__name__ == "str":
+        channels = [channels]
 
     ## load image
-    df_contours = None
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"})
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+        if df_contours.__class__.__name__ == "NoneType":
+            warnings.warn("no df supplied - cannot measure colour intensity")
+            return
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
         df_image_data = obj_input.df_image_data
@@ -145,8 +148,7 @@ def colour_intensity(obj_input, **kwargs):
     else:
         warnings.warn("wrong input format.")
         return
-
-    ## make df
+    
     df_colours = pd.DataFrame(df_contours["contour"])
 
     ## create forgeround mask

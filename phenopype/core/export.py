@@ -42,11 +42,11 @@ def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
     ## load df
     if obj_input.__class__.__name__ == 'ndarray':
-        image = obj_input
+        image = copy.deepcopy(obj_input)
         if not dirpath:
             warnings.warn("No save directory specified - cannot save canvas.")
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.canvas
+        image = copy.deepcopy(obj_input.canvas)
         if not save_suffix:
             save_suffix = obj_input.save_suffix
         if not dirpath:
@@ -113,7 +113,7 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
-        df = obj_input
+        df = copy.deepcopy(obj_input)
         if not dirpath:
             warnings.warn("No save directory specified - cannot export results.")
     elif obj_input.__class__.__name__ == "container":
@@ -177,7 +177,7 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
-        df = obj_input
+        df = copy.deepcopy(obj_input)
         if dirpath.__class__.__name__ == "NoneType":
             warnings.warn("No save directory specified - cannot save contours.")
             return

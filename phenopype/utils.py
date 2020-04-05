@@ -596,6 +596,7 @@ def load_meta_data(image_path, show_fields=False,
                 exif_data_all[ExifTags.TAGS[k]] = v
         exif_data_all = dict(sorted(exif_data_all.items()))
     except Exception:
+        print("no meta-data found")
         return None
 
     if flag_show:
