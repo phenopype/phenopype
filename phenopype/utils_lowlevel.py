@@ -370,7 +370,7 @@ class _image_viewer():
 
 
 class _yaml_file_monitor:
-    def __init__(self, filepath):
+    def __init__(self, filepath, delay=100):
 
         ## file, location and event action        
         self.dirpath = os.path.dirname(filepath)
@@ -385,11 +385,12 @@ class _yaml_file_monitor:
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
         self.observer.start()
         self.ref_time = time.time()
+        self.delay=delay
 
     def on_update(self, event):
         self.content = _load_yaml(self.filepath)
         cv2.destroyWindow("phenopype")
-        for i in range(10):
+        for i in range(self.delay):
             cv2.waitKey(1)
 
     def stop(self):

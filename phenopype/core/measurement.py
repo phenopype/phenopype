@@ -61,7 +61,7 @@ def landmarks(obj_input, **kwargs):
         if hasattr(obj_input, "df_landmarks"):
             df_landmarks = obj_input.df_landmarks
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
     
     ## only landmark df
@@ -99,7 +99,7 @@ def landmarks(obj_input, **kwargs):
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":
-                warnings.warn("terminated polyline creation")
+                print("terminated polyline creation")
                 return 
             elif obj_input.__class__.__name__ == "container":
                 print("- terminated polyline creation")
@@ -138,15 +138,15 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
         if df_contours.__class__.__name__ == "NoneType":
-            warnings.warn("no df supplied - cannot measure colour intensity")
+            print("no df supplied - cannot measure colour intensity")
             return
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
+        image = copy.deepcopy(obj_input.image_copy)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_contours"):
             df_contours = obj_input.df_contours
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
     
     df_colours = pd.DataFrame(df_contours["contour"])
@@ -160,7 +160,6 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
             image_bin = cv2.fillPoly(image_bin, [row["coords"]], 0)
     foreground_mask = np.invert(np.array(image_bin, dtype=np.bool))
 
-    
     ## grayscale
     if "gray" in channels:
         image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -233,7 +232,7 @@ def polylines(obj_input, **kwargs):
         if hasattr(obj_input, "df_polylines"):
             df_polylines = obj_input.df_polylines
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
 
     ## more kwargs
@@ -259,7 +258,7 @@ def polylines(obj_input, **kwargs):
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":
-                warnings.warn("terminated polyline creation")
+                print("terminated polyline creation")
                 return 
             elif obj_input.__class__.__name__ == "container":
                 print("- terminated polyline creation")

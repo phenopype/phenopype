@@ -6,6 +6,7 @@ import pandas as pd
 from math import inf
 
 from phenopype.settings import *
+from phenopype.core.preprocessing import invert_image
 from phenopype.utils_lowlevel import _create_mask_bin, _create_mask_bool, _image_viewer, _auto_line_width
 
 #%% functions
@@ -94,7 +95,7 @@ def draw(obj_input, **kwargs):
         if hasattr(obj_input, "df_draw"):
             df_draw = obj_input.df_draw
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
 
     ## more kwargs
@@ -128,7 +129,7 @@ def draw(obj_input, **kwargs):
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":
-                warnings.warn("terminated polyline creation")
+                print("terminated polyline creation")
                 return 
             elif obj_input.__class__.__name__ == "container":
                 print("- terminated polyline creation")
@@ -206,15 +207,13 @@ def find_contours(obj_input, **kwargs):
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
         df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_contours"):
-            df_contours = obj_input.df_contours
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
 
     ## check
     if len(image.shape)>2:
-        warnings.warn("Multi-channel array supplied - need binary array.")
+        print("Multi-channel array supplied - need binary array.")
 
     ## method
     image, contour_list, hierarchy = cv2.findContours(image=image, 
@@ -253,7 +252,7 @@ def find_contours(obj_input, **kwargs):
                                                        "idx_parent":hier[3],
                                                        "coords":contour}
     else:
-        warnings.warn("No contours found.")
+        print("No contours found.")
         
     ## output
     df_contours = pd.DataFrame(contour_dict).T
@@ -294,14 +293,14 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close",
     """
     ## kwargs
     shape_list = {"cross": cv2.MORPH_CROSS, 
-                "rect": cv2.MORPH_RECT, 
-                "ellipse": cv2.MORPH_ELLIPSE}
+                  "rect": cv2.MORPH_RECT, 
+                  "ellipse": cv2.MORPH_ELLIPSE}
     operation_list = {"erode": cv2.MORPH_ERODE, 
                       "dilate": cv2.MORPH_DILATE,
                       "open": cv2.MORPH_OPEN, 
                       "close": cv2.MORPH_CLOSE, 
                       "gradient": cv2.MORPH_GRADIENT,
-                      "tophad ": cv2.MORPH_TOPHAT, 
+                      "tophat ": cv2.MORPH_TOPHAT, 
                       "blackhat": cv2.MORPH_BLACKHAT, 
                       "hitmiss": cv2.MORPH_HITMISS}  
     kernel = cv2.getStructuringElement(shape_list[shape], (kernel_size, kernel_size))
@@ -367,33 +366,13 @@ def skeletonize(img):
 
 
 def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99, 
-              value=127, channel="gray"):
+              value=127, channel="gray", invert=False):
     """
     If the input array was single channel, the threshold method can only use the 
     grayscale space to, but if multiple channels were provided, then one can either chose 
     to coerce the color image to grayscale or use one of the color channels directly.  
 
-    Parameters
-    ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    df_masks : TYPE, optional
-        DESCRIPTION. The default is None.
-    method : TYPE, optional
-        DESCRIPTION. The default is "otsu".
-    constant : TYPE, optional
-        DESCRIPTION. The default is 1.
-    blocksize : TYPE, optional
-        DESCRIPTION. The default is 99.
-    value : TYPE, optional
-        DESCRIPTION. The default is 127.
-    channel : TYPE, optional
-        DESCRIPTION. The default is gray.
 
-    Returns
-    -------
-    image : TYPE
-        DESCRIPTION.
 
     """
 
@@ -416,26 +395,28 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
             image = image[:,:,1]
         elif channel == "blue" or channel== "b":
             image = image[:,:,2]
-            
+
+    if invert:
+        image = invert_image(image)
+
     ## method
     if method == "otsu":
         ret, image = cv2.threshold(image, 0, 255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     elif method == "adaptive":
         image = cv2.adaptiveThreshold(image, 255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV, blocksize, constant)
     elif method == "binary":
-        ret, image = cv2.threshold(image, value, 255,cv2.THRESH_BINARY_INV)  
+        ret, image = cv2.threshold(image, value, 255,cv2.THRESH_BINARY_INV)
 
     ## apply masks
     if not df_masks.__class__.__name__ == "NoneType":
-        mask_bool = np.zeros(image.shape, dtype=np.uint8)
-        mask_bool.fill(255)
+        mask_bool = np.zeros(image.shape, dtype=bool)
         for index, row in df_masks.iterrows():
             coords = eval(row["coords"])
             if not row["mask"] == "":
                 label = row["mask"]
                 print("- applying mask: " + label)
             if row["include"]:
-                mask_bool = np.logical_or(mask_bool, _create_mask_bin(image, coords))
+                mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
             if not row["include"]:
                 image[_create_mask_bool(image, coords)] = 0
         image[mask_bool==0] = 0
@@ -449,37 +430,26 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
 
 
 
-def watershed(obj_input, **kwargs):
+def watershed(obj_input, close_iterations=3, close_kernel_size=3, 
+              open_iterations=3, open_kernel_size=3, distance_cutoff=0.5,
+              distance_mask=0, distance_type="l1", shape="ellipse", **kwargs):
     """
     If the input array was single channel, the threshold method can only use the 
     grayscale space to, but if multiple channels were provided, then one can either chose 
     to coerce the color image to grayscale or use one of the color channels directly.  
 
 
-    Parameters
-    ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    image : TYPE
-        DESCRIPTION.
-
     """
 
-    ## kwargs
-    iterclose = kwargs.get("iterclose",3)
-    kernelclose = kwargs.get("kernelclose",9)
-    iteropen = kwargs.get("iteropen",5)
-    kernelopen = kwargs.get("kernelopen",7)
-    # blocksize = kwargs.get("blocksize", 99)
-    # constant = kwargs.get("constant", 1)
-    # channel = kwargs.get("channel", "gray")
-    # method = kwargs.get("method", "otsu")
-    # value = kwargs.get("value", 127)
+    ##kwargs
+    distance_type_list = {"user": cv2.DIST_USER , 
+                          "l1": cv2.DIST_L1,
+                          "l2": cv2.DIST_L2, 
+                          "C": cv2.DIST_C, 
+                          "l12": cv2.DIST_L12,
+                          "fair": cv2.DIST_FAIR, 
+                          "welsch": cv2.DIST_WELSCH, 
+                          "huber": cv2.DIST_HUBER}  
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -488,22 +458,26 @@ def watershed(obj_input, **kwargs):
         thresh = copy.deepcopy(obj_input.image)
         image = copy.deepcopy(obj_input.image_copy)
 
-    if len(thresh)<3:
+    if len(thresh.shape)==3:
         thresh = cv2.cvtColor(thresh,cv2.COLOR_BGR2GRAY)
-    
-    ## sure background
-    sure_bg = morphology(thresh, operation="close", kernel_size=kernelclose, iterations=iterclose)
-    opened = morphology(sure_bg, operation="open", shape="ellipse", kernel_size=kernelopen, iterations=iteropen)
+
+    ## sure background 
+    ## note: sure_bg is set as the thresholded input image
+    sure_bg =  copy.deepcopy(thresh)
     
     ## sure foreground 
-    dist_transform = cv2.distanceTransform(opened,cv2.DIST_L2,cv2.DIST_MASK_PRECISE)
-    cv2.normalize(dist_transform, dist_transform, 0,1.0, cv2.NORM_MINMAX)
-    ret, sure_fg = cv2.threshold(dist_transform,0.1,1,0)
-    
+    if distance_type in ["user","l12", "fair", "welsch", "huber"]:
+        distance_mask = 0
+    opened = morphology(thresh, operation="open", shape=shape, kernel_size=open_kernel_size, iterations=open_iterations)
+    dist_transform = cv2.distanceTransform(opened,distance_type_list[distance_type],distance_mask)
+    dist_transform = cv2.normalize(dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX)
+    ret, sure_fg = cv2.threshold(dist_transform,distance_cutoff,1,0)
+
     ## finding unknown region
-    sure_fg = np.uint8(sure_fg)
+    sure_fg = sure_fg.astype("uint8")
+    sure_fg[sure_fg==1] = 255
     unknown = cv2.subtract(sure_bg,sure_fg)
-    
+
     ## marker labelling
     ret, markers = cv2.connectedComponents(sure_fg)
     markers = markers+1

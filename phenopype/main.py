@@ -518,6 +518,9 @@ class pype:
     config_location: str, optional
         custom path to a pype template (needs to adhere to yaml syntax and 
         phenopype structure)
+    delay: int, optional
+        time in ms to add between reload attemps of yaml monitor. increase this 
+        value if saved changes in config file are not parsed in the first attempt.
     dirpath: str, optional
         path to an existing directory where all output should be stored
     skip: bool, optional
@@ -528,7 +531,7 @@ class pype:
         developer options
     """
     def __init__(self, image, name, config_preset="preset1", config_location=None, 
-                 dirpath=None, skip=False, feedback=True, **kwargs):
+                 dirpath=None, skip=False, feedback=True, delay=100, **kwargs):
 
         
         ## pype name check
@@ -603,7 +606,7 @@ class pype:
                 subprocess.call(('xdg-open', self.config_location))
 
         ## initialize
-        self.FM = _yaml_file_monitor(self.config_location)
+        self.FM = _yaml_file_monitor(self.config_location, delay)
         update, terminate, iv = {}, False, None
         
         # =============================================================================

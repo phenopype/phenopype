@@ -172,15 +172,20 @@ class container(object):
         pype routine.
 
         """
+        ## images
         self.image = copy.deepcopy(self.image_copy)
-        self.canvas = copy.deepcopy(self.image_copy)
+        self.image_bin = None
+        self.image_gray = None
+        self.canvas = copy.deepcopy(self.image)
+        
+        ## attributes
         self.df_image_data = copy.deepcopy(self.df_image_data_copy)
 
         # if hasattr(self, "df_masks"):
         #     del(self.df_masks)
 
-        # if hasattr(self, "df_contours"):
-        #     del(self.df_contours)
+        if hasattr(self, "df_contours"):
+            del(self.df_contours)
 
     def save(self, export_list=[], overwrite=False):
         """

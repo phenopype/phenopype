@@ -47,9 +47,9 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
         flag_container = True
         image = copy.deepcopy(obj_input.image_copy)
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
-    
+
     ## method
     ## for container
     if flag_container and canvas in ["image_bin", "bin", "binary"]:
@@ -74,7 +74,10 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
     elif canvas in ["b","blue"]:
         canvas = image[:,:,2]
         print("- blue channel")
-        
+    else:
+        print("- invalid selection - defaulting to raw image")
+        canvas = copy.deepcopy(obj_input.image_copy)
+
     ## check if 3D
     if flag_multi:
         if len(canvas.shape)<3:
@@ -140,13 +143,13 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
     if obj_input.__class__.__name__ == "ndarray":
         image = copy.deepcopy(obj_input)
         if df_contours.__class__.__name__ == "NoneType":
-            warnings.warn("No df provided - cannot draw contours.")
+            print("No df provided - cannot draw contours.")
             return
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_contours = obj_input.df_contours
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
 
 
@@ -245,13 +248,13 @@ def show_landmarks(obj_input, df_landmarks=None, point_col="green",
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_landmarks.__class__.__name__ == "NoneType":
-            warnings.warn("No df provided - cannot draw landmarks.")
+            print("No df provided - cannot draw landmarks.")
             return
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_landmarks = obj_input.df_landmarks
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
 
     ## more kwargs
@@ -308,13 +311,13 @@ def show_masks(obj_input, select=None, df_masks=None, line_colour="blue",
     if obj_input.__class__.__name__ == "ndarray":
         image = copy.deepcopy(obj_input)
         if df_masks.__class__.__name__ == "NoneType":
-            warnings.warn("No df provided - cannot draw masks.")
+            print("No df provided - cannot draw masks.")
             return
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_masks = obj_input.df_masks
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
 
     ## more kwargs

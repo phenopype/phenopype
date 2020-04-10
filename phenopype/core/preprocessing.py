@@ -61,7 +61,7 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
 
     ## check if exists
@@ -88,7 +88,7 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":
-                warnings.warn("terminated mask creation")
+                print("terminated mask creation")
                 return 
             elif obj_input.__class__.__name__ == "container":
                 print("- terminated mask creation")
@@ -102,7 +102,7 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
                 df_masks = df_masks.append({"mask": label, "include": include, "coords": str(points)}, 
                                 ignore_index=True, sort=False)
         else:
-            warnings.warn("zero coordinates - redo mask!")
+            print("zero coordinates - redo mask!")
         break
 
     ## merge with existing image_data frame
@@ -179,7 +179,7 @@ def create_scale(obj_input, df_image_data=None, template=False, mask=False,
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
 
     ## check if exists
@@ -236,7 +236,7 @@ def create_scale(obj_input, df_image_data=None, template=False, mask=False,
                 break
 
             else:
-                warnings.warn("zero coordinates - redo template!")
+                print("zero coordinates - redo template!")
                 break
     else:
         template = None
@@ -321,7 +321,7 @@ def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3,
         if hasattr(obj_input, "df_other_data"):
             df_other_data = obj_input.df_other_data
     else:
-        warnings.warn("wrong input format.")
+        print("wrong input format.")
         return
 
     ## more kwargs
@@ -475,7 +475,7 @@ def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10,
         ## if image diameter bigger than 5000 px, then automatically resize
         if (image.shape[0] + image.shape[1])/2 > 5000 and resize == 1:
             resize_factor = 0.5
-            warnings.warn("large image - resizing by factor " 
+            print("large image - resizing by factor " 
                           + str(resize_factor) 
                           + " to avoid slow image registration")
         else:
