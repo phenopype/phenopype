@@ -212,12 +212,6 @@ def find_contours(obj_input, **kwargs):
         warnings.warn("wrong input format.")
         return
 
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-    elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
-
     ## check
     if len(image.shape)>2:
         warnings.warn("Multi-channel array supplied - need binary array.")
@@ -229,7 +223,7 @@ def find_contours(obj_input, **kwargs):
                                                 offset=offset_coords)
 
     ## filtering
-    if contour_list:
+    if not contour_list.__class__.__name__ == "NoneType" and len(contour_list)>0:
         contour_dict = {}
         idx = 0
         for contour, hier in zip(contour_list, hierarchy[0]):
@@ -433,16 +427,17 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
 
     ## apply masks
     if not df_masks.__class__.__name__ == "NoneType":
-        mask_bool = np.zeros(image.shape, np.bool)
+        mask_bool = np.zeros(image.shape, dtype=np.uint8)
+        mask_bool.fill(255)
         for index, row in df_masks.iterrows():
             coords = eval(row["coords"])
             if not row["mask"] == "":
                 label = row["mask"]
                 print("- applying mask: " + label)
             if row["include"]:
-                mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
+                mask_bool = np.logical_or(mask_bool, _create_mask_bin(image, coords))
             if not row["include"]:
-                mask_bool[_create_mask_bool(image, coords)] = False
+                image[_create_mask_bool(image, coords)] = 0
         image[mask_bool==0] = 0
 
     ## return

@@ -263,7 +263,7 @@ class project:
         print("--------------------------------------------")
 
     def add_config(self, name, config_preset="preset1", interactive=False, overwrite=False, 
-                   **kwargs):
+                   idx=0, **kwargs):
         """
         Add pype configuration presets to all image folders in the project, either by using
         the templates included in the presets folder, or by adding your own templates
@@ -307,8 +307,8 @@ class project:
 
         ## modify
         if flag_interactive:
-            image_location = os.path.join(self.root_dir,"pype_template_image" + os.path.splitext(self.filenames[0])[1])
-            copyfile(self.filepaths[0], image_location)
+            image_location = os.path.join(self.root_dir,"pype_template_image" + os.path.splitext(self.filenames[idx])[1])
+            copyfile(self.filepaths[idx], image_location)
             config_location = os.path.join(self.root_dir, "pype_config_template-" + name + ".yaml")
             _save_yaml(config, config_location)
             p = pype(image_location, name="template-" + name, config_location=config_location, presetting=True)
