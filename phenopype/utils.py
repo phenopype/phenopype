@@ -187,12 +187,15 @@ class container(object):
         if hasattr(self, "df_contours"):
             del(self.df_contours)
 
-    def save(self, export_list=[], overwrite=False):
+    def save(self, dirpath=None, overwrite=False, **kwargs):
         """
         Autosave function for container. 
 
         Parameters
         ----------
+        dirpath: str, optional
+            provide a custom directory where files should be save - overwrites 
+            dirpath provided from container, if applicable
         export_list: list, optional
             used in pype rountine to check against already performed saving operations.
             running container.save() with an empty export_list will assumed that nothing
@@ -204,60 +207,57 @@ class container(object):
 
         ## kwargs 
         flag_overwrite = overwrite
+        export_list=kwargs.get("export_list", [])
 
         ## feedback
         print("AUTOSAVE")
 
-        ## visualization
-
         ## canvas
         if not self.canvas.__class__.__name__ == "NoneType" and not "save_canvas" in export_list:
             print("save_canvas")
-            save_canvas(self)
-
-        ## results
+            save_canvas(self, dirpath=dirpath)
 
         ## colours
         if hasattr(self, "df_colours") and not "save_colours" in export_list:
             print("save_colours")
-            save_colours(self, overwrite=flag_overwrite)
+            save_colours(self, dirpath=dirpath, overwrite=flag_overwrite)
 
         ## contours
         if hasattr(self, "df_contours") and not "save_contours" in export_list:
             print("save_contours")
-            save_contours(self, overwrite=flag_overwrite)
+            save_contours(self, dirpath=dirpath, overwrite=flag_overwrite)
 
         ## entered data
         if hasattr(self, "df_other_data") and not "save_data_entry" in export_list:
             print("save_data_entry")
-            save_data_entry(self, overwrite=flag_overwrite)
+            save_data_entry(self, dirpath=dirpath, overwrite=flag_overwrite)
 
         ## landmarks
         if hasattr(self, "df_landmarks") and not "save_landmarks" in export_list:
             print("save_landmarks")
-            save_landmarks(self, overwrite=flag_overwrite)
+            save_landmarks(self, dirpath=dirpath, overwrite=flag_overwrite)
 
         ## masks
         if hasattr(self, "df_masks") and not "save_masks" in export_list:
             print("save_masks")
-            save_masks(self, overwrite=flag_overwrite)
+            save_masks(self, dirpath=dirpath, overwrite=flag_overwrite)
 
         ## polylines
         if hasattr(self, "df_polylines") and not "save_polylines" in export_list:
             print("save_polylines")
-            save_polylines(self, overwrite=flag_overwrite)
+            save_polylines(self, dirpath=dirpath, overwrite=flag_overwrite)
 
         ## other data
         
         ## drawing
         if hasattr(self, "df_draw") and not "save_drawing" in export_list:
             print("save_drawing")
-            save_drawing(self, overwrite=True)
+            save_drawing(self, dirpath, overwrite=True)
 
         ## scale
         if hasattr(self, "scale_current_px_mm_ratio") and not "save_scale" in export_list:
             print("save_scale")
-            save_scale(self, overwrite=True)
+            save_scale(self, dirpath, overwrite=True)
 
     # def show(self, **kwargs):
     #     """
