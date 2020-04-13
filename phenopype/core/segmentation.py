@@ -202,11 +202,11 @@ def find_contours(obj_input, df_image_data=None, approximation="simple",
         contour retrieval procedure:
             - ext: retrieves only the extreme outer contours
             - list: retrieves all of the contours without establishing any 
-                    hierarchical relationships
+              hierarchical relationships
             - tree: retrieves all of the contours and reconstructs a full 
-                    hierarchy of nested contours
+              hierarchy of nested contours
             - ccomp: retrieves all of the contours and organizes them into a 
-                     two-level hierarchy (parent and child)
+              two-level hierarchy (parent and child)
             - flood: flood-fill algorithm
     offset_coords : tuple, optional
         offset by which every contour point is shifted.
@@ -400,7 +400,7 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
         type of thresholding algorithm:
             - otsu: use Otsu algorithm to choose the optimal threshold value
             - adaptive: dynamic threshold values across image (uses arguments
-                        "blocksize" and "constant")
+              "blocksize" and "constant")
             - binary: fixed threshold value (uses argument "value")
     blocksize: int, optional
         Size of a pixel neighborhood that is used to calculate a threshold 

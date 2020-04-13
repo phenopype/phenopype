@@ -133,13 +133,13 @@ landmarks_plain = """
 measurement:
 - landmarks:
     point_size: 25
-    point_col: green
+    point_colour: green
     label_size: 3
     label_width: 5
 visualization:
 - show_landmarks:
     point_size: 25
-    point_col: green
+    point_colour: green
     label_size: 3
     label_width: 5
 export:
@@ -152,13 +152,13 @@ preprocessing:
 measurement:
 - landmarks:
     point_size: 25
-    point_col: green
+    point_colour: green
     label_size: 3
     label_width: 5
 visualization:
 - show_landmarks:
     point_size: 25
-    point_col: green
+    point_colour: green
     label_size: 3
     label_width: 5
 - show_masks:
