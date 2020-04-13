@@ -16,8 +16,8 @@ from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_f
 
 #%% functions
 
-def create_mask(obj_input, include=True, label="mask1", overwrite=False,
-                tool="rectangle", **kwargs):
+def create_mask(obj_input, df_image_data=None, include=True, label="mask1", 
+                overwrite=False, tool="rectangle"):
     """Mask maker method to draw rectangle or polygon mask onto image.
     
     Parameters
@@ -34,9 +34,7 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
         should existing masks with the same label be overwritten
     tool: {"rectangle", "polygon"} str, optional
         select tool by which mask is drawn
-    kwargs: 
-        developer options
-        
+
     Returns
     -------
 
@@ -47,16 +45,15 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
     ## kwargs
     flag_overwrite = overwrite
     flag_tool = tool
-    df_image_data = kwargs.get("df_image_data", None)
 
     ## load image
     df_masks = None
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0]) ## that may not be necessary
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.canvas
+        image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
@@ -117,31 +114,39 @@ def create_mask(obj_input, include=True, label="mask1", overwrite=False,
 
 
 
-def create_scale(obj_input, df_image_data=None, template=False, mask=False, 
-                 df_masks=None, overwrite=False):
+def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False, 
+                overwrite=False, template=False):
+    """
+    Measure a size or colour reference card. Minimum input interaction is 
+    measuring a size reference: click on two points inside the provided image, 
+    and enter the distance - returns the pixel-to-mm-ratio as integer or 
+    inserts it into a provided DataFrame (df_image_data). In an optional second
+    step, drag a rectangle mask over the reference card to exclude it from any
+    subsequent image segementation. The mask is exported as new DataFrame, OR, 
+    if provided before, gets appended to an existing one (df_masks). The mask
+    can also be stored as a template for automatic scale detection with the
+    "find_scale" function.
 
-    """Measure a size or colour reference card and return the information 
-    
     Parameters
-    ----------        
+    ----------
     obj_input : array or container
         input object
     df_image_data : DataFrame, optional
         an existing DataFrame containing image metadata to add the scale 
         information to (pixel-to-mm-ratio)
+    df_masks : DataFrame, optional
+        an existing DataFrame containing masks to add the created mask to
+    mask : bool, optional
+        mask a reference card inside the image (returns a mask DataFrame)
+    overwrite : bool, optional
+        if a container is supplied, or when working from the pype, should any 
+        exsting scale information (px-to-mm-ratio) or template be overwritten
     template: bool, optional
         should a template for scale detection be created. with an existing 
         template, phenopype can try to find a reference card in a given image,
         measure its dimensions, and adjust and colour space. automatically 
         creates and returns a mask DataFrame that can be added to an existing
         one
-    mask : bool, optional
-        mask a reference card inside the image (returns a mask DataFrame)
-    df_masks : DataFrame, optional
-        an existing DataFrame containing masks to add the created mask to
-    overwrite : bool, optional
-        if a container is supplied, or when working from the pype, should any 
-        exsting scale information (px-to-mm-ratio) or template be overwritten
 
     Returns
     -------
@@ -171,9 +176,9 @@ def create_scale(obj_input, df_image_data=None, template=False, mask=False,
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0]) ## may not be necessary
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.canvas
+        image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
         px_mm_ratio = obj_input.scale_px_mm_ratio
         if hasattr(obj_input, "df_masks"):
@@ -269,18 +274,19 @@ def create_scale(obj_input, df_image_data=None, template=False, mask=False,
         obj_input.scale_template = template
 
 
-def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3, 
-               font_col="red"):
+
+def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False, 
+               label_size="auto", label_width="auto", label_colour="red"):
     """
-    Enter generic data that can be added as columns to an existing DataFrame. 
+    Generic data entry that can be added as columns to an existing DataFrame. 
     Useful for images containing labels, or other comments. 
 
     Parameters
     ----------
     obj_input : array or container
         input object
-    df: DataFrame, optional
-        DataFrame to add columns to (each row)
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata to add columns to
     columns : str or list
         columns to be added to existing or generic data frame
     overwrite : bool, optional
@@ -299,8 +305,6 @@ def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3,
     
     ## kwargs
     flag_overwrite = overwrite
-    label_col = font_col
-    df_image_data = df
     
     ## format columns
     if not columns.__class__.__name__ == "list":
@@ -313,10 +317,10 @@ def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3,
         image = obj_input
         image_copy = copy.deepcopy(obj_input)
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0]) ## may not be necessary
     elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.canvas)
-        image_copy = copy.deepcopy(obj_input.canvas)
+        image = copy.deepcopy(obj_input.image)
+        image_copy = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_other_data"):
             df_other_data = obj_input.df_other_data
@@ -325,8 +329,10 @@ def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3,
         return
 
     ## more kwargs
-    label_size = _auto_text_size(image)*fontsize
-    label_width = _auto_text_width(image)*fontsize
+    if label_size == "auto":
+        label_size = _auto_text_size(image)
+    if label_width == "auto":
+        label_width = _auto_text_width(image)
 
     ## keyboard listener
     def _keyboard_entry(event, x, y, flags, params):
@@ -346,6 +352,8 @@ def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3,
                 print("- add column " + col)
                 pass
 
+            ## method
+            ## while loop keeps opencv window updated when entering data
             entry = ""
             while True or entry == "":
 
@@ -361,9 +369,8 @@ def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3,
                     entry = entry[0:len(entry)-1]
 
                 cv2.putText(image, "Enter " + col + ": " + entry, (int(image.shape[0]//10),int(image.shape[1]/3)), 
-                        cv2.FONT_HERSHEY_SIMPLEX, label_size, colours[label_col],label_width, cv2.LINE_AA)
+                        cv2.FONT_HERSHEY_SIMPLEX, label_size, colours[label_colour],label_width, cv2.LINE_AA)
                 cv2.imshow("phenopype", image)
-
 
                 if k == 27:
                     cv2.destroyWindow("phenopype")
@@ -394,41 +401,41 @@ def enter_data(obj_input, df=None, columns="ID", overwrite=False, fontsize=3,
 
 
 
-def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10, 
-               resize=1, px_mm_ratio_ref=None, template=None):
+def find_scale(obj_input, template=None, overwrite=False, equalize=False, 
+               min_matches=10, resize=1, px_mm_ratio_ref=None):
     """
-    Find scale from a defined template inside an image and update pixel 
-    ratio. Image registration is run by the "AKAZE" algorithm 
-    (http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf). 
-    Future implementations will include more algorithms to select from.
-    Prior to running detect_scale, measure_scale and make_scale_template 
-    have to be run once to pass on reference scale size and template of 
-    scale reference card (gets passed on internally by calling detect_scale 
-    from the same instance of scale_maker.
+    Find scale from a template created with "create_scale". Image registration 
+    is run by the "AKAZE" algorithm. Future implementations will include more 
+    algorithms to select from. First, use "create_scale" with "template=True"
+    and pass the template to this function. This happends automatically in the 
+    low and high throughput workflow (i.e., when "obj_input" is a container, the 
+    template image is contained within. Use "equalize=True" to adjust the 
+    histograms of all colour channels to the reference image.
     
+    AKAZE: http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf
+
     Parameters
     -----------
     obj_input: array or container
         input for processing
-    resize: num. optional
-        resize image to speed up detection process. default: 0.5 for 
-        images with diameter > 5000px (WARNING: too low values may 
-        result in poor detection performance or even crashes)
-    overwrite : bool, optional
-        overwrite existing scale_current_px_mm_ratio in container
+    template : array or container, optional
+        reference image of scale
     equalize : bool, optional
         should the provided image be colour corrected to match the template 
         images' histogram
     min_matches : int, optional
        minimum key point matches for image registration
+    resize: num, optional
+        resize image to speed up detection process. default: 0.5 for 
+        images with diameter > 5000px (WARNING: too low values may 
+        result in poor detection performance or even crashes)
+    overwrite : bool, optional
+        overwrite existing scale_current_px_mm_ratio in container
     px_mm_ratio_ref : int, optional
         pixel-to-mm-ratio of the template image
-    template : array, optional
-        reference image of scale
 
     Returns
     -------
-    
     scale_current_px_mm_ratio: int or container
         pixel to mm ratio of current image
     image: array or container
@@ -436,7 +443,6 @@ def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10,
     df_masks: DataFrame or container
         contains mask coordinates to mask reference card within image from 
         segmentation algorithms
-        
     """
 
     ## kwargs
@@ -447,7 +453,7 @@ def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10,
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image_copy
+        image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "scale_template_px_mm_ratio"):
             px_mm_ratio_ref = obj_input.scale_template_px_mm_ratio
@@ -570,7 +576,7 @@ def find_scale(obj_input, overwrite=False, equalize=False, min_matches=10,
 
 
 
-def invert_image(obj_input, **kwargs):
+def invert_image(obj_input):
     """
     Invert all pixel intensities in image (e.g. 0 to 255 or 100 to 155)
 
@@ -583,14 +589,13 @@ def invert_image(obj_input, **kwargs):
     -------
     image : array or container
         inverted image
-
     """
     
     ## load image and check if pp-project
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
+        image = copy.deepcopy(obj_input.image)
 
     ## method
     image = cv2.bitwise_not(image)
@@ -603,7 +608,7 @@ def invert_image(obj_input, **kwargs):
 
 
 
-def resize_image(obj_input, resize=1):
+def resize_image(obj_input, factor=1):
     """
     Resize image by resize factor 
 
@@ -630,11 +635,11 @@ def resize_image(obj_input, resize=1):
         df_image_data = obj_input.df_image_data
 
     ## method
-    image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize, interpolation=cv2.INTER_AREA)
+    image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor, interpolation=cv2.INTER_AREA)
 
     ## return 
     if obj_input.__class__.__name__ == "container":
-        df_image_data["resized"] = resize
+        df_image_data["resized"] = factor
         obj_input.image = image
         obj_input.image_copy = image
         obj_input.canvas = image

@@ -54,7 +54,7 @@ def landmarks(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"})
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_image_data = obj_input.df_image_data
@@ -225,7 +225,7 @@ def polylines(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"})
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_image_data = obj_input.df_image_data
@@ -252,7 +252,9 @@ def polylines(obj_input, **kwargs):
             pass
 
         ## method
-        out = _image_viewer(image, tool="polyline")
+        out = _image_viewer(image, 
+                            tool="polyline",
+                            line_width=line_width)
         coords = out.point_list
         
         ## abort
@@ -267,7 +269,7 @@ def polylines(obj_input, **kwargs):
         ## create df
         df_polylines = pd.DataFrame(columns=["polyline", "length", "x", "y"])
         idx = 0
-        for point_list in out.point_list:
+        for point_list in coords:
             idx += 1
             arc_length = int(cv2.arcLength(np.array(point_list), closed=False))
             df_sub = pd.DataFrame(point_list, columns=["x","y"])
@@ -288,3 +290,69 @@ def polylines(obj_input, **kwargs):
         obj_input.canvas = image
 
 
+
+def skeletonize(obj_input, df_image_data=None, df_contours=None, **kwargs):
+    """
+    
+
+    Parameters
+    ----------
+    obj_input : TYPE
+        DESCRIPTION.
+    df_image_data : TYPE, optional
+        DESCRIPTION. The default is None.
+    df_contours : TYPE, optional
+        DESCRIPTION. The default is None.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    df_contours : TYPE
+        DESCRIPTION.
+
+    """
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+        if df_contours.__class__.__name__ == "NoneType":
+            print("no df supplied - cannot measure colour intensity")
+            return
+    elif obj_input.__class__.__name__ == "container":
+        image = copy.deepcopy(obj_input.image_copy)
+        df_image_data = obj_input.df_image_data
+        if hasattr(obj_input, "df_contours"):
+            df_contours = obj_input.df_contours
+    else:
+        print("wrong input format.")
+        return
+
+    ## create forgeround mask
+    df_contours = df_contours.assign(**{"skeleton_perimeter":"NA",
+                                        "skeleton_coords":"NA"})
+    
+    for index, row in df_contours.iterrows():
+        coords = copy.deepcopy(row["coords"])
+        rx,ry,rw,rh = cv2.boundingRect(coords)
+        image_sub =  image[ry:ry+rh,rx:rx+rw]
+
+        mask = np.zeros(image_sub.shape[0:2], np.uint8)
+        mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx,-ry))
+        
+        skeleton = cv2.ximgproc.thinning(mask)
+        skel_ret, skel_contour, skel_hierarchy = cv2.findContours(skeleton,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+
+        perimeter = int(cv2.arcLength(skel_contour[0], closed=False))
+
+        skel_contour = skel_contour[0]
+        skel_contour[:,:,0] = skel_contour[:,:,0] + rx
+        skel_contour[:,:,1] = skel_contour[:,:,1] + ry
+        
+        df_contours.at[index, ["skeleton_perimeter","skeleton_coords"]]  = perimeter, skel_contour
+
+    if obj_input.__class__.__name__ == "ndarray":
+        return  df_contours
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df_contours = df_contours

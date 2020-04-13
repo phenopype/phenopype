@@ -92,7 +92,8 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
 
 def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords=None,
                   label=True, fill=0.3, mark_holes=True, level=3, line_colour="green",
-                  label_size=None, label_colour="black", line_width=None, label_width=None):
+                  label_size=None, label_colour="black", line_width=None, 
+                  label_width=None, skeleton=True):
     """
     
 
@@ -136,6 +137,7 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
     flag_fill = fill
     flag_child = mark_holes
     flag_line_width = line_width
+    flag_skeleton = skeleton
     line_colour_sel = colours[line_colour]
     label_colour = colours[label_colour]
 
@@ -191,6 +193,14 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
                     color=line_colour, 
                     maxLevel=level,
                     offset=offset_coords)
+        # if flag_skeleton and "skeleton_coords" in df_contours:
+        #     cv2.drawContours(image=image, 
+        #             contours=[row["skeleton_coords"]], 
+        #             contourIdx = idx,
+        #             thickness=flag_line_width, 
+        #             color=colours["red"], 
+        #             maxLevel=level,
+        #             offset=offset_coords)
         if flag_label:
             cv2.putText(image, row["contour"] , (row["center"]), 
                         cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
@@ -200,6 +210,8 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
                         label_width, cv2.LINE_AA)
 
     image = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) 
+
+    # df_contours= df_contours.drop("skeleton_coords", axis=1)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

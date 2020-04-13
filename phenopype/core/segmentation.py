@@ -5,42 +5,45 @@ import pandas as pd
 
 from math import inf
 
-from phenopype.settings import *
+from phenopype.settings import colours
 from phenopype.core.preprocessing import invert_image
-from phenopype.utils_lowlevel import _create_mask_bin, _create_mask_bool, _image_viewer, _auto_line_width
+from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_line_width
 
 #%% functions
 
-def blur(obj_input, **kwargs):
+def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75, 
+         sigma_space=75):
     """
-    
+    Apply a blurring algorithm to the image.
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
+    obj_input : array or container
+        input object
+    kernel_size: int, optional
+        size of the blurring kernel (has to be odd - even numbers will be ceiled)
+    method: {averaging, gaussian, median, bilateral} str, optional
+        blurring algorithm
+    sigma_colour: int, optional
+        for 'bilateral'
+    sigma_space: int, optional
+        for 'bilateral'
 
     Returns
     -------
-    image : TYPE
-        DESCRIPTION.
+    image : array or container
+        blurred image
 
     """
     ## kwargs
-    method = kwargs.get("method","averaging")
-    kernel_size = kwargs.get("kernel_size",5)
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
-    sigma_color = kwargs.get("sigma_color",75)
-    sigma_space = kwargs.get("sigma_space",75)
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
+        image = copy.deepcopy(obj_input.image)
 
     ## method
     if method=="averaging":
@@ -62,26 +65,34 @@ def blur(obj_input, **kwargs):
 
 
 
-def draw(obj_input, **kwargs):
+def draw(obj_input, overwrite=False, tool="line", line_colour="black",
+         line_width="auto"):
     """
-    
+    Draw lines, rectangles or polygons onto a colour or binary image. Can be 
+    used to connect. disconnect or erase contours. 
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
+    obj_input : array or container
+        input object
+    overwrite : bool, optional
+        if a container is supplied, or when working from the pype, should any 
+        exsting drawings be overwritten
+    tool : {line, polygon, rectangle} str, optional
+        type of tool to use for drawing
+    line_colour : {"black", "white", "green", "red", "blue"} str, optional
+        line or filling (for rectangle and polygon) colour
+    line_width : int, optional
+        line width
 
     Returns
     -------
-    None.
+    image : array or container
+        image with drawings
 
     """
     ## kwargs
-    flag_overwrite = kwargs.get("overwrite", False)
-    flag_tool = kwargs.get("tool", "line")
-    line_col = kwargs.get("colour", "black")
+    flag_overwrite = overwrite
 
     ## load image
     df_draw, df_image_data = None, None
@@ -90,7 +101,7 @@ def draw(obj_input, **kwargs):
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename":"unknown"})
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
+        image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_draw"):
             df_draw = obj_input.df_draw
@@ -99,10 +110,10 @@ def draw(obj_input, **kwargs):
         return
 
     ## more kwargs
-    if flag_tool in ["rect", "rectangle", "poly", "polygon"]:
+    if line_width=="auto":
+        line_width = _auto_line_width(image)
+    if tool in ["rect", "rectangle", "poly", "polygon"]:
         line_width = -1
-    else:
-        line_width = kwargs.get("line_width", max(1,_auto_line_width(image)))
 
     while True:
         ## check if exists
@@ -112,19 +123,20 @@ def draw(obj_input, **kwargs):
         elif not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == True:
             print("- draw polylines (overwriting)")
             pass
-        elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
-            print("- draw polylines (editing)")
-            pass
+        ## future option: edit drawings
+        # elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
+        #     print("- draw polylines (editing)")
+        #     pass
         elif df_draw.__class__.__name__ == "NoneType":
             print("- draw polylines")
             pass
         
         ## method
         out = _image_viewer(image, 
-                            tool=flag_tool, 
+                            tool=tool, 
                             draw=True,
                             line_width=line_width,
-                            line_col=line_col)
+                            line_col=line_colour)
         
         ## abort
         if not out.done:
@@ -136,9 +148,9 @@ def draw(obj_input, **kwargs):
                 return True
 
         ## create df
-        df_draw = pd.DataFrame({"tool": flag_tool}, index=[0])
+        df_draw = pd.DataFrame({"tool": tool}, index=[0])
         df_draw["line_width"] = line_width
-        df_draw["colour"] = line_col
+        df_draw["colour"] = line_colour
         df_draw["coords"] = str(out.point_list)
         
         break
@@ -149,7 +161,7 @@ def draw(obj_input, **kwargs):
         for coords in coord_list:
             if row["tool"] in ["line", "lines"]:
                 cv2.polylines(image, np.array([coords]), False, colours[row["colour"]], row["line_width"])
-            elif row["tool"] in ["rect", "rectangle"]:
+            elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
                 cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
 
     ## return
@@ -163,41 +175,71 @@ def draw(obj_input, **kwargs):
 
 
 
-def find_contours(obj_input, **kwargs):
+def find_contours(obj_input, df_image_data=None, approximation="simple", 
+                  retrieval="ext", offset_coords=(0,0), min_nodes=3, 
+                  max_nodes=inf, min_area=0, max_area=inf, min_diameter=0, 
+                  max_diameter=inf):
     """
-    
+    Find objects in binarized image. The input image needs to be a binarized image
+    or a container on which a binarizing segmentation algorithm (e.g. threshold or 
+    watershed) has been performed. A flavor of different approximation algorithms 
+    and retrieval intstructions can be applied. The contours can also be filtered
+    for minimum area, diameter or nodes (= number of corners). 
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
+    obj_input : array or container
+        input object
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata 
+    approximation : {"none", "simple", "L1", "KCOS"] str, optional
+        contour approximation algorithm:
+            - none: no approximation, all contour coordinates are returned
+            - simple: only the minimum coordinates required are returned
+            - L1: Teh-Chin chain approximation algorithm 
+            - KCOS: Teh-Chin chain approximation algorithm 
+    retrieval : {"ext", "list", "tree", "ccomp", "flood"} str, optional
+        contour retrieval procedure:
+            - ext: retrieves only the extreme outer contours
+            - list: retrieves all of the contours without establishing any 
+                    hierarchical relationships
+            - tree: retrieves all of the contours and reconstructs a full 
+                    hierarchy of nested contours
+            - ccomp: retrieves all of the contours and organizes them into a 
+                     two-level hierarchy (parent and child)
+            - flood: flood-fill algorithm
+    offset_coords : tuple, optional
+        offset by which every contour point is shifted.
+    min_nodes : int, optional
+        minimum number of coordinates
+    max_nodes : int, optional
+        maximum number of coordinates 
+    min_area : int, optional
+        minimum contour area in pixels
+    max_area : int, optional
+        maximum contour area in pixels
+    min_diameter : int, optional
+        minimum diameter of boundary circle
+    max_diameter : int, optional
+        maximum diameter of boundary circle
 
     Returns
     -------
-    TYPE
-        DESCRIPTION.
+    df_contours : DataFrame or container
+        contains contours
 
     """
+
     ## kwargs
-    df_image_data = kwargs.get("df", None)
-    flag_ret_cont = kwargs.get("return_contours",True)
-    retr = kwargs.get("retrieval", "ext")
     retr_alg = {"ext": cv2.RETR_EXTERNAL, ## only external
                 "list": cv2.RETR_LIST, ## all contours
                 "tree": cv2.RETR_TREE, ## fully hierarchy
                 "ccomp": cv2.RETR_CCOMP, ## outer perimeter and holes
                 "flood": cv2.RETR_FLOODFILL} ## not sure what this does
-    approx = kwargs.get("approximation", "simple")
     approx_alg = {"none": cv2.CHAIN_APPROX_NONE, ## no approximation of the contours, all points
                 "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
                 "L1": cv2.CHAIN_APPROX_TC89_L1, ## algorithm 1
                 "KCOS": cv2.CHAIN_APPROX_TC89_KCOS} ## algorithm 2
-    offset_coords = kwargs.get("offset_coords", (0,0))
-    min_nodes, max_nodes = kwargs.get('min_nodes', 3), kwargs.get('max_nodes', inf)
-    min_diameter, max_diameter = kwargs.get('min_diameter', 0), kwargs.get('max_diameter', inf)
-    min_area, max_area = kwargs.get('min_area', 0), kwargs.get('max_area', inf)
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -217,8 +259,8 @@ def find_contours(obj_input, **kwargs):
 
     ## method
     image, contour_list, hierarchy = cv2.findContours(image=image, 
-                                                mode=retr_alg[retr],
-                                                method=approx_alg[approx],
+                                                mode=retr_alg[retrieval],
+                                                method=approx_alg[approximation],
                                                 offset=offset_coords)
 
     ## filtering
@@ -270,28 +312,43 @@ def find_contours(obj_input, **kwargs):
 def morphology(obj_input, kernel_size=5, shape="rect", operation="close", 
                iterations=1):
     """
-    
+    Performs advanced morphological transformations using erosion and dilation 
+    as basic operations. Provides different kernel shapes and a suite of operation
+    types (read more about morphological operations here:
+    https://docs.opencv.org/master/db/df6/tutorial_erosion_dilatation.html)
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    kernel_size : TYPE, optional
-        DESCRIPTION. The default is 5.
-    shape : TYPE, optional
-        DESCRIPTION. The default is "rect".
-    operation : TYPE, optional
-        DESCRIPTION. The default is "close".
-    iterations : TYPE, optional
-        DESCRIPTION. The default is 1.
+    obj_input : array or container
+        input object
+    kernel_size: int, optional
+        size of the morphology kernel (has to be odd - even numbers will be 
+        ceiled)
+    shape : {"rect", "cross", "ellipse"} str, optional
+        shape of the kernel
+    operation : {erode, dilate, open, close, gradient, tophat, blackhat, hitmiss} str, optional
+        the morphology operation to be performed:
+            - erode: remove pixels from the border 
+            - dilate: add pixels to the border
+            - open: erosion followed by dilation
+            - close: dilation followed by erosion
+            - gradient: difference between dilation and erosion of an input image
+            - tophat: difference between input image and opening of input image
+            - blackhat: difference between input image and closing of input image
+            - hitmiss: find patterns in binary images (read more here:
+              https://docs.opencv.org/master/db/d06/tutorial_hitOrMiss.html)
+    iterations : int, optional
+        number of times to run morphology operation
 
     Returns
     -------
-    image : TYPE
-        DESCRIPTION.
+    image : array or container
+        processed image
 
     """
     ## kwargs
+    if kernel_size % 2 == 0:
+        kernel_size = kernel_size + 1
     shape_list = {"cross": cv2.MORPH_CROSS, 
                   "rect": cv2.MORPH_RECT, 
                   "ellipse": cv2.MORPH_ELLIPSE}
@@ -313,9 +370,9 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close",
     
     ## method
     image = cv2.morphologyEx(image, 
-                                 op=operation_list[operation], 
-                                 kernel = kernel,
-                                 iterations = iterations)
+                             op=operation_list[operation], 
+                             kernel = kernel,
+                             iterations = iterations)
 
     ## return
     if obj_input.__class__.__name__ == "container":
@@ -325,57 +382,53 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close",
 
 
 
-def skeletonize(img):
-    """
-    
-
-    Parameters
-    ----------
-    img : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    skeleton : TYPE
-        DESCRIPTION.
-    iters : TYPE
-        DESCRIPTION.
-
-    """
-
-    skeleton = np.zeros(img.shape,np.uint8)
-    eroded = np.zeros(img.shape,np.uint8)
-    temp = np.zeros(img.shape,np.uint8)
-
-    _,thresh = cv2.threshold(img,127,255,0)
-
-    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))
-
-    iters = 0
-    while(True):
-        cv2.erode(thresh, kernel, eroded)
-        cv2.dilate(eroded, kernel, temp)
-        cv2.subtract(thresh, temp, temp)
-        cv2.bitwise_or(skeleton, temp, skeleton)
-        thresh, eroded = eroded, thresh # Swap instead of copy
-
-        iters += 1
-        if cv2.countNonZero(thresh) == 0:
-            return (skeleton,iters)
-
-
-
 def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99, 
               value=127, channel="gray", invert=False):
     """
-    If the input array was single channel, the threshold method can only use the 
-    grayscale space to, but if multiple channels were provided, then one can either chose 
-    to coerce the color image to grayscale or use one of the color channels directly.  
+    Applies a fixed-level threshold to create a binary image from a grayscale 
+    image or a multichannel image (gray, red, green or blue channel can be selected).
+    Three types of thresholding algorithms are supported. Binary mask coordinates
+    can be supplied to include or exclude areas.
 
+    Parameters
+    ----------
+    obj_input : array or container
+        input object
+    df_masks : DataFrame, optional
+        contains mask coordinates
+    method : {"otsu", "adaptive", "binary"} str, optional
+        type of thresholding algorithm:
+            - otsu: use Otsu algorithm to choose the optimal threshold value
+            - adaptive: dynamic threshold values across image (uses arguments
+                        "blocksize" and "constant")
+            - binary: fixed threshold value (uses argument "value")
+    blocksize: int, optional
+        Size of a pixel neighborhood that is used to calculate a threshold 
+        value for the pixel (has to be odd - even numbers will be ceiled; for
+        "adaptive" method)
+    constant : int, optional
+        value to subtract from binarization output (for "adaptive" method)
+    value : {between 0 and 255} int, optional
+        thesholding value (for "binary" method)
+    channel {"gray", "red", "green", "blue"}: str, optional
+        which channel of the image to use for thresholding 
+    invert : bool, optional
+        invert all pixel values PRIOR to applying threshold values
 
+    Returns
+    -------
+    image : array or container
+        binary image
 
     """
 
+    ##kwargs
+    if blocksize % 2 == 0:
+        blocksize = blocksize + 1
+    if value > 255:
+        value = 255
+    elif value < 0:
+        value = 0
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -430,14 +483,34 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
 
 
 
-def watershed(obj_input, close_iterations=3, close_kernel_size=3, 
-              open_iterations=3, open_kernel_size=3, distance_cutoff=0.5,
-              distance_mask=0, distance_type="l1", shape="ellipse", **kwargs):
+def watershed(obj_input, iterations=3, kernel_size=3, distance_cutoff=0.5,
+              distance_mask=0, distance_type="l1", **kwargs):
     """
-    If the input array was single channel, the threshold method can only use the 
-    grayscale space to, but if multiple channels were provided, then one can either chose 
-    to coerce the color image to grayscale or use one of the color channels directly.  
+    Performs non-parametric marker-based segmentation - useful if many detected 
+    contours are touching or overlapping with each other. Input image should be 
+    a binary image that serves as the true background. Iteratively, edges are 
+    eroded, the difference serves as markers.
 
+    Parameters
+    ----------
+    obj_input : array or container
+        input object
+    kernel_size: int, optional
+        size of the diff-kernel (has to be odd - even numbers will be ceiled)
+    iterations : int, optional
+        number of times to apply diff-operation
+    distance_cutoff : {between 0 and 1} float, optional
+        watershed distance transform cutoff (larger values discard more pixels)
+    distance_mask : {0, 3, 5} int, optional
+        size of distance mask - not all sizes work with all distance types (will
+        be coerced to 0)
+    distance_type : {"user", "l1", "l2", "C", "l12", "fair", "welsch", "huber"} str, optional
+        distance transformation type
+
+    Returns
+    -------
+    image : array or container
+        binary image
 
     """
 
@@ -450,6 +523,8 @@ def watershed(obj_input, close_iterations=3, close_kernel_size=3,
                           "fair": cv2.DIST_FAIR, 
                           "welsch": cv2.DIST_WELSCH, 
                           "huber": cv2.DIST_HUBER}  
+    if kernel_size % 2 == 0:
+        kernel_size = kernel_size + 1
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -468,10 +543,20 @@ def watershed(obj_input, close_iterations=3, close_kernel_size=3,
     ## sure foreground 
     if distance_type in ["user","l12", "fair", "welsch", "huber"]:
         distance_mask = 0
-    opened = morphology(thresh, operation="open", shape=shape, kernel_size=open_kernel_size, iterations=open_iterations)
-    dist_transform = cv2.distanceTransform(opened,distance_type_list[distance_type],distance_mask)
-    dist_transform = cv2.normalize(dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX)
-    ret, sure_fg = cv2.threshold(dist_transform,distance_cutoff,1,0)
+    opened = morphology(thresh, operation="open", 
+                        shape="ellipse", 
+                        kernel_size=kernel_size, 
+                        iterations=iterations)
+    dist_transform = cv2.distanceTransform(opened,
+                                           distance_type_list[distance_type],
+                                           distance_mask)
+    dist_transform = cv2.normalize(dist_transform, 
+                                   dist_transform, 
+                                   0, 1.0, 
+                                   cv2.NORM_MINMAX)
+    ret, sure_fg = cv2.threshold(dist_transform,
+                                 distance_cutoff,
+                                 1,0)
 
     ## finding unknown region
     sure_fg = sure_fg.astype("uint8")

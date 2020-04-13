@@ -252,12 +252,12 @@ class container(object):
         ## drawing
         if hasattr(self, "df_draw") and not "save_drawing" in export_list:
             print("save_drawing")
-            save_drawing(self, dirpath, overwrite=True)
+            save_drawing(self, dirpath=dirpath, overwrite=True)
 
         ## scale
         if hasattr(self, "scale_current_px_mm_ratio") and not "save_scale" in export_list:
             print("save_scale")
-            save_scale(self, dirpath, overwrite=True)
+            save_scale(self, dirpath=dirpath, overwrite=True)
 
     # def show(self, **kwargs):
     #     """

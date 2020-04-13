@@ -7,6 +7,18 @@ Known bugs
 ==========
 - high GUI / windows sometimes crashes. Stop Kernel and use "cv2.destroyAllWindows()"
 
+
+1.0.3
+-----
+
+- "dirpath" option added to container (at initialization and saving)
+- unified measurement and visualization arguments (e.g. "text_size" now is "label_size" and "label_col" now is "label_colour")
+- watershed algorithm implemented
+- fix mask application in threshold
+- create scale has now a mask function distinct of the template argument
+- examples 1 and 2 added
+
+
 1.0.2
 -----
 bugfix:
@@ -30,6 +42,9 @@ new major release - breaks all existing versions
 
 
 --------------------------------------------------------------------------------------------
+
+
+
 0.10.0
 ------
 bugfix:
