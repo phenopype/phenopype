@@ -11,43 +11,42 @@ from phenopype.settings import colours
 
 #%% methods
 
-def landmarks(obj_input, **kwargs):
+def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="green",
+              point_size="auto", label_colour="black", label_size="auto", 
+              label_width="auto"):
 
-    """Set landmarks, with option to measure length and enter specimen ID.
+    """Set landmarks onto image. 
     
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    scale: num (default: 1)
-        pixel to mm-ratio 
-    ID: str (default: NA)
-        specimen ID; "query" is special flag for user entry
-    draw_line: bool (default: False)
-        flag to draw arc and measure it's length
-    zoom_factor: int (default 5)
-        magnification factor on mousewheel use
-    show: bool (default: False)
-        display the set landmarks 
-    point_size: num (default: 1/300 of image diameter)
-        size of the landmarks on the image in pixels
-    point_col: value (default: red)
-        colour of landmark (red, green, blue, black, white)
-    label_size: num (default: 1/1500 of image diameter)
-        size of the numeric landmark label in pixels
-    label_col: value (default: black)
-        colour of label (red, green, blue, black, white)    
+    obj_input : array or container
+        input object
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to landmark
+        output DataFrame
+    overwrite: bool, optional
+        if working using a container, or from a phenopype project directory, 
+        should existing landmarks be overwritten
+    point_colour: {"green", "red", "blue", "black", "white"} str, optional
+        landmark point colour
+    point_size: int, optional
+        landmark point size in pixels
+    label_colour : {"black", "white", "green", "red", "blue"} str, optional
+        landmark label colour.
+    label_size: int, optional
+        landmark label font size (scaled to image)
+    label_width: int, optional
+        landmark label font width  (scaled to image)
+
 
     Returns
     -------
-    .df = pandas data frame with landmarks (and arc-length, if selected)
-    .drawn = image array with drawn landmarks (and lines)
-    .ID = provided specimen ID 
+    df_masks: DataFrame or container
+        contains landmark coordiantes
     """
     
     ## kwargs
-    df_image_data = kwargs.get("df_image_data", None)
-    flag_overwrite = kwargs.get("overwrite", False)
+    flag_overwrite = overwrite
 
     ## load image
     df_landmarks = None
@@ -63,16 +62,14 @@ def landmarks(obj_input, **kwargs):
     else:
         print("wrong input format.")
         return
-    
-    ## only landmark df
-   
 
     ## more kwargs
-    point_size = kwargs.get("point_size", _auto_point_size(image))
-    point_col = kwargs.get("point_col", "red")
-    label_size = kwargs.get("label_size", _auto_text_size(image))
-    label_width = kwargs.get("label_width", _auto_text_width(image))
-    label_col = kwargs.get("label_col", "black")
+    if point_size == "auto":
+        point_size = _auto_point_size(image)
+    if label_size == "auto":
+        label_size = _auto_text_size(image)
+    if label_width == "auto":
+        label_width = _auto_text_width(image)
 
     while True:
         ## check if exists
@@ -90,10 +87,10 @@ def landmarks(obj_input, **kwargs):
         ## set landmarks
         out = _image_viewer(image, tool="landmarks", 
                             point_size=point_size, 
-                            point_col=point_col, 
+                            point_col=point_colour, 
                             label_size=label_size,
                             label_width=label_width, 
-                            label_col=label_col)
+                            label_col=label_colour)
         coords = out.points
         
         ## abort
@@ -118,16 +115,38 @@ def landmarks(obj_input, **kwargs):
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-            return image, df_landmarks
+            return df_landmarks
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_landmarks = df_landmarks
-        obj_input.canvas = image
+
 
 
 
 def colour_intensity(obj_input, df_image_data=None, df_contours=None, 
-                     channels="gray", **kwargs):
+                     channels="gray"):
+    """
+    Measures pixel values within the provided contours, either across all 
+    channels ("gray") or for each channel separately ("rgb"). Measures mean 
+    and standard deviation
 
+    Parameters
+    ----------
+    obj_input : array or container
+        input object
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to
+        output DataFrame
+    df_contours : DataFrame, optional
+        contains the contours
+    channels : {"gray", "rgb"} str, optional
+        for which channels should pixel intensity be measured
+
+    Returns
+    -------
+    df_colours : DataFrame or container
+        contains the pixel intensities 
+
+    """
     ## kwargs
     if channels.__class__.__name__ == "str":
         channels = [channels]
@@ -200,25 +219,32 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
 
 
 
-def polylines(obj_input, **kwargs):
+def polylines(obj_input, df_image_data=None, overwrite=False, 
+              line_width="auto"):
     """
-    
+    Set points, draw a connected line between them, and measure its length. 
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
+    obj_input : array or container
+        input object
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to
+        output DataFrame
+    overwrite: bool, optional
+        if working using a container, or from a phenopype project directory, 
+        should existing polylines be overwritten
+    line_width: int, optional
+        width of polyline
 
     Returns
     -------
-    None.
+    df_polylines : DataFrame or container
+        contains the drawn polylines
 
     """
     ## kwargs
-    df_image_data = kwargs.get("df_image_data", None)
-    flag_overwrite = kwargs.get("overwrite", False)
+    flag_overwrite = overwrite
 
     ## load image
     df_polylines = None
@@ -235,8 +261,10 @@ def polylines(obj_input, **kwargs):
         print("wrong input format.")
         return
 
+
     ## more kwargs
-    line_width = kwargs.get("line_width", _auto_line_width(image))
+    if line_width == "auto":
+        line_width = _auto_line_width(image)
 
     while True:
         ## check if exists
@@ -284,34 +312,42 @@ def polylines(obj_input, **kwargs):
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-            return image, df_polylines
+            return df_polylines
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_polylines = df_polylines
-        obj_input.canvas = image
 
 
 
-def skeletonize(obj_input, df_image_data=None, df_contours=None, **kwargs):
+def skeletonize(obj_input, df_image_data=None, df_contours=None,
+                thinning="zhangsuen", padding=10):
     """
-    
+    Applies a binary blob thinning operation, to achieve a skeletization of 
+    the input image using the technique, i.e. retrieve the topological skeleton
+    (https://en.wikipedia.org/wiki/Topological_skeleton), using the algorithms 
+    of Thang-Suen or Guo-Hall.
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    df_image_data : TYPE, optional
-        DESCRIPTION. The default is None.
-    df_contours : TYPE, optional
-        DESCRIPTION. The default is None.
-    **kwargs : TYPE
-        DESCRIPTION.
+    obj_input : array or container
+        input object (binary)
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to contour
+        output DataFrame
+    df_contours : DataFrame, optional
+        contains contours
+    thinning: {"zhangsuen", "guohall"} str, optional
+        type of thinning algorithm to apply
 
     Returns
     -------
-    df_contours : TYPE
-        DESCRIPTION.
-
+    image : array or container
+        thinned binary image
     """
+    
+    ## kwargs
+    skeleton_alg = {"zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
+                    "guohall": cv2.ximgproc.THINNING_GUOHALL} 
+
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
@@ -332,23 +368,23 @@ def skeletonize(obj_input, df_image_data=None, df_contours=None, **kwargs):
     ## create forgeround mask
     df_contours = df_contours.assign(**{"skeleton_perimeter":"NA",
                                         "skeleton_coords":"NA"})
-    
+
     for index, row in df_contours.iterrows():
         coords = copy.deepcopy(row["coords"])
         rx,ry,rw,rh = cv2.boundingRect(coords)
-        image_sub =  image[ry:ry+rh,rx:rx+rw]
+        image_sub =  image[(ry-padding):(ry+rh+padding),(rx-padding):(rx+rw+padding)]
 
         mask = np.zeros(image_sub.shape[0:2], np.uint8)
-        mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx,-ry))
+        mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx+padding,-ry+padding))
         
-        skeleton = cv2.ximgproc.thinning(mask)
+        skeleton = cv2.ximgproc.thinning(mask, thinningType=skeleton_alg[thinning])
         skel_ret, skel_contour, skel_hierarchy = cv2.findContours(skeleton,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
 
-        perimeter = int(cv2.arcLength(skel_contour[0], closed=False))
+        perimeter = int(cv2.arcLength(skel_contour[0], closed=False)/2)
 
         skel_contour = skel_contour[0]
-        skel_contour[:,:,0] = skel_contour[:,:,0] + rx
-        skel_contour[:,:,1] = skel_contour[:,:,1] + ry
+        skel_contour[:,:,0] = skel_contour[:,:,0] + rx - padding
+        skel_contour[:,:,1] = skel_contour[:,:,1] + ry - padding
         
         df_contours.at[index, ["skeleton_perimeter","skeleton_coords"]]  = perimeter, skel_contour
 

@@ -189,7 +189,7 @@ def find_contours(obj_input, df_image_data=None, approximation="simple",
     Parameters
     ----------
     obj_input : array or container
-        input object
+        input object (binary)
     df_image_data : DataFrame, optional
         an existing DataFrame containing image metadata 
     approximation : {"none", "simple", "L1", "KCOS"] str, optional
@@ -434,7 +434,7 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
     if obj_input.__class__.__name__ == "ndarray":
         image = copy.deepcopy(obj_input)
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
+        image = copy.deepcopy(obj_input.image)
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
 
@@ -448,10 +448,11 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
             image = image[:,:,1]
         elif channel == "blue" or channel== "b":
             image = image[:,:,2]
+            
 
     if invert:
         image = invert_image(image)
-
+        
     ## method
     if method == "otsu":
         ret, image = cv2.threshold(image, 0, 255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -462,17 +463,24 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
 
     ## apply masks
     if not df_masks.__class__.__name__ == "NoneType":
-        mask_bool = np.zeros(image.shape, dtype=bool)
+        ## include == True
+        mask_bool, include_idx = np.zeros(image.shape, dtype=bool), 0
         for index, row in df_masks.iterrows():
-            coords = eval(row["coords"])
-            if not row["mask"] == "":
-                label = row["mask"]
-                print("- applying mask: " + label)
-            if row["include"]:
-                mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
-            if not row["include"]:
-                image[_create_mask_bool(image, coords)] = 0
-        image[mask_bool==0] = 0
+            if row["include"] == True:
+                if not row["mask"] == "":
+                    coords = eval(row["coords"])
+                    mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
+                    print("- include mask \"" + row["mask"] + "\" pixels")
+                    include_idx += 1
+        if include_idx>0:
+            image[mask_bool==False] = 0
+        ## include == False
+        for index, row in df_masks.iterrows():
+            if row["include"] == False:
+                if not row["mask"] == "":
+                    coords = eval(row["coords"])
+                    image[_create_mask_bool(image, coords)] = 0
+                    print("- exclude mask \"" + row["mask"] + "\" pixels")
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

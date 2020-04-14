@@ -18,13 +18,19 @@ from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_f
 
 def create_mask(obj_input, df_image_data=None, include=True, label="mask1", 
                 overwrite=False, tool="rectangle"):
-    """Mask maker method to draw rectangle or polygon mask onto image.
+    """
+    Draw rectangle or polygon mask onto image by clicking and dragging the 
+    cursor over the image. One mask can contain multiple sets of coordinates, 
+    i.e. multiple and not overallping masks. For rectangle mask, finish with 
+    ENTER. For polygons, finish current polygon with CTRL, and then with ENTER.
     
     Parameters
     ----------
-
     obj_input : array or container
         input object
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to mask
+        output DataFrame
     include: bool, optional
         determine whether resulting mask is to include or exclude objects within
     label: str, optinal
@@ -37,7 +43,6 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
 
     Returns
     -------
-
     df_masks: DataFrame or container
         contains mask coordiantes
     """
@@ -60,7 +65,7 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
     else:
         print("wrong input format.")
         return
-
+    
     ## check if exists
     while True:
         if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False:
@@ -180,7 +185,8 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
-        px_mm_ratio = obj_input.scale_px_mm_ratio
+        if hasattr(obj_input, "scale_current_px_mm_ratio"):
+            px_mm_ratio = copy.deepcopy(obj_input.scale_current_px_mm_ratio)
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
     else:
@@ -188,67 +194,69 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
         return
 
     ## check if exists
-    if not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
-        print("- scale pixel-to-mm-ratio already measured (overwrite=False)")
-        return
-    elif not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
-        print("- measure pixel-to-mm-ratio (overwritten)")
-    elif px_mm_ratio.__class__.__name__ == "NoneType":
-        print("- measure pixel-to-mm-ratio")
+    while True:
+        if not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
+            print("- scale pixel-to-mm-ratio already measured (overwrite=False)")
+            break
+        elif not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
+            print("- measure pixel-to-mm-ratio (overwritten)")
+            pass
+        elif px_mm_ratio.__class__.__name__ == "NoneType":
+            print("- measure pixel-to-mm-ratio")
+            pass
 
-    ## method
-    out = _image_viewer(image, tool="scale")
-    points = out.scale_coords
-    distance_px = int(sqrt(((points[0][0]-points[1][0])**2)
-                           + ((points[0][1]-points[1][1])**2)))
-    entry = enter_data(out.canvas, columns="length")
-    distance_mm = int(entry["length"][0])
-    px_mm_ratio = int(distance_px / distance_mm)
-
-    ## create template for image registration
-    if flag_template or flag_mask:
-        out = _image_viewer(image, tool="template")
-
-        ## make template and mask
-        template = image[out.rect_list[0][1]:out.rect_list[0][3],
-                         out.rect_list[0][0]:out.rect_list[0][2]]
-        coords = out.point_list
-
-        ## check if exists
-        while True:
-            if not df_masks.__class__.__name__ == "NoneType":
-                if "scale" in df_masks['mask'].values and flag_overwrite == False:
-                    print("- scale template mask already created (overwrite=False)")
+        ## method
+        out = _image_viewer(image, tool="scale")
+        points = out.scale_coords
+        distance_px = int(sqrt(((points[0][0]-points[1][0])**2)
+                               + ((points[0][1]-points[1][1])**2)))
+        entry = enter_data(out.canvas, columns="length")
+        distance_mm = int(entry["length"][0])
+        px_mm_ratio = int(distance_px / distance_mm)
+    
+        ## create template for image registration
+        if flag_template or flag_mask:
+            out = _image_viewer(image, tool="template")
+    
+            ## make template and mask
+            template = image[out.rect_list[0][1]:out.rect_list[0][3],
+                             out.rect_list[0][0]:out.rect_list[0][2]]
+            coords = out.point_list
+    
+            ## check if exists
+            while True:
+                if not df_masks.__class__.__name__ == "NoneType":
+                    if "scale" in df_masks['mask'].values and flag_overwrite == False:
+                        print("- scale template mask already created (overwrite=False)")
+                        break
+                    elif "scale" in df_masks['mask'].values and flag_overwrite == True:
+                        print("- add scale template mask (overwritten)")
+                        df_masks = df_masks[~df_masks['mask'].isin(['scale'])]
+                        pass
+    
+                ## make mask df
+                if len(coords) > 0:
+                    points = coords[0]
+                    df_mask_temp = pd.DataFrame({"mask": "scale", 
+                                             "include": False, 
+                                             "coords": str(points)}, index=[0])
+                    df_mask_temp = pd.concat([df_image_data, df_mask_temp], axis=1)
+    
+                    ## add to existing df
+                    if df_masks.__class__.__name__ == "NoneType" :
+                        df_masks = df_mask_temp
+                    elif len(coords) > 0:
+                        df_masks = df_masks.append(df_mask_temp)
                     break
-                elif "scale" in df_masks['mask'].values and flag_overwrite == True:
-                    print("- add scale template mask (overwritten)")
-                    df_masks = df_masks[~df_masks['mask'].isin(['scale'])]
-                    pass
-
-            ## make mask df
-            if len(coords) > 0:
-                points = coords[0]
-                df_mask_temp = pd.DataFrame({"mask": "scale", 
-                                         "include": False, 
-                                         "coords": str(points)}, index=[0])
-                df_mask_temp = pd.concat([df_image_data, df_mask_temp], axis=1)
-
-                ## add to existing df
-                if df_masks.__class__.__name__ == "NoneType" :
-                    df_masks = df_mask_temp
-                elif len(coords) > 0:
-                    df_masks = df_masks.append(df_mask_temp)
-                break
-
-            else:
-                print("zero coordinates - redo template!")
-                break
-    else:
-        template = None
+    
+                else:
+                    print("zero coordinates - redo template!")
+                    break
+        else:
+            template = None
 
     ## add scale info to data frame
-    if flag_mask or flag_template:
-        df_image_data["px_mm_ratio"] = px_mm_ratio
+    df_image_data["px_mm_ratio"] = px_mm_ratio
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
@@ -268,7 +276,8 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
             else:
                 return px_mm_ratio
     elif obj_input.__class__.__name__ == "container":
-        obj_input.scale_px_mm_ratio = px_mm_ratio
+        obj_input.scale_current_px_mm_ratio = px_mm_ratio
+        obj_input.scale_template_px_mm_ratio = px_mm_ratio
         obj_input.df_image_data = df_image_data
         obj_input.df_masks = df_masks
         obj_input.scale_template = template
@@ -548,9 +557,17 @@ def find_scale(obj_input, template=None, overwrite=False, equalize=False,
             df_masks = df_masks.append(row_scale, sort=False)  
             scale_current_px_mm_ratio = px_mm_ratio_new
             break
-
-    ## rectangle coords of scale in image
-    rect_new = eval(df_masks.loc[df_masks["mask"]=="scale", "coords"].reset_index(drop=True)[0])
+        else:
+            ## feedback
+            print("---------------------------------------------------")
+            print("Reference card not found - %d keypoint matches:" % len(good))
+            print("Setting \"current scale\" to None")
+            print("---------------------------------------------------")
+            scale_current_px_mm_ratio = None
+            break
+        
+    # ## rectangle coords of scale in image
+    # rect_new = eval(df_masks.loc[df_masks["mask"]=="scale", "coords"].reset_index(drop=True)[0])
 
     ## do histogram equalization
     if flag_equalize:
@@ -560,14 +577,13 @@ def find_scale(obj_input, template=None, overwrite=False, equalize=False,
         detected_rect_mask =  ma.array(data=image[ry:ry+rh,rx:rx+rw], mask = detected_rect_mask[ry:ry+rh,rx:rx+rw])
         image = _equalize_histogram(image, detected_rect_mask, template)
 
-    
     ## merge with existing image_data frame
     df_image_data["px_mm_ratio"] = scale_current_px_mm_ratio
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-        image = cv2.polylines(image,[rect_new], True,colours["red"],5, cv2.LINE_AA)
-        return scale_current_px_mm_ratio, image
+        # image = cv2.polylines(image,[rect_new], True,colours["red"],5, cv2.LINE_AA)
+        return scale_current_px_mm_ratio #, image
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_masks = df_masks
         obj_input.scale_current_px_mm_ratio = scale_current_px_mm_ratio

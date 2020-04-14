@@ -66,7 +66,6 @@ class container(object):
         ## attributes
         self.dirpath = None
         self.save_suffix = None
-        self.scale_px_mm_ratio = None
 
     def load(self, contours=False, **kwargs):
         """
@@ -101,10 +100,12 @@ class container(object):
             if not hasattr(self, "scale_template_px_mm_ratio"):
                 attr = _load_yaml(attr_path)
                 if "scale" in attr:
-                    self.scale_template_px_mm_ratio = attr["scale"]["template_px_mm_ratio"]
+                    if "template_px_mm_ratio" in attr["scale"]:
+                        self.scale_template_px_mm_ratio = attr["scale"]["template_px_mm_ratio"]
+                        loaded.append("template scale information loaded from attributes.yaml")
                     if "current_px_mm_ratio" in attr["scale"]:
                         self.scale_current_px_mm_ratio = attr["scale"]["current_px_mm_ratio"]
-                        loaded.append("scale information loaded from attributes.yaml")
+                        loaded.append("current scale information loaded from attributes.yaml")
                     if "template_path" in attr["scale"]:
                         self.scale_template = cv2.imread(attr["scale"]["template_path"])
                         loaded.append("template loaded from root directory")

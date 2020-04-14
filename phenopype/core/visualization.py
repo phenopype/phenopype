@@ -193,14 +193,14 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
                     color=line_colour, 
                     maxLevel=level,
                     offset=offset_coords)
-        # if flag_skeleton and "skeleton_coords" in df_contours:
-        #     cv2.drawContours(image=image, 
-        #             contours=[row["skeleton_coords"]], 
-        #             contourIdx = idx,
-        #             thickness=flag_line_width, 
-        #             color=colours["red"], 
-        #             maxLevel=level,
-        #             offset=offset_coords)
+        if flag_skeleton and "skeleton_coords" in df_contours:
+            cv2.drawContours(image=image, 
+                    contours=[row["skeleton_coords"]], 
+                    contourIdx = idx,
+                    thickness=flag_line_width, 
+                    color=colours["red"], 
+                    maxLevel=level,
+                    offset=offset_coords)
         if flag_label:
             cv2.putText(image, row["contour"] , (row["center"]), 
                         cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
@@ -222,8 +222,8 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
 
 
 
-def show_landmarks(obj_input, df_landmarks=None, point_col="green", 
-                   point_size=None, label_col="black", label_size=None, 
+def show_landmarks(obj_input, df_landmarks=None, point_colour="green", 
+                   point_size=None, label_colour="black", label_size=None, 
                    label_width=None):
     """
     Draw landmarks into an image.
@@ -234,16 +234,16 @@ def show_landmarks(obj_input, df_landmarks=None, point_col="green",
         input object
     df_landmarks: DataFrame, optional
         should contain contour coordinates as an array in a df cell
-    point_col: {"green", "blue", "red", "black", "white"} str, optional
+    point_colour: {"green", "red", "blue", "black", "white"} str, optional
         landmark point colour
     point_size: int, optional
         landmark point size in pixels
-    label_col : {"black", "white", "green", "red", "blue"} str, optional
+    label_colour : {"black", "white", "green", "red", "blue"} str, optional
         landmark label colour.
     label_size: int, optional
-        landmark label size (scaled to image)
+        landmark label font size (scaled to image)
     label_width: int, optional
-        text thickness 
+        landmark label font width  (scaled to image)
 
     Returns
     -------
@@ -253,8 +253,8 @@ def show_landmarks(obj_input, df_landmarks=None, point_col="green",
     """
 
     ## kwargs
-    point_col = colours[point_col]
-    label_col = colours[label_col]
+    point_col = colours[point_colour]
+    label_col = colours[label_colour]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":

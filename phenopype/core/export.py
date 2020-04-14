@@ -190,6 +190,9 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     else:
         print("No contour df supplied - cannot export contours.")
         return
+    
+    if "skeleton_coords" in df:
+        df.drop(columns="skeleton_coords", inplace=True)
 
     ## convert contour coords to list of tuples
     if convert_coords:
@@ -542,11 +545,13 @@ def save_scale(obj_input, overwrite=True, dirpath=None,**kwargs):
         if not dirpath:
             print("No save directory specified - cannot export results.")
     elif obj_input.__class__.__name__ == "container":
-        scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
+        if hasattr(obj_input, "scale_current_px_mm_ratio"):
+            scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
         if not dirpath:
             dirpath = obj_input.dirpath
     else:
         print("No scale supplied - cannot export results.")
+        return
 
     attr_path = os.path.join(dirpath, "attributes.yaml")
     attr = _load_yaml(attr_path)
