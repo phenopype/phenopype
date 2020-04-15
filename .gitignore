@@ -1,4 +1,5 @@
 *dev*
+.coverage
 .doctrees
 .buildinfo
 .eggs
@@ -13,6 +14,7 @@ _temp
 
 bin
 docs/_temp
+docs_build
 develop-eggs
 dist
 eggs
@@ -23,3 +25,4 @@ parts
 phenopype.egg-info/
 spyder-debug.log
 src/*.egg-info
+test_cov

@@ -1,21 +1,19 @@
 #%% modules
-import cv2, copy, os, sys, warnings
+import cv2, copy
 import numpy as np
 import pandas as pd
 
-from datetime import datetime
 import numpy.ma as ma
 
 from phenopype.utils_lowlevel import _image_viewer, _auto_line_width, _auto_point_size, _auto_text_width, _auto_text_size
-from phenopype.settings import colours
 
 #%% methods
 
 def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="green",
               point_size="auto", label_colour="black", label_size="auto", 
               label_width="auto"):
-
-    """Set landmarks onto image. 
+    """
+    Place landmarks.
     
     Parameters
     ----------
@@ -37,7 +35,6 @@ def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="gree
         landmark label font size (scaled to image)
     label_width: int, optional
         landmark label font width  (scaled to image)
-
 
     Returns
     -------

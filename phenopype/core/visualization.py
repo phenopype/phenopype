@@ -1,11 +1,10 @@
 #%% modules
-import cv2, copy, os, sys, warnings
+import cv2, copy
 import numpy as np
-import pandas as pd
 
 import math
 
-from phenopype.settings import *
+from phenopype.settings import colours
 from phenopype.utils_lowlevel import _auto_line_width, _auto_point_size, _auto_text_width, _auto_text_size
 
 #%% settings
@@ -17,11 +16,10 @@ inf = math.inf
 def select_canvas(obj_input, canvas="image_mod", multi=True):
     """
     Isolate a colour channel from an image or select canvas for the pype method.
-   
 
     Parameters
     ----------
-    obj_input :  container
+    obj_input : array or container
         input object
     canvas : {"mod", "bin", "gray", "raw", "red", "green", "blue"} str, optional
         the type of canvas to be used for visual feedback. some types require a
@@ -91,42 +89,44 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
         obj_input.canvas = canvas
 
 
-def draw_contours(obj_input, df_image_data=None, df_contours=None, offset_coords=None,
-                  label=True, fill=0.3, mark_holes=True, level=3, line_colour="green",
-                  label_size=None, label_colour="black", line_width=None, 
-                  label_width=None, skeleton=True):
+def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True, 
+                  fill=0.3, mark_holes=True, level=3, line_colour="green",
+                  label_size="auto", label_colour="black", line_width="auto", 
+                  label_width="auto", skeleton=True):
     """
-    
+    Draw contours and their labels onto a canvas. Can be filled or empty, offset
+    coordinates can be supplied. This will also draw the skeleton, if the argument
+    "skeleton=True" and the supplied "df_contour" contains a "skeleton_coords"
+    column.
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    df_image_data : TYPE, optional
-        DESCRIPTION. The default is None.
-    df_contours : TYPE, optional
-        DESCRIPTION. The default is None.
-    offset_coords : TYPE, optional
-        DESCRIPTION. The default is None.
-    label : TYPE, optional
-        DESCRIPTION. The default is True.
-    fill : TYPE, optional
-        DESCRIPTION. The default is 0.3.
-    mark_holes : TYPE, optional
-        DESCRIPTION. The default is True.
-    level : TYPE, optional
-        DESCRIPTION. The default is 3.
-    line_colour : TYPE, optional
-        DESCRIPTION. The default is "green".
+    obj_input : array or container
+        input object
+    df_contours : DataFrame, optional
+        contains the contours
+    offset_coords : tuple, optional
+        offset coordinates, will be added to all contours
+    label : bool, optional
+        draw contour label
+    fill : float, optional
+        background transparency for contour fill (0=no fill).
+    mark_holes : bool, optional
+        contours located inside other contours (i.e. their holes) will be 
+        highlighted in red
+    level : int, optional
+        the default is 3.
+    line_colour: {"green", "red", "blue", "black", "white"} str, optional
+        contour line colour
     line_width: int, optional
-        line width
+        contour line width
     label_colour : {"black", "white", "green", "red", "blue"} str, optional
         contour label colour.
     label_size: int, optional
         contour label font size (scaled to image)
     label_width: int, optional
         contour label font thickness 
-        
+
     Returns
     -------
     image: array or container
@@ -157,12 +157,12 @@ def draw_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
 
 
     ## more kwargs
-    if line_width.__class__.__name__ == "NoneType":
-        flag_line_width = _auto_line_width(image)
-    if label_width.__class__.__name__ == "NoneType":
-        label_width = _auto_text_width(image)
-    if label_size.__class__.__name__ == "NoneType":
+    if line_width == "auto":
+        line_width = _auto_line_width(image)
+    if label_size == "auto":
         label_size = _auto_text_size(image)
+    if label_width == "auto":
+        label_width = _auto_text_width(image)
 
     ## method
     idx = 0
@@ -224,8 +224,8 @@ def draw_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
 
 
 def draw_landmarks(obj_input, df_landmarks=None, point_colour="green", 
-                   point_size=None, label_colour="black", label_size=None, 
-                   label_width=None):
+                   point_size="auto", label_colour="black", label_size="auto", 
+                   label_width="auto"):
     """
     Draw landmarks into an image.
 
@@ -271,11 +271,11 @@ def draw_landmarks(obj_input, df_landmarks=None, point_colour="green",
         return
 
     ## more kwargs
-    if point_size.__class__.__name__ == "NoneType":
+    if point_size == "auto":
         point_size = _auto_point_size(image)
-    if label_size.__class__.__name__ == "NoneType":
+    if label_size == "auto":
         label_size = _auto_text_size(image)
-    if label_width.__class__.__name__ == "NoneType":
+    if label_width == "auto":
         label_width = _auto_text_width(image)
 
     ## visualize
@@ -293,29 +293,40 @@ def draw_landmarks(obj_input, df_landmarks=None, point_colour="green",
 
 
 def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue", 
-               line_width=None, label=False, label_size=None, 
-               label_col="black", label_width=None):
-    
-    
-    """Draw masks into an image.
+               line_width="auto", label=False, label_size="auto", 
+               label_colour="black", label_width="auto"):
+    """
+    Draw masks into an image. This function is also used to draw the perimeter 
+    of a created or detected reference scale card.
     
     Parameters
     ----------        
-    
+    obj_input : array or container
+        input object
     select: str or list
         select a subset of masks to display
-    df_masks: DataFrame
+    df_masks: DataFrame, optional
         contains mask coordinates and label
-    label: str (default: "area1")
-        passes a label to the mask
-    tool: str (default: "rectangle")
-        zoom into the scale with "rectangle" or "polygon".
-        
+    line_colour: {"blue", "red", "green", "black", "white"} str, optional
+        mask line colour
+    line_width: int, optional
+        mask line width
+    label_colour : {"black", "white", "green", "red", "blue"} str, optional
+        mask label colour.
+    label_size: int, optional
+        mask label font size (scaled to image)
+    label_width: int, optional
+        mask label font width  (scaled to image)
+
+    Returns
+    -------
+    image: array or container
+        image with masks
     """
     ## kwargs
     flag_label = label
     line_colour_sel = colours[line_colour]
-    label_colour = colours[label_col]
+    label_colour = colours[label_colour]
     if not select.__class__.__name__ == "NoneType":
         if not select.__class__.__name__ == "list":
             select = [select]
@@ -334,29 +345,35 @@ def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue",
         return
 
     ## more kwargs
-    if line_width.__class__.__name__ == "NoneType":
+    if line_width == "auto":
         line_width = _auto_line_width(image)
-    if label_width.__class__.__name__ == "NoneType":
-        label_width = _auto_text_width(image)
-    if label_size.__class__.__name__ == "NoneType":
+    if label_size == "auto":
         label_size = _auto_text_size(image)
+    if label_width == "auto":
+        label_width = _auto_text_width(image)
 
     ## draw masks from mask obect
     for index, row in df_masks.iterrows():
-            if not select.__class__.__name__ == "NoneType":
-                if row["mask"] in select:
-                    pass
-                else:
-                    continue
-            else:
+        if not select.__class__.__name__ == "NoneType":
+            if row["mask"] in select:
                 pass
-            print(" - show mask: " + row["mask"] + ".")
-            coords = eval(row["coords"])
-            if row["mask"] == "scale":
-                line_colour = colours["red"]
             else:
-                line_colour = line_colour_sel
-            cv2.polylines(image, np.array([coords]), False, line_colour, line_width)
+                continue
+        else:
+            pass
+        print(" - show mask: " + row["mask"] + ".")
+        coords = eval(row["coords"])
+        if row["mask"] == "scale":
+            line_colour = colours["red"]
+        else:
+            line_colour = line_colour_sel
+        cv2.polylines(image, np.array([coords]), False, line_colour, line_width)
+        if flag_label:
+            center, radius = cv2.minEnclosingCircle(np.array(coords))
+            center = int(center[0]), int(center[1])
+            cv2.putText(image, row["mask"] , center, 
+                        cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
+                        label_width, cv2.LINE_AA)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
@@ -367,23 +384,27 @@ def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue",
 
 
 
-def draw_polylines(obj_input, **kwargs):
-    """Mask maker method to draw rectangle or polygon mask onto image.
+def draw_polylines(obj_input, line_colour="blue", line_width="auto"):
+    """
+    Draw polylines onto an image. 
     
     Parameters
-    ----------        
-    
-    include: bool (default: True)
-        determine whether resulting mask is to include or exclude objects within
-    label: str (default: "area1")
-        passes a label to the mask
-    tool: str (default: "rectangle")
-        zoom into the scale with "rectangle" or "polygon".
-        
+    ----------
+    obj_input : array or container
+        input object
+    line_colour: {"blue", "red", "green", "black", "white"} str, optional
+        polyline colour
+    line_width: int, optional
+        polyline width
+
+    Returns
+    -------
+    image: array or container
+        image with polylines
     """
 
     ## kwargs
-    colour = kwargs.get("colour", "green")
+    line_colour = colours[line_colour]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -393,7 +414,8 @@ def draw_polylines(obj_input, **kwargs):
         df_polylines = obj_input.df_polylines
         
     ## more kwargs
-    line_width = kwargs.get("line_thickness", _auto_line_width(image))
+    if line_width == "auto":
+        line_width = _auto_line_width(image)
 
     ## visualize
     for polyline in df_polylines["polyline"].unique():
@@ -401,7 +423,7 @@ def draw_polylines(obj_input, **kwargs):
         sub = sub.get_group(polyline)
         coords = list(sub[["x","y"]].itertuples(index=False, name=None))
         cv2.polylines(image, np.array([coords]), 
-                      False, colours[colour], line_width)
+                      False, line_colour, line_width)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
