@@ -15,7 +15,7 @@ measurement:
 visualization:
 - select_canvas:
     canvas: image
-- show_contours:
+- draw_contours:
     line_width: 2
     label_width: 1
     label_size: 1
@@ -49,7 +49,7 @@ segmentation:
 visualization:
 - select_canvas:
     canvas: image
-- show_contours:
+- draw_contours:
     line_width: 2
     label_width: 1
     label_size: 1
@@ -87,7 +87,7 @@ segmentation:
 visualization:
 - select_canvas:
     canvas: red
-- show_contours:
+- draw_contours:
     line_width: 2
     label_width: 1
     label_size: 1
@@ -122,7 +122,7 @@ segmentation:
 visualization:
 - select_canvas:
     canvas: red
-- show_contours:
+- draw_contours:
     line_width: 2
     label_width: 1
     label_size: 1
@@ -137,7 +137,7 @@ measurement:
     label_size: 3
     label_width: 5
 visualization:
-- show_landmarks:
+- draw_landmarks:
     point_size: 25
     point_colour: green
     label_size: 3
@@ -156,12 +156,12 @@ measurement:
     label_size: 3
     label_width: 5
 visualization:
-- show_landmarks:
+- draw_landmarks:
     point_size: 25
     point_colour: green
     label_size: 3
     label_width: 5
-- show_masks:
+- draw_masks:
     line_colour: blue
 export:
 - save_landmarks
@@ -191,12 +191,12 @@ measurement:
 visualization:
 - select_canvas:
     canvas: image
-- show_contours:
+- draw_contours:
     line_width: 2
     label_width: 1
     label_size: 1
     fill: 0.3
-- show_masks
+- draw_masks
 export:
 - save_contours:
     overwrite: true
@@ -230,7 +230,7 @@ segmentation:
 visualization:
 - select_canvas:
     canvas: image
-- show_contours:
+- draw_contours:
     line_width: 2
     label_width: 1
     label_size: 1
@@ -266,7 +266,7 @@ segmentation:
     min_diameter: 0
     min_area: 500
 visualization:
-- show_contours:
+- draw_contours:
     line_width: 2
     label_width: 1
     label_size: 1

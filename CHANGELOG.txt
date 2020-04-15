@@ -10,9 +10,10 @@ Known bugs
 
 1.0.3
 -----
-
+- renamed visualization functions to "draw_"-prefix to indicate that they are actually modifying the canvas (e.g. "show_contours" is now "draw_contours")
 - "dirpath" option added to container (at initialization and saving)
 - unified measurement and visualization arguments (e.g. "text_size" now is "label_size" and "label_col" now is "label_colour")
+- skeletonization procedure implemented
 - watershed algorithm implemented
 - fix mask application in threshold
 - create scale has now a mask function distinct of the template argument

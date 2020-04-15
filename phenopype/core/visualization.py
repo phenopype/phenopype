@@ -17,10 +17,11 @@ inf = math.inf
 def select_canvas(obj_input, canvas="image_mod", multi=True):
     """
     Isolate a colour channel from an image or select canvas for the pype method.
+   
 
     Parameters
     ----------
-    obj_input : array or container
+    obj_input :  container
         input object
     canvas : {"mod", "bin", "gray", "raw", "red", "green", "blue"} str, optional
         the type of canvas to be used for visual feedback. some types require a
@@ -90,7 +91,7 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
         obj_input.canvas = canvas
 
 
-def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords=None,
+def draw_contours(obj_input, df_image_data=None, df_contours=None, offset_coords=None,
                   label=True, fill=0.3, mark_holes=True, level=3, line_colour="green",
                   label_size=None, label_colour="black", line_width=None, 
                   label_width=None, skeleton=True):
@@ -222,7 +223,7 @@ def show_contours(obj_input, df_image_data=None, df_contours=None, offset_coords
 
 
 
-def show_landmarks(obj_input, df_landmarks=None, point_colour="green", 
+def draw_landmarks(obj_input, df_landmarks=None, point_colour="green", 
                    point_size=None, label_colour="black", label_size=None, 
                    label_width=None):
     """
@@ -291,7 +292,7 @@ def show_landmarks(obj_input, df_landmarks=None, point_colour="green",
 
 
 
-def show_masks(obj_input, select=None, df_masks=None, line_colour="blue", 
+def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue", 
                line_width=None, label=False, label_size=None, 
                label_col="black", label_width=None):
     
@@ -366,7 +367,7 @@ def show_masks(obj_input, select=None, df_masks=None, line_colour="blue",
 
 
 
-def show_polylines(obj_input, **kwargs):
+def draw_polylines(obj_input, **kwargs):
     """Mask maker method to draw rectangle or polygon mask onto image.
     
     Parameters
