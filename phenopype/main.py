@@ -37,7 +37,6 @@ class project:
 
     Parameters
     ----------
-
     rootdir: str
         path to root directory of the project where folder gets created
     overwrite: bool, optional
@@ -46,8 +45,8 @@ class project:
 
     Returns
     -------
-
-    None
+    project: project
+        phenopype project object
     """
     def __init__(self, root_dir, overwrite=False):
 
@@ -379,9 +378,6 @@ class project:
             print("wrong type - cannot load reference image")
             return
 
-        ## measure scale
-        px_mm_ratio, template  = preprocessing.create_scale(reference_image, 
-                                                            template=flag_template)
 
         ## save template
         if not template.__class__.__name__ == "NoneType":
@@ -396,6 +392,11 @@ class project:
                 elif not os.path.isfile(template_path):
                     print("- scale template saved under " + template_path + ".")
                     pass
+                
+                ## measure scale
+                px_mm_ratio, df_masks, template  = preprocessing.create_scale(reference_image, 
+                                                                    template=flag_template)
+                
                 cv2.imwrite(template_path, template)
                 break
 
@@ -475,10 +476,21 @@ class project:
     
         Parameters
         ----------
-    
         path: str
-            path to project.data, loads project file saved to root dir of project
+            path to project.data, or the directory project.data is contained in
+            (root_dir)
+
+        Returns
+        -------
+        project: project
+            phenopype project object
         """
+        
+        
+        if os.path.split(path)[1] == "project.data":
+            pass
+        else:
+            path = os.path.join(path,"project.data")
         with open(path, 'rb') as output:
             return pickle.load(output)
 

@@ -1,19 +1,14 @@
 #%% modules
-
-import cv2, copy, os, sys, warnings
+import ast, cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
 
 from pprint import PrettyPrinter
 from PIL import Image, ExifTags
-from ruamel.yaml import YAML
 
-from phenopype.utils_lowlevel import _image_viewer 
-from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor
-from phenopype.settings import *
+from phenopype.utils_lowlevel import _image_viewer, _contours_tup_array, _load_yaml
 from phenopype.core.export import *
-from phenopype.core.visualization import *
-
+from phenopype.settings import colours, default_meta_data_fields
 #%% settings
 
 Image.MAX_IMAGE_PIXELS = 999999999
@@ -137,7 +132,14 @@ class container(object):
             if not hasattr(self, "df_contours") and "contours" in files:
                 path = os.path.join(self.dirpath, "contours_" + self.save_suffix + ".csv")
                 if os.path.isfile(path):
-                    self.df_contours = pd.read_csv(path) 
+                    df = pd.read_csv(path, converters={"center": ast.literal_eval}) 
+                    df['coords'] = list(zip(df.x, df.y))
+                    coords = df.groupby('contour')['coords'].apply(list)
+                    coords_arr = _contours_tup_array(coords)
+                    df.drop(columns=["coords", "x","y"], inplace=True)
+                    df = df.drop_duplicates().reset_index()
+                    df["coords"] =  pd.Series(coords_arr, index=df.index)
+                    self.df_contours = df
                     loaded.append("contours_" + self.save_suffix + ".csv")
 
         ## landmarks
@@ -340,10 +342,7 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
 
     """
     ## kwargs
-    ## kwargs 
-    flag_resize = resize
     flag_df = df
-    flag_meta = meta
     flag_container = cont
     exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":

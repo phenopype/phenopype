@@ -1,37 +1,31 @@
 #%% modules
 import cv2, copy, os, sys, warnings
 import numpy as np
-import pandas as pd
 
 import time
 
 from datetime import datetime
 from stat import S_IWRITE
 from ruamel.yaml import YAML
-from ruamel.yaml.comments import CommentedMap as ordereddict
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
+from phenopype.settings import colours, default_pype_config_name, default_pype_config
 from phenopype import presets
-from phenopype.settings import *
 
 #%% classes
 
 class _image_viewer():
     def __init__(self, image, **kwargs):
         """
+        Low level interactive image function.
         
-
+        Future versions of phenopype will feature a more clean and userfriendly
+        code structure.
+        
         Parameters
         ----------
-        image : TYPE
-            DESCRIPTION.
-        **kwargs : TYPE
-            DESCRIPTION.
 
-        Returns
-        -------
-        None.
 
         """
         ## kwargs
@@ -83,17 +77,17 @@ class _image_viewer():
         if self.flag_tool:
             self.points, self.point_list = [], []
             self.line_width = kwargs.get("line_width", _auto_line_width(image))
-            self.line_col = colours[kwargs.get("line_col", "green")]
+            self.line_colour = colours[kwargs.get("line_colour", "green")]
             if self.flag_tool== "rectangle" or self.flag_tool== "rect" or self.flag_tool == "template":
                 self.rect_list, self.rect_start = [], None
             elif self.flag_tool == "landmarks" or self.flag_tool == "landmark":
                 self.point_size = kwargs.get("point_size", _auto_point_size(image))
-                self.point_col = colours[kwargs.get("point_col", "red")]
+                self.point_colour = colours[kwargs.get("point_colour", "red")]
                 self.text_size = kwargs.get("label_size", _auto_text_size(image))
                 self.text_width = kwargs.get("label_size", _auto_text_width(image))
-                self.text_col = colours[kwargs.get("label_col", "black")]
+                self.label_colour = colours[kwargs.get("label_colour", "black")]
         if self.flag_draw:
-            self.line_col = colours[kwargs.get("line_col", "black")]
+            self.line_colour = colours[kwargs.get("line_colour", "black")]
 
         ## update from previous call
         if kwargs.get("previous"):
@@ -185,9 +179,9 @@ class _image_viewer():
         if event == cv2.EVENT_LBUTTONDOWN: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
             self.coords_original = int(self.zoom_x1+(x * self.global_fx)), int(self.zoom_y1+(y * self.global_fy))
             self.points.append(self.coords_original)
-            cv2.circle(self.image_copy, self.coords_original, self.point_size, self.point_col, -1)
+            cv2.circle(self.image_copy, self.coords_original, self.point_size, self.point_colour, -1)
             cv2.putText(self.image_copy, str(len(self.points)), self.coords_original, 
-                        cv2.FONT_HERSHEY_SIMPLEX, self.text_size, self.text_col, self.text_width, cv2.LINE_AA)
+                        cv2.FONT_HERSHEY_SIMPLEX, self.text_size, self.label_colour, self.text_width, cv2.LINE_AA)
             self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
             self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
             self.canvas_copy = copy.deepcopy(self.canvas)
@@ -197,9 +191,9 @@ class _image_viewer():
                 self.points = self.points[:-1]
                 self.image_copy = copy.deepcopy(self.image)
                 for point, idx in zip(self.points, range(len(self.points))):
-                    cv2.circle(self.image_copy, point, self.point_size, self.point_col, -1)
+                    cv2.circle(self.image_copy, point, self.point_size, self.point_colour, -1)
                     cv2.putText(self.image_copy, str(idx+1), point, 
-                        cv2.FONT_HERSHEY_SIMPLEX, self.text_size, self.text_col, self.text_width, cv2.LINE_AA)
+                        cv2.FONT_HERSHEY_SIMPLEX, self.text_size, self.label_colour, self.text_width, cv2.LINE_AA)
                 self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                 self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                 self.canvas_copy = copy.deepcopy(self.canvas)
@@ -219,7 +213,7 @@ class _image_viewer():
             if len(self.points) > 0:
                 self.coords_prev = int((self.points[-1][0]-self.zoom_x1)/self.global_fx), int((self.points[-1][1]-self.zoom_y1)//self.global_fy)
                 self.canvas = copy.deepcopy(self.canvas_copy)
-                cv2.line(self.canvas, self.coords_prev, (x,y), self.line_col, self.line_width)
+                cv2.line(self.canvas, self.coords_prev, (x,y), self.line_colour, self.line_width)
             elif (scale or flag_draw) and len(self.points) > 2:
                 pass
             cv2.imshow(self.window_name, self.canvas)
@@ -229,10 +223,10 @@ class _image_viewer():
                 return
             self.coords_original = int(self.zoom_x1+(x * self.global_fx)), int(self.zoom_y1+(y * self.global_fy))
             self.points.append(self.coords_original)
-            cv2.polylines(self.image_copy, np.array([self.points]), False, self.line_col, self.line_width)
+            cv2.polylines(self.image_copy, np.array([self.points]), False, self.line_colour, self.line_width)
             if len(self.point_list)>0:
                 for poly in self.point_list:
-                    cv2.polylines(self.image_copy, np.array([poly]), False, self.line_col, self.line_width)
+                    cv2.polylines(self.image_copy, np.array([poly]), False, self.line_colour, self.line_width)
             self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
             self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
             self.canvas_copy = copy.deepcopy(self.canvas)
@@ -248,9 +242,9 @@ class _image_viewer():
             if len(self.points)>0:
                 self.points = self.points[:-1]
                 self.image_copy = copy.deepcopy(self.image)
-                cv2.polylines(self.image_copy, np.array([self.points]), False, self.line_col, self.line_width)
+                cv2.polylines(self.image_copy, np.array([self.points]), False, self.line_colour, self.line_width)
                 for poly in self.point_list:
-                    cv2.polylines(self.image_copy, np.array([poly]), False, self.line_col, self.line_width)
+                    cv2.polylines(self.image_copy, np.array([poly]), False, self.line_colour, self.line_width)
                 self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                 self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                 self.canvas_copy = copy.deepcopy(self.canvas)
@@ -259,7 +253,7 @@ class _image_viewer():
                 self.point_list = self.point_list[:-1]
                 self.image_copy = copy.deepcopy(self.image)
                 for poly in self.point_list:
-                    cv2.polylines(self.image_copy, np.array([poly]), False, self.line_col, self.line_width)
+                    cv2.polylines(self.image_copy, np.array([poly]), False, self.line_colour, self.line_width)
                 self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                 self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                 self.canvas_copy = copy.deepcopy(self.canvas)
@@ -273,7 +267,7 @@ class _image_viewer():
             self.image_copy = copy.deepcopy(self.image)
             if len(self.point_list)>0:
                 for poly in self.point_list:
-                    cv2.polylines(self.image_copy, np.array([poly]), False, self.line_col, self.line_width)
+                    cv2.polylines(self.image_copy, np.array([poly]), False, self.line_colour, self.line_width)
             self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
             self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
             self.canvas_copy = copy.deepcopy(self.canvas)
@@ -281,7 +275,6 @@ class _image_viewer():
     def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
         ## kwargs
         template = kwargs.get("template", False)
-        flag_draw = kwargs.get("draw", False)
         
         if event == cv2.EVENT_LBUTTONDOWN: ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
             if template == True and len(self.rect_list)==1:
@@ -298,7 +291,7 @@ class _image_viewer():
                     int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])), 
                     int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1]))])
             for (rx1, ry1, rx2, ry2) in self.rect_list:
-                cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), self.line_col, self.line_width)
+                cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), self.line_colour, self.line_width)
             self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
             self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
             self.canvas_copy = copy.deepcopy(self.canvas)
@@ -310,7 +303,7 @@ class _image_viewer():
                 self.rect_list = self.rect_list[:-1]
                 self.image_copy = copy.deepcopy(self.image)
                 for (rx1, ry1, rx2, ry2) in self.rect_list:
-                    cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), self.line_col, self.line_width)
+                    cv2.rectangle(self.image_copy, (rx1,ry1), (rx2,ry2), self.line_colour, self.line_width)
                 self.canvas = self.image_copy[self.zoom_y1:self.zoom_y2,self.zoom_x1:self.zoom_x2]
                 self.canvas = cv2.resize(self.canvas, (self.canvas_width, self.canvas_height),interpolation = cv2.INTER_LINEAR)
                 self.canvas_copy = copy.deepcopy(self.canvas)
@@ -320,7 +313,7 @@ class _image_viewer():
                 self.canvas = copy.deepcopy(self.canvas_copy)
                 self.rect_minpos = min(self.rect_start[0], x), min(self.rect_start[1], y)
                 self.rect_maxpos = max(self.rect_start[0], x), max(self.rect_start[1], y)
-                cv2.rectangle(self.canvas, self.rect_minpos, self.rect_maxpos, self.line_col, self.line_width)
+                cv2.rectangle(self.canvas, self.rect_minpos, self.rect_maxpos, self.line_colour, self.line_width)
                 # else:
                 #     cv2.rectangle(self.canvas, self.rect_minpos, self.rect_maxpos, 
                 #                   colours["red"], max(2,_auto_line_width(self.canvas)))
@@ -403,9 +396,9 @@ def _auto_line_width(image, **kwargs):
     factor = kwargs.get("factor", 0.001)
     image_height,image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) /2
-    line_tickness = int(factor * image_diagonal)
+    line_width = max(int(factor * image_diagonal), 1)
 
-    return line_tickness
+    return line_width
 
 
 
@@ -413,7 +406,7 @@ def _auto_point_size(image, **kwargs):
     factor = kwargs.get("factor", 0.002)
     image_height,image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) /2
-    point_size = int(factor * image_diagonal)
+    point_size =  max(int(factor * image_diagonal),1)
 
     return point_size
 
@@ -423,9 +416,9 @@ def _auto_text_width(image, **kwargs):
     factor = kwargs.get("factor", 0.0005)
     image_height,image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) /2
-    text_tickness = max(int(factor * image_diagonal),1)
+    text_width = max(int(factor * image_diagonal),1)
 
-    return text_tickness
+    return text_width
 
 
 
@@ -445,6 +438,20 @@ def _contours_arr_tup(array):
     for coord in coords_arr:
         coords_tup.append((coord[0][0], coord[0][1]))
     return coords_tup
+
+
+
+def _contours_tup_array(list_tup_list):
+    coords_arr_list = []
+    for tup_list in list_tup_list:
+        arr_list = []
+        for tup in tup_list:
+            arr = []
+            arr.append(tup[0])
+            arr.append(tup[1])
+            arr_list.append([arr])
+        coords_arr_list.append(np.array(arr_list, dtype=np.int32))
+    return coords_arr_list
 
 
 

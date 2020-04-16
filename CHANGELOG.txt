@@ -18,7 +18,7 @@ Known bugs
 - fix mask application in threshold
 - create scale has now a mask function distinct of the template argument
 - examples 1 and 2 added
-
+- testing coverage ~ 60 %
 
 1.0.2
 -----

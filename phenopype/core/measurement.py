@@ -84,7 +84,7 @@ def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="gree
         ## set landmarks
         out = _image_viewer(image, tool="landmarks", 
                             point_size=point_size, 
-                            point_col=point_colour, 
+                            point_colour=point_colour, 
                             label_size=label_size,
                             label_width=label_width, 
                             label_col=label_colour)

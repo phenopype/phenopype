@@ -137,7 +137,6 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
     flag_label = label
     flag_fill = fill
     flag_child = mark_holes
-    flag_line_width = line_width
     flag_skeleton = skeleton
     line_colour_sel = colours[line_colour]
     label_colour = colours[label_colour]
@@ -186,11 +185,11 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
                     color=fill_colour, 
                     maxLevel=level,
                     offset=offset_coords)
-        if flag_line_width > 0: 
+        if line_width > 0: 
             cv2.drawContours(image=image, 
                     contours=[row["coords"]], 
                     contourIdx = idx,
-                    thickness=flag_line_width, 
+                    thickness=line_width, 
                     color=line_colour, 
                     maxLevel=level,
                     offset=offset_coords)
@@ -198,17 +197,27 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
             cv2.drawContours(image=image, 
                     contours=[row["skeleton_coords"]], 
                     contourIdx = idx,
-                    thickness=flag_line_width, 
+                    thickness=line_width, 
                     color=colours["red"], 
                     maxLevel=level,
                     offset=offset_coords)
         if flag_label:
-            cv2.putText(image, row["contour"] , (row["center"]), 
-                        cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
-                        label_width, cv2.LINE_AA)
-            cv2.putText(colour_mask, row["contour"] , (row["center"]), 
-                        cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
-                        label_width, cv2.LINE_AA)
+            cv2.putText(image, 
+                        str(row["contour"]) , 
+                        (row["center"]), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 
+                        label_size, 
+                        label_colour, 
+                        label_width, 
+                        cv2.LINE_AA)
+            cv2.putText(colour_mask, 
+                        str(row["contour"]) , 
+                        (row["center"]), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 
+                        label_size, 
+                        label_colour, 
+                        label_width, 
+                        cv2.LINE_AA)
 
     image = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) 
 
@@ -254,7 +263,7 @@ def draw_landmarks(obj_input, df_landmarks=None, point_colour="green",
     """
 
     ## kwargs
-    point_col = colours[point_colour]
+    point_colour = colours[point_colour]
     label_col = colours[label_colour]
 
     ## load image
@@ -280,7 +289,7 @@ def draw_landmarks(obj_input, df_landmarks=None, point_colour="green",
 
     ## visualize
     for label, x, y in zip(df_landmarks.landmark, df_landmarks.x, df_landmarks.y):
-        cv2.circle(image, (x,y), point_size, point_col, -1)
+        cv2.circle(image, (x,y), point_size, point_colour, -1)
         cv2.putText(image, str(label), (x,y), cv2.FONT_HERSHEY_SIMPLEX, 
                     label_size, label_col, label_width, cv2.LINE_AA)
 

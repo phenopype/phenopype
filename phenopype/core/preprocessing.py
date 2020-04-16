@@ -120,7 +120,7 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
 
 
 def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False, 
-                overwrite=False, template=False):
+                overwrite=False, template=False, **kwargs):
     """
     Measure a size or colour reference card. Minimum input interaction is 
     measuring a size reference: click on two points inside the provided image, 
@@ -152,6 +152,8 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
         measure its dimensions, and adjust and colour space. automatically 
         creates and returns a mask DataFrame that can be added to an existing
         one
+    kwargs: optional
+        developer options
 
     Returns
     -------
@@ -216,7 +218,8 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
     
         ## create template for image registration
         if flag_template or flag_mask:
-            out = _image_viewer(image, tool="template")
+            out = _image_viewer(image, 
+                                tool="template")
     
             ## make template and mask
             template = image[out.rect_list[0][1]:out.rect_list[0][3],

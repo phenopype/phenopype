@@ -492,7 +492,7 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
 
 
 def watershed(obj_input, iterations=3, kernel_size=3, distance_cutoff=0.5,
-              distance_mask=0, distance_type="l1", **kwargs):
+              distance_mask=0, distance_type="l1"):
     """
     Performs non-parametric marker-based segmentation - useful if many detected 
     contours are touching or overlapping with each other. Input image should be 

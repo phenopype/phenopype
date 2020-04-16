@@ -1,19 +1,15 @@
     #%% modules
-import cv2, copy, os, sys, warnings
-import numpy as np
+import cv2, copy, os
 import pandas as pd
 
-from phenopype.settings import colours
-from phenopype.utils import * #load_image, load_meta_data, show_image, save_image
-from phenopype.utils_lowlevel import _image_viewer, _save_yaml, _load_yaml, _show_yaml ,_contours_arr_tup
+from phenopype.utils_lowlevel import  _save_yaml, _load_yaml ,_contours_arr_tup
 
 #%% functions
 
 def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None, 
-                name="", resize=0.5, **kwargs):
+                name="", resize=0.5):
     """
-    Save a canvas (processed image). Less flexible than "save_image", should
-    only be used for low and high throughput worklow. 
+    Save a canvas (processed image). 
 
     Parameters
     ----------
@@ -25,17 +21,12 @@ def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         folder to save file in 
     save_suffix : str, optional
         suffix to append to filename
-    name: str
+    name: str, optional
         custom name for file
-    resize: float
+    resize: float, optional
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
         original size).
-    **kwargs : TYPE
-        DESCRIPTION.
 
-    Returns
-    -------
-    None.
     """
     ## kwargs
     flag_overwrite = overwrite
@@ -91,25 +82,26 @@ def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
 
 def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-                 **kwargs):
-    """Save a pandas dataframe to csv. 
+                 round_digits=1):
+    """
+    Save colour intensities to csv. 
     
     Parameters
     ----------
-    name: str (optional, default: "results")
-        name for saved csv
-    dirpath: str (default: None)
-        location to save df
-    round: int (optional, default: 1)
-        number of digits to round to
-    overwrite: bool (optional, default: False)
+    obj_input : DataFrame or container
+        input object
+    overwrite: bool optional
         overwrite csv if it already exists
-    silent: bool (optional, default: True)
-        do not print where file was saved
+    dirpath: str, optional
+        location to save df
+    round_digits: int, optional
+        number of digits to round to
+    save_suffix : str, optional
+        suffix to append to filename
     """
+
     ## kwargs
     flag_overwrite = overwrite
-    round_digits = kwargs.get("round",1)
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -130,6 +122,15 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     df = df.round(round_digits)
     df = df.astype(str)
 
+    ## dirpath
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in ["True", "true", "y", "yes"]:
+            os.makedirs(dirpath)
+        else: 
+            print("Directory not created - aborting")
+            return
+
     ## save
     if save_suffix:
         path = os.path.join(dirpath, "colours_" + save_suffix + ".csv")
@@ -149,31 +150,30 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         break
 
 
-def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-                  **kwargs):
-    """Save contour df to csv. 
 
+def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
+                  convert_coords=True):
+    """
+    Save contour coordinates and features to csv. This also saves skeletonization
+    ouput if the data is contained in the provided DataFrame.
+    
     Parameters
     ----------
-    obj_input : DataFrame or container 
-        object containing the contours
-    overwrite : bool, optional
-        overwrite flag in case file exists
-    dirpath : str, optional
-        folder to save file in 
+    obj_input : DataFrame or container
+        input object
+    overwrite: bool optional
+        overwrite csv if it already exists
+    dirpath: str, optional
+        location to save df
     save_suffix : str, optional
         suffix to append to filename
-    **kwargs : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
-
+    convert_coords: bool, optional
+        convert the coordinates from array to x and y column
     """
+
     ## kwargs
     flag_overwrite = overwrite
-    convert_coords = kwargs.get("convert_coords", True)
+    flag_convert_coords = convert_coords
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -195,7 +195,7 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         df.drop(columns="skeleton_coords", inplace=True)
 
     ## convert contour coords to list of tuples
-    if convert_coords:
+    if flag_convert_coords:
         for idx, row in df.iterrows():
             df.at[idx,"coords"] = _contours_arr_tup(row["coords"])
         df = df.explode("coords")
@@ -233,22 +233,19 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
 
 
-def save_drawing(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-                 **kwargs):
-    """Save a pandas dataframe to csv. 
+def save_drawing(obj_input, overwrite=True, dirpath=None):
+    """
+    Save drawing coordinates to attributes.yaml 
     
     Parameters
     ----------
-    name: str (optional, default: "results")
-        name for saved csv
-    dirpath: str (default: None)
+    obj_input : DataFrame or container
+        input object
+    overwrite: bool optional
+        overwrite if drawing already exists
+    dirpath: str, optional
         location to save df
-    round: int (optional, default: 1)
-        number of digits to round to
-    overwrite: bool (optional, default: False)
-        overwrite csv if it already exists
-    silent: bool (optional, default: True)
-        do not print where file was saved
+
     """
     ## kwargs
     flag_overwrite = overwrite
@@ -260,8 +257,6 @@ def save_drawing(obj_input, overwrite=True, dirpath=None, save_suffix=None,
             print("No save directory specified - cannot export results.")
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_draw
-        if not save_suffix:
-            save_suffix = obj_input.save_suffix
         if not dirpath:
             dirpath = obj_input.dirpath
     else:
@@ -272,6 +267,15 @@ def save_drawing(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         attr = _load_yaml(attr_path)
     else: 
         attr = {}
+
+    ## dirpath
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in ["True", "true", "y", "yes"]:
+            os.makedirs(dirpath)
+        else: 
+            print("Directory not created - aborting")
+            return
 
     while True:
         if "drawing" in attr and flag_overwrite == False:
@@ -292,24 +296,20 @@ def save_drawing(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
 
 
+def save_data_entry(obj_input, overwrite=True, dirpath=None):
+    """
+    Save data entry to attributes.yaml 
 
-def save_data_entry(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-                    **kwargs):
-    """Save a pandas dataframe to csv. 
-    
     Parameters
     ----------
-    name: str (optional, default: "results")
-        name for saved csv
-    dirpath: str (default: None)
+    obj_input : DataFrame or container
+        input object
+    overwrite: bool optional
+        overwrite if entry already exists
+    dirpath: str, optional
         location to save df
-    round: int (optional, default: 1)
-        number of digits to round to
-    overwrite: bool (optional, default: False)
-        overwrite csv if it already exists
-    silent: bool (optional, default: True)
-        do not print where file was saved
     """
+
     ## kwargs
     flag_overwrite = overwrite
 
@@ -320,8 +320,6 @@ def save_data_entry(obj_input, overwrite=True, dirpath=None, save_suffix=None,
             print("No save directory specified - cannot export results.")
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_other_data
-        if not save_suffix:
-            save_suffix = obj_input.save_suffix
         if not dirpath:
             dirpath = obj_input.dirpath
     else:
@@ -331,6 +329,15 @@ def save_data_entry(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     attr = _load_yaml(attr_path)
     if not "other" in attr:
         attr["other"] = {}
+
+    ## dirpath
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in ["True", "true", "y", "yes"]:
+            os.makedirs(dirpath)
+        else: 
+            print("Directory not created - aborting")
+            return
 
     while True:
         for col in list(df):
@@ -349,23 +356,22 @@ def save_data_entry(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     _save_yaml(attr, attr_path)
 
 
-def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-                   **kwargs):
+def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     """
-    
+    Save landmark coordinates to csv.
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
-
+    obj_input : DataFrame or container
+        input object
+    overwrite: bool optional
+        overwrite csv if it already exists
+    dirpath: str, optional
+        location to save df
+    save_suffix : str, optional
+        suffix to append to filename
     """
+
     ## kwargs
     flag_overwrite = overwrite
 
@@ -412,21 +418,20 @@ def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
 
 
-def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-               **kwargs):
+def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     """
-    
+    Save mask coordinates and information ("include"" and "label") to csv.
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
+    obj_input : DataFrame or container
+        input object
+    overwrite: bool optional
+        overwrite csv if it already exists
+    dirpath: str, optional
+        location to save df
+    save_suffix : str, optional
+        suffix to append to filename
 
     """
     ## kwargs
@@ -445,7 +450,16 @@ def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None,
             dirpath = obj_input.dirpath
     else:
         print("No mask df supplied - cannot save mask.")
-    
+
+    ## dirpath
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in ["True", "true", "y", "yes"]:
+            os.makedirs(dirpath)
+        else: 
+            print("Directory not created - aborting")
+            return
+
     ## save
     if save_suffix:
         path = os.path.join(dirpath, "masks_" + save_suffix + ".csv")
@@ -466,23 +480,22 @@ def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
 
 
-def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-                   **kwargs):
+def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     """
-    
+    Save polylines to csv.
 
     Parameters
     ----------
-    obj_input : TYPE
-        DESCRIPTION.
-    **kwargs : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
-
+    obj_input : DataFrame or container
+        input object
+    overwrite: bool optional
+        overwrite csv if it already exists
+    dirpath: str, optional
+        location to save df
+    save_suffix : str, optional
+        suffix to append to filename
     """
+
     ## kwargs
     flag_overwrite = overwrite
 
@@ -499,6 +512,15 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None,
             dirpath = obj_input.dirpath
     else:
         print("No df supplied - cannot export results.")
+
+    ## dirpath
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in ["True", "true", "y", "yes"]:
+            os.makedirs(dirpath)
+        else: 
+            print("Directory not created - aborting")
+            return
 
     ## save
     if save_suffix:
@@ -520,22 +542,22 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
 
 
-def save_scale(obj_input, overwrite=True, dirpath=None,**kwargs):
-    """Save a pandas dataframe to csv. 
+def save_scale(obj_input, overwrite=True, dirpath=None):
+    """
+    Save a created or detected scale to attributes.yaml
     
     Parameters
     ----------
-    name: str (optional, default: "results")
-        name for saved csv
-    dirpath: str (default: None)
-        location to save df
-    round: int (optional, default: 1)
-        number of digits to round to
-    overwrite: bool (optional, default: False)
+    obj_input : DataFrame or container
+        input object
+    overwrite: bool optional
         overwrite csv if it already exists
-    silent: bool (optional, default: True)
-        do not print where file was saved
+    dirpath: str, optional
+        location to save df
+    save_suffix : str, optional
+        suffix to append to filename
     """
+
     ## kwargs
     flag_overwrite = overwrite
 
@@ -557,6 +579,15 @@ def save_scale(obj_input, overwrite=True, dirpath=None,**kwargs):
     attr = _load_yaml(attr_path)
     if not "scale" in attr:
         attr["scale"] = {}
+
+    ## dirpath
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in ["True", "true", "y", "yes"]:
+            os.makedirs(dirpath)
+        else: 
+            print("Directory not created - aborting")
+            return
 
     while True:
         if "current_px_mm_ratio" in attr["scale"] and flag_overwrite == False:
