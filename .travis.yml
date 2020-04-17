@@ -1,7 +1,7 @@
 os:
-  - windows
   - linux
-  - osx
+#  - osx       ## no travis support
+#  - windows   ## no travis support 
 language: python
 python:
   - "3.7"
