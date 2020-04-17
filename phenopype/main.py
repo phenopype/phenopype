@@ -15,7 +15,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 from shutil import copyfile, rmtree
 
 from phenopype import presets
-from phenopype.settings import *
+from phenopype.settings import default_filetypes, default_pype_config, default_meta_data_fields
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
 from phenopype.utils_lowlevel import _image_viewer, _del_rw, _file_walker, _load_pype_config, _create_generic_pype_config
@@ -55,8 +55,9 @@ class project:
 
         ## feedback
         print("--------------------------------------------")
-        print("phenopype will create a new project at:\n")
+        print("Phenopype will create a new project at\n")
         print(root_dir)
+        print("\nand change the current working directory to this location.")
 
         ## decision tree if directory exists
         while True:
@@ -88,6 +89,9 @@ class project:
             os.makedirs(self.root_dir)
             self.data_dir = os.path.join(self.root_dir, "data")
             os.makedirs(self.data_dir)
+            
+            ##  set working directory
+            os.chdir(self.root_dir)
 
             ## lists for files to add
             self.dirnames = []
@@ -196,7 +200,7 @@ class project:
             else:
                 subfolder_prefix = str(depth) + "__" 
             dirname = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
-            dirpath = os.path.join(self.root_dir,"data",dirname)
+            dirpath = os.path.join("data",dirname)
 
             ## make image-specific directories
             if os.path.isdir(dirpath) and flag_overwrite==False:
@@ -485,9 +489,9 @@ class project:
         project: project
             phenopype project object
         """
+
         
-        
-        if os.path.split(path)[1] == "project.data":
+        if "project.data" in path:
             pass
         else:
             path = os.path.join(path,"project.data")
