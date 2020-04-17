@@ -51,30 +51,14 @@ def saved_project():
     if os.path.isfile(os.path.join(root_dir2, "project.data")):
         project = pp.project.load(root_dir2)
     else: 
-        project = pp.project(root_dir=root_dir2, overwrite=False)
+        with mock.patch('builtins.input', return_value='y'):
+            project = pp.project(root_dir=root_dir2, overwrite=True)
         project.add_files(image_dir=image_dir, 
                           raw_mode="link", 
                           include="stickle")
         project.add_config(name=pype_name, config_preset=preset)
         pp.project.save(project)
     return project
-    
-    
-# def test_load_image(project):
-#     image = pp.load_image(project.filepaths[0])
-#     assert image.__class__.__name__ == "ndarray"
-    
-# def test_load_directory(project):
-#     ct = pp.load_directory(project.dirpaths[0])
-#     assert ct.__class__.__name__ == "container"
 
-# @pytest.fixture()
-# def path():
-#     return root_dir
-
-# def test_load_project(path):
-#     project = pp.project.load(root_dir)
-#     assert project.__class__.__name__ == "project"
-    
 def test_project_add_scale(saved_project):
     saved_project.add_scale(reference_image=ref_image, template=True)    
