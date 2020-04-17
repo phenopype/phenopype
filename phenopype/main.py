@@ -200,7 +200,11 @@ class project:
             else:
                 subfolder_prefix = str(depth) + "__" 
             dirname = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
+<<<<<<< HEAD
             dirpath = os.path.join("data",dirname)
+=======
+            dirpath = os.path.join(self.root_dir,"data", dirname)
+>>>>>>> master
 
             ## make image-specific directories
             if os.path.isdir(dirpath) and flag_overwrite==False:

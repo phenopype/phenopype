@@ -1,12 +1,13 @@
 #%% modules
 
 import os
-import numpy as np
 import pytest
 
+from pathlib import Path
+    
 import phenopype as pp
 
-from settings import *
+from settings import root_dir2, image_dir, pype_name, preset, stickle_image
 
 #%% project
 
@@ -21,6 +22,10 @@ def project_container():
                           include="stickle")
         project.add_config(name=pype_name, config_preset=preset)
         pp.project.save(project)
+    print(os.getcwd())
+    print(os.path.isdir(project.dirpaths[stickle_image]))
+    print(Path(project.dirpaths[stickle_image]))
+    print(os.path.isdir(Path(project.dirpaths[stickle_image])))
     ct = pp.load_directory(project.dirpaths[stickle_image])
     ct.load(save_suffix=pype_name)
     return ct

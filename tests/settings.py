@@ -9,4 +9,4 @@ preset = "demo1"
 
 stickle_image = 3
 
-flag_overwrite = True
+flag_overwrite = False
