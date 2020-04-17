@@ -16,7 +16,7 @@
 
 <div align="justify">
 
-<strong>Phenopype is a high throughput phenotyping pipeline for Python that aims at supporting biologists in their efforts to extract high dimensional phenotypic data from digital images</strong>. Phenopype provides high level image-preprocessing, -segmentation, and -analysis functions that can be executed sequentially in a semi or fully automated fashion. Users can assemble their own function-stacks that can be customized and stored along with raw data for full reproducibility. Phenopype can be run from Python or from a Python Integrated Development Environment (IDE), like <i>Spyder</i>. Phenopype is designed to provide robust image analysis workflows that can be implemented with little or no Python experience.<br>
+<strong>Phenopype is a high throughput phenotyping pipeline for Python to support biologists in extracting high dimensional phenotypic data from digital images</strong>. The program provides intuitive, high level computer vision functions for image preprocessing, segmentation, and feature extraction. Users can assemble their own function-stacks that can be stored in the  human-readable `yaml`-format along with raw data and results, facilitating high throughput and full data reproducibility. Phenopype can be run from Python or from a Python Integrated Development Environment (IDE), like <i>Spyder</i>. Phenopype is designed to provide robust image analysis workflows that can be implemented with little or no Python experience.<br>
 
 </div>
 
