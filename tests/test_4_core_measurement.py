@@ -1,6 +1,7 @@
 #%% modules
 import sys
 import phenopype as pp
+import pytest
 
 from settings import *
 
