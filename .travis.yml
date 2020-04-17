@@ -9,6 +9,7 @@ install:
   - pip install pytest
   - pip install pytest-cov
   - pip install coveralls
+  - pip install .
 script:
   - pytest --cov=penopype
 after_success:
