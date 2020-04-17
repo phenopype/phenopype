@@ -11,6 +11,6 @@ install:
   - pip install coveralls
   - pip install .
 script:
-  - pytest --cov
+  - pytest --cov=phenopype tests/
 after_success:
   - coveralls
