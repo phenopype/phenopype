@@ -1,5 +1,5 @@
 # Phenopype: a phenotyping pipeline for Python
-<img src="https://travis-ci.org/mluerig/phenopype.svg?branch=master"><img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/coverage.png?sanitize=true">
+<img src="https://travis-ci.org/mluerig/phenopype.svg?branch=master"><img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/coverage.svg?sanitize=true">
 
 <br>
 <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/logo.png">
