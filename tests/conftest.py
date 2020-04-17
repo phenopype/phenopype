@@ -1,13 +1,12 @@
 #%% modules
 
 import os
+import mock
 import pytest
-
-from pathlib import Path
     
 import phenopype as pp
 
-from settings import root_dir2, image_dir, pype_name, preset, stickle_image
+from settings import root_dir2, image_dir, pype_name, preset, ref_image, stickle_image, flag_overwrite
 
 #%% project
 
@@ -16,17 +15,16 @@ def project_container():
     if os.path.isfile(os.path.join(root_dir2, "project.data")):
         project = pp.project.load(root_dir2)
     else: 
-        project = pp.project(root_dir=root_dir2, overwrite=False)
+        with mock.patch('builtins.input', return_value='y'):
+            project = pp.project(root_dir=root_dir2, overwrite=flag_overwrite)
         project.add_files(image_dir=image_dir, 
                           raw_mode="link", 
                           include="stickle")
         project.add_config(name=pype_name, config_preset=preset)
+        project.add_scale(reference_image=ref_image, template=True)    
         pp.project.save(project)
-    print(os.getcwd())
-    print(os.path.isdir(project.dirpaths[stickle_image]))
-    print(Path(project.dirpaths[stickle_image]))
-    print(os.path.isdir(Path(project.dirpaths[stickle_image])))
-    ct = pp.load_directory(project.dirpaths[stickle_image])
+    ct = pp.load_directory(os.path.join(project.root_dir, 
+                                        project.dirpaths[stickle_image]))
     ct.load(save_suffix=pype_name)
     return ct
 
@@ -35,10 +33,14 @@ def project_directory():
     if os.path.isfile(os.path.join(root_dir2, "project.data")):
         project = pp.project.load(root_dir2)
     else: 
-        project = pp.project(root_dir=root_dir2, overwrite=False)
+        with mock.patch('builtins.input', return_value='y'):
+            project = pp.project(root_dir=root_dir2, overwrite=flag_overwrite)
         project.add_files(image_dir=image_dir, 
                           raw_mode="link", 
                           include="stickle")
         project.add_config(name=pype_name, config_preset=preset)
+        project.add_scale(reference_image=ref_image, template=True)    
         pp.project.save(project)
-    return project.dirpaths[stickle_image]
+    directory = os.path.join(project.root_dir, 
+                             project.dirpaths[stickle_image])
+    return directory

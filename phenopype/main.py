@@ -90,8 +90,8 @@ class project:
             self.data_dir = os.path.join(self.root_dir, "data")
             os.makedirs(self.data_dir)
             
-            ##  set working directory
-            os.chdir(self.root_dir)
+            # ##  set working directory
+            # os.chdir(self.root_dir)
 
             ## lists for files to add
             self.dirnames = []
@@ -200,11 +200,7 @@ class project:
             else:
                 subfolder_prefix = str(depth) + "__" 
             dirname = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
-<<<<<<< HEAD
-            dirpath = os.path.join("data",dirname)
-=======
-            dirpath = os.path.join(self.root_dir,"data", dirname)
->>>>>>> master
+            dirpath = os.path.join(self.root_dir, "data",dirname)
 
             ## make image-specific directories
             if os.path.isdir(dirpath) and flag_overwrite==False:
@@ -223,7 +219,7 @@ class project:
             
             ## copy or link raw files
             if flag_raw_mode == "copy":
-                raw_path = os.path.join(dirpath, 
+                raw_path = os.path.join("data", dirname, 
                                         "raw" + os.path.splitext(os.path.basename(filepath))[1])
                 if resize < 1:
                     cv2.imwrite(raw_path, image)
@@ -262,7 +258,7 @@ class project:
             ## add to project object
             if not dirname in self.dirnames:
                 self.dirnames.append(dirname)
-                self.dirpaths.append(dirpath)
+                self.dirpaths.append(os.path.join("data", dirname))
                 self.filenames.append(image_data["filename"])
                 self.filepaths.append(raw_path)
                 
@@ -323,12 +319,12 @@ class project:
 
         ## go through project directories
         for directory in self.dirpaths:
-            attr = _load_yaml(os.path.join(directory, "attributes.yaml"))
+            attr = _load_yaml(os.path.join(self.root_dir, directory, "attributes.yaml"))
             pype_preset = {"image": attr["image"]}
             pype_preset.update(config)
 
             ## save config
-            preset_path = os.path.join(directory, "pype_config_" + name + ".yaml")
+            preset_path = os.path.join(self.root_dir, directory, "pype_config_" + name + ".yaml")
             dirname = attr["project"]["dirname"]
             if os.path.isfile(preset_path) and flag_overwrite==False:
                 print("pype_" + name + ".yaml already exists in " + dirname +  " (overwrite=False)")
@@ -410,7 +406,7 @@ class project:
 
         ## save scale information
         for directory in self.dirpaths:
-            attr = _load_yaml(os.path.join(directory, "attributes.yaml"))
+            attr = _load_yaml(os.path.join(self.root_dir, directory, "attributes.yaml"))
             if not "scale" in attr:
                 print("added scale information to " + attr["project"]["dirname"])
                 pass
@@ -422,7 +418,7 @@ class project:
                 continue
             attr["scale"] = {"template_path": template_path,
                              "template_px_mm_ratio": px_mm_ratio}
-            _save_yaml(attr, os.path.join(directory, "attributes.yaml"))
+            _save_yaml(attr, os.path.join(self.root_dir, directory, "attributes.yaml"))
 
     # def collect_results(self,**kwargs):
     #     from shutil import copyfile
@@ -500,9 +496,9 @@ class project:
         else:
             path = os.path.join(path,"project.data")
         with open(path, 'rb') as output:
-            return pickle.load(output)
-
-
+            proj = pickle.load(output)
+        proj.root_dir = os.path.split(path)[0]
+        return proj
 
 class pype:
     """
