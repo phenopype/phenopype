@@ -32,6 +32,6 @@ setup(
 	description='a phenotyping pipeline for python',
 	long_description=open('README.md').read(), 
 	long_description_content_type='text/markdown',
-	tests_require=["pytest", "coverage", "mock"],
+	tests_require=["pytest", "coverage", "coveralls", "mock"],
 	setup_requires=["pytest-runner"]
 )
