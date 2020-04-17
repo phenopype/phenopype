@@ -1,3 +1,2 @@
-pytest 
-coverage run
+pytest --cov
 coveralls
