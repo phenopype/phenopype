@@ -1,9 +1,10 @@
 #%% modules
+import os
 import sys
 import phenopype as pp
 import pytest
 
-from settings import *
+from .settings import flag_overwrite
 
 
 #%% tests

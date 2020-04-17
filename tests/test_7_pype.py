@@ -4,7 +4,7 @@ import pytest
 
 import phenopype as pp
 
-from settings import pype_name, flag_feedback
+from .settings import pype_name, flag_feedback
 
 
 #%% tests

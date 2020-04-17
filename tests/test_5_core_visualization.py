@@ -2,8 +2,6 @@
 
 import phenopype as pp
 
-from settings import *
-
 
 #%% test
 

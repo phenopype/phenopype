@@ -5,7 +5,7 @@ import pytest
 
 import phenopype as pp
 
-from settings import root_dir1, root_dir2, image_dir, pype_name, ref_image, preset #, flag_overwrite
+from .settings import root_dir1, root_dir2, image_dir, pype_name, ref_image, preset #, flag_overwrite
 
 
 #%% tests
