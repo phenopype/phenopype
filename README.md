@@ -1,5 +1,14 @@
 # Phenopype: a phenotyping pipeline for Python
-<img src="https://travis-ci.org/mluerig/phenopype.svg?branch=master"><img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/coverage.svg?sanitize=true">
+
+**Author:** [Moritz Lürig](https://luerig.net)<br/>
+**License:** [MIT](https://opensource.org/licenses/MIT)
+
+<!-- badges: start -->
+
+[![Build Status](https://travis-ci.org/mluerig/phenopype.svg?branch=master)](https://travis-ci.org/mluerig/phenopype)
+[![Coverage Status](https://coveralls.io/repos/github/mluerig/phenopype/badge.svg?branch=master)](https://coveralls.io/github/mluerig/phenopype)
+
+<!-- badges: end -->
 
 <br>
 <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/logo.png">
