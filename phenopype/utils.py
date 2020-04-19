@@ -393,7 +393,8 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
 
 
 
-def load_image(obj_input, cont=False, df=False, meta=False, resize=1, **kwargs):
+def load_image(obj_input, cont=False, df=False, dirpath=None, meta=False, 
+               resize=1, save_suffix=None, **kwargs):
     """
     Create ndarray from image path or return or resize exising array.
 
@@ -408,12 +409,16 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1, **kwargs):
     df: bool, optional
         should a DataFrame containing image information (e.g. dimensions) be 
         returned.
+    dirpath: str, optional
+        path to an existing directory where all output should be stored
     meta: bool, optional
         should the DataFrame encompass image meta data (e.g. from exif-data). 
         This works only when obj_input is a path string to the original file.
     resize: float, optional
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
         original size).
+    save_suffix : str, optional
+        suffix to append to filename of results files, if container is created
     kwargs: 
         developer options
 
@@ -443,12 +448,14 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1, **kwargs):
     if obj_input.__class__.__name__ == "str":
         if os.path.isfile(obj_input):
             image = cv2.imread(obj_input)
-            dirpath = os.path.split(obj_input)[0]
+            if dirpath.__class__.__name__ == "Nonetpye":
+                dirpath = os.path.split(obj_input)[0]
         else:
             sys.exit("Invalid image path - cannot load image from str.")
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
-        dirpath = os.getcwd()
+        if dirpath.__class__.__name__ == "Nonetpye":
+            dirpath = os.getcwd()
     else:
         sys.exit("Invalid input format - cannot load image.")
 
@@ -476,6 +483,7 @@ def load_image(obj_input, cont=False, df=False, meta=False, resize=1, **kwargs):
         ct = container(image, df_image_data)
         ct.image_data = image_data
         ct.dirpath = dirpath
+        ct.save_suffix = save_suffix
         return ct
     elif flag_container == False:
         if flag_df or flag_meta:

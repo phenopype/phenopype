@@ -7,8 +7,6 @@ import cv2
 import os
 import pprint
 
-
-from phenopype.utils import show_image
 from phenopype.utils_lowlevel import _decode_fourcc
 from phenopype.core.segmentation import blur
 from phenopype.settings import colours
@@ -22,7 +20,7 @@ class motion_tracker(object):
         at_frame = kwargs.get("at_frame",  1)  
 
         if isinstance(video_path, str):
-            capture = cv2.VideoCapture(video_path)                  
+            capture = cv2.VideoCapture(video_path)
             idx = 0
             while(capture.isOpened()):
                 idx += 1
@@ -44,7 +42,7 @@ class motion_tracker(object):
         self.nframes = capture.get(cv2.CAP_PROP_FRAME_COUNT) 
         self.fps = capture.get(cv2.CAP_PROP_FPS)
         self.fourcc_str = _decode_fourcc(capture.get(cv2.CAP_PROP_FOURCC))
-        self.length = str(int(( self.nframes / self.fps)/60)).zfill(2) + ":" +str(int((((self.nframes / self.fps)/60)-int((self.nframes / self.fps)/60))*60)).zfill(2)
+        self.length = str(int(( self.nframes / self.fps)/60)).zfill(2) + ":" + str(int((((self.nframes / self.fps)/60)-int((self.nframes / self.fps)/60))*60)).zfill(2)
         self.dimensions = tuple(reversed(frame.shape[0:2]))
         if frame.shape[2] == 3:
             self.is_colour = True
@@ -107,7 +105,12 @@ class motion_tracker(object):
         print("\n")
         print("----------------------------------------------------------------")
         print("Output video settings - \"" + self.name + "\":\n")
-        print("Save name: " + name_out + "\nSave dir: " + dir_out + "\nFrames per second: " + str(fps_out) + "\nDimensions: " + str(dimensions_out) + res_msg +  "\nColour video: " + str(self.save_colour) + "\nFormat (FourCC code): " + fourcc_str_out) 
+        print("Save name: " + name_out + 
+              "\nSave dir: " + dir_out + 
+              "\nFrames per second: " + str(fps_out) + 
+              "\nDimensions: " + str(dimensions_out) + res_msg +  
+              "\nColour video: " + str(self.save_colour) + 
+              "\nFormat (FourCC code): " + fourcc_str_out) 
         print("----------------------------------------------------------------")
         
 
@@ -337,7 +340,8 @@ class motion_tracker(object):
             return self.df
         
         
-class tracking_method(object):
+class tracking_method():
+    
     """Constructs a tracking method that can be supplied to the tracker. 
     
     Parameters
@@ -363,31 +367,28 @@ class tracking_method(object):
         which colour should tracked objects have
     exclude: ? (forgot what this does)
     """
-    def __init__(self, **kwargs):
+    def __init__(self, label="default", overlay_colour="red", min_length=1, max_length=1000,
+                      mode="multiple", operations=[], mask=[], exclude=True, **kwargs):
+        
+        self.label = label
+        self.overlay_colour = overlay_colour
+        self.min_length = min_length
+        self.max_length = max_length
+        self.mode = mode 
+        self.operations = operations
+        self.mask = mask
+        self.exclude = exclude
+
         for key, value in kwargs.items():
             if key in kwargs:
                 setattr(self, key, value)
-                
-        self.mode = kwargs.get("mode", "multiple")
-        self.operations = kwargs.get("operations", [])
-            
-        self.min_length = kwargs.get("min_length", 1)
-        self.max_length = kwargs.get("max_length", 1000)
-        self.overlay_colour = kwargs.get("overlay_colour", colours.red)
-        
-        if "mask" in kwargs:
-            self.mask_objects = kwargs.get("mask")
-                           
-        self.exclude = kwargs.get("exclude", True)
 
-    def _print_settings(self, **kwargs):
+
+    def _print_settings(self, width=30, indent=1, compact=True):
         """Prints the settings of the tracking method. Internal reference - don't call this directly. 
         """ 
-        width = kwargs.get("width",30)
-        indent = kwargs.get("indent",1)
-        compact = kwargs.get("compact",True)
+
         pretty = pprint.PrettyPrinter(width=width, compact=compact, indent=indent)
-        
         pretty.pprint(vars(self))
         
             
@@ -408,7 +409,6 @@ class tracking_method(object):
         if "blur" in vars(self):
             blur_kernel, thresh_val = (self.blur)
             self.fgmask = blur(self.fgmask, blur_kernel)            
-            ret, self.fgmask = cv2.threshold(self.fgmask, thresh_val, 255, cv2.THRESH_BINARY)  
             
         if "mask_objects" in vars(self):          
             mask_dummy1 = np.zeros(self.frame.shape[0:2], dtype=bool)

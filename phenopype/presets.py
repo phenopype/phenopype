@@ -273,10 +273,6 @@ export:
 """
 
 inverted1 = """
-pype:
-  name: v1
-  preset: preset1
-  date_created: '20200304_155635'
 preprocessing:
 - invert_image  
 segmentation:
@@ -301,4 +297,32 @@ visualization:
     label_width: 1
     label_size: 1
     fill: 0.3
+"""
+
+ex7 = """
+preprocessing:
+- create_mask
+segmentation:
+- threshold:
+    method: adaptive
+    blocksize: 49
+    constant: 5
+- draw                  # if worms touch borders
+- find_contours:
+    retrieval: ccomp
+    min_diameter: 50
+    min_area: 0
+measurement:
+- skeletonize
+visualization:
+- select_canvas:
+    canvas: image
+- draw_contours:
+    line_width: 2
+    label_width: 1
+    label_size: 1
+    fill: 0.3
+export:
+- save_contours:
+    overwrite: true
 """
