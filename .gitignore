@@ -14,7 +14,7 @@ _temp
 
 bin
 docs/_temp
-docs_build
+docs_build.bat
 develop-eggs
 dist
 eggs
@@ -25,4 +25,6 @@ parts
 phenopype.egg-info/
 spyder-debug.log
 src/*.egg-info
-test_cov
+test_cov.bat
+tests/resources/
+tests/skip/
