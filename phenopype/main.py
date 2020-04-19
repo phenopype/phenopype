@@ -2,7 +2,6 @@
 import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
-
 import pickle
 import platform
 import pprint
@@ -617,6 +616,7 @@ class pype:
             if platform.system() == 'Darwin':       # macOS
                 subprocess.call(('open', self.config_location))
             elif platform.system() == 'Windows':    # Windows
+                print(self.config_location)
                 os.startfile(self.config_location)
             else:                                   # linux variants
                 subprocess.call(('xdg-open', self.config_location))
