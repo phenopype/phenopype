@@ -4,7 +4,7 @@ import pytest
 
 import phenopype as pp
 
-from settings import image_dir, stickle_image
+from .settings import image_dir, stickle_image
 
 
 #%% tests

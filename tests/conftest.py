@@ -6,14 +6,14 @@ import pytest
     
 import phenopype as pp
 
-from settings import root_dir2, image_dir, pype_name, preset, ref_image, stickle_image, flag_overwrite
+from .settings import root_dir2, image_dir, pype_name, preset, ref_image, stickle_image, flag_overwrite
 
 #%% project
 
 
 @pytest.fixture(scope="session")
 def project_container():
-    if os.path.isfile(os.path.join(root_dir2, "project.data")):
+    if os.path.isfile(os.path.join(root_dir2, "project.data")) and not flag_overwrite:
         project = pp.project.load(root_dir2)
     else: 
         with mock.patch('builtins.input', return_value='y'):

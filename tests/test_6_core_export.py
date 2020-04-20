@@ -4,7 +4,7 @@ import time
 
 import phenopype as pp
 
-from settings import pype_name
+from .settings import pype_name
 
 
 #%% tests

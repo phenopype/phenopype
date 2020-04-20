@@ -4,12 +4,15 @@ import pytest
 
 import phenopype as pp
 
-from settings import pype_name
+from .settings import pype_name, flag_feedback
 
 
 #%% tests
 
 def test_pype(project_directory):
-    p1 = pp.pype(project_directory, name=pype_name)
+    if flag_feedback:
+        p1 = pp.pype(project_directory, name=pype_name)
+    else:
+        p1 = pp.pype(project_directory, name=pype_name, feedback=False)
 
 
