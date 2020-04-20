@@ -10,6 +10,7 @@ from settings import root_dir2, image_dir, pype_name, preset, ref_image, stickle
 
 #%% project
 
+
 @pytest.fixture(scope="session")
 def project_container():
     if os.path.isfile(os.path.join(root_dir2, "project.data")):
@@ -18,7 +19,7 @@ def project_container():
         with mock.patch('builtins.input', return_value='y'):
             project = pp.project(root_dir=root_dir2, overwrite=flag_overwrite)
         project.add_files(image_dir=image_dir, 
-                          raw_mode="link", 
+                          raw_mode="copy", 
                           include="stickle")
         project.add_config(name=pype_name, config_preset=preset)
         project.add_scale(reference_image=ref_image, template=True)    

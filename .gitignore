@@ -25,4 +25,5 @@ parts
 phenopype.egg-info/
 spyder-debug.log
 src/*.egg-info
-test_cov
+test_cov 
+tests/resources
