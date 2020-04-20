@@ -146,7 +146,24 @@ export:
 - save_landmarks
 """
 
-landmarks_2 = """
+landmarks_plain = """
+measurement:
+- landmarks:
+    point_size: 25
+    point_colour: green
+    label_size: 3
+    label_width: 5
+visualization:
+- draw_landmarks:
+    point_size: 25
+    point_colour: green
+    label_size: 3
+    label_width: 5
+export:
+- save_landmarks
+"""
+
+landmarks_scale = """
 preprocessing:
 - find_scale
 measurement:

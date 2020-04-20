@@ -212,7 +212,7 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
         points = out.scale_coords
         distance_px = int(sqrt(((points[0][0]-points[1][0])**2)
                                + ((points[0][1]-points[1][1])**2)))
-        entry = enter_data(out.canvas, columns="length")
+        entry = enter_data(image, columns="length")
         distance_mm = int(entry["length"][0])
         px_mm_ratio = int(distance_px / distance_mm)
     
@@ -342,9 +342,9 @@ def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False,
 
     ## more kwargs
     if label_size == "auto":
-        label_size = _auto_text_size(image)
+        label_size = int(_auto_text_size(image) * 3)
     if label_width == "auto":
-        label_width = _auto_text_width(image)
+        label_width = int(_auto_text_width(image) * 3)
 
     ## keyboard listener
     def _keyboard_entry(event, x, y, flags, params):
@@ -413,8 +413,9 @@ def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False,
 
 
 
-def find_scale(obj_input, template=None, overwrite=False, equalize=False, 
-               min_matches=10, resize=1, px_mm_ratio_ref=None):
+def find_scale(obj_input, df_image_data=None, template=None, overwrite=False, 
+               equalize=False, min_matches=10, resize=1, px_mm_ratio_ref=None, 
+               df_masks=None):
     """
     Find scale from a template created with "create_scale". Image registration 
     is run by the "AKAZE" algorithm. Future implementations will include more 
@@ -430,6 +431,11 @@ def find_scale(obj_input, template=None, overwrite=False, equalize=False,
     -----------
     obj_input: array or container
         input for processing
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata to add the scale 
+        information to (pixel-to-mm-ratio)
+    df_masks : DataFrame, optional
+        an existing DataFrame containing masks to add the detected mask to
     template : array or container, optional
         reference image of scale
     equalize : bool, optional
@@ -464,6 +470,13 @@ def find_scale(obj_input, template=None, overwrite=False, equalize=False,
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+        else:
+            if "template_px_mm_ratio" in df_image_data:
+                px_mm_ratio_ref = df_image_data["template_px_mm_ratio"]
+        if df_masks.__class__.__name__ == "NoneType":
+            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
@@ -541,6 +554,9 @@ def find_scale(obj_input, template=None, overwrite=False, equalize=False,
             diameter_ratio = (diameter_new / diameter_old)
             px_mm_ratio_new = round(diameter_ratio * px_mm_ratio_ref, 1)
 
+            ## add to image df
+            df_image_data["current_px_mm_ratio"] = px_mm_ratio_new
+
             ## feedback
             print("---------------------------------------------------")
             print("Reference card found with %d keypoint matches:" % len(good))
@@ -569,6 +585,9 @@ def find_scale(obj_input, template=None, overwrite=False, equalize=False,
             scale_current_px_mm_ratio = None
             break
         
+        ## merge with existing image_data frame
+        df_image_data["current_px_mm_ratio"] = scale_current_px_mm_ratio
+        
     # ## rectangle coords of scale in image
     # rect_new = eval(df_masks.loc[df_masks["mask"]=="scale", "coords"].reset_index(drop=True)[0])
 
@@ -579,19 +598,18 @@ def find_scale(obj_input, template=None, overwrite=False, equalize=False,
         (rx,ry,rw,rh) = cv2.boundingRect(np.array(rect_new))
         detected_rect_mask =  ma.array(data=image[ry:ry+rh,rx:rx+rw], mask = detected_rect_mask[ry:ry+rh,rx:rx+rw])
         image = _equalize_histogram(image, detected_rect_mask, template)
-
-    ## merge with existing image_data frame
-    df_image_data["px_mm_ratio"] = scale_current_px_mm_ratio
+        print("histograms equalized")
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-        # image = cv2.polylines(image,[rect_new], True,colours["red"],5, cv2.LINE_AA)
-        return scale_current_px_mm_ratio #, image
+        return df_image_data, df_masks, image
     elif obj_input.__class__.__name__ == "container":
+        obj_input.df_image_data = df_image_data
         obj_input.df_masks = df_masks
         obj_input.scale_current_px_mm_ratio = scale_current_px_mm_ratio
         if flag_equalize:
             obj_input.image_copy = image
+            obj_input.image = image
 
 
 
@@ -661,7 +679,6 @@ def resize_image(obj_input, factor=1):
         df_image_data["resized"] = factor
         obj_input.image = image
         obj_input.image_copy = image
-        obj_input.canvas = image
         obj_input.df_image_data = df_image_data
     else:
         return image

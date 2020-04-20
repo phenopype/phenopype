@@ -51,6 +51,10 @@ class project:
 
         ## kwargs
         flag_overwrite = overwrite
+        
+        ## path conversion
+        root_dir = root_dir.replace(os.sep, '/')
+        root_dir = os.path.abspath(root_dir)
 
         ## feedback
         print("--------------------------------------------")
@@ -89,14 +93,14 @@ class project:
             self.data_dir = os.path.join(self.root_dir, "data")
             os.makedirs(self.data_dir)
             
-            # ##  set working directory
-            # os.chdir(self.root_dir)
+            ##  set working directory
+            if not root_dir == os.getcwd():
+                os.chdir(root_dir)
 
-            ## lists for files to add
-            self.dirnames = []
-            self.dirpaths = []
-            self.filenames = []
-            self.filepaths = []
+            ## generate empty lists
+            for lst in ["dirnames", "dirpaths_rel", "dirpaths",
+                        "filenames", "filepaths_rel", "filepaths"]:
+                setattr(self, lst, [])
 
             ## global project attributes
             project_data = {
@@ -132,7 +136,6 @@ class project:
     
         Parameters
         ----------
-    
         image_dir: str 
             path to directory with images
         filetypes: list or str, optional
@@ -164,6 +167,10 @@ class project:
         flag_raw_mode = raw_mode
         flag_overwrite = overwrite
         flag_resize = resize
+
+        ## path conversion
+        image_dir = image_dir.replace(os.sep, '/')
+        image_dir = os.path.abspath(image_dir)
 
         ## collect filepaths
         filepaths, duplicates = _file_walker(directory=image_dir, 
@@ -199,7 +206,7 @@ class project:
             else:
                 subfolder_prefix = str(depth) + "__" 
             dirname = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
-            dirpath = os.path.join(self.root_dir, "data",dirname)
+            dirpath = os.path.join(self.root_dir, "data", dirname)
 
             ## make image-specific directories
             if os.path.isdir(dirpath) and flag_overwrite==False:
@@ -218,25 +225,34 @@ class project:
             
             ## copy or link raw files
             if flag_raw_mode == "copy":
-                raw_path = os.path.join("data", dirname, 
+                raw_path = os.path.join(self.data_dir, dirname, 
                                         "raw" + os.path.splitext(os.path.basename(filepath))[1])
                 if resize < 1:
                     cv2.imwrite(raw_path, image)
                 else:
                     copyfile(filepath, raw_path)
+                
+                ## path reformatting
+                raw_relpath = os.path.relpath(raw_path, self.root_dir)
+                raw_relpath = raw_relpath.replace(os.sep, '/')
+                dir_relpath = os.path.relpath(dirpath, self.root_dir)
+                dir_relpath = dir_relpath.replace(os.sep, '/')
+                
+                
             elif flag_raw_mode == "link":
                 if resize < 1:
                     warnings.warn("cannot resize image in link mode")
                 raw_path = filepath
+                warnings.warn("link mode will only work on this operating system")
 
             ## collect attribute-data and save
             image_data = load_image_data(filepath, flag_resize)
             meta_data = load_meta_data(filepath)
             project_data = {
                 "dirname": dirname,
-                "dirpath": dirpath,
+                "dirpath": dir_relpath,
                 "raw_mode": flag_raw_mode,
-                "raw_path": raw_path
+                "raw_path": raw_relpath
                 }
             
             if meta_data:
@@ -252,20 +268,24 @@ class project:
                     }
 
             ## write attributes file
-            _save_yaml(attributes, os.path.join(dirpath, "attributes.yaml"))
+            _save_yaml(attributes, os.path.join(self.root_dir, dir_relpath, "attributes.yaml"))
 
             ## add to project object
             if not dirname in self.dirnames:
+                ## directories
                 self.dirnames.append(dirname)
-                self.dirpaths.append(os.path.join("data", dirname))
+                self.dirpaths_rel.append(dir_relpath)
+                self.dirpaths.append(os.path.join(self.root_dir, dir_relpath))
+                ## files
                 self.filenames.append(image_data["filename"])
-                self.filepaths.append(raw_path)
+                self.filepaths_rel.append(raw_relpath)
+                self.filepaths.append(os.path.join(self.root_dir, raw_relpath))
                 
         print("\nFound {} files".format(len(filepaths)))
         print("--------------------------------------------")
 
-    def add_config(self, name, config_preset="preset1", interactive=False, overwrite=False, 
-                   idx=0, **kwargs):
+    def add_config(self, name, config_preset="preset1", interactive=False, 
+                   overwrite=False, idx=0, **kwargs):
         """
         Add pype configuration presets to all image folders in the project, either by using
         the templates included in the presets folder, or by adding your own templates
@@ -303,17 +323,23 @@ class project:
                               "date_created": datetime.today().strftime('%Y%m%d_%H%M%S')}}
             config.update(_load_yaml(config_preset))
             print(config)
+        elif not hasattr(presets, config_preset):
+            print("Provided preset NOT found - terminating")
+            return
         else:
-            print("defaulting to preset " + default_pype_config)
+            print("No preset provided - defaulting to dpreset " + default_pype_config)
             config = _load_yaml(eval("presets." + default_pype_config))
 
         ## modify
         if flag_interactive:
-            image_location = os.path.join(self.root_dir,"pype_template_image" + os.path.splitext(self.filenames[idx])[1])
+            image_location = os.path.join(self.root_dir, "pype_template_image" + os.path.splitext(self.filenames[idx])[1])
             copyfile(self.filepaths[idx], image_location)
             config_location = os.path.join(self.root_dir, "pype_config_template-" + name + ".yaml")
             _save_yaml(config, config_location)
-            p = pype(image_location, name="template-" + name, config_location=config_location, presetting=True)
+            p = pype(image_location, 
+                     name="template-" + name, 
+                     config_location=config_location, 
+                     presetting=True)
             config = p.config
 
         ## go through project directories
@@ -337,7 +363,7 @@ class project:
 
 
 
-    def add_scale(self, reference_image, overwrite=False, template=False):
+    def add_scale(self, reference_image, overwrite=False):
         """
         Add pype configuration presets to all project directories. 
 
@@ -358,7 +384,6 @@ class project:
 
         ## kwargs
         flag_overwrite = overwrite
-        flag_template = template 
 
         ## load template image
         if reference_image.__class__.__name__ == "str":
@@ -383,25 +408,24 @@ class project:
 
 
         ## save template
-        if not template.__class__.__name__ == "NoneType":
-            template_path = os.path.join(self.root_dir, "scale_template.jpg")
-            while True:
-                if os.path.isfile(template_path) and flag_overwrite == False:
-                    print("- scale template not saved - file already exists (overwrite=False).")
-                    break
-                elif os.path.isfile(template_path) and flag_overwrite == True:
-                    print("- scale template saved under " + template_path + " (overwritten).")
-                    pass
-                elif not os.path.isfile(template_path):
-                    print("- scale template saved under " + template_path + ".")
-                    pass
-                
-                ## measure scale
-                px_mm_ratio, df_masks, template  = preprocessing.create_scale(reference_image, 
-                                                                    template=flag_template)
-                
-                cv2.imwrite(template_path, template)
+        template_path = "scale_template.jpg"
+        while True:
+            if os.path.isfile(template_path) and flag_overwrite == False:
+                print("- scale template not saved - file already exists (overwrite=False).")
                 break
+            elif os.path.isfile(template_path) and flag_overwrite == True:
+                print("- scale template saved under " + template_path + " (overwritten).")
+                pass
+            elif not os.path.isfile(template_path):
+                print("- scale template saved under " + template_path + ".")
+                pass
+            
+            ## measure scale
+            px_mm_ratio, df_masks, template  = preprocessing.create_scale(reference_image, 
+                                                                          template=True)
+            
+            cv2.imwrite(template_path, template)
+            break
 
         ## save scale information
         for directory in self.dirpaths:
@@ -415,9 +439,10 @@ class project:
             elif "scale" in attr and not flag_overwrite:
                 print("could not add scale information to " + attr["project"]["dirname"] + " (overwrite=False)")
                 continue
-            attr["scale"] = {"template_path": template_path,
-                             "template_px_mm_ratio": px_mm_ratio}
+            attr["scale"] = {"template_px_mm_ratio": px_mm_ratio}
             _save_yaml(attr, os.path.join(self.root_dir, directory, "attributes.yaml"))
+
+
 
     # def collect_results(self,**kwargs):
     #     from shutil import copyfile
@@ -433,6 +458,7 @@ class project:
     #         filename = os.path.basename(os.path.dirname(filepath)) + "_" + os.path.basename(filepath)
     #         newpath = os.path.join(results, filename)
     #         copyfile(filepath, newpath)
+
 
 
     @staticmethod
@@ -496,7 +522,30 @@ class project:
             path = os.path.join(path,"project.data")
         with open(path, 'rb') as output:
             proj = pickle.load(output)
+
+        ## path conversion
         proj.root_dir = os.path.split(path)[0]
+        proj.root_dir = proj.root_dir.replace(os.sep, '/')
+        proj.root_dir = os.path.abspath(proj.root_dir)
+
+        ##  set working directory
+        if not proj.root_dir == os.getcwd():
+            os.chdir(proj.root_dir)
+            
+        ## set correct paths
+        proj.dirpaths, proj.filepaths = [], []
+        for dirpath_rel, filepath_rel in zip(proj.dirpaths_rel, proj.filepaths_rel):
+            proj.dirpaths.append(os.path.join(proj.root_dir, dirpath_rel))
+            proj.filepaths.append(os.path.join(proj.root_dir, filepath_rel))
+        # self.filepaths.append(os.path.join(self.root_dir, raw_relpath))
+
+
+        ## feedback
+        print("--------------------------------------------")
+        print("Project loaded and current working directory changed to\n")
+        print(proj.root_dir)
+        print("--------------------------------------------")
+
         return proj
 
 class pype:
@@ -589,6 +638,7 @@ class pype:
         
         ## emergency check
         if not hasattr(self.container, "image") or self.container.image.__class__.__name__ == "NoneType":
+            m
             sys.exit("Internal error - no image loaded.")
 
         ## supply dirpath manually
@@ -643,7 +693,7 @@ class pype:
 
             # reset values            
             self.container.reset()
-            if flag_autoload:
+            if flag_autoload and not flag_presetting:
                 self.container.load()
             restart = None
             export_list, show_list = [], []
@@ -677,7 +727,11 @@ class pype:
                             
                         elif step == "visualization":
                             show_list.append(method_name)
-
+                            print(self.container.canvas.__class__.__name__)
+                            if not "select_canvas" in show_list and self.container.canvas.__class__.__name__ == "NoneType":
+                                visualization.select_canvas(self.container)
+                                print("- autoselect canvas")
+                                
                         ## run method
                         print(method_name)
                         method_loaded = eval(step + "." + method_name)
@@ -707,8 +761,9 @@ class pype:
             ## visualize output
             if flag_feedback:
                 try:
-                    if not "visualization" in list(self.config.keys()):
+                    if self.container.canvas.__class__.__name__ == "NoneType":
                         visualization.select_canvas(self.container)
+                        print("- autoselect canvas")
                     iv = _image_viewer(self.container.canvas, previous=update)
                     update, terminate = iv.__dict__, iv.done
                 except Exception as ex:

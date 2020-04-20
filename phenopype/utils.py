@@ -49,10 +49,9 @@ class container(object):
         ## images
         self.image = image
         self.image_copy = copy.deepcopy(self.image)
-        self.image_mod = copy.deepcopy(self.image)
         self.image_bin = None
         self.image_gray = None
-        self.canvas = copy.deepcopy(self.image)
+        self.canvas = None
         
         ## data frames
         self.df_image_data = df_image_data
@@ -101,8 +100,8 @@ class container(object):
                     if "current_px_mm_ratio" in attr["scale"]:
                         self.scale_current_px_mm_ratio = attr["scale"]["current_px_mm_ratio"]
                         loaded.append("current scale information loaded from attributes.yaml")
-                    if "template_path" in attr["scale"]:
-                        self.scale_template = cv2.imread(attr["scale"]["template_path"])
+                    if "scale_template.jpg" in os.listdir(os.getcwd()):
+                        self.scale_template = cv2.imread("scale_template.jpg")
                         loaded.append("template loaded from root directory")
 
             ## scale
@@ -179,7 +178,7 @@ class container(object):
         self.image = copy.deepcopy(self.image_copy)
         self.image_bin = None
         self.image_gray = None
-        self.canvas = copy.deepcopy(self.image)
+        self.canvas = None
         
         ## attributes
         self.df_image_data = copy.deepcopy(self.df_image_data_copy)
@@ -360,9 +359,12 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
                        "height": attr["image"]["height"]
                        }, index=[0])
     
-    if "size_ratio_original "in attr["image"]:
+    if "size_ratio_original" in attr["image"]:
         df_image_data["size_ratio_original"] = attr["image"]["size_ratio_original"]
 
+    if "scale"in attr:
+        df_image_data["template_px_mm_ratio"] = attr["scale"]["template_px_mm_ratio"]
+        
     # ## add meta-data 
     # if flag_meta:
     #     exif_data_all, exif_data = attr["meta"], {}
@@ -387,7 +389,7 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
         return ct
     elif flag_container == False:
         if flag_df:
-            return image, df
+            return image, df_image_data
         else:
             return image
 
