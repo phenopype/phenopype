@@ -1,4 +1,3 @@
 branches:
-  # whitelist
   only:
-    - master
+    - development
