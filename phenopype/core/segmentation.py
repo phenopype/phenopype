@@ -546,7 +546,7 @@ def watershed(obj_input, iterations=3, kernel_size=3, distance_cutoff=0.5,
 
     ## sure background 
     ## note: sure_bg is set as the thresholded input image
-    sure_bg =  copy.deepcopy(thresh)
+    sure_bg = copy.deepcopy(thresh)
     
     ## sure foreground 
     if distance_type in ["user","l12", "fair", "welsch", "huber"]:
@@ -558,12 +558,13 @@ def watershed(obj_input, iterations=3, kernel_size=3, distance_cutoff=0.5,
     dist_transform = cv2.distanceTransform(opened,
                                            distance_type_list[distance_type],
                                            distance_mask)
+
     dist_transform = cv2.normalize(dist_transform, 
                                    dist_transform, 
                                    0, 1.0, 
                                    cv2.NORM_MINMAX)
     ret, sure_fg = cv2.threshold(dist_transform,
-                                 distance_cutoff,
+                                 distance_cutoff*dist_transform.max(),
                                  1,0)
 
     ## finding unknown region
@@ -578,19 +579,23 @@ def watershed(obj_input, iterations=3, kernel_size=3, distance_cutoff=0.5,
     
     ## watershed
     markers = cv2.watershed(image, markers)
-    image = np.zeros(image.shape[:2], np.uint8)
-    image[markers == -1] = 255
-    
+
     ## convert to contours
-    markers1 = markers.astype(np.uint8)
-    ret, image = cv2.threshold(markers1, 0, 255, cv2.THRESH_BINARY|cv2.THRESH_OTSU)
-    image[0:image.shape[0], 0] = 0
-    image[0:image.shape[0], image.shape[1]-1] = 0
-    image[0, 0:image.shape[1]] = 0
-    image[image.shape[0]-1,  0:image.shape[1]] = 0
+    watershed_mask = np.zeros(image.shape[:2], np.uint8)
+    watershed_mask[markers == -1] = 255
+    watershed_mask[0:watershed_mask.shape[0], 0] = 0
+    watershed_mask[0:watershed_mask.shape[0], watershed_mask.shape[1]-1] = 0
+    watershed_mask[0, 0:watershed_mask.shape[1]] = 0
+    watershed_mask[watershed_mask.shape[0]-1,  0:watershed_mask.shape[1]] = 0
+
+    # watershed_mask = morphology(watershed_mask, 
+    #                     operation="dilate", 
+    #                     shape="rect", 
+    #                     kernel_size=3, 
+    #                     iterations=1)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-        return image
+        return watershed_mask
     elif obj_input.__class__.__name__ == "container":
-        obj_input.image = image
+        obj_input.image = watershed_mask

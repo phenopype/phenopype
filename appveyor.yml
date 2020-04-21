@@ -1,3 +1,11 @@
+image:
+- macos
+- Ubuntu
+- Windows
+
 branches:
   only:
     - development
+
+environment:
+  PY_DIR: C:\Python37-x64

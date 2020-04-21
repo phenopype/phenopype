@@ -1,5 +1,4 @@
 # %% testing setup
-import os
 
 root_dir1 = r"tests/resources/project1"
 root_dir2 = r"tests/resources/project2"

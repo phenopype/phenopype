@@ -257,7 +257,7 @@ export:
     overwrite: true
 """
 
-watershed = """
+ex6 = """
 preprocessing:
 - create_mask
 segmentation:

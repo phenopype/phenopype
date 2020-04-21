@@ -34,16 +34,20 @@ def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     ## load df
     if obj_input.__class__.__name__ == 'ndarray':
         image = copy.deepcopy(obj_input)
-        if not dirpath:
-            print("No save directory specified - cannot save canvas.")
+        if dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.canvas)
-        if not save_suffix:
-            save_suffix = obj_input.save_suffix
-        if not dirpath:
+        if obj_input.dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
+        else:
             dirpath = obj_input.dirpath
+            save_suffix = obj_input.save_suffix
     else:
         print("No image supplied - cannot save canvas.")
+        return
 
     ## resize
     if resize < 1:
@@ -106,17 +110,20 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
         df = copy.deepcopy(obj_input)
-        if not dirpath:
-            print("No save directory specified - cannot export results.")
+        if dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") - cannot save colour intensities.")
+            return
     elif obj_input.__class__.__name__ == "container":
-        df = obj_input.df_colours
-        if not save_suffix:
-            save_suffix = obj_input.save_suffix
-        if not dirpath:
+        df = copy.deepcopy(obj_input.df_colours)
+        if obj_input.dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
+        else:
             dirpath = obj_input.dirpath
+            save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
-
+        return
     ## fix na, round, and format to string
     df = df.fillna(-9999)
     df = df.round(round_digits)
@@ -179,14 +186,16 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     if obj_input.__class__.__name__ == 'DataFrame':
         df = copy.deepcopy(obj_input)
         if dirpath.__class__.__name__ == "NoneType":
-            print("No save directory specified - cannot save contours.")
+            print("No save directory (\"dirpath\") - cannot save contours.")
             return
     elif obj_input.__class__.__name__ == "container":
         df = copy.deepcopy(obj_input.df_contours)
-        if not save_suffix:
-            save_suffix = obj_input.save_suffix
-        if not dirpath:
+        if obj_input.dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
+        else:
             dirpath = obj_input.dirpath
+            save_suffix = obj_input.save_suffix
     else:
         print("No contour df supplied - cannot export contours.")
         return
@@ -253,14 +262,20 @@ def save_drawing(obj_input, overwrite=True, dirpath=None):
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
         df = obj_input
-        if not dirpath:
-            print("No save directory specified - cannot export results.")
+        if dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") - cannot export results.")
+            return
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_draw
-        if not dirpath:
+        if obj_input.dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
+        else:
             dirpath = obj_input.dirpath
+            save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
+        return
 
     attr_path = os.path.join(dirpath, "attributes.yaml")
     if os.path.isfile(attr_path):
@@ -316,14 +331,20 @@ def save_data_entry(obj_input, overwrite=True, dirpath=None):
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
         df = obj_input
-        if not dirpath:
-            print("No save directory specified - cannot export results.")
+        if dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") - cannot export results.")
+            return
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_other_data
-        if not dirpath:
+        if obj_input.dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
+        else:
             dirpath = obj_input.dirpath
+            save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
+        return
 
     attr_path = os.path.join(dirpath, "attributes.yaml")
     attr = _load_yaml(attr_path)
@@ -378,16 +399,20 @@ def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
         df = obj_input
-        if not dirpath:
-            print("No save directory specified - cannot save landmarks.")
+        if dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") - cannot save landmarks.")
+            return
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_landmarks
-        if not save_suffix:
-            save_suffix = obj_input.save_suffix
-        if not dirpath:
+        if obj_input.dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
+        else:
             dirpath = obj_input.dirpath
+            save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
+        return
 
     ## dirpath
     if not os.path.isdir(dirpath):
@@ -440,16 +465,20 @@ def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     ## load df
     if obj_input.__class__.__name__ == 'ndarray':
         df = obj_input
-        if not dirpath:
-            print("No save directory specified - cannot save masks.")
+        if dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") - cannot save masks.")
+            return
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_masks
-        if not save_suffix:
-            save_suffix = obj_input.save_suffix
-        if not dirpath:
+        if obj_input.dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
+        else:
             dirpath = obj_input.dirpath
+            save_suffix = obj_input.save_suffix
     else:
         print("No mask df supplied - cannot save mask.")
+        return
 
     ## dirpath
     if not os.path.isdir(dirpath):
@@ -502,16 +531,20 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
         df = obj_input
-        if not dirpath:
-            print("No save directory specified - cannot save polylines.")
+        if dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") - cannot save polylines.")
+            return
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_polylines
-        if not save_suffix:
-            save_suffix = obj_input.save_suffix
-        if not dirpath:
+        if obj_input.dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
+        else:
             dirpath = obj_input.dirpath
+            save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
+        return
 
     ## dirpath
     if not os.path.isdir(dirpath):
@@ -564,13 +597,18 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
     ## load df
     if obj_input.__class__.__name__ == 'ndarray':
         scale_current_px_mm_ratio = obj_input
-        if not dirpath:
-            print("No save directory specified - cannot export results.")
+        if dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") - cannot export results.")
+            return
     elif obj_input.__class__.__name__ == "container":
         if hasattr(obj_input, "scale_current_px_mm_ratio"):
             scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
-        if not dirpath:
+        if obj_input.dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot save result.")
+            return
+        else:
             dirpath = obj_input.dirpath
+            save_suffix = obj_input.save_suffix
     else:
         print("No scale supplied - cannot export results.")
         return

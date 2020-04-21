@@ -220,9 +220,10 @@ class project:
                 print("Found image " + relpath + " - " + "phenopype-project folder " + dirname + " created")
                 os.mkdir(dirpath)
 
+
             ## load image
             image = load_image(filepath, resize=flag_resize)
-            
+
             ## copy or link raw files
             if flag_raw_mode == "copy":
                 raw_path = os.path.join(self.data_dir, dirname, 
@@ -231,19 +232,18 @@ class project:
                     cv2.imwrite(raw_path, image)
                 else:
                     copyfile(filepath, raw_path)
-                
-                ## path reformatting
-                raw_relpath = os.path.relpath(raw_path, self.root_dir)
-                raw_relpath = raw_relpath.replace(os.sep, '/')
-                dir_relpath = os.path.relpath(dirpath, self.root_dir)
-                dir_relpath = dir_relpath.replace(os.sep, '/')
-                
-                
+
             elif flag_raw_mode == "link":
                 if resize < 1:
                     warnings.warn("cannot resize image in link mode")
                 raw_path = filepath
-                warnings.warn("link mode will only work on this operating system")
+
+            ## path reformatting
+            raw_relpath = os.path.relpath(raw_path, self.root_dir)
+            raw_relpath = raw_relpath.replace(os.sep, '/')
+            dir_relpath = os.path.relpath(dirpath, self.root_dir)
+            dir_relpath = dir_relpath.replace(os.sep, '/')
+
 
             ## collect attribute-data and save
             image_data = load_image_data(filepath, flag_resize)

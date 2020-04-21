@@ -92,7 +92,7 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
 def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True, 
                   fill=0.3, mark_holes=True, level=3, line_colour="green",
                   label_size="auto", label_colour="black", line_width="auto", 
-                  label_width="auto", skeleton=True):
+                  label_width="auto", skeleton=True, watershed=False):
     """
     Draw contours and their labels onto a canvas. Can be filled or empty, offset
     coordinates can be supplied. This will also draw the skeleton, if the argument
@@ -126,7 +126,10 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
         contour label font size (scaled to image)
     label_width: int, optional
         contour label font thickness 
-
+    watershed: bool, optional
+        indicates if a watershed-procedure has been performed. formats the
+        coordinate colours accordingly (excludes "mark_holes option")
+    
     Returns
     -------
     image: array or container
@@ -136,8 +139,11 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
     ## kwargs
     flag_label = label
     flag_fill = fill
-    flag_child = mark_holes
+    flag_mark_holes = mark_holes
     flag_skeleton = skeleton
+    flag_watershed = watershed
+    if flag_watershed:
+        flag_mark_holes = True
     line_colour_sel = colours[line_colour]
     label_colour = colours[label_colour]
 
@@ -167,13 +173,20 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
     idx = 0
     colour_mask = copy.deepcopy(image)
     for index, row in df_contours.iterrows():
-        if flag_child:
+        if flag_mark_holes:
             if row["order"] == "child":
-                fill_colour = colours["red"]
-                line_colour = colours["red"]
-            else:
-                fill_colour = line_colour_sel
-                line_colour = line_colour_sel
+                if flag_watershed:
+                    fill_colour = colours["green"]
+                    line_colour = colours["green"]
+                else:
+                    fill_colour = colours["red"]
+                    line_colour = colours["red"]
+            elif row["order"] == "parent":
+                if flag_watershed:
+                    continue
+                else:
+                    fill_colour = line_colour_sel
+                    line_colour = line_colour_sel
         else:
             fill_colour = line_colour_sel
             line_colour = line_colour_sel

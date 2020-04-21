@@ -165,7 +165,8 @@ class container(object):
         ## feedback
         if len(loaded)>0:
             print("AUTOLOAD\n- " + '\n- '.join(loaded) )
-
+        else:
+            print("Nothing loaded.")
 
 
     def reset(self):
@@ -452,12 +453,16 @@ def load_image(obj_input, cont=False, df=False, dirpath=None, meta=False,
             image = cv2.imread(obj_input)
             if dirpath.__class__.__name__ == "Nonetpye":
                 dirpath = os.path.split(obj_input)[0]
+                print("dirpath defaulted to file directory - " + os.path.abspath(dirpath))
+
         else:
             sys.exit("Invalid image path - cannot load image from str.")
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if dirpath.__class__.__name__ == "Nonetpye":
             dirpath = os.getcwd()
+            print("dirpath defaulted to current working directory - " + os.path.abspath(dirpath))
+
     else:
         sys.exit("Invalid input format - cannot load image.")
 
@@ -479,6 +484,17 @@ def load_image(obj_input, cont=False, df=False, dirpath=None, meta=False,
         df_image_data = pd.concat([df_image_data.reset_index(drop=True), 
                                    pd.DataFrame(meta_data, index=[0])], 
                                   axis=1)
+        
+    ## check dirpath
+    if not dirpath.__class__.__name__ == "NoneType":
+        if not os.path.isdir(dirpath):
+            q = input("Save folder {} does not exist - create?.".format(os.path.abspath(dirpath)))
+            if q in ["True", "true", "y", "yes"]:
+                os.makedirs(dirpath)
+            else: 
+                print("Directory not created - aborting")
+        else:
+            print("Directory to save files set at - " + os.path.abspath(dirpath))
 
     ## return
     if flag_container == True:
@@ -659,13 +675,23 @@ def show_image(image, max_dim=1200, position_reset=True, position_offset=25,
         "position_reset")
     """
 
+    ## load image
+    if image.__class__.__name__ == "ndarray":
+        pass
+    elif image.__class__.__name__ == "container":
+        image = copy.deepcopy(image.image)
+    elif image.__class__.__name__ == "list":
+        pass
+    else:
+        print("wrong input format.")
+        return
+
     ## select window type
     if window_aspect == "free":
         window_aspect = cv2.WINDOW_NORMAL
     elif window_aspect == "fixed":
         window_aspect = cv2.WINDOW_AUTOSIZE
 
-    
     ## open images list or single images
     while True:
         if isinstance(image, list):
