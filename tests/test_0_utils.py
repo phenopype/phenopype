@@ -11,7 +11,9 @@ from .settings import image_dir, stickle_image
 
 @pytest.fixture(scope="module")
 def path():
-    image_path = os.path.join(image_dir, os.listdir(image_dir)[stickle_image])
+    if not os.getcwd() == r"/home/travis/build/mluerig/phenopype":
+        os.chdir(r"E:\git_repos\phenopype")
+    image_path = "tutorials/images/isopods.jpg"
     return image_path
 
 def test_load_image(path):

@@ -13,6 +13,8 @@ from .settings import root_dir2, image_dir, pype_name, preset, ref_image, stickl
 
 @pytest.fixture(scope="session")
 def project_container():
+    if not os.getcwd() == r"/home/travis/build/mluerig/phenopype":
+        os.chdir(r"E:\git_repos\phenopype")
     if os.path.isfile(os.path.join(root_dir2, "project.data")) and not flag_overwrite:
         project = pp.project.load(root_dir2)
     else: 
@@ -22,7 +24,7 @@ def project_container():
                           raw_mode="copy", 
                           include="stickle")
         project.add_config(name=pype_name, config_preset=preset)
-        project.add_scale(reference_image=ref_image, template=True)    
+        project.add_scale(reference_image=ref_image, overwrite=False)
         pp.project.save(project)
     ct = pp.load_directory(os.path.join(project.root_dir, 
                                         project.dirpaths[stickle_image]))
@@ -31,6 +33,8 @@ def project_container():
 
 @pytest.fixture(scope="session")
 def project_directory():
+    if not os.getcwd() == r"/home/travis/build/mluerig/phenopype":
+        os.chdir(r"E:\git_repos\phenopype")
     if os.path.isfile(os.path.join(root_dir2, "project.data")):
         project = pp.project.load(root_dir2)
     else: 

@@ -196,7 +196,7 @@ class project:
 
         ## loop through files
         for filepath in filepaths:
-            
+
             ## generate phenopype dir-tree
             relpath = os.path.relpath(filepath,image_dir)
             depth = relpath.count("\\")

@@ -52,7 +52,7 @@ def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="gree
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
+        image = copy.deepcopy(obj_input.image_copy)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_landmarks"):
             df_landmarks = obj_input.df_landmarks
@@ -250,7 +250,7 @@ def polylines(obj_input, df_image_data=None, overwrite=False,
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
+        image = copy.deepcopy(obj_input.image_copy)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_polylines"):
             df_polylines = obj_input.df_polylines

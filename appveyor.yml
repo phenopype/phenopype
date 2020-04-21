@@ -1,0 +1,4 @@
+branches:
+  # whitelist
+  only:
+    - master

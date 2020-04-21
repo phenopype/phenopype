@@ -14,11 +14,25 @@ from phenopype.settings import colours
 #%% classes
              
 class motion_tracker(object):
-    def __init__(self, video_path, **kwargs): 
-        """Read properties of input video file.
+    def __init__(self, video_path, at_frame=1, **kwargs): 
         """
-        at_frame = kwargs.get("at_frame",  1)  
+        
 
+        Parameters
+        ----------
+        video_path : TYPE
+            DESCRIPTION.
+        at_frame : TYPE, optional
+            DESCRIPTION. The default is 1.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+    
         if isinstance(video_path, str):
             capture = cv2.VideoCapture(video_path)
             idx = 0

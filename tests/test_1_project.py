@@ -15,7 +15,7 @@ def new_project():
     with mock.patch('builtins.input', return_value='y'):
         project = pp.project(root_dir=root_dir1, overwrite=True)
     project.add_files(image_dir=image_dir, 
-                      raw_mode="link", 
+                      raw_mode="copy", 
                       include="stickle")
     return project
 
