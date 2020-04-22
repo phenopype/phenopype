@@ -1,18 +1,15 @@
 #%% modules
-import cv2, copy, os, sys, warnings
+import cv2, copy
 import numpy as np
 import pandas as pd
 
-from datetime import datetime
 from math import sqrt
 import numpy.ma as ma
 
-from ruamel.yaml.comments import CommentedMap as ordereddict
-
 from phenopype.settings import colours
-from phenopype.utils import load_image, load_meta_data, show_image
-from phenopype.utils_lowlevel import _image_viewer, _create_mask_bin, _equalize_histogram, _contours_arr_tup
-from phenopype.utils_lowlevel import _load_yaml, _show_yaml, _save_yaml, _yaml_file_monitor, _auto_line_width, _auto_text_size, _auto_text_width
+from phenopype.utils import load_image_data
+from phenopype.utils_lowlevel import _image_viewer, _equalize_histogram, _contours_arr_tup
+from phenopype.utils_lowlevel import _auto_text_size, _auto_text_width
 
 #%% functions
 
@@ -49,7 +46,6 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
 
     ## kwargs
     flag_overwrite = overwrite
-    flag_tool = tool
 
     ## load image
     df_masks = None
@@ -57,9 +53,10 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0]) ## that may not be necessary
-    elif obj_input.__class__.__name__ == "container":
+    elif obj_input.__class__.__name__ in ["container","motion_tracker"]:
         image = copy.deepcopy(obj_input.image)
-        df_image_data = obj_input.df_image_data
+        if hasattr(obj_input, "df_image_data"):
+            df_image_data = copy.deepcopy(obj_input.df_image_data)
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
     else:
@@ -85,8 +82,8 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
             pass
 
         ## method
-        out = _image_viewer(image, mode="interactive", 
-                                  tool=flag_tool)
+        out = _image_viewer(image, mode="interactive", tool=tool)
+
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":
@@ -114,7 +111,7 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
     ## return
     if obj_input.__class__.__name__ == "ndarray":
             return df_masks
-    elif obj_input.__class__.__name__ == "container":
+    elif obj_input.__class__.__name__ in ["container","motion_tracker"]:
         obj_input.df_masks = df_masks
 
 
