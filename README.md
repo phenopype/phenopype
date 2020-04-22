@@ -12,7 +12,7 @@
 <!-- badges: end -->
 
 <br>
-<img src="https://raw.githubusercontent.com/mluerig/phenopype/master/assets/logo.png">
+<img src="https://raw.githubusercontent.com/mluerig/phenopype/master/docs/_images/logo.png">
 
 <div align="justify">
 
