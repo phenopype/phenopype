@@ -257,37 +257,6 @@ export:
     overwrite: true
 """
 
-ex6 = """
-preprocessing:
-- create_mask
-segmentation:
-- blur:
-    kernel_size: 3
-- threshold:
-    method: adaptive
-    blocksize: 49
-    constant: 10
-    channel: gray
-- watershed:
-    distance_cutoff: 0.5
-- find_contours:
-    retrieval: ext
-    min_diameter: 0
-    min_area: 200
-measurement:
-- colour_intensity
-visualization:
-- select_canvas:
-    canvas: raw
-- draw_contours:
-    line_width: 2
-    label_width: 1
-    label_size: 1
-    fill: 0
-export:
-- save_contours:
-    overwrite: true
-"""
 
 inverted1 = """
 preprocessing:
@@ -315,6 +284,40 @@ visualization:
     label_size: 1
     fill: 0.3
 """
+
+ex6 = """
+preprocessing:
+- create_mask
+segmentation:
+- blur:
+    kernel_size: 3
+- threshold:
+    method: adaptive
+    blocksize: 59
+    constant: 10
+    channel: gray
+- watershed:
+    distance_cutoff: 0.5
+- find_contours:
+    retrieval: ccomp
+    min_diameter: 0
+    min_area: 200
+measurement:
+- colour_intensity
+visualization:
+- select_canvas:
+    canvas: raw
+- draw_contours:
+    line_width: 2
+    label_width: 1
+    label_size: 1
+    fill: 0
+    watershed: true
+export:
+- save_contours:
+    overwrite: true
+"""
+
 
 ex7 = """
 preprocessing:
