@@ -1,7 +1,7 @@
 # Phenopype: a phenotyping pipeline for Python
 
 **Author:** [Moritz Lürig](https://luerig.net)<br/>
-**License:** [MIT](https://opensource.org/licenses/MIT)
+**License:** [MIT](https://opensource.org/licenses/MIT)<br/>
 
 <!-- badges: start -->
 
@@ -10,8 +10,8 @@
 [![Coverage Status](https://coveralls.io/repos/github/mluerig/phenopype/badge.svg?branch=master)](https://coveralls.io/github/mluerig/phenopype)
 
 <!-- badges: end -->
-
 <br>
+
 <img src="https://raw.githubusercontent.com/mluerig/phenopype/master/docs/_images/logo.png">
 
 <div align="justify">
