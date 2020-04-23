@@ -167,7 +167,8 @@ class motion_tracker(object):
 
     def motion_detection(self, skip=5, warmup=0, start_after=0, finish_after=0, 
                          history=60, threshold=10, detect_shadows=True,mode="MOG",
-                         methods=None, **kwargs):
+                         methods=None):
+        
         """Set properties of output video file. Most settings can be left at their default value.
         
         Parameters
