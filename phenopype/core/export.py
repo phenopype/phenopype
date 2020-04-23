@@ -38,15 +38,11 @@ def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         image = copy.deepcopy(obj_input.canvas)
         if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not save_suffix.dirpath.__class__.__name__ == "NoneType":
-            save_suffix = save_suffix.dirpath
+        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+            save_suffix = obj_input.save_suffix
     else:
         print("No image supplied - cannot save canvas.")
         return
-
-    ## resize
-    if resize < 1:
-        image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize) 
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
@@ -60,6 +56,11 @@ def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None,
             else: 
                 print("Directory not created - aborting")
                 return
+            
+    ## resize
+    if resize < 1:
+        image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize) 
+
 
     ## save suffix
     if len(name)>0:
@@ -115,8 +116,8 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         df = copy.deepcopy(obj_input.df_colours)
         if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not save_suffix.dirpath.__class__.__name__ == "NoneType":
-            save_suffix = save_suffix.dirpath
+        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+            save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
         return
@@ -192,12 +193,25 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         df = copy.deepcopy(obj_input.df_contours)
         if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not save_suffix.dirpath.__class__.__name__ == "NoneType":
-            save_suffix = save_suffix.dirpath
+        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+            save_suffix = obj_input.save_suffix
     else:
         print("No contour df supplied - cannot export contours.")
         return
-    
+   
+    ## dirpath
+    if dirpath.__class__.__name__ == "NoneType":
+        print("No save directory (\"dirpath\") specified - cannot save result.")
+        return
+    else:
+        if not os.path.isdir(dirpath):
+            q = input("Save folder {} does not exist - create?.".format(dirpath))
+            if q in ["True", "true", "y", "yes"]:
+                os.makedirs(dirpath)
+            else: 
+                print("Directory not created - aborting")
+                return
+            
     ## drop skeleton coordinates
     if "skeleton_coords" in df:
         df.drop(columns="skeleton_coords", inplace=True)
@@ -215,19 +229,6 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         path = os.path.join(dirpath, "contours_" + save_suffix + ".csv")
     else:
         path = os.path.join(dirpath, "contours.csv")
-
-    ## dirpath
-    if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
-        return
-    else:
-        if not os.path.isdir(dirpath):
-            q = input("Save folder {} does not exist - create?.".format(dirpath))
-            if q in ["True", "true", "y", "yes"]:
-                os.makedirs(dirpath)
-            else: 
-                print("Directory not created - aborting")
-                return
 
     ## check if file exists
     while True:
@@ -272,15 +273,6 @@ def save_drawing(obj_input, overwrite=True, dirpath=None):
     else:
         print("No df supplied - cannot export results.")
         return
-    
-    ## load attributes file
-    attr_path = os.path.join(dirpath, "attributes.yaml")
-    if os.path.isfile(attr_path):
-        attr = _load_yaml(attr_path)
-    else: 
-        attr = {}
-    if not "drawing" in attr:
-        attr["drawing"] = {}
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
@@ -294,6 +286,15 @@ def save_drawing(obj_input, overwrite=True, dirpath=None):
             else: 
                 print("Directory not created - aborting")
                 return
+            
+    ## load attributes file
+    attr_path = os.path.join(dirpath, "attributes.yaml")
+    if os.path.isfile(attr_path):
+        attr = _load_yaml(attr_path)
+    else: 
+        attr = {}
+    if not "drawing" in attr:
+        attr["drawing"] = {}
 
     ## check if file exists
     while True:
@@ -343,20 +344,6 @@ def save_data_entry(obj_input, overwrite=True, dirpath=None):
         print("No df supplied - cannot export results.")
         return
 
-    ## load
-    attr_path = os.path.join(dirpath, "attributes.yaml")
-    attr = _load_yaml(attr_path)
-
-        
-    ## load attributes file
-    attr_path = os.path.join(dirpath, "attributes.yaml")
-    if os.path.isfile(attr_path):
-        attr = _load_yaml(attr_path)
-    else: 
-        attr = {}
-    if not "other" in attr:
-        attr["other"] = {}
-
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
         print("No save directory (\"dirpath\") specified - cannot save result.")
@@ -369,6 +356,15 @@ def save_data_entry(obj_input, overwrite=True, dirpath=None):
             else: 
                 print("Directory not created - aborting")
                 return
+        
+    ## load attributes file
+    attr_path = os.path.join(dirpath, "attributes.yaml")
+    if os.path.isfile(attr_path):
+        attr = _load_yaml(attr_path)
+    else: 
+        attr = {}
+    if not "other" in attr:
+        attr["other"] = {}
 
     ## check if entry exists
     while True:
@@ -413,8 +409,8 @@ def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         df = obj_input.df_landmarks
         if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not save_suffix.dirpath.__class__.__name__ == "NoneType":
-            save_suffix = save_suffix.dirpath
+        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+            save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
         return
@@ -480,8 +476,8 @@ def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         df = obj_input.df_masks
         if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not save_suffix.dirpath.__class__.__name__ == "NoneType":
-            save_suffix = save_suffix.dirpath
+        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+            save_suffix = obj_input.save_suffix
     else:
         print("No mask df supplied - cannot save mask.")
         return
@@ -547,8 +543,8 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         df = obj_input.df_polylines
         if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not save_suffix.dirpath.__class__.__name__ == "NoneType":
-            save_suffix = save_suffix.dirpath
+        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+            save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
         return
@@ -600,8 +596,6 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
         overwrite csv if it already exists
     dirpath: str, optional
         location to save df
-    save_suffix : str, optional
-        suffix to append to filename
     """
 
     ## kwargs
@@ -615,20 +609,9 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
             scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
         if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not save_suffix.dirpath.__class__.__name__ == "NoneType":
-            save_suffix = save_suffix.dirpath
     else:
         print("No scale supplied - cannot export results.")
         return
-
-    ## load attributes file
-    attr_path = os.path.join(dirpath, "attributes.yaml")
-    if os.path.isfile(attr_path):
-        attr = _load_yaml(attr_path)
-    else: 
-        attr = {}
-    if not "scale" in attr:
-        attr["scale"] = {}
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
@@ -642,6 +625,16 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
             else: 
                 print("Directory not created - aborting")
                 return
+
+    ## load attributes file
+    attr_path = os.path.join(dirpath, "attributes.yaml")
+    if os.path.isfile(attr_path):
+        attr = _load_yaml(attr_path)
+    else: 
+        attr = {}
+    if not "scale" in attr:
+        attr["scale"] = {}
+
 
     ## check if file exists
     while True:

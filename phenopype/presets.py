@@ -146,23 +146,6 @@ export:
 - save_landmarks
 """
 
-landmarks_plain = """
-measurement:
-- landmarks:
-    point_size: 25
-    point_colour: green
-    label_size: 3
-    label_width: 5
-visualization:
-- draw_landmarks:
-    point_size: 25
-    point_colour: green
-    label_size: 3
-    label_width: 5
-export:
-- save_landmarks
-"""
-
 landmarks_scale = """
 preprocessing:
 - find_scale
@@ -285,6 +268,61 @@ visualization:
     fill: 0.3
 """
 
+ex2 = """
+preprocessing: 
+- find_scale
+measurement:
+- landmarks:
+    point_size: 12
+    point_colour: green
+    label_size: 2
+    label_width: 2
+visualization:
+- draw_masks
+- draw_landmarks:
+    point_size: 12
+    point_colour: green
+    label_size: 2
+    label_width: 2
+export:
+- save_landmarks
+- save_masks
+"""
+
+ex6 = """
+preprocessing:
+- create_mask
+segmentation:
+- blur:
+    kernel_size: 3
+- threshold:
+    method: adaptive
+    blocksize: 59
+    constant: 10
+    channel: gray
+- watershed:
+    distance_cutoff: 0.5
+- find_contours:
+    retrieval: ccomp
+    min_diameter: 0
+    min_area: 200
+measurement:
+- colour_intensity
+visualization:
+- select_canvas:
+    canvas: raw
+- draw_contours:
+    line_width: 2
+    label_width: 1
+    label_size: 1
+    fill: 0
+    watershed: true
+export:
+- save_contours:
+    overwrite: true
+"""
+
+
 ex6 = """
 preprocessing:
 - create_mask
@@ -327,13 +365,14 @@ segmentation:
     method: adaptive
     blocksize: 49
     constant: 5
-- draw                  # if worms touch borders
+# - draw
 - find_contours:
     retrieval: ccomp
     min_diameter: 50
     min_area: 0
 measurement:
 - skeletonize
+# - polylines
 visualization:
 - select_canvas:
     canvas: image
@@ -342,6 +381,8 @@ visualization:
     label_width: 1
     label_size: 1
     fill: 0.3
+- draw_masks
+# - draw_polylines
 export:
 - save_contours:
     overwrite: true

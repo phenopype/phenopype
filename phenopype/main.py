@@ -94,8 +94,11 @@ class project:
             os.makedirs(self.data_dir)
             
             ##  set working directory
-            if not root_dir == os.getcwd():
+            if not os.path.abspath(root_dir) == os.getcwd():
                 os.chdir(root_dir)
+                print("Current working directory changed to " + os.path.abspath(root_dir))
+            else:
+                print("Already in " + os.path.abspath(root_dir))
 
             ## generate empty lists
             for lst in ["dirnames", "dirpaths_rel", "dirpaths",
@@ -643,6 +646,13 @@ class pype:
 
         ## supply dirpath manually
         if not dirpath.__class__.__name__ == "NoneType":
+            if not os.path.isdir(dirpath):
+                q = input("Save folder {} does not exist - create?.".format(dirpath))
+                if q in ["True", "true", "y", "yes"]:
+                    os.makedirs(dirpath)
+                else: 
+                    print("Directory not created - aborting")
+                    return
             self.container.dirpath = dirpath
 
         ## skip directories that already contain specified files
