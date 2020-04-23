@@ -167,7 +167,7 @@ class motion_tracker(object):
 
     def motion_detection(self, skip=5, warmup=0, start_after=0, finish_after=0, 
                          history=60, threshold=10, detect_shadows=True,mode="MOG",
-                         methods=None):
+                         methods=None, **kwargs):
         """Set properties of output video file. Most settings can be left at their default value.
         
         Parameters
@@ -211,8 +211,8 @@ class motion_tracker(object):
                 m._print_settings()
                 
 #        ## currently unsure how this works exactly - keeps masks from masking each other, order matters...        
-#        if "consecutive_masking" in kwargs: 
-#            self.consecutive = kwargs.get("consecutive_masking")                 
+        # if "consecutive_masking" in kwargs: 
+        #     self.consecutive = kwargs.get("consecutive_masking")                 
         
         print("\n")
         print("----------------------------------------------------------------")
@@ -344,7 +344,7 @@ class motion_tracker(object):
                                     self.method_mask = cv2.ellipse(self.method_mask, cv2.fitEllipse(contour), colours.white, -1)                                    
                                 elif self.consecutive[0] == "rectangle":
                                     rx,ry,rw,rh = cv2.boundingRect(contour)
-                                    cv2.rectangle(self.method_mask,(int(rx),int(ry)),(int(rx+rw),int(ry+rh)), colours.white,-1)
+                                    cv2.rectangle(self.method_mask,(int(rx),int(ry)),(int(rx+rw),int(ry+rh)), colours["white"],-1)
                                 kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(self.consecutive[1],self.consecutive[1]))
                                 self.method_mask = cv2.dilate(self.method_mask, kernel, iterations = 1)   
                             self.fgmask = cv2.subtract(self.fgmask, self.method_mask)
@@ -472,31 +472,31 @@ class tracking_method():
             self.fgmask = threshold(self.fgmask, method="binary", value=value)
 
             
-        if "mask_objects" in vars(self):          
-            mask_dummy1 = np.zeros(self.frame.shape[0:2], dtype=bool)
-            mask_list = []
-            mask_label_names = []
+        # if "mask_objects" in vars(self):          
+        #     mask_dummy1 = np.zeros(self.frame.shape[0:2], dtype=bool)
+        #     mask_list = []
+        #     mask_label_names = []
                         
-            for obj in self.mask_objects:
-                mask, label, include = obj
-                if include == True:
-                    mask_list.append(mask)
-                    mask_label_names.append(label)
-                    mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
-                    mask_dummy2[mask] = 1
-                    mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
-                if include == False:
-                    mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
-                    mask_dummy2[mask] = -100
-                    mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
+        #     for obj in self.mask_objects:
+        #         mask, label, include = obj
+        #         if include == True:
+        #             mask_list.append(mask)
+        #             mask_label_names.append(label)
+        #             mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
+        #             mask_dummy2[mask] = 1
+        #             mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
+        #         if include == False:
+        #             mask_dummy2 = np.zeros(self.frame.shape[0:2], dtype=np.uint8)
+        #             mask_dummy2[mask] = -100
+        #             mask_dummy1 = np.add(mask_dummy1, mask_dummy2)
                     
-            mask_dummy1[mask_dummy1<0]=0
-            mask_dummy1[mask_dummy1>0]=255
+        #     mask_dummy1[mask_dummy1<0]=0
+        #     mask_dummy1[mask_dummy1>0]=255
             
-            self.mask = mask_dummy1
+        #     self.mask = mask_dummy1
             
-            if self.exclude==True:
-                self.fgmask = np.bitwise_and(self.mask, self.fgmask)
+            # if self.exclude==True:
+            #     self.fgmask = np.bitwise_and(self.mask, self.fgmask)
         
         # =============================================================================
         # find objects
