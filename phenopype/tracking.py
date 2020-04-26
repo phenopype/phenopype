@@ -17,7 +17,8 @@ from phenopype.settings import colours
 class motion_tracker(object):
     def __init__(self, video_path, at_frame=1): 
         """
-        Initialize motion tracker class.
+        Initialize motion tracker class. Information about the input video
+        gets passed on to other methods
 
         Parameters
         ----------
@@ -87,8 +88,8 @@ class motion_tracker(object):
     def video_output(self, video_format=None, save_suffix="out", dirpath=None,
                      fps=None, save_colour=None, dimensions=None, resize=1):
         """
-        Set properties of output video file. Most settings can be left as None, 
-        which will use values from the input video
+        Set properties of output video file. Most settings can be left blank, 
+        so that settings from the input video will be used
         
         Parameters
         ----------
@@ -145,7 +146,8 @@ class motion_tracker(object):
             res_msg = " (original resized by factor " + str(self.resize_factor) + ")"
         else:
             res_msg = ""
-        dimensions_out = (int(dimensions_out[0] * self.resize_factor), int(dimensions_out[1] * self.resize_factor))
+        dimensions_out = (int(dimensions_out[0] *  self.resize_factor), 
+                          int(dimensions_out[1] * self.resize_factor))
 
         ## start video-writer
         self.writer = cv2.VideoWriter(path_out, 
@@ -155,7 +157,7 @@ class motion_tracker(object):
                                       self.flag_save_colour) 
 
         print("\n")
-        print("----------------------------------------------------------------")
+        print("--------------------------------------------------------------")
         print("Output video settings - \"" + self.name + "\":\n")
         print("Save name: " + name + 
               "\nSave dir: " + os.path.abspath(dirpath) + 
@@ -163,13 +165,15 @@ class motion_tracker(object):
               "\nDimensions: " + str(dimensions_out) + res_msg +  
               "\nColour video: " + str(self.flag_save_colour) + 
               "\nFormat (FourCC code): " + fourcc_str) 
-        print("----------------------------------------------------------------")
+        print("--------------------------------------------------------------")
 
     def motion_detection(self, skip=5, warmup=0, start_after=0, finish_after=0, 
                          history=60, threshold=10, detect_shadows=True,mode="MOG",
                          methods=None):
         
-        """Set properties of output video file. Most settings can be left at their default value.
+        """
+        Set properties of output video file. Most settings can be left at their 
+        default value.
         
         Parameters
         ----------
@@ -182,7 +186,8 @@ class motion_tracker(object):
         history: int, optional
             how many frames to use for fg-bg subtraction algorithm
         threshold: int, optional
-            sensitivity-level for fg-bg subtraction algorithm (lower = more sensitive)
+            sensitivity-level for fg-bg subtraction algorithm (lower = more 
+                                                               sensitive)
         mode: str, optional
             type of fg-bg subtraction algorithm ("MOG" or "KNN")
         methods: method or list of methods, optional
@@ -216,37 +221,37 @@ class motion_tracker(object):
         #     self.consecutive = kwargs.get("consecutive_masking")                 
         
         print("\n")
-        print("----------------------------------------------------------------")
+        print("--------------------------------------------------------------")
         print("Motion detection settings - \"" + self.name + "\":\n")
-        print("\n\"History\"-parameter: " + str(history) + " seconds" + "\nSensitivity: " + str(threshold) + "\nRead every nth frame: " +  \
-              str(self.skip) + "\nDetect shadows: " + str(self.flag_detect_shadows) + "\nStart after n seconds: " + str(self.start) + \
-              "\nFinish after n seconds: " + str(self.finish if self.finish > 0 else " - ")) 
-        print("----------------------------------------------------------------")
-              
-
-        
-    def run_tracking(self, **kwargs):
-        """Start motion tracking procedure.
+        print("Background-subtractor: " + str(mode)
+              + "\nHistory: " + str(history) + " seconds" 
+              + "\nSensitivity: " + str(threshold) 
+              + "\nRead every nth frame: " +  str(self.skip) 
+              + "\nDetect shadows: " + str(self.flag_detect_shadows) 
+              + "\nStart after n seconds: " + str(self.start) 
+              + "\nFinish after n seconds: " + str(self.finish if self.finish 
+                                                   > 0 else " - ")) 
+        print("--------------------------------------------------------------")
+             
+    def run_tracking(self, feedback=True, canvas="overlay", overlay_weight=0.5, 
+                     **kwargs):
+        """
+        Start motion tracking procedure.
         
         Parameters
         ----------
-        show: str (default: overlay)
-            show output of tracking as "overlay", binary forground mask "fgmask", or frame by frame
+        feedback: bool, optional
+            show output of tracking
         weight: float (default: 0.5)
             how transparent the overlay should be
         return_df: bool (default: True)
             should the output dataframe be returned or inherited to motion_tracker object
         """      
-        weight = kwargs.get("weight", 0.5)
-        if "show" in kwargs:
-            show_selector = kwargs.get("show")
-            show = True
-        else:
-            show_selector = "overlay"
-            show = False
-            
-        return_df = kwargs.get("return_df","True")
-                   
+        
+        ## kwargs 
+        flag_feedback = feedback
+        
+        ## initialize
         self.df = pd.DataFrame()
         self.idx1, self.idx2 = (0,0)
         self.capture = cv2.VideoCapture(self.path)        
@@ -256,23 +261,19 @@ class motion_tracker(object):
         else:
             self.finish_frame = self.nframes
             
-        #methods_out = []
         while(self.capture.isOpened()):
             
-            # =============================================================================
-            # INDEXING AND CONTROL
-            # =============================================================================
-            
+            ## frame indexing
             self.idx1, self.idx2 = (self.idx1 + 1,  self.idx2 + 1)    
             if self.idx2 == self.skip:
                 self.idx2 = 0 
                 
+            ## time conversion
             mins = str(int((self.idx1 / self.fps)/60)).zfill(2)
             secs = str(int((((self.idx1 / self.fps)/60)-int(mins))*60)).zfill(2)    
             self.time_stamp = "Time: " + mins + ":" + secs + "/" + self.length + " - Frames: " + str(self.idx1) + "/" + str(int(self.nframes))  
-        
 
-            # end-control              
+            ## end-control              
             if self.idx1 == self.nframes-1: 
                 self.capture.release()
                 self.writer.release()
@@ -281,8 +282,6 @@ class motion_tracker(object):
                 self.capture.release()
                 self.writer.release()
                 break                             
-          
-            
           
             # =============================================================================
             # CAPTURE FRAME 
@@ -351,7 +350,7 @@ class motion_tracker(object):
                             self.fgmask = cv2.subtract(self.fgmask, self.method_mask)
                         
                         # create overlay for each method
-                        self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, weight, 0)    
+                        self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, overlay_weight, 0)    
                         
                         # make data.frame
                         self.frame_df.insert(0, 'frame_abs',  self.idx1)
@@ -365,42 +364,45 @@ class motion_tracker(object):
                     # =============================================================================
                     
                     # show output
-                    if show_selector == "overlay":
-                        self.show = self.frame_overlay
-                    elif show_selector == "fgmask":
-                        self.show = self.fgmask    
+                    if canvas == "overlay":
+                        self.canvas = self.frame_overlay
+                    elif canvas == "fgmask":
+                        self.canvas = self.fgmask    
                     else:
-                        self.show = self.frame
+                        self.canvas = self.frame
                         
-                    self.show = cv2.resize(self.show, (0,0), fx=self.resize_factor, fy=self.resize_factor)       
-                    if show == True:
+                    self.canvas = cv2.resize(self.canvas, (0,0), fx=self.resize_factor, fy=self.resize_factor)    
+                    
+                    if flag_feedback == True:
                         cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
-                        cv2.imshow('phenopype', self.show)   
+                        cv2.imshow('phenopype', self.canvas)   
                                     
                     # save output
                     if self.flag_save_video == True:
-                        if self.flag_save_colour and len(self.show.shape)<3:
-                            self.show = cv2.cvtColor(self.show, cv2.COLOR_GRAY2BGR)
-                        self.writer.write(self.show)
+                        if self.flag_save_colour and len(self.canvas.shape)<3:
+                            self.canvas = cv2.cvtColor(self.canvas, cv2.COLOR_GRAY2BGR)
+                        self.writer.write(self.canvas)
 
-            # keep stream open
+            ## keep stream open
             if cv2.waitKey(1) & 0xff == 27:
                 self.capture.release()
                 self.writer.release()
                 break
 
-        # cleanup
+        ## cleanup
         self.capture.release()
         self.writer.release()
         cv2.destroyAllWindows()
         
-        if return_df == True:
-            return self.df
+        ## return DataFrame
+        return self.df
         
         
 class tracking_method():
     
-    """Constructs a tracking method that can be supplied to the tracker. 
+    """
+    Constructs a tracking method that can be supplied to the motion_tracker 
+    class.
     
     Parameters
     ----------
@@ -429,7 +431,7 @@ class tracking_method():
                       mode="multiple", operations=[], mask=[], exclude=True, **kwargs):
         
         self.label = label
-        self.overlay_colour = overlay_colour
+        self.overlay_colour = colours[overlay_colour]
         self.min_length = min_length
         self.max_length = max_length
         self.mode = mode 
@@ -538,7 +540,7 @@ class tracking_method():
                 list_area, list_x, list_y = [],[],[]
                 list_grayscale, list_grayscale_background = [],[]
                 list_b, list_g, list_r = [],[],[] 
-                list_mask_check = []
+                # list_mask_check = []
                 
                 for contour, coordinate in zip(list_contours, list_coordinates):
                     
@@ -548,11 +550,11 @@ class tracking_method():
                     list_x.append(x)
                     list_y.append(y)
                     
-                    if "mask_objects" in vars(self):
-                        temp_list = []
-                        for i in mask_list:
-                            temp_list.append(i[y,x])                        
-                        list_mask_check.append(temp_list)
+                    # if "mask_objects" in vars(self):
+                    #     temp_list = []
+                    #     for i in mask_list:
+                    #         temp_list.append(i[y,x])                        
+                    #     list_mask_check.append(temp_list)
 
                     rx,ry,rw,rh = cv2.boundingRect(contour)
                     frame_roi = self.frame[ry:ry+rh,rx:rx+rw]
@@ -618,9 +620,9 @@ class tracking_method():
                 frame_df["label"] = self.label
                 self.frame_df = frame_df
                 
-                if "mask_objects" in vars(self):
-                    mask_df = pd.DataFrame(list_mask_check, columns=mask_label_names)
-                    self.frame_df = pd.concat([frame_df.reset_index(drop=True), mask_df], axis=1)
+                # if "mask_objects" in vars(self):
+                #     mask_df = pd.DataFrame(list_mask_check, columns=mask_label_names)
+                #     self.frame_df = pd.concat([frame_df.reset_index(drop=True), mask_df], axis=1)
                     
                 self.contours = list_contours
                           
