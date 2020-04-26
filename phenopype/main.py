@@ -424,9 +424,7 @@ class project:
                 pass
             
             ## measure scale
-            px_mm_ratio, df_masks, template  = preprocessing.create_scale(reference_image, 
-                                                                          template=True)
-            
+            px_mm_ratio, df_masks, template = preprocessing.create_scale(reference_image, template=True)   
             cv2.imwrite(template_path, template)
             break
 
@@ -534,14 +532,21 @@ class project:
         ##  set working directory
         if not proj.root_dir == os.getcwd():
             os.chdir(proj.root_dir)
-            
+                    
+        ## legacy
+        if not hasattr(proj, "dirpath_rel"):
+            proj.dirpaths_rel, proj.filepaths_rel = [], []
+            for dirpath, filepath in zip(proj.dirpaths, proj.filepaths):
+                filepath_rel = os.path.relpath(filepath, proj.root_dir)
+                proj.filepaths_rel.append(filepath_rel.replace(os.sep, '/'))
+                dirpath_rel = os.path.relpath(dirpath, proj.root_dir)
+                proj.dirpaths_rel.append(dirpath_rel.replace(os.sep, '/'))
+ 
         ## set correct paths
         proj.dirpaths, proj.filepaths = [], []
         for dirpath_rel, filepath_rel in zip(proj.dirpaths_rel, proj.filepaths_rel):
             proj.dirpaths.append(os.path.join(proj.root_dir, dirpath_rel))
             proj.filepaths.append(os.path.join(proj.root_dir, filepath_rel))
-        # self.filepaths.append(os.path.join(self.root_dir, raw_relpath))
-
 
         ## feedback
         print("--------------------------------------------")
@@ -550,6 +555,8 @@ class project:
         print("--------------------------------------------")
 
         return proj
+
+
 
 class pype:
     """

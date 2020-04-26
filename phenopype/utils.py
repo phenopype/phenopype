@@ -364,8 +364,11 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
         df_image_data["size_ratio_original"] = attr["image"]["size_ratio_original"]
 
     if "scale"in attr:
-        df_image_data["template_px_mm_ratio"] = attr["scale"]["template_px_mm_ratio"]
-        
+        if "template_px_mm_ratio" in attr["scale"]:
+            df_image_data["template_px_mm_ratio"] = attr["scale"]["template_px_mm_ratio"]
+        elif "current_px_mm_ratio" in attr["scale"]:
+            df_image_data["current_px_mm_ratio"] = attr["scale"]["current_px_mm_ratio"]
+            
     # ## add meta-data 
     # if flag_meta:
     #     exif_data_all, exif_data = attr["meta"], {}
