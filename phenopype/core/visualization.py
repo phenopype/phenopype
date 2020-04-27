@@ -391,9 +391,7 @@ def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue",
             line_colour = line_colour_sel
         cv2.polylines(image, np.array([coords]), False, line_colour, line_width)
         if flag_label:
-            center, radius = cv2.minEnclosingCircle(np.array(coords))
-            center = int(center[0]), int(center[1])
-            cv2.putText(image, row["mask"] , center, 
+            cv2.putText(image, row["mask"] , coords[0], 
                         cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
                         label_width, cv2.LINE_AA)
 
