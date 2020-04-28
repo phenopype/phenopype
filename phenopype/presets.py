@@ -306,6 +306,7 @@ export:
 ex2 = """
 preprocessing: 
 - find_scale
+- enter_data
 measurement:
 - landmarks:
     point_size: 12
@@ -322,6 +323,7 @@ visualization:
 export:
 - save_landmarks
 - save_masks
+- save_data_entry
 """
 
 ex6 = """

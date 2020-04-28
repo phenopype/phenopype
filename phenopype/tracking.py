@@ -182,20 +182,31 @@ class motion_tracker(object):
         ----------
         skip: int, optional
             how many frames to skip between each capture
-        start: int, optional
+        warmup: int, optional
+            warmup period in seconds for the background subtractor
+        start_after: int, optional
             start after X seconds
-        finish: int, optional
+        finish_after: int, optional
             finish after X seconds
         history: int, optional
             how many frames to use for fg-bg subtraction algorithm
         threshold: int, optional
             sensitivity-level for fg-bg subtraction algorithm (lower = more 
-                                                               sensitive)
-        mode: str, optional
-            type of fg-bg subtraction algorithm ("MOG" or "KNN")
+            sensitive)
+        detect_shadows: bool, optional
+            attempt to detect shadows - will be returned as gray pixels
+        mode: {"MOG", "KNN"} str, optional
+            type of fg-bg subtraction algorithm
         methods: method or list of methods, optional
             list with tracking_method objects
-        c_mask
+        c_mask: bool, optional 
+            consecutive masking. if multiple methods are defined, the objects 
+            detected first will mask the objects detected in subsequent methods
+        c_mask_shape: {"rect", "ellipse", "contour"} str, optional
+            which shape should the consecutive mask have
+        c_mask_size: int, optional
+            area in pixels that is added around the mask
+            
         """
         ## kwargs
         self.skip = skip
@@ -425,35 +436,41 @@ class tracking_method():
     
     Parameters
     ----------
-    mode: str (default: "multiple")
-        how many objects to track: "multiple", or "single" (biggest by diameter) 
-        objects
-    operations: list (default: ["diameter", "area"])
-        determines the type of operations to be performed on the detected objects:
-        - "diameter" of the bounding circle of our object
-        - "area" within the contour of our object
-        - "grayscale" mean and standard deviation of grayscale pixel values 
-        inside the object contours
-        - "grayscale_background" background within boundingbox of contour
-        - "bgr" mean and standard deviation of blue, green and red pixel 
-        values inside the object contours
-            
-    blur: tuple
-        blurring of fgbg-mask (kernel size, threshold [1-255])
-    min_length: int (default: 1)
-        minimum length in pixels for objects to be included
-    remove_shadows: bool
+    label: str, optional
+        label for all objects detected by this method
+    blur: int, optional
+        blurring of fgbg-mask (kernel size)
+    threshold: int, optional
+        binarization of fgbg-mask after blurring (threshold value)
+    remove_shadows: bool, optional
+        if motion_tracker has detect_shadows=True, they can be removed here
+    min_area : int, optional
+        minimum contour area in pixels to be included
+    max_area : int, optional
+        maximum contour area in pixels to be included
+    min_length : int, optional
+        minimum diameter of boundary circle to be included
+    max_length : int, optional
+        maximum diameter of boundary circle to be included
+    mode: {"single", "multiple"} str, optional
+        track "multiple", or "single" (biggest by diameter) objects
+    remove_shadows: bool, optional
         remove shadows if shadow-detection is actived in MOG-algorithm
-    mask: list
-        phenoype mask-objects (lists of boolean mask, label, and include-
-        argument) to include or exclude an area from the procedure
-    overlay_colour: phenopype colour object (default: red [red, green, blue, black, white])
+    overlay_colour: {"red", "green", "blue", "black", "white"} str, optional
         which colour should tracked objects have
+    operations: list (default: ["length", "area"])
+        determines the type of operations to be performed on the detected objects:
+            - "diameter" of the bounding circle of our object
+            - "area" within the contour of our object
+            - "grayscale" mean and standard deviation of grayscale pixel values 
+              inside the object contours
+            - "grayscale_background" background within boundingbox of contour
+            - "bgr" mean and standard deviation of blue, green and red pixel 
+              values inside the object contours
     """
-    def __init__(self, label="default", blur=5, threshold=127,
-                 remove_shadows=True, overlay_colour="red", min_length=0, 
-                 max_length=inf, min_area=0, max_area=inf, mode="multiple", 
-                 operations=[],**kwargs):
+    def __init__(self, label="m1", blur=5, threshold=127, remove_shadows=True,  
+                 min_length=0, max_length=inf, min_area=0, max_area=inf, 
+                 mode="multiple", overlay_colour="red", operations=[]):
         
         ## kwargs
         self.blur_kernel = blur
@@ -464,8 +481,7 @@ class tracking_method():
         self.mode = mode 
         self.operations = operations
         self.threshold_value = threshold
-        self.remove_shadows = remove_shadows
-               
+        self.remove_shadows = remove_shadows          
         
     def _apply_masks(self, frame, df_masks):
         """
@@ -493,7 +509,7 @@ class tracking_method():
         pretty.pprint(vars(self))
         
             
-    def _run(self, frame, fgmask, **kwargs):
+    def _run(self, frame, fgmask):
         """
         Run tracking method on current frame. 
         
