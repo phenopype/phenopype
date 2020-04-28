@@ -682,7 +682,10 @@ def show_image(image, max_dim=1200, position_reset=True, position_offset=25,
     if image.__class__.__name__ == "ndarray":
         pass
     elif image.__class__.__name__ == "container":
-        image = copy.deepcopy(image.image)
+        if not image.canvas.__class__.__name__ == "NoneType":
+            image = copy.deepcopy(image.canvas)
+        else:
+            image = copy.deepcopy(image.image)
     elif image.__class__.__name__ == "list":
         pass
     else:
@@ -747,7 +750,7 @@ def show_image(image, max_dim=1200, position_reset=True, position_offset=25,
 
 
 
-def save_image(image, name, save_dir=os.getcwd(), resize=1, append="", 
+def save_image(image, name, dirpath=os.getcwd(), resize=1, append="", 
                extension="jpg", overwrite=False, **kwargs):
     """Save an image (array) to jpg.
     
@@ -785,8 +788,8 @@ def save_image(image, name, save_dir=os.getcwd(), resize=1, append="",
         append = "_" + append
     if "." not in extension:
         extension = "." + extension 
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath)
 
     ## resize
     if resize < 1:
@@ -798,7 +801,7 @@ def save_image(image, name, save_dir=os.getcwd(), resize=1, append="",
 
     ## construct save path
     new_name = name + append + extension
-    path = os.path.join(save_dir, new_name)
+    path = os.path.join(dirpath, new_name)
 
     ## save
     while True:
