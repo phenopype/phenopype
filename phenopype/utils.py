@@ -44,7 +44,7 @@ class container(object):
         suffix to append to filename of results files
 
     """
-    def __init__(self, image, df_image_data, save_suffix=None):
+    def __init__(self, image, df_image_data, dirpath=None, save_suffix=None):
 
         ## images
         self.image = image
@@ -58,10 +58,10 @@ class container(object):
         self.df_image_data_copy = copy.deepcopy(self.df_image_data)
 
         ## attributes
-        self.dirpath = None
-        self.save_suffix = None
+        self.dirpath = dirpath
+        self.save_suffix = save_suffix
 
-    def load(self, contours=False, **kwargs):
+    def load(self, dirpath=None, save_suffix=None, contours=False, **kwargs):
         """
         Autoload function for container: loads results files with given save_suffix
         into the container. Can be used manually, but is typically used within the
@@ -79,9 +79,48 @@ class container(object):
         flag_contours = contours
 
 
-        ## data from attributes file
-        attr_path = os.path.join(self.dirpath, "attributes.yaml")
+        ## check dirpath
+        if dirpath.__class__.__name__ == "NoneType" and not self.dirpath.__class__.__name__ == "NoneType":
+            dirpath = self.dirpath
+        if dirpath.__class__.__name__ == "NoneType":
+            print("No save directory (\"dirpath\") specified - cannot load files.")
+            return
+        if not os.path.isdir(dirpath):
+            print("Directory does not exist - cannot load files.")
+            return
+        
+        
+        ## check save_suffix
+        if save_suffix.__class__.__name__ == "NoneType" and not self.save_suffix.__class__.__name__ == "NoneType":
+            save_suffix = "_" + self.save_suffix
+        elif not save_suffix.__class__.__name__ == "NoneType":
+            save_suffix = "_" + save_suffix
+        else:
+            save_suffix = ""
+            
+        # collect 
+        if len(os.listdir(dirpath)) > 0:
+            for file in os.listdir(dirpath):
+                if os.path.isfile(os.path.join(dirpath, file)):
+                    if len(save_suffix) > 0 and save_suffix in file and not "pype_config" in file:
+                        files.append(file[0:file.rindex('_')])
+                    elif len(save_suffix) == 0:
+                        files.append(file[0:file.rindex('.')])
+
+        else:
+            print("No files found in given directory")
+            return      
+        
+        ## load attributes
+        attr_path = os.path.join(dirpath, "attributes.yaml")
         if os.path.isfile(attr_path):
+
+            ## drawing
+            if not hasattr(self, "df_draw"):
+                attr = _load_yaml(attr_path)
+                if "drawing" in attr:
+                    self.df_draw = pd.DataFrame(attr["drawing"], index=[0])
+                    loaded.append("drawing loaded from attributes.yaml")            
 
             ## other data
             if not hasattr(self, "df_other_data"):
@@ -104,32 +143,10 @@ class container(object):
                         self.scale_template = cv2.imread("scale_template.jpg")
                         loaded.append("template loaded from root directory")
 
-            ## scale
-            if not hasattr(self, "df_draw"):
-                attr = _load_yaml(attr_path)
-                if "drawing" in attr:
-                    self.df_draw = pd.DataFrame(attr["drawing"], index=[0])
-                    loaded.append("drawing loaded from attributes.yaml")
-
-        if self.save_suffix.__class__.__name__ == 'NoneType':
-            if "save_suffix" in kwargs:
-                self.save_suffix = kwargs.get("save_suffix")
-            else:
-                print("Save_suffix missing - not loading saved results.")
-                return
-
-        if self.save_suffix:
-            for file in os.listdir(self.dirpath):
-                if self.save_suffix in file and not "pype_config" in file:
-                    files.append(file[0:file.rindex('_')])
-        else:
-            for file in os.listdir(self.dirpath):
-                files.append(file[0:file.rindex('.')])
-
         ## contours
         if flag_contours:
             if not hasattr(self, "df_contours") and "contours" in files:
-                path = os.path.join(self.dirpath, "contours_" + self.save_suffix + ".csv")
+                path = os.path.join(dirpath, "contours" + save_suffix + ".csv")
                 if os.path.isfile(path):
                     df = pd.read_csv(path, converters={"center": ast.literal_eval}) 
                     df['coords'] = list(zip(df.x, df.y))
@@ -139,28 +156,28 @@ class container(object):
                     df = df.drop_duplicates().reset_index()
                     df["coords"] =  pd.Series(coords_arr, index=df.index)
                     self.df_contours = df
-                    loaded.append("contours_" + self.save_suffix + ".csv")
+                    loaded.append("contours" + save_suffix + ".csv")
 
         ## landmarks
         if not hasattr(self, "df_landmarks") and "landmarks" in files:
-            path = os.path.join(self.dirpath, "landmarks_" + self.save_suffix + ".csv")
+            path = os.path.join(dirpath, "landmarks" + save_suffix + ".csv")
             if os.path.isfile(path):
                 self.df_landmarks = pd.read_csv(path) 
-                loaded.append("landmarks_" + self.save_suffix + ".csv")
+                loaded.append("landmarks" + save_suffix + ".csv")
 
         ## polylines
         if not hasattr(self, "df_polylines") and "polylines" in files:
-            path = os.path.join(self.dirpath, "polylines_" + self.save_suffix + ".csv")
+            path = os.path.join(dirpath, "polylines" + self.save_suffix + ".csv")
             if os.path.isfile(path):
                 self.df_polylines = pd.read_csv(path) 
-                loaded.append("polylines_" + self.save_suffix + ".csv")
+                loaded.append("polylines" + save_suffix + ".csv")
 
         ## masks
         if not hasattr(self, "df_masks") and "masks" in files:
-            path = os.path.join(self.dirpath, "masks_" + self.save_suffix + ".csv")
+            path = os.path.join(dirpath, "masks" + save_suffix + ".csv")
             if os.path.isfile(path):
                 self.df_masks = pd.read_csv(path) 
-                loaded.append("masks_" + self.save_suffix + ".csv")
+                loaded.append("masks" + save_suffix + ".csv")
 
         ## feedback
         if len(loaded)>0:
