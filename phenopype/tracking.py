@@ -557,7 +557,7 @@ class tracking_method():
                         list_area = [list_area[max_idx]]
                         list_center_coordinates = [list_center_coordinates[max_idx]]
         
-                list_area, list_x, list_y = [],[],[]
+                list_x, list_y = [],[]
                 list_grayscale, list_grayscale_background = [],[]
                 list_b, list_g, list_r = [],[],[] 
                 
