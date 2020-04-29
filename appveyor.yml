@@ -12,6 +12,15 @@ environment:
 
 build:
   off
+
+install:
+- pip install pytest
+- pip install pytest-cov
+- pip install coveralls
+- pip install .
   
 test_script:
-- cmd: pytest
+- pytest --cov=penopype
+
+after_test:
+coveralls
