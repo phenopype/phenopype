@@ -23,4 +23,4 @@ test_script:
 - pytest --cov=penopype
 
 after_test:
-coveralls
+- coveralls
