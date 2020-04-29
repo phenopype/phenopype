@@ -9,7 +9,7 @@ branches:
 
 environment:
   matrix:
-    - PYTHON: "C:\\Python33"
+    - PYTHON: "C:\\Python37"
       PYTHON_VERSION: "3.7"
 
 build:
