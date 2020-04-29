@@ -1,7 +1,7 @@
 image:
 - macos
 - Ubuntu
-- windows
+- Windows server 2019
 
 branches:
   only:
