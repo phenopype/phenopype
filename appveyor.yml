@@ -8,7 +8,9 @@ branches:
     - development
 
 environment:
-  PY_DIR: C:\Python37-x64
+  matrix:
+    - PYTHON: "C:\\Python33"
+      PYTHON_VERSION: "3.7"
 
 build:
   off
@@ -20,7 +22,7 @@ install:
 - pip install .
   
 test_script:
-- pytest --cov=penopype
+- pytest --cov
 
 after_test:
 - coveralls
