@@ -9,3 +9,6 @@ branches:
 
 environment:
   PY_DIR: C:\Python37-x64
+
+build:
+  off
