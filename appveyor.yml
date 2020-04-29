@@ -1,7 +1,7 @@
 image:
-- macos
-- Ubuntu
-- Windows server 2019
+- Ubuntu1804
+- Visual Studio 2019
+- macOS
 
 branches:
   only:
@@ -12,3 +12,6 @@ environment:
 
 build:
   off
+  
+test_script:
+- cmd: pytest
