@@ -8,7 +8,7 @@ from PIL import Image, ExifTags
 
 from phenopype.utils_lowlevel import _image_viewer, _contours_tup_array, _load_yaml
 from phenopype.core.export import *
-from phenopype.settings import colours, default_meta_data_fields
+from phenopype.settings import colours, default_meta_data_fields, default_filetypes
 #%% settings
 
 Image.MAX_IMAGE_PIXELS = 999999999
@@ -470,11 +470,15 @@ def load_image(obj_input, cont=False, df=False, dirpath=None, meta=False,
     ## method
     if obj_input.__class__.__name__ == "str":
         if os.path.isfile(obj_input):
-            image = cv2.imread(obj_input)
-            if dirpath.__class__.__name__ == "Nonetpye":
-                dirpath = os.path.split(obj_input)[0]
-                print("dirpath defaulted to file directory - " + os.path.abspath(dirpath))
-
+            ext = os.path.splitext(obj_input)[1]
+            if ext.replace(".","") in default_filetypes:
+                image = cv2.imread(obj_input)
+                if dirpath.__class__.__name__ == "Nonetpye":
+                    dirpath = os.path.split(obj_input)[0]
+                    print("dirpath defaulted to file directory - " + os.path.abspath(dirpath))
+            else:
+                print("could not load file of type " + ext + ": " + os.path.basename(obj_input))
+                return
         else:
             sys.exit("Invalid image path - cannot load image from str.")
     elif obj_input.__class__.__name__ == "ndarray":
@@ -672,16 +676,16 @@ def load_meta_data(image_path, show_fields=False,
 
 
 def show_image(image, max_dim=1200, position_reset=True, position_offset=25, 
-               window_aspect="free"):
+               window_aspect="free", check=True):
     """
     Show one or multiple images by providing path string or array or list of 
     either.
     
     Parameters
     ----------
-    image: str, array, or list
-        the image or list of images to be displayed. can be path to image 
-        (string), array-type, or list of strings or arrays
+    image: array, list of arrays
+        the image or list of images to be displayed. can be array-type, 
+        or list or arrays
     max_dim: int, optional
         maximum dimension on either acis
     window_aspect: {"fixed", "free"} str, optional
@@ -693,7 +697,12 @@ def show_image(image, max_dim=1200, position_reset=True, position_offset=25,
         if image is list, the distance in pixels betweeen the positions of 
         each newly opened window (only works in conjunction with 
         "position_reset")
+    check: bool, optional
+        user input required when more than 10 images are opened at the same 
+        time
     """
+    ## kwargs
+    flag_check = check
 
     ## load image
     if image.__class__.__name__ == "ndarray":
@@ -718,39 +727,32 @@ def show_image(image, max_dim=1200, position_reset=True, position_offset=25,
     ## open images list or single images
     while True:
         if isinstance(image, list):
-            if len(image)>10:
-                warning_banner = np.zeros((30,900,3))
+            if len(image)>10 and flag_check == True:
                 warning_string = "WARNING: trying to open " + str(len(image)) \
-                    + " images - proceed (Enter) or stop (Esc)?"
-                warning_image = cv2.putText(warning_banner,  
-                                            warning_string ,(11,22), 
-                                            cv2.FONT_HERSHEY_SIMPLEX, 
-                                            0.75, 
-                                            colours["green"],
-                                            1,
-                                            cv2.LINE_AA)
-                cv2.namedWindow('phenopype' ,cv2.WINDOW_AUTOSIZE )
-                cv2.imshow('phenopype', warning_image)
-                k = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                if k == 27:
-                    print("Stop - terminating.")
-                    break
-                elif k == 13:
+                    + " images - proceed (y/n)?"
+                check = input(warning_string)
+                if check in ["y","Y", "yes", "Yes"]:
                     print("Proceed - Opening images ...")
+                    pass
+                else:
+                    print("Aborting")
+                    break
             idx=0
             for i in image:
                 idx+=1
-                _image_viewer(i, 
-                              mode = "", 
-                              window_aspect = window_aspect, 
-                              window_name='phenopype' + " - " + str(idx), 
-                              window_control="external",
-                              max_dim=max_dim)
-                if position_reset == True:
-                    cv2.moveWindow('phenopype' + " - " + str(idx),
-                                   idx + idx*position_offset,
-                                   idx + idx*position_offset)
+                if i.__class__.__name__ == "ndarray":
+                    _image_viewer(i, 
+                                  mode = "", 
+                                  window_aspect = window_aspect, 
+                                  window_name='phenopype' + " - " + str(idx), 
+                                  window_control="external",
+                                  max_dim=max_dim)
+                    if position_reset == True:
+                        cv2.moveWindow('phenopype' + " - " + str(idx),
+                                       idx + idx*position_offset,
+                                       idx + idx*position_offset)
+                else:
+                    print("skipped showing list item of type " + i.__class__.__name__)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             break
