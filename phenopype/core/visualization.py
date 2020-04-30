@@ -316,7 +316,7 @@ def draw_landmarks(obj_input, df_landmarks=None, point_colour="green",
 
 def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue", 
                line_width="auto", label=False, label_size="auto", 
-               label_colour="black", label_width="auto"):
+               label_colour="black", label_width="auto", fill=0):
     """
     Draw masks into an image. This function is also used to draw the perimeter 
     of a created or detected reference scale card.
@@ -365,7 +365,7 @@ def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue",
     else:
         print("wrong input format.")
         return
-
+    
     ## more kwargs
     if line_width == "auto":
         line_width = _auto_line_width(image)
@@ -373,6 +373,11 @@ def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue",
         label_size = _auto_text_size(image)
     if label_width == "auto":
         label_width = _auto_text_width(image)
+    if fill>0:
+        flag_fill = True
+        colour_mask = copy.deepcopy(image)
+    else:
+        flag_fill = False
 
     ## draw masks from mask obect
     for index, row in df_masks.iterrows():
@@ -383,13 +388,17 @@ def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue",
                 continue
         else:
             pass
-        print(" - show mask: " + row["mask"] + ".")
+        print(" - draw mask: " + row["mask"])
         coords = eval(row["coords"])
-        if row["mask"] == "scale":
+        if row["mask"] == "scale" or row["include"]==False:
             line_colour = colours["red"]
         else:
             line_colour = line_colour_sel
         cv2.polylines(image, np.array([coords]), False, line_colour, line_width)
+        if flag_fill:
+            cv2.fillPoly(colour_mask, np.array([coords]), line_colour)
+            image = cv2.addWeighted(image,1-fill, colour_mask, fill, 0) 
+
         if flag_label:
             cv2.putText(image, row["mask"] , coords[0], 
                         cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
@@ -404,7 +413,8 @@ def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue",
 
 
 
-def draw_polylines(obj_input, line_colour="blue", line_width="auto"):
+def draw_polylines(obj_input, df_polylines=None, line_colour="blue", 
+                   line_width="auto"):
     """
     Draw polylines onto an image. 
     
@@ -439,6 +449,7 @@ def draw_polylines(obj_input, line_colour="blue", line_width="auto"):
 
     ## visualize
     for polyline in df_polylines["polyline"].unique():
+        print(" - draw polyline")
         sub = df_polylines.groupby(["polyline"])
         sub = sub.get_group(polyline)
         coords = list(sub[["x","y"]].itertuples(index=False, name=None))

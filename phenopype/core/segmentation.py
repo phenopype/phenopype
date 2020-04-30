@@ -99,7 +99,7 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"})
+            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
@@ -168,7 +168,7 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
     if obj_input.__class__.__name__ == "ndarray":
         df_draw = pd.concat([pd.concat([df_image_data]*len(df_draw)).reset_index(drop=True), 
                         df_draw.reset_index(drop=True)], axis=1)
-        return image, df_draw
+        return image
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_draw = df_draw
         obj_input.image = image

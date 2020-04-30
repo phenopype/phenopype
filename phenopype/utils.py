@@ -8,7 +8,7 @@ from PIL import Image, ExifTags
 
 from phenopype.utils_lowlevel import _image_viewer, _contours_tup_array, _load_yaml
 from phenopype.core.export import *
-from phenopype.settings import colours, default_meta_data_fields, default_filetypes
+from phenopype.settings import colours, default_meta_data_fields, default_filetypes, default_window_size
 #%% settings
 
 Image.MAX_IMAGE_PIXELS = 999999999
@@ -675,7 +675,7 @@ def load_meta_data(image_path, show_fields=False,
 
 
 
-def show_image(image, max_dim=1200, position_reset=True, position_offset=25, 
+def show_image(image, max_dim=default_window_size, position_reset=True, position_offset=25, 
                window_aspect="free", check=True):
     """
     Show one or multiple images by providing path string or array or list of 

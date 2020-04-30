@@ -10,8 +10,9 @@ from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-from phenopype.settings import colours, default_pype_config_name, default_pype_config
+from phenopype.settings import colours, default_pype_config_name, default_pype_config, auto_line_width_factor, auto_point_size_factor, auto_text_width_factor, auto_text_size_factor, default_window_size 
 from phenopype import presets
+
 
 #%% classes
 
@@ -37,7 +38,7 @@ class _image_viewer():
         self.window_name = kwargs.get("window_name", "phenopype")
         window_aspect = kwargs.get("window_aspect", cv2.WINDOW_AUTOSIZE)
         window_control = kwargs.get("window_control", "internal")
-        window_max_dimension = kwargs.get("max_dim", 1000)
+        window_max_dimension = kwargs.get("max_dim", default_window_size)
 
         ## resize image canvas
         image_width, image_height = image.shape[1], image.shape[0]
@@ -393,7 +394,7 @@ class _yaml_file_monitor:
 #%% functions
 
 def _auto_line_width(image, **kwargs):
-    factor = kwargs.get("factor", 0.001)
+    factor = kwargs.get("factor", auto_line_width_factor)
     image_height,image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) /2
     line_width = max(int(factor * image_diagonal), 1)
@@ -403,7 +404,7 @@ def _auto_line_width(image, **kwargs):
 
 
 def _auto_point_size(image, **kwargs):
-    factor = kwargs.get("factor", 0.002)
+    factor = kwargs.get("factor", auto_point_size_factor)
     image_height,image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) /2
     point_size =  max(int(factor * image_diagonal),1)
@@ -413,7 +414,7 @@ def _auto_point_size(image, **kwargs):
 
 
 def _auto_text_width(image, **kwargs):
-    factor = kwargs.get("factor", 0.0005)
+    factor = kwargs.get("factor", auto_text_width_factor)
     image_height,image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) /2
     text_width = max(int(factor * image_diagonal),1)
@@ -423,7 +424,7 @@ def _auto_text_width(image, **kwargs):
 
 
 def _auto_text_size(image, **kwargs):
-    factor = kwargs.get("factor", 0.00025)
+    factor = kwargs.get("factor", auto_text_size_factor)
     image_height,image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) /2
     text_size = max(int(factor * image_diagonal),1)

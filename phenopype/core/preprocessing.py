@@ -13,8 +13,8 @@ from phenopype.utils_lowlevel import _auto_text_size, _auto_text_width
 
 #%% functions
 
-def create_mask(obj_input, df_image_data=None, include=True, label="mask1", 
-                overwrite=False, tool="rectangle"):
+def create_mask(obj_input, df_image_data=None, df_masks=None, include=True, 
+                label="mask1", overwrite=False, tool="rectangle"):
     """
     Draw rectangle or polygon mask onto image by clicking and dragging the 
     cursor over the image. One mask can contain multiple sets of coordinates, 
@@ -28,6 +28,9 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
     df_image_data : DataFrame, optional
         an existing DataFrame containing image metadata, will be added to mask
         output DataFrame
+    df_masks: DataFrame, optional
+        an existing DataFrame containing mask data. new masks will be added, 
+        existing mask with the same label can be overwritten
     include: bool, optional
         determine whether resulting mask is to include or exclude objects within
     label: str, optinal
@@ -48,7 +51,6 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
     flag_overwrite = overwrite
 
     ## load image
-    df_masks = None
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
@@ -74,10 +76,10 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
             df_masks = df_masks[df_masks.columns.intersection(["mask", "include", "coords"])]
             if label in df_masks["mask"].values:
                 df_masks = df_masks.drop(df_masks[df_masks["mask"] == label].index)
-                print("- create mask (overwriting)")
+                print("- create mask " + label + " (overwriting)")
                 pass
         elif df_masks.__class__.__name__ == "NoneType":
-            print("- create mask")
+            print("- create mask " + label)
             df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
             pass
 
