@@ -1,7 +1,7 @@
 image:
 - macos
 - Ubuntu
-- Windows
+- windows
 
 branches:
   only:
@@ -9,3 +9,6 @@ branches:
 
 environment:
   PY_DIR: C:\Python37-x64
+
+build:
+  off
