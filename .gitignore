@@ -5,6 +5,7 @@
 .eggs
 .installed.cfg
 .ipynb_checkpoints
+.tox
 
 __pycache__/
 _config.yml

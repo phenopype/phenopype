@@ -9,20 +9,14 @@ branches:
 
 environment:
   matrix:
-    - PYTHON: "C:\\Python37"
-      PYTHON_VERSION: "3.7"
+  - TOXENV: py37
 
 build:
   off
 
 install:
-- pip install pytest
-- pip install pytest-cov
-- pip install coveralls
-- pip install .
-  
-test_script:
-- pytest --cov
+- pip install tox
 
-after_test:
-- coveralls
+test_script:
+- tox
+

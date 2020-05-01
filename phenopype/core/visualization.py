@@ -92,7 +92,8 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
 def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True, 
                   fill=0.3, mark_holes=True, level=3, line_colour="green",
                   label_size="auto", label_colour="black", line_width="auto", 
-                  label_width="auto", skeleton=True, watershed=False):
+                  label_width="auto", skeleton=True, watershed=False,
+                  bounding_box=False, bounding_box_ext=20):
     """
     Draw contours and their labels onto a canvas. Can be filled or empty, offset
     coordinates can be supplied. This will also draw the skeleton, if the argument
@@ -129,7 +130,11 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
     watershed: bool, optional
         indicates if a watershed-procedure has been performed. formats the
         coordinate colours accordingly (excludes "mark_holes option")
-    
+    bounding_box: bool, optional
+        draw bounding box around the contour
+    bounding_box_ext: in, optional
+        value in pixels by which the bounding box should be extended
+        
     Returns
     -------
     image: array or container
@@ -137,6 +142,9 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
 
     """
     ## kwargs
+    flag_bounding_box = bounding_box
+    if flag_bounding_box:
+        q = bounding_box_ext
     flag_label = label
     flag_fill = fill
     flag_mark_holes = mark_holes
@@ -231,6 +239,9 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
                         label_colour, 
                         label_width, 
                         cv2.LINE_AA)
+        if flag_bounding_box:
+            rx,ry,rw,rh = cv2.boundingRect(row["coords"])
+            cv2.rectangle(image, (rx-q,ry-q), (rx+rw+q,ry+rh+q), fill_colour, line_width)
 
     image = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) 
 

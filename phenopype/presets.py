@@ -348,7 +348,8 @@ segmentation:
     min_area: 200
     subset: child # needs to be child for watershed
 measurement:
-- colour_intensity
+- colour_intensity:
+    background: True
 visualization:
 - select_canvas:
     canvas: raw
@@ -358,6 +359,7 @@ visualization:
     label_size: 1
     fill: 0
     watershed: true
+    bounding_box: True
 - draw_masks
 export:
 - save_contours:

@@ -87,7 +87,7 @@ def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="gree
                             point_colour=point_colour, 
                             label_size=label_size,
                             label_width=label_width, 
-                            label_col=label_colour)
+                            label_colour=label_colour)
         coords = out.points
         
         ## abort
@@ -120,7 +120,7 @@ def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="gree
 
 
 def colour_intensity(obj_input, df_image_data=None, df_contours=None, 
-                     channels="gray"):
+                     channels="gray", background=False, background_ext=20):
     """
     Measures pixel values within the provided contours, either across all 
     channels ("gray") or for each channel separately ("rgb"). Measures mean 
@@ -137,6 +137,11 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
         contains the contours
     channels : {"gray", "rgb"} str, optional
         for which channels should pixel intensity be measured
+    background: bool, optional
+        measure the pixels of the background in an extended (background_ext) 
+        bounding box around the contour
+    background_ext: in, optional
+        value in pixels by which the bounding box should be extended
 
     Returns
     -------
@@ -147,7 +152,12 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
     ## kwargs
     if channels.__class__.__name__ == "str":
         channels = [channels]
-
+    if background == True:
+        flag_background = background
+        q = background_ext
+    else:
+        flag_background = False
+    
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
@@ -165,6 +175,7 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
         print("wrong input format.")
         return
     
+    ## make dataframe backbone
     df_colours = pd.DataFrame(df_contours["contour"])
 
     ## create forgeround mask
@@ -172,9 +183,9 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
     for index, row in df_contours.iterrows():
         foreground_mask_inverted = cv2.fillPoly(foreground_mask_inverted, [row["coords"]], 255)
     foreground_mask = np.invert(np.array(foreground_mask_inverted))
+    
 
     ## grayscale
-    mask_list = []
     if "gray" in channels:
         image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         new_cols = {"gray_mean":"NA",
@@ -182,7 +193,6 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
         df_colours = df_colours.assign(**new_cols)
         for index, row in df_contours.iterrows():
             rx,ry,rw,rh = cv2.boundingRect(row["coords"])
-            mask_list.append(foreground_mask[ry:ry+rh,rx:rx+rw])
             grayscale =  ma.array(data=image_gray[ry:ry+rh,rx:rx+rw], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
             df_colours.at[index, ["gray_mean","gray_sd"]] = np.ma.mean(grayscale), np.ma.std(grayscale)
 
@@ -202,7 +212,17 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
             df_colours.at[index, ["red_mean","red_sd"]]  = np.ma.mean(red), np.ma.std(red)
             df_colours.at[index, ["green_mean","green_sd"]]  = np.ma.mean(green), np.ma.std(green)
             df_colours.at[index, ["blue_mean","blue_sd"]]  = np.ma.mean(blue), np.ma.std(blue)
-
+            
+    ## background grayscale
+    if flag_background:
+        df_colours = df_colours.assign(**{"gray_mean_b":"NA",
+                                           "gray_sd_b":"NA"})
+        for index, row in df_contours.iterrows():
+            rx,ry,rw,rh = cv2.boundingRect(row["coords"])
+            foreground_mask_inverted_extended = foreground_mask_inverted[(ry-q):(ry+rh+q),(rx-q):(rx+rw+q)]
+            grayscale =  ma.array(data=image_gray[(ry-q):(ry+rh+q),(rx-q):(rx+rw+q)], mask = foreground_mask_inverted_extended)
+            df_colours.at[index, ["gray_mean_b","gray_sd_b"]] = np.ma.mean(grayscale), np.ma.std(grayscale)
+            
     ## merge with existing image_data frame
     df_colours = pd.concat([pd.concat([df_image_data]*len(df_colours)).reset_index(drop=True), 
                             df_colours.reset_index(drop=True)], axis=1)
@@ -216,7 +236,7 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
 
 
 def polylines(obj_input, df_image_data=None, overwrite=False, 
-              line_width="auto"):
+              line_width="auto", line_colour="blue"):
     """
     Set points, draw a connected line between them, and measure its length. 
 
@@ -278,7 +298,8 @@ def polylines(obj_input, df_image_data=None, overwrite=False,
         ## method
         out = _image_viewer(image, 
                             tool="polyline",
-                            line_width=line_width)
+                            line_width=line_width,
+                            line_colour=line_colour)
         coords = out.point_list
         
         ## abort

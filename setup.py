@@ -11,7 +11,12 @@ if mo:
 else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
-test_deps = ["pytest", "coverage", "coveralls", "mock"]
+test_deps = ["pytest", 
+             "coverage", 
+             "coveralls", 
+             "mock",
+             "pytest-cov"]
+
 extras = {'test': test_deps}
 
 setup(
