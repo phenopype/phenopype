@@ -11,6 +11,9 @@ if mo:
 else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
+test_deps = ["pytest", "coverage", "coveralls", "mock"]
+extras = {'test': test_deps}
+
 setup(
 	name='phenopype',
 	url='https://github.com/mluerig/phenopype',
@@ -32,6 +35,7 @@ setup(
 	description='a phenotyping pipeline for python',
 	long_description=open('README.md').read(), 
 	long_description_content_type='text/markdown',
-	tests_require=["pytest", "coverage", "coveralls", "mock"],
+    tests_require=test_deps,
+    extras_require=extras,
 	setup_requires=["pytest-runner"]
 )
