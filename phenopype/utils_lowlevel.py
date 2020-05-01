@@ -497,7 +497,7 @@ def _del_rw(action, name, exc):
 
 
 
-def _file_walker(directory, filetypes=".jpg", include=[], exclude=[],
+def _file_walker(directory, filetypes=[], include=[], exclude=[],
                   raw_mode="copy", search_mode="dir", unique_mode="path", **kwargs):
     """
     

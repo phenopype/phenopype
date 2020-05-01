@@ -58,9 +58,7 @@ class project:
 
         ## feedback
         print("--------------------------------------------")
-        print("Phenopype will create a new project at\n")
-        print(root_dir)
-        print("\nand change the current working directory to this location.")
+        print("Phenopype will create a new project at\n" + root_dir + "\n")
 
         ## decision tree if directory exists
         while True:
@@ -452,20 +450,55 @@ class project:
 
 
 
-    # def collect_results(self,**kwargs):
-    #     from shutil import copyfile
-
-    #     results ="E:\\Python\\phenopype_projects\\stickle_stained\\dominique_test\\results" ## needs to exist already
+    def collect_results(self, name, files=None, folder="results", 
+                        overwrite=False):
         
-    #     found, duplicates = pp.utils_lowlevel._file_walker(
-    #         "E:\\Python\\phenopype_projects\\stickle_stained\\dominique_test\\data", 
-    #         search_mode="recursive",
-    #         include=["test"])
+        ## kwargs
+        flag_overwrite = overwrite
         
-    #     for filepath in found:
-    #         filename = os.path.basename(os.path.dirname(filepath)) + "_" + os.path.basename(filepath)
-    #         newpath = os.path.join(results, filename)
-    #         copyfile(filepath, newpath)
+        results_path = os.path.join(self.root_dir, folder)
+        
+        if not os.path.isdir(results_path):
+            os.makedirs(results_path)
+            print("Created " + results_path)
+        
+        ## search string
+        if not files.__class__.__name__ == "NoneType":
+            if not files.__class__.__name__ == "list":
+                files = [files]
+            search_strings = []
+            for file in files:
+                search_strings.append(file + "_" + name)
+        else:
+            search_strings = name
+        
+        ## search
+        found, duplicates = _file_walker(
+            self.data_dir, 
+            search_mode="recursive",
+            include=search_strings,
+            exclude=["pype_config"])
+        
+        ## collect
+        for filepath in found:
+            print("Collected " + os.path.basename(filepath) + " from " + 
+                  os.path.basename(os.path.dirname(filepath)))
+            filename = os.path.basename(os.path.dirname(filepath)) + "_" + os.path.basename(filepath)
+            path = os.path.join(results_path, filename)
+            
+            ## overwrite check
+            while True:
+                if os.path.isfile(path) and flag_overwrite == False:
+                    print(filename + " not saved - file already exists (overwrite=False).")
+                    break
+                elif os.path.isfile(path) and flag_overwrite == True:
+                    print(filename + " saved under " + path + " (overwritten).")
+                    pass
+                elif not os.path.isfile(path):
+                    print(filename + " saved under " + path + ".")
+                    pass
+                copyfile(filepath, path)
+                break
 
 
 
@@ -557,8 +590,7 @@ class project:
 
         ## feedback
         print("--------------------------------------------")
-        print("Project loaded and current working directory changed to\n")
-        print(proj.root_dir)
+        print("Project loaded from \n" + proj.root_dir)
         print("--------------------------------------------")
 
         return proj
