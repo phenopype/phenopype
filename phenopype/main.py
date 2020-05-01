@@ -452,7 +452,23 @@ class project:
 
     def collect_results(self, name, files=None, folder="results", 
                         overwrite=False):
-        
+        """
+        Collect results (images or CSVs) from the entire data folder. Search by 
+        pype name (e.g. "v1") and filter by filetypes (e.g. landmarks, 
+        contours or colours)
+
+        Parameters
+        ----------
+        name : str
+            name of the pype or save_suffix
+        files : str or list, optional
+            filetypes to look for (e.g. landmarks, contours or colours)
+        folder : str, optional
+            folder in the root directory where the results are stored
+        overwrite : bool, optional
+            should the results be overwritten
+
+        """
         ## kwargs
         flag_overwrite = overwrite
         
