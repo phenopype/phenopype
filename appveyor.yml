@@ -1,11 +1,28 @@
 image:
-- macos
-- Ubuntu
-- Windows
+- Ubuntu1804
+- Visual Studio 2019
+- macOS
 
 branches:
   only:
     - development
 
 environment:
-  PY_DIR: C:\Python37-x64
+  matrix:
+    - PYTHON: "C:\\Python37"
+      PYTHON_VERSION: "3.7"
+
+build:
+  off
+
+install:
+- pip install pytest
+- pip install pytest-cov
+- pip install coveralls
+- pip install .
+  
+test_script:
+- pytest --cov
+
+after_test:
+- coveralls
