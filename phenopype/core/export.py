@@ -163,7 +163,7 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
 
 def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-                  convert_coords=True):
+                  save_coords=True, convert_coords=True, subset=None):
     """
     Save contour coordinates and features to csv. This also saves skeletonization
     ouput if the data is contained in the provided DataFrame.
@@ -178,13 +178,19 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         location to save df
     save_suffix : str, optional
         suffix to append to filename
+    save_coords: bool, optional
+        save the contour coordinates
     convert_coords: bool, optional
         convert the coordinates from array to x and y column
+    subset: {"parent", "child"} str, optional
+        save only a subset of the parent-child order structure
     """
 
     ## kwargs
     flag_overwrite = overwrite
     flag_convert_coords = convert_coords
+    flag_save_coords = save_coords
+    flag_subset = subset
 
     ## load df
     if obj_input.__class__.__name__ == 'DataFrame':
@@ -215,6 +221,17 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     ## drop skeleton coordinates
     if "skeleton_coords" in df:
         df.drop(columns="skeleton_coords", inplace=True)
+        
+    ## don't save coordinates
+    if flag_save_coords == False:
+        flag_convert_coords = False
+        df.drop(columns="coords", inplace=True)
+        
+    ## subset 
+    if flag_subset == "child":
+        df = df[df['order']=="child"]
+    elif flag_subset == "parent":
+        df = df[df['order']=="parent"]
 
     ## convert contour coords to list of tuples
     if flag_convert_coords:

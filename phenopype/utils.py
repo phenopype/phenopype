@@ -1,5 +1,6 @@
 #%% modules
 import ast, cv2, copy, os, sys, warnings
+import glob
 import numpy as np
 import pandas as pd
 
@@ -139,10 +140,13 @@ class container(object):
                     if "current_px_mm_ratio" in attr["scale"]:
                         self.scale_current_px_mm_ratio = attr["scale"]["current_px_mm_ratio"]
                         loaded.append("current scale information loaded from attributes.yaml")
-                    if "scale_template.jpg" in os.listdir(os.getcwd()):
-                        self.scale_template = cv2.imread("scale_template.jpg")
-                        loaded.append("template loaded from root directory")
-
+                    if "template_path" in attr["scale"]:
+                        if os.path.isfile(attr["scale"]["template_path"]):
+                            self.scale_template = cv2.imread(attr["scale"]["template_path"])
+                            loaded.append("template loaded from root directory")
+                        else:
+                            print("cannot read template image")
+                            
         ## contours
         if flag_contours:
             if not hasattr(self, "df_contours") and "contours" in files:
@@ -371,7 +375,17 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
 
     ## load attributes-file
     attr = _load_yaml(os.path.join(directory_path, "attributes.yaml"))
-    image = cv2.imread(attr["project"]["raw_path"])
+    
+    ## legacy   
+    paths = [attr["project"]["raw_path"],
+             os.path.join(directory_path, 
+                          os.path.basename(attr["project"]["raw_path"])),
+             glob.glob(os.path.join(directory_path, 'raw*'))[0]]
+    for path in paths:
+        if os.path.isfile(path):
+            image = cv2.imread(path)
+            break
+        
     df_image_data = pd.DataFrame({"filename": attr["image"]["filename"],
                        "width": attr["image"]["width"],
                        "height": attr["image"]["height"]
@@ -383,9 +397,9 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
     if "scale"in attr:
         if "template_px_mm_ratio" in attr["scale"]:
             df_image_data["template_px_mm_ratio"] = attr["scale"]["template_px_mm_ratio"]
-        elif "current_px_mm_ratio" in attr["scale"]:
+        if "current_px_mm_ratio" in attr["scale"]:
             df_image_data["current_px_mm_ratio"] = attr["scale"]["current_px_mm_ratio"]
-            
+                
     # ## add meta-data 
     # if flag_meta:
     #     exif_data_all, exif_data = attr["meta"], {}

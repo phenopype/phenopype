@@ -329,6 +329,8 @@ export:
 ex6 = """
 preprocessing:
 - create_mask
+- create_scale
+- enter_data
 segmentation:
 - blur:
     kernel_size: 3
@@ -339,10 +341,12 @@ segmentation:
     channel: gray
 - watershed:
     distance_cutoff: 0.5
+# - draw  # to separate snails
 - find_contours:
-    retrieval: ccomp
+    retrieval: ccomp # needs to be ccomp for watershed
     min_diameter: 0
     min_area: 200
+    subset: child # needs to be child for watershed
 measurement:
 - colour_intensity
 visualization:
@@ -354,9 +358,12 @@ visualization:
     label_size: 1
     fill: 0
     watershed: true
+- draw_masks
 export:
 - save_contours:
-    overwrite: true
+    save_coords: False
+- save_colours
+- save_masks
 """
 
 

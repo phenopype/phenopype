@@ -472,6 +472,7 @@ def find_scale(obj_input, df_image_data=None, template=None, overwrite=False,
         else:
             if "template_px_mm_ratio" in df_image_data:
                 px_mm_ratio_ref = df_image_data["template_px_mm_ratio"]
+                print("template_px_mm_ratio loaded")
         if df_masks.__class__.__name__ == "NoneType":
             df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
     elif obj_input.__class__.__name__ == "container":

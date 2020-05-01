@@ -178,7 +178,7 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
 def find_contours(obj_input, df_image_data=None, approximation="simple", 
                   retrieval="ext", offset_coords=(0,0), min_nodes=3, 
                   max_nodes=inf, min_area=0, max_area=inf, min_diameter=0, 
-                  max_diameter=inf):
+                  max_diameter=inf, subset=None):
     """
     Find objects in binarized image. The input image needs to be a binarized image
     or a container on which a binarizing segmentation algorithm (e.g. threshold or 
@@ -210,6 +210,8 @@ def find_contours(obj_input, df_image_data=None, approximation="simple",
             - flood: flood-fill algorithm
     offset_coords : tuple, optional
         offset by which every contour point is shifted.
+    subset: {"parent", "child"} str, optional
+        retain only a subset of the parent-child order structure
     min_nodes : int, optional
         minimum number of coordinates
     max_nodes : int, optional
@@ -240,6 +242,7 @@ def find_contours(obj_input, df_image_data=None, approximation="simple",
                 "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
                 "L1": cv2.CHAIN_APPROX_TC89_L1, ## algorithm 1
                 "KCOS": cv2.CHAIN_APPROX_TC89_KCOS} ## algorithm 2
+    flag_subset = subset
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -271,14 +274,27 @@ def find_contours(obj_input, df_image_data=None, approximation="simple",
             
             ## number of contour nodes
             if len(contour) > min_nodes and len(contour) < max_nodes:
+                
+                ## measure basic shape features
                 center, radius = cv2.minEnclosingCircle(contour)
                 center = int(center[0]), int(center[1])
                 diameter = int(radius*2)
                 area = int(cv2.contourArea(contour))
+                
+                ## contour hierarchy
                 if hier[3] == -1:
                     cont_order = "parent"
                 else:
                     cont_order = "child"
+                
+                ## retain only a subset
+                if not flag_subset.__class__.__name__ == "NoneType":
+                    if flag_subset == cont_order:
+                        pass
+                    else:
+                        continue
+                
+                ## feature filter
                 if all([
                     diameter > min_diameter and diameter < max_diameter,
                     area > min_area and area < max_area,

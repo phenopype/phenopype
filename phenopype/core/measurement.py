@@ -168,15 +168,13 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
     df_colours = pd.DataFrame(df_contours["contour"])
 
     ## create forgeround mask
-    image_bin = np.zeros(image.shape[:2], np.uint8)
+    foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)
     for index, row in df_contours.iterrows():
-        if row["order"]=="parent":
-            image_bin = cv2.fillPoly(image_bin, [row["coords"]], 255)
-        elif row["order"]=="child":
-            image_bin = cv2.fillPoly(image_bin, [row["coords"]], 0)
-    foreground_mask = np.invert(np.array(image_bin, dtype=np.bool))
+        foreground_mask_inverted = cv2.fillPoly(foreground_mask_inverted, [row["coords"]], 255)
+    foreground_mask = np.invert(np.array(foreground_mask_inverted))
 
     ## grayscale
+    mask_list = []
     if "gray" in channels:
         image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         new_cols = {"gray_mean":"NA",
@@ -184,6 +182,7 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
         df_colours = df_colours.assign(**new_cols)
         for index, row in df_contours.iterrows():
             rx,ry,rw,rh = cv2.boundingRect(row["coords"])
+            mask_list.append(foreground_mask[ry:ry+rh,rx:rx+rw])
             grayscale =  ma.array(data=image_gray[ry:ry+rh,rx:rx+rw], mask = foreground_mask[ry:ry+rh,rx:rx+rw])
             df_colours.at[index, ["gray_mean","gray_sd"]] = np.ma.mean(grayscale), np.ma.std(grayscale)
 

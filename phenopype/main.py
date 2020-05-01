@@ -93,12 +93,12 @@ class project:
             self.data_dir = os.path.join(self.root_dir, "data")
             os.makedirs(self.data_dir)
             
-            ##  set working directory
-            if not os.path.abspath(root_dir) == os.getcwd():
-                os.chdir(root_dir)
-                print("Current working directory changed to " + os.path.abspath(root_dir))
-            else:
-                print("Already in " + os.path.abspath(root_dir))
+            # ##  set working directory
+            # if not os.path.abspath(root_dir) == os.getcwd():
+            #     os.chdir(root_dir)
+            #     print("Current working directory changed to " + os.path.abspath(root_dir))
+            # else:
+            #     print("Already in " + os.path.abspath(root_dir))
 
             ## generate empty lists
             for lst in ["dirnames", "dirpaths_rel", "dirpaths",
@@ -287,7 +287,7 @@ class project:
         print("\nFound {} files".format(len(filepaths)))
         print("--------------------------------------------")
 
-    def add_config(self, name, config_preset="preset1", interactive=False, 
+    def add_config(self, name, config_preset=None, interactive=False, 
                    overwrite=False, idx=0, **kwargs):
         """
         Add pype configuration presets to all image folders in the project, either by using
@@ -316,9 +316,15 @@ class project:
         ## kwargs
         flag_interactive = interactive
         flag_overwrite = overwrite
+        
+        
+        ## legacy         
+        preset = kwargs.get("preset")
+        if config_preset.__class__.__name__ == "NoneType" and not preset.__class__.__name__ == "NoneType":
+            config_preset = preset
 
         ## load config
-        if hasattr(presets, config_preset):
+        if not config_preset.__class__.__name__ == "NoneType" and hasattr(presets, config_preset):
             config = _create_generic_pype_config(preset = config_preset, config_name=name)
         elif os.path.isfile(config_preset):
             config = {"pype":{"name": name,
@@ -329,8 +335,8 @@ class project:
         elif not hasattr(presets, config_preset):
             print("Provided preset NOT found - terminating")
             return
-        else:
-            print("No preset provided - defaulting to dpreset " + default_pype_config)
+        elif config_preset.__class__.__name__ == "NoneType":
+            print("No preset provided - defaulting to preset " + default_pype_config)
             config = _load_yaml(eval("presets." + default_pype_config))
 
         ## modify
@@ -392,9 +398,9 @@ class project:
         if reference_image.__class__.__name__ == "str":
             if os.path.isfile(reference_image):
                 reference_image = cv2.imread(reference_image)
-            elif os.path.isdir(reference_image):
-                attr = _load_yaml(os.path.join(reference_image, "attributes.yaml"))
-                reference_image = cv2.imread(attr["project"]["raw_path"])
+            elif os.path.isdir(os.path.join(self.data_dir, reference_image)):
+                attr = _load_yaml(os.path.join(self.data_dir, reference_image, "attributes.yaml"))
+                reference_image = cv2.imread(os.path.join(self.root_dir, attr["project"]["raw_path"]))
             elif reference_image in self.dirnames:
                 attr = _load_yaml(os.path.join(self.data_dir, reference_image, "attributes.yaml"))
                 reference_image = cv2.imread(attr["project"]["raw_path"])
@@ -411,7 +417,7 @@ class project:
 
 
         ## save template
-        template_path = "scale_template.jpg"
+        template_path = os.path.join(self.root_dir, "scale_template.jpg")
         while True:
             if os.path.isfile(template_path) and flag_overwrite == False:
                 print("- scale template not saved - file already exists (overwrite=False).")
@@ -440,7 +446,8 @@ class project:
             elif "scale" in attr and not flag_overwrite:
                 print("could not add scale information to " + attr["project"]["dirname"] + " (overwrite=False)")
                 continue
-            attr["scale"] = {"template_px_mm_ratio": px_mm_ratio}
+            attr["scale"] = {"template_px_mm_ratio": px_mm_ratio,
+                             "template_path": template_path}
             _save_yaml(attr, os.path.join(self.root_dir, directory, "attributes.yaml"))
 
 
@@ -529,9 +536,9 @@ class project:
         proj.root_dir = proj.root_dir.replace(os.sep, '/')
         proj.root_dir = os.path.abspath(proj.root_dir)
 
-        ##  set working directory
-        if not proj.root_dir == os.getcwd():
-            os.chdir(proj.root_dir)
+        # ##  set working directory
+        # if not proj.root_dir == os.getcwd():
+        #     os.chdir(proj.root_dir)
                     
         ## legacy
         if not hasattr(proj, "dirpath_rel"):
@@ -648,7 +655,6 @@ class pype:
         
         ## emergency check
         if not hasattr(self.container, "image") or self.container.image.__class__.__name__ == "NoneType":
-            m
             sys.exit("Internal error - no image loaded.")
 
         ## supply dirpath manually
