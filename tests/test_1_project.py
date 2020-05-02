@@ -20,7 +20,7 @@ def new_project():
     return project
 
 def test_project_add_files(new_project):
-    assert len(new_project.filepaths) == 5
+    assert len(new_project.filepaths) > 0
     
 def test_project_add_config(new_project):
     new_project.add_config(name=pype_name, config_preset=preset)

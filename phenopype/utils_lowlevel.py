@@ -38,6 +38,9 @@ class _image_viewer():
         window_aspect = kwargs.get("window_aspect", cv2.WINDOW_AUTOSIZE)
         window_control = kwargs.get("window_control", "internal")
         window_max_dimension = kwargs.get("max_dim", 1000)
+        
+        ## new kwargs
+        self.flag_test_mode = kwargs.get("test_mode", False)
 
         ## resize image canvas
         image_width, image_height = image.shape[1], image.shape[0]
@@ -110,31 +113,38 @@ class _image_viewer():
         cv2.imshow(self.window_name, self.canvas)
         
         ## window control
+
         if window_control=="internal":
-            if cv2.waitKey() == 13:
-                self.done = True
-                cv2.destroyAllWindows()
-                for i in range(10):
-                    cv2.waitKey(1)
-                if self.flag_tool == "polygon"  or self.flag_tool == "poly" or self.flag_tool == "free":
-                    if len(self.points)>2:
-                        self.points.append(self.points[0])
-                        self.point_list.append(self.points)
-                elif self.flag_tool == "polyline" or self.flag_tool == "polylines" or self.flag_tool == "lines":
-                    if len(self.points)>0:
-                        self.point_list.append(self.points)
-                elif self.flag_tool == "rectangle" or self.flag_tool == "rect" or self.flag_tool == "template":
-                    if len(self.rect_list)>0:
-                        for rect in self.rect_list:
-                            xmin, ymin, xmax, ymax = rect
-                            self.point_list.append([(xmin, ymin), (xmax,ymin), (xmax, ymax), (xmin, ymax), (xmin, ymin)])
-                elif self.flag_tool == "landmarks" or self.flag_tool == "landmark":
+            while True:
+                if self.flag_test_mode == True:
+                    self.done = True
+                    cv2.waitKey(100)
+                    cv2.destroyAllWindows()
+                    break
+                if cv2.waitKey() == 13:
+                    self.done = True
+                    cv2.destroyAllWindows()
+                    cv2.waitKey(100)
+                    break
+                elif cv2.waitKey() == 27:
+                    cv2.destroyAllWindows()
+                    cv2.waitKey(100)
+                    sys.exit("\n\nTERMINATE (by user)")
+                    break
+            if self.flag_tool == "polygon"  or self.flag_tool == "poly" or self.flag_tool == "free":
+                if len(self.points)>2:
+                    self.points.append(self.points[0])
                     self.point_list.append(self.points)
-            elif cv2.waitKey() == 27:
-                cv2.destroyAllWindows()
-                for i in range(10):
-                    cv2.waitKey(1)
-                sys.exit("\n\nTERMINATE (by user)")
+            elif self.flag_tool == "polyline" or self.flag_tool == "polylines" or self.flag_tool == "lines":
+                if len(self.points)>0:
+                    self.point_list.append(self.points)
+            elif self.flag_tool == "rectangle" or self.flag_tool == "rect" or self.flag_tool == "template":
+                if len(self.rect_list)>0:
+                    for rect in self.rect_list:
+                        xmin, ymin, xmax, ymax = rect
+                        self.point_list.append([(xmin, ymin), (xmax,ymin), (xmax, ymax), (xmin, ymax), (xmin, ymin)])
+            elif self.flag_tool == "landmarks" or self.flag_tool == "landmark":
+                self.point_list.append(self.points)
 
     def _on_mouse_plain(self, event, x, y, flags, params):
         if event == cv2.EVENT_MOUSEWHEEL and flags > 0:

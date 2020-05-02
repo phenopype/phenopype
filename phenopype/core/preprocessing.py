@@ -14,7 +14,7 @@ from phenopype.utils_lowlevel import _auto_text_size, _auto_text_width
 #%% functions
 
 def create_mask(obj_input, df_image_data=None, include=True, label="mask1", 
-                overwrite=False, tool="rectangle"):
+                overwrite=False, tool="rectangle", **kwargs):
     """
     Draw rectangle or polygon mask onto image by clicking and dragging the 
     cursor over the image. One mask can contain multiple sets of coordinates, 
@@ -46,6 +46,7 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
 
     ## kwargs
     flag_overwrite = overwrite
+    test_params = kwargs.get("test_params", {})
 
     ## load image
     df_masks = None
@@ -82,7 +83,7 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
             pass
 
         ## method
-        out = _image_viewer(image, mode="interactive", tool=tool)
+        out = _image_viewer(image, mode="interactive", tool=tool, previous=test_params)
 
         ## abort
         if not out.done:
@@ -174,6 +175,7 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
     flag_mask = mask
     flag_template = template
     flag_overwrite = overwrite
+    test_params = kwargs.get("test_params", {})
 
     ## load image
     px_mm_ratio = None
@@ -205,24 +207,31 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
             pass
 
         ## method
-        out = _image_viewer(image, tool="scale")
+        out = _image_viewer(image, 
+                            tool="scale", 
+                            previous=test_params)
+    
         points = out.scale_coords
         distance_px = int(sqrt(((points[0][0]-points[1][0])**2)
                                + ((points[0][1]-points[1][1])**2)))
-        entry = enter_data(image, columns="length")
+        entry = enter_data(image, 
+                           columns="length", 
+                           test_params=test_params)
         distance_mm = int(entry["length"][0])
         px_mm_ratio = int(distance_px / distance_mm)
-    
+
+
         ## create template for image registration
         if flag_template or flag_mask:
             out = _image_viewer(image, 
-                                tool="template")
+                                tool="template", 
+                                previous=test_params)
     
             ## make template and mask
             template = image[out.rect_list[0][1]:out.rect_list[0][3],
                              out.rect_list[0][0]:out.rect_list[0][2]]
             coords = out.point_list
-    
+
             ## check if exists
             while True:
                 if not df_masks.__class__.__name__ == "NoneType":
@@ -240,20 +249,26 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
                     df_mask_temp = pd.DataFrame({"mask": "scale", 
                                              "include": False, 
                                              "coords": str(points)}, index=[0])
-                    df_mask_temp = pd.concat([df_image_data, df_mask_temp], axis=1)
+                    df_mask_temp = pd.concat([df_image_data, df_mask_temp], 
+                                             axis=1,
+                                             sort=True)
     
                     ## add to existing df
                     if df_masks.__class__.__name__ == "NoneType" :
                         df_masks = df_mask_temp
-                    elif len(coords) > 0:
-                        df_masks = df_masks.append(df_mask_temp)
-                    break
+                        break
+                    if len(df_masks) > 0:
+                        df_masks = df_masks.append(df_mask_temp,
+                                                   sort=True)
+                        break
     
                 else:
                     print("zero coordinates - redo template!")
                     break
+            break
         else:
             template = None
+            break
 
     ## add scale info to data frame
     df_image_data["px_mm_ratio"] = px_mm_ratio
@@ -285,7 +300,8 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
 
 
 def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False, 
-               label_size="auto", label_width="auto", label_colour="red"):
+               label_size="auto", label_width="auto", label_colour="red", 
+               **kwargs):
     """
     Generic data entry that can be added as columns to an existing DataFrame. 
     Useful for images containing labels, or other comments. 
@@ -314,6 +330,10 @@ def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False,
     
     ## kwargs
     flag_overwrite = overwrite
+    test_params = kwargs.get("test_params", {})
+    flag_test_mode = False
+    if "flag_test_mode" in test_params:
+        flag_test_mode = test_params["flag_test_mode"]
     
     ## format columns
     if not columns.__class__.__name__ == "list":
@@ -364,19 +384,22 @@ def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False,
             ## method
             ## while loop keeps opencv window updated when entering data
             entry = ""
+            k = 0
             while True or entry == "":
 
                 cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
                 cv2.setMouseCallback("phenopype", _keyboard_entry)
 
-                k = cv2.waitKey(1)
+                if not flag_test_mode:
+                    k = cv2.waitKey(1)          
+                    if k > 0 and k != 8 and k != 13 and k != 27:
+                        entry = entry + chr(k)
+                    elif k == 8:
+                        entry = entry[0:len(entry)-1]
+                else:
+                    entry = test_params["entry"]
+                        
                 image = copy.deepcopy(image_copy)
-
-                if k > 0 and k != 8 and k != 13 and k != 27:
-                    entry = entry + chr(k)
-                elif k == 8:
-                    entry = entry[0:len(entry)-1]
-
                 cv2.putText(image, "Enter " + col + ": " + entry, (int(image.shape[0]//10),int(image.shape[1]/3)), 
                         cv2.FONT_HERSHEY_SIMPLEX, label_size, colours[label_colour],label_width, cv2.LINE_AA)
                 cv2.imshow("phenopype", image)
@@ -389,6 +412,9 @@ def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False,
                     if not entry =="":
                         cv2.destroyWindow("phenopype")
                         break
+                elif flag_test_mode:
+                    cv2.destroyWindow("phenopype")
+                    break
             df_other_data[col] = entry
         break
 
