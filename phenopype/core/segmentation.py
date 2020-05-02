@@ -66,7 +66,7 @@ def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75,
 
 
 def draw(obj_input, overwrite=False, tool="line", line_colour="black",
-         line_width="auto"):
+         line_width="auto", **kwargs):
     """
     Draw lines, rectangles or polygons onto a colour or binary image. Can be 
     used to connect. disconnect or erase contours. 
@@ -93,6 +93,7 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
     """
     ## kwargs
     flag_overwrite = overwrite
+    test_params = kwargs.get("test_params", {})
 
     ## load image
     df_draw, df_image_data = None, None
@@ -136,7 +137,8 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
                             tool=tool, 
                             draw=True,
                             line_width=line_width,
-                            line_col=line_colour)
+                            line_colour=line_colour, 
+                            previous=test_params)
         
         ## abort
         if not out.done:
@@ -507,7 +509,7 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
 
 
 
-def watershed(obj_input, iterations=3, kernel_size=3, distance_cutoff=0.5,
+def watershed(obj_input, image_thresh=None, iterations=3, kernel_size=3, distance_cutoff=0.5,
               distance_mask=0, distance_type="l1"):
     """
     Performs non-parametric marker-based segmentation - useful if many detected 
@@ -519,6 +521,8 @@ def watershed(obj_input, iterations=3, kernel_size=3, distance_cutoff=0.5,
     ----------
     obj_input : array or container
         input object
+    image_thresh: array, optional
+        thresholded image n
     kernel_size: int, optional
         size of the diff-kernel (has to be odd - even numbers will be ceiled)
     iterations : int, optional
@@ -552,11 +556,15 @@ def watershed(obj_input, iterations=3, kernel_size=3, distance_cutoff=0.5,
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
+        image = copy.deepcopy(obj_input)
+        thresh = copy.deepcopy(image_thresh)
     elif obj_input.__class__.__name__ == "container":
         thresh = copy.deepcopy(obj_input.image)
         image = copy.deepcopy(obj_input.image_copy)
 
+    if thresh.__class__.__name__ == "NoneType":
+        print("No thresholded version of image provided for watershed - aborting.")
+        return
     if len(thresh.shape)==3:
         thresh = cv2.cvtColor(thresh,cv2.COLOR_BGR2GRAY)
 
@@ -603,12 +611,6 @@ def watershed(obj_input, iterations=3, kernel_size=3, distance_cutoff=0.5,
     watershed_mask[0:watershed_mask.shape[0], watershed_mask.shape[1]-1] = 0
     watershed_mask[0, 0:watershed_mask.shape[1]] = 0
     watershed_mask[watershed_mask.shape[0]-1,  0:watershed_mask.shape[1]] = 0
-
-    # watershed_mask = morphology(watershed_mask, 
-    #                     operation="dilate", 
-    #                     shape="rect", 
-    #                     kernel_size=3, 
-    #                     iterations=1)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
