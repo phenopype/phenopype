@@ -16,7 +16,7 @@ build:
 
 install:
 - pip install -U pip
-- pip install tox
+- pip install tox -U --force-reinstall
 
 test_script:
 - tox
