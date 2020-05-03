@@ -593,7 +593,7 @@ def find_scale(obj_input, df_image_data=None, template=None, overwrite=False,
             coords = _contours_arr_tup(rect_new)
             coords.append(coords[0])
             if "scale" in df_masks['mask'].values:
-                df_masks.drop(df_masks.loc[df_masks["mask"]=="scale"].index, inplace=True)
+                df_masks = df_masks[~df_masks['mask'].isin(['scale'])]
             row_scale = pd.DataFrame({"mask": "scale", "include": False, "coords": str([coords])}, index=[0])
             row_scale = pd.concat([pd.concat([df_image_data]*len(row_scale)).reset_index(drop=True), 
                         row_scale.reset_index(drop=True)], axis=1)

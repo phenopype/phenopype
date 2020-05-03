@@ -1,7 +1,9 @@
 #%% modules
 
-import phenopype as pp
+import os
+import pytest 
 
+import phenopype as pp
 
 #%% test
 

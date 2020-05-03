@@ -34,6 +34,7 @@ class _image_viewer():
         self.flag_zoom_mode = kwargs.get("zoom", "continuous")
         self.zoom_mag = kwargs.get("mag", 0.7)
         self.zoom_n_steps = kwargs.get("steps", 20)
+        self.wait_time = 100
         self.window_name = kwargs.get("window_name", "phenopype")
         window_aspect = kwargs.get("window_aspect", cv2.WINDOW_AUTOSIZE)
         window_control = kwargs.get("window_control", "internal")
@@ -115,22 +116,21 @@ class _image_viewer():
         ## window control
 
         if window_control=="internal":
-            while True:
-                if self.flag_test_mode == True:
-                    self.done = True
-                    cv2.waitKey(100)
-                    cv2.destroyAllWindows()
-                    break
+            if self.flag_test_mode == True:
+                self.done = True
+                cv2.waitKey(self.wait_time)
+                cv2.destroyAllWindows()
+            elif self.flag_test_mode == False:
                 if cv2.waitKey() == 13:
                     self.done = True
                     cv2.destroyAllWindows()
-                    cv2.waitKey(100)
-                    break
+                    for i in range(10):
+                        cv2.waitKey(1)
                 elif cv2.waitKey() == 27:
                     cv2.destroyAllWindows()
-                    cv2.waitKey(100)
+                    for i in range(10):
+                        cv2.waitKey(1)
                     sys.exit("\n\nTERMINATE (by user)")
-                    break
             if self.flag_tool == "polygon"  or self.flag_tool == "poly" or self.flag_tool == "free":
                 if len(self.points)>2:
                     self.points.append(self.points[0])
@@ -145,6 +145,11 @@ class _image_viewer():
                         self.point_list.append([(xmin, ymin), (xmax,ymin), (xmax, ymax), (xmin, ymax), (xmin, ymin)])
             elif self.flag_tool == "landmarks" or self.flag_tool == "landmark":
                 self.point_list.append(self.points)
+        else:
+            if self.flag_test_mode == True:
+                self.done = True
+                cv2.waitKey(self.wait_time)
+                cv2.destroyAllWindows()
 
     def _on_mouse_plain(self, event, x, y, flags, params):
         if event == cv2.EVENT_MOUSEWHEEL and flags > 0:

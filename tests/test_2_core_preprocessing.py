@@ -65,7 +65,7 @@ def test_create_scale(project_container):
 
 def test_find_scale(project_container):
     pp.preprocessing.find_scale(project_container, 
-                                overwrite=flag_overwrite)
+                                overwrite=flag_overwrite,
+                                equalize=True)
     assert project_container.scale_current_px_mm_ratio == 35
-
 

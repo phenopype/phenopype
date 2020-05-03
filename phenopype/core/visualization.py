@@ -396,6 +396,8 @@ def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue",
             pass
         print(" - show mask: " + row["mask"] + ".")
         coords = eval(row["coords"])
+        if coords[0].__class__.__name__ == "list":
+            coords = coords[0]
         if row["mask"] == "scale":
             line_colour = colours["red"]
         else:

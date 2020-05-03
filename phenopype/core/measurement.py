@@ -11,7 +11,7 @@ from phenopype.utils_lowlevel import _image_viewer, _auto_line_width, _auto_poin
 
 def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="green",
               point_size="auto", label_colour="black", label_size="auto", 
-              label_width="auto"):
+              label_width="auto", **kwargs):
     """
     Place landmarks.
     
@@ -44,6 +44,7 @@ def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="gree
     
     ## kwargs
     flag_overwrite = overwrite
+    test_params = kwargs.get("test_params", {})
 
     ## load image
     df_landmarks = None
@@ -87,7 +88,8 @@ def landmarks(obj_input, df_image_data=None, overwrite=False, point_colour="gree
                             point_colour=point_colour, 
                             label_size=label_size,
                             label_width=label_width, 
-                            label_colour=label_colour)
+                            label_colour=label_colour,
+                            previous=test_params)
         coords = out.points
         
         ## abort
@@ -236,7 +238,7 @@ def colour_intensity(obj_input, df_image_data=None, df_contours=None,
 
 
 def polylines(obj_input, df_image_data=None, overwrite=False, 
-              line_width="auto", line_colour="blue"):
+              line_width="auto", line_colour="blue", **kwargs):
     """
     Set points, draw a connected line between them, and measure its length. 
 
@@ -281,6 +283,7 @@ def polylines(obj_input, df_image_data=None, overwrite=False,
     ## more kwargs
     if line_width == "auto":
         line_width = _auto_line_width(image)
+    test_params = kwargs.get("test_params", {})
 
     while True:
         ## check if exists
@@ -299,7 +302,8 @@ def polylines(obj_input, df_image_data=None, overwrite=False,
         out = _image_viewer(image, 
                             tool="polyline",
                             line_width=line_width,
-                            line_colour=line_colour)
+                            line_colour=line_colour,
+                            previous=test_params)
         coords = out.point_list
         
         ## abort

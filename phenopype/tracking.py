@@ -47,7 +47,8 @@ class motion_tracker(object):
                     break
         else:
             print("No compatible video file found under provided path")
-        
+            return 
+
         ## properties
         self.path = video_path
         self.name = os.path.basename(self.path)
@@ -400,7 +401,10 @@ class motion_tracker(object):
                         self.canvas = self.frame
                 else:
                     self.canvas = fgmask_copy    
-                self.canvas = cv2.resize(self.canvas, (0,0), fx=self.resize_factor, fy=self.resize_factor)    
+                
+                ## resize
+                if "resize_factor" in vars(self):
+                    self.canvas = cv2.resize(self.canvas, (0,0), fx=self.resize_factor, fy=self.resize_factor)    
 
                 ## feedback
                 if flag_feedback == True:
@@ -421,7 +425,8 @@ class motion_tracker(object):
 
         ## cleanup
         self.capture.release()
-        self.writer.release()
+        if "writer" in vars(self):
+            self.writer.release()
         cv2.destroyAllWindows()
         
         ## return DataFrame

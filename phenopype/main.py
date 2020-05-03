@@ -324,13 +324,13 @@ class project:
         ## load config
         if not config_preset.__class__.__name__ == "NoneType" and hasattr(presets, config_preset):
             config = _create_generic_pype_config(preset = config_preset, config_name=name)
-        elif os.path.isfile(config_preset):
+        elif not config_preset.__class__.__name__ == "NoneType" and os.path.isfile(config_preset):
             config = {"pype":{"name": name,
                               "preset": config_preset,
                               "date_created": datetime.today().strftime('%Y%m%d_%H%M%S')}}
             config.update(_load_yaml(config_preset))
             print(config)
-        elif not hasattr(presets, config_preset):
+        elif not config_preset.__class__.__name__ == "NoneType" and not hasattr(presets, config_preset):
             print("Provided preset NOT found - terminating")
             return
         elif config_preset.__class__.__name__ == "NoneType":
@@ -370,7 +370,7 @@ class project:
 
 
 
-    def add_scale(self, reference_image, overwrite=False):
+    def add_scale(self, reference_image, overwrite=False, **kwargs):
         """
         Add pype configuration presets to all project directories. 
 
@@ -391,6 +391,7 @@ class project:
 
         ## kwargs
         flag_overwrite = overwrite
+        test_params = kwargs.get("test_params", {})
 
         ## load template image
         if reference_image.__class__.__name__ == "str":
@@ -428,7 +429,9 @@ class project:
                 pass
             
             ## measure scale
-            px_mm_ratio, df_masks, template = preprocessing.create_scale(reference_image, template=True)   
+            px_mm_ratio, df_masks, template = preprocessing.create_scale(reference_image, 
+                                                                         template=True,
+                                                                         test_params=test_params)   
             cv2.imwrite(template_path, template)
             break
 
@@ -484,7 +487,10 @@ class project:
                 files = [files]
             search_strings = []
             for file in files:
-                search_strings.append(file + "_" + name)
+                if not name == "":
+                    search_strings.append(file + "_" + name)
+                else:
+                    search_strings.append(file)
         else:
             search_strings = name
         
@@ -679,11 +685,16 @@ class pype:
         flag_autosave = kwargs.get("autosave", True)
         flag_autoshow = kwargs.get("autoshow", False)
         flag_presetting = kwargs.get("presetting", False)
-    
         flag_meta = kwargs.get("meta", True)
         exif_fields = kwargs.get("fields", default_meta_data_fields)
         if not exif_fields.__class__.__name__ == "list":
             exif_fields = [exif_fields]
+        test_params = kwargs.get("test_params", None)
+        if test_params.__class__.__name__ == "dict":
+            flag_test_mode = True
+        else: 
+            flag_test_mode = False
+            
 
         ## load image as cointainer from array, file, or directory
         if image.__class__.__name__ == "ndarray":
@@ -730,7 +741,9 @@ class pype:
         if config_location:
             self.config, self.config_location = _load_pype_config(config_location)
         else:
-            self.config, self.config_location = _load_pype_config(self.container, config_name=name, preset=config_preset)
+            self.config, self.config_location = _load_pype_config(self.container, 
+                                                                  config_name=name, 
+                                                                  preset=config_preset)
 
         ## open config file with system viewer
         if flag_feedback:
@@ -798,7 +811,6 @@ class pype:
                             
                         elif step == "visualization":
                             show_list.append(method_name)
-                            print(self.container.canvas.__class__.__name__)
                             if not "select_canvas" in show_list and self.container.canvas.__class__.__name__ == "NoneType":
                                 visualization.select_canvas(self.container)
                                 print("- autoselect canvas")
@@ -835,6 +847,8 @@ class pype:
                     if self.container.canvas.__class__.__name__ == "NoneType":
                         visualization.select_canvas(self.container)
                         print("- autoselect canvas")
+                    if flag_test_mode:
+                        update = test_params
                     iv = _image_viewer(self.container.canvas, previous=update)
                     update, terminate = iv.__dict__, iv.done
                 except Exception as ex:

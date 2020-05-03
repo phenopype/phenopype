@@ -74,7 +74,7 @@ class container(object):
             suffix to include when looking for files to load
 
         """
-        files, loaded = [], []
+        files, loaded = [], []  
 
         ## data flags
         flag_contours = contours
@@ -171,7 +171,7 @@ class container(object):
 
         ## polylines
         if not hasattr(self, "df_polylines") and "polylines" in files:
-            path = os.path.join(dirpath, "polylines" + self.save_suffix + ".csv")
+            path = os.path.join(dirpath, "polylines" + save_suffix + ".csv")
             if os.path.isfile(path):
                 self.df_polylines = pd.read_csv(path) 
                 loaded.append("polylines" + save_suffix + ".csv")
@@ -331,7 +331,7 @@ class container(object):
 #%% functions
             
 def load_directory(directory_path, cont=True, df=True, meta=True, resize=1, 
-                   **kwargs):
+                   save_suffix=None, **kwargs):
     """
     Parameters
     ----------
@@ -350,6 +350,8 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
     resize: float, optional
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
         original size).
+    save_suffix : str, optional
+        suffix to append to filename of results files
     kwargs: 
         developer options
         
@@ -414,6 +416,7 @@ def load_directory(directory_path, cont=True, df=True, meta=True, resize=1,
     if flag_container == True:
         ct = container(image, df_image_data)
         ct.dirpath = directory_path
+        ct.save_suffix = save_suffix
         ct.image_data = attr["image"]
 
     # ## other, saved data to pass on
@@ -487,7 +490,7 @@ def load_image(obj_input, cont=False, df=False, dirpath=None, meta=False,
             ext = os.path.splitext(obj_input)[1]
             if ext.replace(".","") in default_filetypes:
                 image = cv2.imread(obj_input)
-                if dirpath.__class__.__name__ == "Nonetpye":
+                if dirpath.__class__.__name__ == "NoneType":
                     dirpath = os.path.split(obj_input)[0]
                     print("dirpath defaulted to file directory - " + os.path.abspath(dirpath))
             else:
@@ -497,7 +500,7 @@ def load_image(obj_input, cont=False, df=False, dirpath=None, meta=False,
             sys.exit("Invalid image path - cannot load image from str.")
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
-        if dirpath.__class__.__name__ == "Nonetpye":
+        if dirpath.__class__.__name__ == "NoneType":
             dirpath = os.getcwd()
             print("dirpath defaulted to current working directory - " + os.path.abspath(dirpath))
 
@@ -590,8 +593,8 @@ def load_image_data(obj_input, resize=1):
         width, height = image.shape[0:2]
         image_data = {
                 "filename": "unknown",
-                "filepath": "unkown",
-                "filetype": "array_type",
+                "filepath": "unknown",
+                "filetype": "ndarray",
                 "width": int(width*resize),
                 "height": int(height*resize),
                 "size_ratio_original": resize
@@ -690,7 +693,7 @@ def load_meta_data(image_path, show_fields=False,
 
 
 def show_image(image, max_dim=1200, position_reset=True, position_offset=25, 
-               window_aspect="free", check=True):
+               window_aspect="free", check=True, **kwargs):
     """
     Show one or multiple images by providing path string or array or list of 
     either.
@@ -717,6 +720,7 @@ def show_image(image, max_dim=1200, position_reset=True, position_offset=25,
     """
     ## kwargs
     flag_check = check
+    test_params = kwargs.get("test_params", {})
 
     ## load image
     if image.__class__.__name__ == "ndarray":
@@ -760,7 +764,8 @@ def show_image(image, max_dim=1200, position_reset=True, position_offset=25,
                                   window_aspect = window_aspect, 
                                   window_name='phenopype' + " - " + str(idx), 
                                   window_control="external",
-                                  max_dim=max_dim)
+                                  max_dim=max_dim, 
+                                  previous=test_params)
                     if position_reset == True:
                         cv2.moveWindow('phenopype' + " - " + str(idx),
                                        idx + idx*position_offset,
@@ -776,7 +781,8 @@ def show_image(image, max_dim=1200, position_reset=True, position_offset=25,
                   window_aspect = window_aspect, 
                   window_name='phenopype', 
                   window_control="internal",
-                  max_dim=max_dim)
+                  max_dim=max_dim, 
+                  previous=test_params)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             break

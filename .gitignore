@@ -19,6 +19,7 @@ docs_build.bat
 develop-eggs
 dist
 eggs
+htmlcov
 lib
 lib64
 local

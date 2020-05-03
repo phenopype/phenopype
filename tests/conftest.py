@@ -6,7 +6,7 @@ import pytest
     
 import phenopype as pp
 
-from .settings import root_dir2, image_dir, pype_name, preset, ref_image, stickle_image, flag_overwrite
+from .settings import root_dir2, video_path, image_dir, pype_name, preset, stickle_image, flag_overwrite
 
 #%% project
 
@@ -21,25 +21,39 @@ def project_container():
     proj.add_config(name=pype_name, config_preset=preset)
     pp.project.save(proj)
     proj = pp.project.load(root_dir2)
-    obj_input = pp.load_directory(proj.dirpaths[0])
-    project_container = obj_input
-    return obj_input ## container
+    obj_input = pp.load_directory(proj.dirpaths[0], save_suffix=pype_name)
+    # project_container = obj_input
+    return obj_input 
 
-# @pytest.fixture(scope="session")
-# def project_directory():
-#     if not os.getcwd() == r"/home/travis/build/mluerig/phenopype":
-#         os.chdir(r"E:\git_repos\phenopype")
-#     if os.path.isfile(os.path.join(root_dir2, "project.data")):
-#         project = pp.project.load(root_dir2)
-#     else: 
-#         with mock.patch('builtins.input', return_value='y'):
-#             project = pp.project(root_dir=root_dir2, overwrite=flag_overwrite)
-#         project.add_files(image_dir=image_dir, 
-#                           raw_mode="link", 
-#                           include="stickle")
-#         project.add_config(name=pype_name, config_preset=preset)
-#         project.add_scale(reference_image=ref_image, template=True)    
-#         pp.project.save(project)
-#     directory = os.path.join(project.root_dir, 
-#                              project.dirpaths[stickle_image])
-#     return directory
+@pytest.fixture(scope="session")
+def project_directory():
+    proj = pp.project.load(root_dir2)
+    image = proj.dirpaths[0]
+    # project_directory = image 
+    return image
+
+@pytest.fixture(scope="session")
+def motion_tracker():
+    mt = pp.motion_tracker(video_path)
+    motion_tracker = mt
+    return mt
+
+@pytest.fixture(scope="session")
+def tracking_method():
+    fish = pp.tracking_method(label="fish", remove_shadows=True, min_length=30,
+                              overlay_colour="red", mode="single",
+                              blur=15, # bigger blurring kernel
+                              threshold=200 #higher sensitivity
+                             )
+    isopod = pp.tracking_method(label="isopod", remove_shadows=True, max_length=30,
+                                overlay_colour="green", mode="multiple",
+                                blur=9, # smaller blurring kernel
+                                threshold=180, # lower sensitivity
+                                operations=["diameter",  # isopod size
+                                            "area",      # isopod area
+                                            "grayscale", # isopod pigmentation
+                                            "grayscale_background"] # background darkness
+                               )
+    methods = [fish, isopod]
+    tracking_method = methods
+    return methods

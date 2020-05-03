@@ -26,9 +26,10 @@ def test_morphology(project_container):
     assert not (project_container.image_bin==project_container.image).all()
     
 def test_watershed(project_container):
-    before = copy.deepcopy(project_container.image)
-    water = pp.segmentation.watershed(project_container.image_copy, project_container.image)
-    assert not (before==water).all()
+    image = copy.deepcopy(project_container.image_copy)
+    thresh = copy.deepcopy(project_container.image)
+    water = pp.segmentation.watershed(image, thresh)
+    assert not (thresh==water).all()
 
 def test_draw(project_container):
     test_params = {"flag_test_mode": True,
@@ -39,3 +40,4 @@ def test_draw(project_container):
 def test_find_contours(project_container):
     pp.segmentation.find_contours(project_container, min_area=250)
     assert len(project_container.df_contours)>0
+    
