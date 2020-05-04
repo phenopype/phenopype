@@ -1,7 +1,7 @@
 image:
-- Ubuntu1804
+# - Ubuntu1804
 - Visual Studio 2019
-- macOS
+# - macOS
 
 branches:
   only:
@@ -10,7 +10,9 @@ branches:
 environment:
   matrix:
   - TOXENV: py37
-  - PYTHON: "C:\Python37-x64"
+    PYTHON: "C:\\Python37-x64"
+  
+# ~/venv3.7.5
 
 build:
   off
