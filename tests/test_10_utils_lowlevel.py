@@ -21,18 +21,16 @@ def test_load_directory(directory_path):
 
 @pytest.fixture(scope="module")
 def container(directory_path):
+    print(os.listdir(directory_path))
     ct = pp.utils.load_directory(directory_path, save_suffix=pype_name)
     container = ct
-    return container
+    return ct
 
 ## actually tests load contours option of container
 def test_container_load(container):
     container.load(contours=True)
     assert hasattr(container, "df_contours")
     
-
-
-
 def test_load_pype_config(container):
     os.remove(os.path.join(container.dirpath, "pype_config_" + pype_name + ".yaml"))
     with mock.patch('builtins.input', return_value='y'):
