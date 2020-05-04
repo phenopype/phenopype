@@ -746,7 +746,7 @@ class pype:
                                                                   preset=config_preset)
 
         ## open config file with system viewer
-        if flag_feedback:
+        if flag_feedback and not flag_test_mode:
             if platform.system() == 'Darwin':       # macOS
                 subprocess.call(('open', self.config_location))
             elif platform.system() == 'Windows':    # Windows

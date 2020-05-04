@@ -38,7 +38,7 @@ def test_show_image(image_array):
     with mock.patch('builtins.input', return_value='y'):
         pp.show_image(img_list, 
                       test_params=test_params, 
-                      reset_position=True)
+                      position_reset=False)
         
 def test_save_image(image_array):
     pp.save_image(image_array, name="test_img", dirpath=image_save_dir)
