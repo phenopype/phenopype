@@ -3,10 +3,10 @@
 import os
 import mock
 import pytest
-    
+import shutil    
 import phenopype as pp
 
-from .settings import root_dir2, video_path, image_dir, pype_name, preset, stickle_image, flag_overwrite
+from .settings import root_dir2, video_path, image_dir, image_save_dir, image_filepath, pype_name, preset, stickle_image, flag_overwrite
 
 #%% project
 
@@ -32,9 +32,9 @@ def project_directory():
     # project_directory = image 
     return image
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def container(project_directory):
-    ct = pp.utils.load_directory(directory_path, save_suffix=pype_name)
+    ct = pp.utils.load_directory(project_directory, save_suffix=pype_name)
     container = ct
     return ct
 
@@ -63,3 +63,16 @@ def tracking_method():
     methods = [fish, isopod]
     tracking_method = methods
     return methods
+
+@pytest.fixture(scope="session")
+def image_path():
+    return image_filepath
+
+@pytest.fixture(scope="session")
+def image_array(image_path):
+    if os.path.isdir(image_save_dir):
+        shutil.rmtree(image_save_dir) 
+    with mock.patch('builtins.input', return_value='y'):
+        img = pp.load_image(image_path, dirpath=image_save_dir)
+    image = img
+    return img

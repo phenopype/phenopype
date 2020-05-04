@@ -1,7 +1,7 @@
 # %% testing setup
 import os 
 
-image_path = r"tutorials/images/isopods.jpg"
+image_filepath = r"tutorials/images/isopods.jpg"
 image_save_dir = r"_temp/tests/images"
 root_dir1 = r"_temp/tests/project1"
 root_dir2 = r"_temp/tests/project2"
