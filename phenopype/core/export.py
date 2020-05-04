@@ -619,7 +619,7 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
     flag_overwrite = overwrite
 
     ## load df
-    if obj_input.__class__.__name__ == 'ndarray':
+    if obj_input.__class__.__name__ in ["int", "float"]:
         scale_current_px_mm_ratio = obj_input
     elif obj_input.__class__.__name__ == "container":
         if hasattr(obj_input, "scale_current_px_mm_ratio"):

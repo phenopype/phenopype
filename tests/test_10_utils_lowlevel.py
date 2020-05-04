@@ -11,13 +11,14 @@ from .settings import pype_name, preset
 
 ## actually tests load contours option of container
 def test_container_load(project_container):
-    container.load(contours=True)
-    assert hasattr(container, "df_contours")
+    delattr(project_container, "df_contours")
+    project_container.load(contours=True, save_suffix=pype_name)
+    assert hasattr(project_container, "df_contours")
     
 def test_load_pype_config(project_container):
-    os.remove(os.path.join(container.dirpath, "pype_config_" + pype_name + ".yaml"))
+    os.remove(os.path.join(project_container.dirpath, "pype_config_" + pype_name + ".yaml"))
     with mock.patch('builtins.input', return_value='y'):
-        cfg = pp.utils_lowlevel._load_pype_config(container, 
+        cfg = pp.utils_lowlevel._load_pype_config(project_container, 
                                                   preset=preset, 
                                                   config_name=pype_name)
-    assert os.path.isfile(os.path.join(container.dirpath, "pype_config_" + pype_name + ".yaml"))
+    assert os.path.isfile(os.path.join(project_container.dirpath, "pype_config_" + pype_name + ".yaml"))

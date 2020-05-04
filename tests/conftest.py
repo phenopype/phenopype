@@ -1,5 +1,3 @@
-#%% modules
-
 import os
 import mock
 import pytest
@@ -22,7 +20,7 @@ def project_container():
     pp.project.save(proj)
     proj = pp.project.load(root_dir2)
     obj_input = pp.load_directory(proj.dirpaths[0], save_suffix=pype_name)
-    # project_container = obj_input
+    project_container = obj_input
     return obj_input 
 
 @pytest.fixture(scope="session")
