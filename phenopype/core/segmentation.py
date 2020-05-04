@@ -11,8 +11,8 @@ from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_lin
 
 #%% functions
 
-def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75, 
-         sigma_space=75):
+
+def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75, sigma_space=75):
     """
     Apply a blurring algorithm to the image.
 
@@ -46,14 +46,14 @@ def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75,
         image = copy.deepcopy(obj_input.image)
 
     ## method
-    if method=="averaging":
-        image = cv2.blur(image,(kernel_size,kernel_size))
-    elif method=="gaussian":
-        image = cv2.GaussianBlur(image,(kernel_size,kernel_size),0)
-    elif method=="median":
-        image = cv2.medianBlur(image,kernel_size)
-    elif method=="bilateral":
-        image = cv2.bilateralFilter(image,kernel_size,sigma_color,sigma_space)
+    if method == "averaging":
+        image = cv2.blur(image, (kernel_size, kernel_size))
+    elif method == "gaussian":
+        image = cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
+    elif method == "median":
+        image = cv2.medianBlur(image, kernel_size)
+    elif method == "bilateral":
+        image = cv2.bilateralFilter(image, kernel_size, sigma_color, sigma_space)
     else:
         image = image
 
@@ -64,9 +64,14 @@ def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75,
         return image
 
 
-
-def draw(obj_input, overwrite=False, tool="line", line_colour="black",
-         line_width="auto", **kwargs):
+def draw(
+    obj_input,
+    overwrite=False,
+    tool="line",
+    line_colour="black",
+    line_width="auto",
+    **kwargs
+):
     """
     Draw lines, rectangles or polygons onto a colour or binary image. Can be 
     used to connect. disconnect or erase contours. 
@@ -100,7 +105,7 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
@@ -111,7 +116,7 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
         return
 
     ## more kwargs
-    if line_width=="auto":
+    if line_width == "auto":
         line_width = _auto_line_width(image)
     if tool in ["rect", "rectangle", "poly", "polygon"]:
         line_width = -1
@@ -131,20 +136,22 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
         elif df_draw.__class__.__name__ == "NoneType":
             print("- draw polylines")
             pass
-        
+
         ## method
-        out = _image_viewer(image, 
-                            tool=tool, 
-                            draw=True,
-                            line_width=line_width,
-                            line_colour=line_colour, 
-                            previous=test_params)
-        
+        out = _image_viewer(
+            image,
+            tool=tool,
+            draw=True,
+            line_width=line_width,
+            line_colour=line_colour,
+            previous=test_params,
+        )
+
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":
                 print("terminated polyline creation")
-                return 
+                return
             elif obj_input.__class__.__name__ == "container":
                 print("- terminated polyline creation")
                 return True
@@ -154,7 +161,7 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
         df_draw["line_width"] = line_width
         df_draw["colour"] = line_colour
         df_draw["coords"] = str(out.point_list)
-        
+
         break
 
     ## draw
@@ -162,25 +169,45 @@ def draw(obj_input, overwrite=False, tool="line", line_colour="black",
         coord_list = eval(row["coords"])
         for coords in coord_list:
             if row["tool"] in ["line", "lines"]:
-                cv2.polylines(image, np.array([coords]), False, colours[row["colour"]], row["line_width"])
+                cv2.polylines(
+                    image,
+                    np.array([coords]),
+                    False,
+                    colours[row["colour"]],
+                    row["line_width"],
+                )
             elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
                 cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-        df_draw = pd.concat([pd.concat([df_image_data]*len(df_draw)).reset_index(drop=True), 
-                        df_draw.reset_index(drop=True)], axis=1)
+        df_draw = pd.concat(
+            [
+                pd.concat([df_image_data] * len(df_draw)).reset_index(drop=True),
+                df_draw.reset_index(drop=True),
+            ],
+            axis=1,
+        )
         return image
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_draw = df_draw
         obj_input.image = image
 
 
-
-def find_contours(obj_input, df_image_data=None, approximation="simple", 
-                  retrieval="ext", offset_coords=(0,0), min_nodes=3, 
-                  max_nodes=inf, min_area=0, max_area=inf, min_diameter=0, 
-                  max_diameter=inf, subset=None):
+def find_contours(
+    obj_input,
+    df_image_data=None,
+    approximation="simple",
+    retrieval="ext",
+    offset_coords=(0, 0),
+    min_nodes=3,
+    max_nodes=inf,
+    min_area=0,
+    max_area=inf,
+    min_diameter=0,
+    max_diameter=inf,
+    subset=None,
+):
     """
     Find objects in binarized image. The input image needs to be a binarized image
     or a container on which a binarizing segmentation algorithm (e.g. threshold or 
@@ -235,22 +262,26 @@ def find_contours(obj_input, df_image_data=None, approximation="simple",
     """
 
     ## kwargs
-    retr_alg = {"ext": cv2.RETR_EXTERNAL, ## only external
-                "list": cv2.RETR_LIST, ## all contours
-                "tree": cv2.RETR_TREE, ## fully hierarchy
-                "ccomp": cv2.RETR_CCOMP, ## outer perimeter and holes
-                "flood": cv2.RETR_FLOODFILL} ## not sure what this does
-    approx_alg = {"none": cv2.CHAIN_APPROX_NONE, ## no approximation of the contours, all points
-                "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
-                "L1": cv2.CHAIN_APPROX_TC89_L1, ## algorithm 1
-                "KCOS": cv2.CHAIN_APPROX_TC89_KCOS} ## algorithm 2
+    retr_alg = {
+        "ext": cv2.RETR_EXTERNAL,  ## only external
+        "list": cv2.RETR_LIST,  ## all contours
+        "tree": cv2.RETR_TREE,  ## fully hierarchy
+        "ccomp": cv2.RETR_CCOMP,  ## outer perimeter and holes
+        "flood": cv2.RETR_FLOODFILL,
+    }  ## not sure what this does
+    approx_alg = {
+        "none": cv2.CHAIN_APPROX_NONE,  ## no approximation of the contours, all points
+        "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
+        "L1": cv2.CHAIN_APPROX_TC89_L1,  ## algorithm 1
+        "KCOS": cv2.CHAIN_APPROX_TC89_KCOS,
+    }  ## algorithm 2
     flag_subset = subset
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
         df_image_data = obj_input.df_image_data
@@ -259,76 +290,85 @@ def find_contours(obj_input, df_image_data=None, approximation="simple",
         return
 
     ## check
-    if len(image.shape)>2:
+    if len(image.shape) > 2:
         print("Multi-channel array supplied - need binary array.")
 
     ## method
-    image, contour_list, hierarchy = cv2.findContours(image=image, 
-                                                mode=retr_alg[retrieval],
-                                                method=approx_alg[approximation],
-                                                offset=offset_coords)
+    image, contour_list, hierarchy = cv2.findContours(
+        image=image,
+        mode=retr_alg[retrieval],
+        method=approx_alg[approximation],
+        offset=offset_coords,
+    )
 
     ## filtering
-    if not contour_list.__class__.__name__ == "NoneType" and len(contour_list)>0:
+    if not contour_list.__class__.__name__ == "NoneType" and len(contour_list) > 0:
         contour_dict = {}
         idx = 0
         for contour, hier in zip(contour_list, hierarchy[0]):
-            
+
             ## number of contour nodes
             if len(contour) > min_nodes and len(contour) < max_nodes:
-                
+
                 ## measure basic shape features
                 center, radius = cv2.minEnclosingCircle(contour)
                 center = int(center[0]), int(center[1])
-                diameter = int(radius*2)
+                diameter = int(radius * 2)
                 area = int(cv2.contourArea(contour))
-                
+
                 ## contour hierarchy
                 if hier[3] == -1:
                     cont_order = "parent"
                 else:
                     cont_order = "child"
-                
+
                 ## retain only a subset
                 if not flag_subset.__class__.__name__ == "NoneType":
                     if flag_subset == cont_order:
                         pass
                     else:
                         continue
-                
+
                 ## feature filter
-                if all([
-                    diameter > min_diameter and diameter < max_diameter,
-                    area > min_area and area < max_area,
-                    ]):
-                        idx += 1
-                        contour_label = str(idx)
-                        contour_dict[contour_label] = {"contour":contour_label, 
-                                                       "center": center,
-                                                       "diameter": diameter, 
-                                                       "area":area,
-                                                       "order": cont_order,
-                                                       "idx_child":hier[2],
-                                                       "idx_parent":hier[3],
-                                                       "coords":contour}
+                if all(
+                    [
+                        diameter > min_diameter and diameter < max_diameter,
+                        area > min_area and area < max_area,
+                    ]
+                ):
+                    idx += 1
+                    contour_label = str(idx)
+                    contour_dict[contour_label] = {
+                        "contour": contour_label,
+                        "center": center,
+                        "diameter": diameter,
+                        "area": area,
+                        "order": cont_order,
+                        "idx_child": hier[2],
+                        "idx_parent": hier[3],
+                        "coords": contour,
+                    }
     else:
         print("No contours found.")
-        
+
     ## output
     df_contours = pd.DataFrame(contour_dict).T
     df_contours.reset_index(drop=True, inplace=True)
-    df_contours = pd.concat([pd.concat([df_image_data]*len(df_contours)).reset_index(drop=True), 
-                             df_contours.reset_index(drop=True)], axis=1)
+    df_contours = pd.concat(
+        [
+            pd.concat([df_image_data] * len(df_contours)).reset_index(drop=True),
+            df_contours.reset_index(drop=True),
+        ],
+        axis=1,
+    )
 
     if obj_input.__class__.__name__ == "ndarray":
-        return  df_contours
+        return df_contours
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_contours = df_contours
 
 
-
-def morphology(obj_input, kernel_size=5, shape="rect", operation="close", 
-               iterations=1):
+def morphology(obj_input, kernel_size=5, shape="rect", operation="close", iterations=1):
     """
     Performs advanced morphological transformations using erosion and dilation 
     as basic operations. Provides different kernel shapes and a suite of operation
@@ -367,17 +407,21 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close",
     ## kwargs
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
-    shape_list = {"cross": cv2.MORPH_CROSS, 
-                  "rect": cv2.MORPH_RECT, 
-                  "ellipse": cv2.MORPH_ELLIPSE}
-    operation_list = {"erode": cv2.MORPH_ERODE, 
-                      "dilate": cv2.MORPH_DILATE,
-                      "open": cv2.MORPH_OPEN, 
-                      "close": cv2.MORPH_CLOSE, 
-                      "gradient": cv2.MORPH_GRADIENT,
-                      "tophat ": cv2.MORPH_TOPHAT, 
-                      "blackhat": cv2.MORPH_BLACKHAT, 
-                      "hitmiss": cv2.MORPH_HITMISS}  
+    shape_list = {
+        "cross": cv2.MORPH_CROSS,
+        "rect": cv2.MORPH_RECT,
+        "ellipse": cv2.MORPH_ELLIPSE,
+    }
+    operation_list = {
+        "erode": cv2.MORPH_ERODE,
+        "dilate": cv2.MORPH_DILATE,
+        "open": cv2.MORPH_OPEN,
+        "close": cv2.MORPH_CLOSE,
+        "gradient": cv2.MORPH_GRADIENT,
+        "tophat ": cv2.MORPH_TOPHAT,
+        "blackhat": cv2.MORPH_BLACKHAT,
+        "hitmiss": cv2.MORPH_HITMISS,
+    }
     kernel = cv2.getStructuringElement(shape_list[shape], (kernel_size, kernel_size))
 
     ## load image
@@ -385,12 +429,11 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close",
         image = obj_input
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.image
-    
+
     ## method
-    image = cv2.morphologyEx(image, 
-                             op=operation_list[operation], 
-                             kernel = kernel,
-                             iterations = iterations)
+    image = cv2.morphologyEx(
+        image, op=operation_list[operation], kernel=kernel, iterations=iterations
+    )
 
     ## return
     if obj_input.__class__.__name__ == "container":
@@ -399,9 +442,16 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close",
         return image
 
 
-
-def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99, 
-              value=127, channel="gray", invert=False):
+def threshold(
+    obj_input,
+    df_masks=None,
+    method="otsu",
+    constant=1,
+    blocksize=99,
+    value=127,
+    channel="gray",
+    invert=False,
+):
     """
     Applies a fixed-level threshold to create a binary image from a grayscale 
     image or a multichannel image (gray, red, green or blue channel can be selected).
@@ -457,27 +507,33 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
             df_masks = copy.deepcopy(obj_input.df_masks)
 
     ## channel
-    if len(image.shape)==3:
-        if channel == "gray" or channel=="grayscale":
-            image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-        elif channel == "g" or channel== "green":
-            image = image[:,:,0]
-        elif channel == "r" or channel== "red":
-            image = image[:,:,1]
-        elif channel == "blue" or channel== "b":
-            image = image[:,:,2]
-            
+    if len(image.shape) == 3:
+        if channel == "gray" or channel == "grayscale":
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        elif channel == "g" or channel == "green":
+            image = image[:, :, 0]
+        elif channel == "r" or channel == "red":
+            image = image[:, :, 1]
+        elif channel == "blue" or channel == "b":
+            image = image[:, :, 2]
 
     if invert:
         image = invert_image(image)
-        
+
     ## method
     if method == "otsu":
-        ret, image = cv2.threshold(image, 0, 255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        ret, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     elif method == "adaptive":
-        image = cv2.adaptiveThreshold(image, 255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV, blocksize, constant)
+        image = cv2.adaptiveThreshold(
+            image,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV,
+            blocksize,
+            constant,
+        )
     elif method == "binary":
-        ret, image = cv2.threshold(image, value, 255,cv2.THRESH_BINARY_INV)
+        ret, image = cv2.threshold(image, value, 255, cv2.THRESH_BINARY_INV)
 
     ## apply masks
     if not df_masks.__class__.__name__ == "NoneType":
@@ -488,17 +544,17 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
                 if not row["mask"] == "":
                     coords = eval(row["coords"])
                     mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
-                    print("- include mask \"" + row["mask"] + "\" pixels")
+                    print('- include mask "' + row["mask"] + '" pixels')
                     include_idx += 1
-        if include_idx>0:
-            image[mask_bool==False] = 0
+        if include_idx > 0:
+            image[mask_bool == False] = 0
         ## include == False
         for index, row in df_masks.iterrows():
             if row["include"] == False:
                 if not row["mask"] == "":
                     coords = eval(row["coords"])
                     image[_create_mask_bool(image, coords)] = 0
-                    print("- exclude mask \"" + row["mask"] + "\" pixels")
+                    print('- exclude mask "' + row["mask"] + '" pixels')
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
@@ -508,9 +564,15 @@ def threshold(obj_input, df_masks=None, method="otsu", constant=1, blocksize=99,
         obj_input.image_bin = image
 
 
-
-def watershed(obj_input, image_thresh=None, iterations=3, kernel_size=3, distance_cutoff=0.5,
-              distance_mask=0, distance_type="l1"):
+def watershed(
+    obj_input,
+    image_thresh=None,
+    iterations=3,
+    kernel_size=3,
+    distance_cutoff=0.5,
+    distance_mask=0,
+    distance_type="l1",
+):
     """
     Performs non-parametric marker-based segmentation - useful if many detected 
     contours are touching or overlapping with each other. Input image should be 
@@ -543,14 +605,16 @@ def watershed(obj_input, image_thresh=None, iterations=3, kernel_size=3, distanc
     """
 
     ##kwargs
-    distance_type_list = {"user": cv2.DIST_USER , 
-                          "l1": cv2.DIST_L1,
-                          "l2": cv2.DIST_L2, 
-                          "C": cv2.DIST_C, 
-                          "l12": cv2.DIST_L12,
-                          "fair": cv2.DIST_FAIR, 
-                          "welsch": cv2.DIST_WELSCH, 
-                          "huber": cv2.DIST_HUBER}  
+    distance_type_list = {
+        "user": cv2.DIST_USER,
+        "l1": cv2.DIST_L1,
+        "l2": cv2.DIST_L2,
+        "C": cv2.DIST_C,
+        "l12": cv2.DIST_L12,
+        "fair": cv2.DIST_FAIR,
+        "welsch": cv2.DIST_WELSCH,
+        "huber": cv2.DIST_HUBER,
+    }
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
 
@@ -565,52 +629,54 @@ def watershed(obj_input, image_thresh=None, iterations=3, kernel_size=3, distanc
     if thresh.__class__.__name__ == "NoneType":
         print("No thresholded version of image provided for watershed - aborting.")
         return
-    if len(thresh.shape)==3:
-        thresh = cv2.cvtColor(thresh,cv2.COLOR_BGR2GRAY)
+    if len(thresh.shape) == 3:
+        thresh = cv2.cvtColor(thresh, cv2.COLOR_BGR2GRAY)
 
-    ## sure background 
+    ## sure background
     ## note: sure_bg is set as the thresholded input image
     sure_bg = copy.deepcopy(thresh)
-    
-    ## sure foreground 
-    if distance_type in ["user","l12", "fair", "welsch", "huber"]:
-        distance_mask = 0
-    opened = morphology(thresh, operation="open", 
-                        shape="ellipse", 
-                        kernel_size=kernel_size, 
-                        iterations=iterations)
-    dist_transform = cv2.distanceTransform(opened,
-                                           distance_type_list[distance_type],
-                                           distance_mask)
 
-    dist_transform = cv2.normalize(dist_transform, 
-                                   dist_transform, 
-                                   0, 1.0, 
-                                   cv2.NORM_MINMAX)
-    ret, sure_fg = cv2.threshold(dist_transform,
-                                 distance_cutoff*dist_transform.max(),
-                                 1,0)
+    ## sure foreground
+    if distance_type in ["user", "l12", "fair", "welsch", "huber"]:
+        distance_mask = 0
+    opened = morphology(
+        thresh,
+        operation="open",
+        shape="ellipse",
+        kernel_size=kernel_size,
+        iterations=iterations,
+    )
+    dist_transform = cv2.distanceTransform(
+        opened, distance_type_list[distance_type], distance_mask
+    )
+
+    dist_transform = cv2.normalize(
+        dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX
+    )
+    ret, sure_fg = cv2.threshold(
+        dist_transform, distance_cutoff * dist_transform.max(), 1, 0
+    )
 
     ## finding unknown region
     sure_fg = sure_fg.astype("uint8")
-    sure_fg[sure_fg==1] = 255
-    unknown = cv2.subtract(sure_bg,sure_fg)
+    sure_fg[sure_fg == 1] = 255
+    unknown = cv2.subtract(sure_bg, sure_fg)
 
     ## marker labelling
     ret, markers = cv2.connectedComponents(sure_fg)
-    markers = markers+1
-    markers[unknown==255] = 0
-    
+    markers = markers + 1
+    markers[unknown == 255] = 0
+
     ## watershed
     markers = cv2.watershed(image, markers)
 
     ## convert to contours
     watershed_mask = np.zeros(image.shape[:2], np.uint8)
     watershed_mask[markers == -1] = 255
-    watershed_mask[0:watershed_mask.shape[0], 0] = 0
-    watershed_mask[0:watershed_mask.shape[0], watershed_mask.shape[1]-1] = 0
-    watershed_mask[0, 0:watershed_mask.shape[1]] = 0
-    watershed_mask[watershed_mask.shape[0]-1,  0:watershed_mask.shape[1]] = 0
+    watershed_mask[0 : watershed_mask.shape[0], 0] = 0
+    watershed_mask[0 : watershed_mask.shape[0], watershed_mask.shape[1] - 1] = 0
+    watershed_mask[0, 0 : watershed_mask.shape[1]] = 0
+    watershed_mask[watershed_mask.shape[0] - 1, 0 : watershed_mask.shape[1]] = 0
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

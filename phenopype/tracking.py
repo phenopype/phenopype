@@ -1,4 +1,8 @@
-from __future__ import division, unicode_literals, print_function  # for compatibility with Python 2 and 3
+from __future__ import (
+    division,
+    unicode_literals,
+    print_function,
+)  # for compatibility with Python 2 and 3
 
 import copy
 import numpy as np
@@ -16,7 +20,8 @@ from phenopype.core.segmentation import blur, threshold, find_contours
 from phenopype.settings import colours
 
 #%% classes
-             
+
+
 class motion_tracker(object):
     """
     Initialize motion tracker class; extract information (length, fps, codec, 
@@ -30,66 +35,99 @@ class motion_tracker(object):
         frame index to be used to extract the video information
         
     """
-    def __init__(self, video_path, at_frame=1): 
+
+    def __init__(self, video_path, at_frame=1):
 
         ## extract frame
         if os.path.isfile(video_path):
             capture = cv2.VideoCapture(video_path)
             idx = 0
-            while(capture.isOpened()):
+            while capture.isOpened():
                 idx += 1
                 if idx == at_frame:
                     ret, frame = capture.read()
                     break
                 else:
                     capture.grab()
-                if cv2.waitKey(1) & 0xff == 27:
+                if cv2.waitKey(1) & 0xFF == 27:
                     break
         else:
             print("No compatible video file found under provided path")
-            return 
+            return
 
         ## properties
         self.path = video_path
         self.name = os.path.basename(self.path)
-        self.nframes = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) )
+        self.nframes = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
         self.fps = capture.get(cv2.CAP_PROP_FPS)
         self.fourcc_str = _decode_fourcc(capture.get(cv2.CAP_PROP_FOURCC))
-        self.length = str(str(int(( self.nframes / self.fps)/60)).zfill(2) 
-                          + ":" + str(int((((self.nframes / self.fps)/60) -
-                                           int((self.nframes / self.fps)/60))*60)).zfill(2))
+        self.length = str(
+            str(int((self.nframes / self.fps) / 60)).zfill(2)
+            + ":"
+            + str(
+                int(
+                    (
+                        ((self.nframes / self.fps) / 60)
+                        - int((self.nframes / self.fps) / 60)
+                    )
+                    * 60
+                )
+            ).zfill(2)
+        )
         self.dimensions = tuple(reversed(frame.shape[0:2]))
         if frame.shape[2] == 3:
             self.is_colour = True
-        
+
         ## for masks
         self.image = frame
-        self.df_image_data = pd.DataFrame({"filename":self.name,
-                                           "filepath":self.path,
-                                           "filetype":self.fourcc_str,
-                                           "width": self.dimensions[0],
-                                           "height": self.dimensions[1]}, index=[0])
-                    
+        self.df_image_data = pd.DataFrame(
+            {
+                "filename": self.name,
+                "filepath": self.path,
+                "filetype": self.fourcc_str,
+                "width": self.dimensions[0],
+                "height": self.dimensions[1],
+            },
+            index=[0],
+        )
+
         ## default
         self.flag_save_video = False
 
         ## release capture
         capture.release()
-        
+
         ## feeddback
         print("\n")
         print("--------------------------------------------------------------")
-        print("Input video properties - \"" + self.name + "\":\n")
-        print("Frames per second: " + str(self.fps) 
-              + "\nN frames: " + str(self.nframes) 
-              + "\nLength: " + str(self.length) + " (mm:ss)" 
-              + "\nDimensions: " + str(self.dimensions) 
-              + "\nColour video: " + str(self.is_colour) 
-              + "\nFourCC code: " + str(self.fourcc_str)) 
+        print('Input video properties - "' + self.name + '":\n')
+        print(
+            "Frames per second: "
+            + str(self.fps)
+            + "\nN frames: "
+            + str(self.nframes)
+            + "\nLength: "
+            + str(self.length)
+            + " (mm:ss)"
+            + "\nDimensions: "
+            + str(self.dimensions)
+            + "\nColour video: "
+            + str(self.is_colour)
+            + "\nFourCC code: "
+            + str(self.fourcc_str)
+        )
         print("--------------------------------------------------------------")
 
-    def video_output(self, video_format=None, save_suffix="out", dirpath=None,
-                     fps=None, save_colour=None, dimensions=None, resize=1):
+    def video_output(
+        self,
+        video_format=None,
+        save_suffix="out",
+        dirpath=None,
+        fps=None,
+        save_colour=None,
+        dimensions=None,
+        resize=1,
+    ):
         """
         Set properties of output video file. Most settings can be left blank, 
         so that settings from the input video will be applied
@@ -114,9 +152,14 @@ class motion_tracker(object):
         """
 
         self.flag_save_video = True
-        
+
         ## name and path
-        name =  os.path.splitext(self.name)[0] + "_" + save_suffix + os.path.splitext(self.name)[1]
+        name = (
+            os.path.splitext(self.name)[0]
+            + "_"
+            + save_suffix
+            + os.path.splitext(self.name)[1]
+        )
         if dirpath.__class__.__name__ == "NoneType":
             dirpath = os.path.dirname(self.path)
         else:
@@ -124,14 +167,14 @@ class motion_tracker(object):
                 q = input("Save folder {} does not exist - create?.".format(dirpath))
                 if q in ["True", "true", "y", "yes"]:
                     os.makedirs(dirpath)
-                else: 
+                else:
                     print("Directory not created - aborting")
                     return
         path_out = os.path.join(dirpath, name)
-        
+
         ## video properties
         if video_format.__class__.__name__ == "NoneType":
-            fourcc_str =  self.fourcc_str
+            fourcc_str = self.fourcc_str
         else:
             fourcc_str = video_format
         fourcc_out = cv2.VideoWriter_fourcc(*fourcc_str)
@@ -143,38 +186,58 @@ class motion_tracker(object):
             self.flag_save_colour = self.is_colour
         else:
             self.flag_save_colour = save_colour
-        
+
         self.resize_factor = resize
         if self.resize_factor < 1:
             res_msg = " (original resized by factor " + str(self.resize_factor) + ")"
         else:
             res_msg = ""
-        dimensions_out = (int(dimensions_out[0] *  self.resize_factor), 
-                          int(dimensions_out[1] * self.resize_factor))
+        dimensions_out = (
+            int(dimensions_out[0] * self.resize_factor),
+            int(dimensions_out[1] * self.resize_factor),
+        )
 
         ## start video-writer
-        self.writer = cv2.VideoWriter(path_out, 
-                                      fourcc_out, 
-                                      fps_out, 
-                                      dimensions_out, 
-                                      self.flag_save_colour) 
+        self.writer = cv2.VideoWriter(
+            path_out, fourcc_out, fps_out, dimensions_out, self.flag_save_colour
+        )
 
         print("\n")
         print("--------------------------------------------------------------")
-        print("Output video settings - \"" + self.name + "\":\n")
-        print("Save name: " + name + 
-              "\nSave dir: " + os.path.abspath(dirpath) + 
-              "\nFrames per second: " + str(fps_out) + 
-              "\nDimensions: " + str(dimensions_out) + res_msg +  
-              "\nColour video: " + str(self.flag_save_colour) + 
-              "\nFormat (FourCC code): " + fourcc_str) 
+        print('Output video settings - "' + self.name + '":\n')
+        print(
+            "Save name: "
+            + name
+            + "\nSave dir: "
+            + os.path.abspath(dirpath)
+            + "\nFrames per second: "
+            + str(fps_out)
+            + "\nDimensions: "
+            + str(dimensions_out)
+            + res_msg
+            + "\nColour video: "
+            + str(self.flag_save_colour)
+            + "\nFormat (FourCC code): "
+            + fourcc_str
+        )
         print("--------------------------------------------------------------")
 
-    def detection_settings(self, skip=5, warmup=0, start_after=0, finish_after=0, 
-                         history=60, threshold=10, detect_shadows=True, 
-                         mode="MOG", methods=None, c_mask=False, 
-                         c_mask_shape="rect",  c_mask_size=50):
-        
+    def detection_settings(
+        self,
+        skip=5,
+        warmup=0,
+        start_after=0,
+        finish_after=0,
+        history=60,
+        threshold=10,
+        detect_shadows=True,
+        mode="MOG",
+        methods=None,
+        c_mask=False,
+        c_mask_shape="rect",
+        c_mask_size=50,
+    ):
+
         """
         Set properties of output video file. Most settings can be left at their 
         default value.
@@ -211,24 +274,24 @@ class motion_tracker(object):
         """
         ## kwargs
         self.skip = skip
-        self.warmup = warmup 
+        self.warmup = warmup
         self.start = start_after
         self.finish = finish_after
         self.flag_detect_shadows = detect_shadows
-        self.flag_consecutive = c_mask             
-        self.consecutive_shape = c_mask_shape             
-        self.consecutive_size = c_mask_size             
+        self.flag_consecutive = c_mask
+        self.consecutive_shape = c_mask_shape
+        self.consecutive_size = c_mask_size
 
         ## select background subtractor
         if mode == "MOG":
-            self.fgbg_subtractor = cv2.createBackgroundSubtractorMOG2(int(history * (self.fps / self.skip)),  
-                                                                      threshold,  
-                                                                      self.flag_detect_shadows)
+            self.fgbg_subtractor = cv2.createBackgroundSubtractorMOG2(
+                int(history * (self.fps / self.skip)), threshold, self.flag_detect_shadows
+            )
         elif mode == "KNN":
-            self.fgbg_subtractor = cv2.createBackgroundSubtractorKNN(int(history * (self.fps / self.skip)),  
-                                                                     threshold, 
-                                                                     self.flag_detect_shadows)
-        
+            self.fgbg_subtractor = cv2.createBackgroundSubtractorKNN(
+                int(history * (self.fps / self.skip)), threshold, self.flag_detect_shadows
+            )
+
         ## return settings of methods
         if not methods.__class__.__name__ == "NoneType":
             if methods.__class__.__name__ == "tracking_method":
@@ -236,22 +299,30 @@ class motion_tracker(object):
             self.methods = methods
             for m in self.methods:
                 m._print_settings()
-                        
+
         print("\n")
         print("--------------------------------------------------------------")
-        print("Motion detection settings - \"" + self.name + "\":\n")
-        print("Background-subtractor: " + str(mode)
-              + "\nHistory: " + str(history) + " seconds" 
-              + "\nSensitivity: " + str(threshold) 
-              + "\nRead every nth frame: " +  str(self.skip) 
-              + "\nDetect shadows: " + str(self.flag_detect_shadows) 
-              + "\nStart after n seconds: " + str(self.start) 
-              + "\nFinish after n seconds: " + str(self.finish if self.finish 
-                                                   > 0 else " - ")) 
+        print('Motion detection settings - "' + self.name + '":\n')
+        print(
+            "Background-subtractor: "
+            + str(mode)
+            + "\nHistory: "
+            + str(history)
+            + " seconds"
+            + "\nSensitivity: "
+            + str(threshold)
+            + "\nRead every nth frame: "
+            + str(self.skip)
+            + "\nDetect shadows: "
+            + str(self.flag_detect_shadows)
+            + "\nStart after n seconds: "
+            + str(self.start)
+            + "\nFinish after n seconds: "
+            + str(self.finish if self.finish > 0 else " - ")
+        )
         print("--------------------------------------------------------------")
-             
-    def run_tracking(self, feedback=True, canvas="overlay", 
-                     overlay_weight=0.5):
+
+    def run_tracking(self, feedback=True, canvas="overlay", overlay_weight=0.5):
         """
         Start motion tracking procedure. Enable or disable video feedback, 
         output and select canvas (overlay of detected objects, foreground mask,
@@ -266,84 +337,106 @@ class motion_tracker(object):
         overlay_weight: float (default: 0.5)
             if canvas="overlay", how transparent should the overlay should be
 
-        """      
-        
-        ## kwargs 
+        """
+
+        ## kwargs
         flag_feedback = feedback
-        
+
         ## check if settings have been called
         if not hasattr(self, "fgbg_subtractor"):
             self.detection_settings()
-        
+
         ## initialize
         self.df = pd.DataFrame()
-        self.idx1, self.idx2 = (0,0)
-        self.capture = cv2.VideoCapture(self.path)        
+        self.idx1, self.idx2 = (0, 0)
+        self.capture = cv2.VideoCapture(self.path)
         self.start_frame = int(self.start * self.fps)
         if self.finish > 0:
             self.finish_frame = int(self.finish * self.fps)
         else:
             self.finish_frame = self.nframes
-            
+
         if "methods" in vars(self) and "df_masks" in vars(self):
             for m in self.methods:
                 m._apply_masks(frame=self.image, df_masks=self.df_masks)
-            
+
         ## loop thrpugh frames
-        while(self.capture.isOpened()):
-            
+        while self.capture.isOpened():
+
             ## frame indexing
-            self.idx1, self.idx2 = (self.idx1 + 1,  self.idx2 + 1)    
+            self.idx1, self.idx2 = (self.idx1 + 1, self.idx2 + 1)
             if self.idx2 == self.skip:
-                self.idx2 = 0 
-                
+                self.idx2 = 0
+
             ## time conversion
-            mins = str(int((self.idx1 / self.fps)/60)).zfill(2)
-            secs = str(int((((self.idx1 / self.fps)/60)-int(mins))*60)).zfill(2)    
-            self.time_stamp = "Time: " + mins + ":" + secs + "/" + self.length + " - Frames: " + str(self.idx1) + "/" + str(int(self.nframes))  
+            mins = str(int((self.idx1 / self.fps) / 60)).zfill(2)
+            secs = str(int((((self.idx1 / self.fps) / 60) - int(mins)) * 60)).zfill(2)
+            self.time_stamp = (
+                "Time: "
+                + mins
+                + ":"
+                + secs
+                + "/"
+                + self.length
+                + " - Frames: "
+                + str(self.idx1)
+                + "/"
+                + str(int(self.nframes))
+            )
 
             ## end-of-frames-control
-            if self.idx1 == self.finish_frame-1:
+            if self.idx1 == self.finish_frame - 1:
                 self.capture.release()
                 if self.flag_save_video:
                     self.writer.release()
-                break                             
-          
+                break
+
             ## capture frame
-            if self.idx1 > self.start_frame - int(self.warmup * self.fps) and self.idx2 == 0:
-                self.ret, self.frame = self.capture.read()  
-                
+            if (
+                self.idx1 > self.start_frame - int(self.warmup * self.fps)
+                and self.idx2 == 0
+            ):
+                self.ret, self.frame = self.capture.read()
+
                 ## skip empty frames
-                if self.ret==False: 
-                    continue  
+                if self.ret == False:
+                    continue
                 else:
                     capture_frame = True
-                    if self.idx1 < self.start_frame and self.idx1 > self.start_frame - int(self.warmup * self.fps):
-                        print(self.time_stamp + " - warmup")       
+                    if (
+                        self.idx1 < self.start_frame
+                        and self.idx1 > self.start_frame - int(self.warmup * self.fps)
+                    ):
+                        print(self.time_stamp + " - warmup")
                     else:
-                        print(self.time_stamp + " - captured")       
+                        print(self.time_stamp + " - captured")
             else:
-                self.capture.grab() 
+                self.capture.grab()
                 print(self.time_stamp)
                 continue
 
             ## if captured, apply masks > apply methods > write to output
-            if capture_frame == True:              
-                                
+            if capture_frame == True:
+
                 ## apply masks
                 if hasattr(self, "df_masks"):
-                    
+
                     ## include == True
-                    mask_bool, include_idx = np.zeros(self.frame.shape[0:2], dtype=bool), 0
+                    mask_bool, include_idx = (
+                        np.zeros(self.frame.shape[0:2], dtype=bool),
+                        0,
+                    )
                     for index, row in self.df_masks.iterrows():
                         if row["include"] == True:
                             if not row["mask"] == "":
                                 coords = eval(row["coords"])
-                                mask_bool = np.logical_or(mask_bool, _create_mask_bool(self.frame, coords))
+                                mask_bool = np.logical_or(
+                                    mask_bool, _create_mask_bool(self.frame, coords)
+                                )
                                 include_idx += 1
-                    if include_idx>0:
-                        self.frame[mask_bool==False] = 0
-                        
+                    if include_idx > 0:
+                        self.frame[mask_bool == False] = 0
+
                     ## include == False
                     for index, row in self.df_masks.iterrows():
                         if row["include"] == False:
@@ -351,74 +444,109 @@ class motion_tracker(object):
                                 coords = eval(row["coords"])
                                 self.frame[_create_mask_bool(self.frame, coords)] = 0
 
-                # initiate tracking    
-                fgmask = self.fgbg_subtractor.apply(self.frame)  
+                # initiate tracking
+                fgmask = self.fgbg_subtractor.apply(self.frame)
                 fgmask_copy = copy.deepcopy(fgmask)
-                self.frame_overlay = self.frame    
-                                
+                self.frame_overlay = self.frame
+
                 # apply methods
                 if "methods" in vars(self):
-                    idx =  0
+                    idx = 0
                     for m in self.methods:
                         fgmask_copy = copy.deepcopy(fgmask)
-                        self.fgmask_mod, self.overlay, self.method_contours, self.frame_df = m._run(frame=self.frame, fgmask=fgmask_copy)
+                        (
+                            self.fgmask_mod,
+                            self.overlay,
+                            self.method_contours,
+                            self.frame_df,
+                        ) = m._run(frame=self.frame, fgmask=fgmask_copy)
                         idx += 1
-                        
+
                         # shadowing of methods
                         if self.flag_consecutive and idx < len(self.methods):
                             self.method_mask = np.zeros_like(fgmask_copy)
                             for contour in self.method_contours:
                                 if self.consecutive_shape == "contour":
-                                    self.method_mask = cv2.drawContours(self.method_mask, [contour], 0, colours["white"], -1) # Draw filled contour in mask   
+                                    self.method_mask = cv2.drawContours(
+                                        self.method_mask,
+                                        [contour],
+                                        0,
+                                        colours["white"],
+                                        -1,
+                                    )  # Draw filled contour in mask
                                 elif self.consecutive_shape == "ellipse":
-                                    self.method_mask = cv2.ellipse(self.method_mask, cv2.fitEllipse(contour), colours["white"], -1)                                    
-                                elif self.consecutive_shape in ["rect","rectangle"]:
-                                    rx,ry,rw,rh = cv2.boundingRect(contour)
-                                    cv2.rectangle(self.method_mask,(int(rx),int(ry)),(int(rx+rw),int(ry+rh)), colours["white"],-1)
-                                kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(self.consecutive_size,self.consecutive_size))
-                                self.method_mask = cv2.dilate(self.method_mask, kernel, iterations = 1)   
+                                    self.method_mask = cv2.ellipse(
+                                        self.method_mask,
+                                        cv2.fitEllipse(contour),
+                                        colours["white"],
+                                        -1,
+                                    )
+                                elif self.consecutive_shape in ["rect", "rectangle"]:
+                                    rx, ry, rw, rh = cv2.boundingRect(contour)
+                                    cv2.rectangle(
+                                        self.method_mask,
+                                        (int(rx), int(ry)),
+                                        (int(rx + rw), int(ry + rh)),
+                                        colours["white"],
+                                        -1,
+                                    )
+                                kernel = cv2.getStructuringElement(
+                                    cv2.MORPH_RECT,
+                                    (self.consecutive_size, self.consecutive_size),
+                                )
+                                self.method_mask = cv2.dilate(
+                                    self.method_mask, kernel, iterations=1
+                                )
                             fgmask = cv2.subtract(fgmask, self.method_mask)
-                        
+
                         # create overlay for each method
-                        self.frame_overlay = cv2.addWeighted(self.frame_overlay, 1, self.overlay, overlay_weight, 0)    
-                        
+                        self.frame_overlay = cv2.addWeighted(
+                            self.frame_overlay, 1, self.overlay, overlay_weight, 0
+                        )
+
                         # make data.frame
-                        self.frame_df.insert(0, 'frame_abs',  self.idx1)
-                        self.frame_df.insert(1, 'frame',  int((self.idx1-self.start_frame)/self.skip))
-                        self.frame_df.insert(2, 'mins',  mins)
-                        self.frame_df.insert(3, 'secs',  secs)
-                        self.df = self.df.append(self.frame_df, ignore_index=True, sort=False)                     
-                 
+                        self.frame_df.insert(0, "frame_abs", self.idx1)
+                        self.frame_df.insert(
+                            1, "frame", int((self.idx1 - self.start_frame) / self.skip)
+                        )
+                        self.frame_df.insert(2, "mins", mins)
+                        self.frame_df.insert(3, "secs", secs)
+                        self.df = self.df.append(
+                            self.frame_df, ignore_index=True, sort=False
+                        )
+
                 ## select canvas
                 if "methods" in vars(self):
                     if canvas == "overlay":
                         self.canvas = self.frame_overlay
                     elif canvas == "fgmask":
-                        self.canvas = fgmask_copy    
+                        self.canvas = fgmask_copy
                     elif canvas == "fgmask_mod":
-                        self.canvas = self.fgmask_mod  
+                        self.canvas = self.fgmask_mod
                     else:
                         self.canvas = self.frame
                 else:
-                    self.canvas = fgmask_copy    
-                
+                    self.canvas = fgmask_copy
+
                 ## resize
                 if "resize_factor" in vars(self):
-                    self.canvas = cv2.resize(self.canvas, (0,0), fx=self.resize_factor, fy=self.resize_factor)    
+                    self.canvas = cv2.resize(
+                        self.canvas, (0, 0), fx=self.resize_factor, fy=self.resize_factor
+                    )
 
                 ## feedback
                 if flag_feedback == True:
-                    cv2.namedWindow('phenopype' ,cv2.WINDOW_NORMAL)
-                    cv2.imshow('phenopype', self.canvas)   
-                                
+                    cv2.namedWindow("phenopype", cv2.WINDOW_NORMAL)
+                    cv2.imshow("phenopype", self.canvas)
+
                 # save output
                 if self.flag_save_video == True:
-                    if self.flag_save_colour and len(self.canvas.shape)<3:
+                    if self.flag_save_colour and len(self.canvas.shape) < 3:
                         self.canvas = cv2.cvtColor(self.canvas, cv2.COLOR_GRAY2BGR)
                     self.writer.write(self.canvas)
 
             ## keep stream open
-            if cv2.waitKey(1) & 0xff == 27:
+            if cv2.waitKey(1) & 0xFF == 27:
                 self.capture.release()
                 self.writer.release()
                 break
@@ -428,13 +556,13 @@ class motion_tracker(object):
         if "writer" in vars(self):
             self.writer.release()
         cv2.destroyAllWindows()
-        
+
         ## return DataFrame
         return self.df
-        
-        
-class tracking_method():
-    
+
+
+class tracking_method:
+
     """
     Constructs a tracking method that can be supplied to the motion_tracker 
     class.
@@ -473,28 +601,40 @@ class tracking_method():
             - "bgr" mean and standard deviation of blue, green and red pixel 
               values inside the object contours
     """
-    def __init__(self, label="m1", blur=5, threshold=127, remove_shadows=True,  
-                 min_length=0, max_length=inf, min_area=0, max_area=inf, 
-                 mode="multiple", overlay_colour="red", operations=[]):
-        
+
+    def __init__(
+        self,
+        label="m1",
+        blur=5,
+        threshold=127,
+        remove_shadows=True,
+        min_length=0,
+        max_length=inf,
+        min_area=0,
+        max_area=inf,
+        mode="multiple",
+        overlay_colour="red",
+        operations=[],
+    ):
+
         ## kwargs
         self.blur_kernel = blur
         self.label = label
         self.overlay_colour = colours[overlay_colour]
         self.min_length, self.max_length = min_length, max_length
         self.min_area, self.max_area = min_area, max_area
-        self.mode = mode 
+        self.mode = mode
         self.operations = operations
         self.threshold_value = threshold
-        self.remove_shadows = remove_shadows          
-        
+        self.remove_shadows = remove_shadows
+
     def _apply_masks(self, frame, df_masks):
         """
         Applies masks drawn using the motion_tracker.
         
         Internal reference - don't call this directly. 
-        """ 
-        if df_masks.__class__.__name__ == "DataFrame":  
+        """
+        if df_masks.__class__.__name__ == "DataFrame":
             self.mask_bool = {}
             for index, row in df_masks.iterrows():
                 if row["include"] == True:
@@ -502,18 +642,17 @@ class tracking_method():
                         coords = eval(row["coords"])
                         mask_bool = _create_mask_bool(frame, coords)
                         self.mask_bool[row["mask"]] = mask_bool
-                        
+
     def _print_settings(self, width=30, indent=1, compact=True):
         """
         Prints the settings of the tracking method. 
         
         Internal reference - don't call this directly. 
-        """ 
+        """
 
         pretty = pprint.PrettyPrinter(width=width, compact=compact, indent=indent)
         pretty.pprint(vars(self))
-        
-            
+
     def _run(self, frame, fgmask):
         """
         Run tracking method on current frame. 
@@ -522,158 +661,188 @@ class tracking_method():
         """
 
         ## initialize
-        self.overlay = np.zeros_like(frame) 
-        self.overlay_bin = np.zeros(frame.shape[0:2], dtype=np.uint8) 
+        self.overlay = np.zeros_like(frame)
+        self.overlay_bin = np.zeros(frame.shape[0:2], dtype=np.uint8)
         self.frame_df = pd.DataFrame()
 
-        if self.remove_shadows==True:
-            ret, fgmask = cv2.threshold(fgmask, 
-                                             128, 255, 
-                                             cv2.THRESH_BINARY)
-         
+        if self.remove_shadows == True:
+            ret, fgmask = cv2.threshold(fgmask, 128, 255, cv2.THRESH_BINARY)
+
         ## blur
         fgmask = blur(fgmask, self.blur_kernel)
-        
+
         # ## threshold
-        fgmask = threshold(fgmask, 
-                           method="binary", 
-                           invert=True,
-                           value=self.threshold_value)
-    
+        fgmask = threshold(
+            fgmask, method="binary", invert=True, value=self.threshold_value
+        )
+
         ## find contours
-        ret, contours, hierarchy = cv2.findContours(fgmask, 
-                                                    cv2.RETR_EXTERNAL,
-                                                    cv2.CHAIN_APPROX_SIMPLE)
-        
-        
+        ret, contours, hierarchy = cv2.findContours(
+            fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
         ## perform operations on contours
-        if len(contours) > 0:   
-            list_contours, list_area, list_length, list_center_coordinates = [], [], [], []
+        if len(contours) > 0:
+            list_contours, list_area, list_length, list_center_coordinates = (
+                [],
+                [],
+                [],
+                [],
+            )
             df_list, df_column_names = [], []
-            
+
             # check if contour matches min/max length provided
             for contour in contours:
                 if contour.shape[0] > 4:
-                    center,radius = cv2.minEnclosingCircle(contour)
-                    length = int(radius * 2)     
+                    center, radius = cv2.minEnclosingCircle(contour)
+                    length = int(radius * 2)
                     area = int(cv2.contourArea(contour))
-                    if all([
-                        length > self.min_length and length < self.max_length,
-                        area > self.min_area and area < self.max_area,
-                        ]):
-                        list_length.append(length)      
+                    if all(
+                        [
+                            length > self.min_length and length < self.max_length,
+                            area > self.min_area and area < self.max_area,
+                        ]
+                    ):
+                        list_length.append(length)
                         list_area.append(area)
-                        list_contours.append(contour) 
-                        list_center_coordinates.append(center) 
+                        list_contours.append(contour)
+                        list_center_coordinates.append(center)
 
-            if len(list_contours) > 0:      
+            if len(list_contours) > 0:
                 # if single biggest contour:
                 if self.mode == "single":
-                    if len(contours)==1:
+                    if len(contours) == 1:
                         pass
-                    elif len(contours)>1:
+                    elif len(contours) > 1:
                         max_idx = np.argmax(list_length)
                         list_contours = [list_contours[max_idx]]
                         list_length = [list_length[max_idx]]
                         list_area = [list_area[max_idx]]
                         list_center_coordinates = [list_center_coordinates[max_idx]]
-        
-                list_x, list_y = [],[]
-                list_grayscale, list_grayscale_background = [],[]
-                list_b, list_g, list_r = [],[],[] 
-                
+
+                list_x, list_y = [], []
+                list_grayscale, list_grayscale_background = [], []
+                list_b, list_g, list_r = [], [], []
+
                 for contour, center in zip(list_contours, list_center_coordinates):
-                    
-                    # operations    
-                    x=int(center[0])
-                    y=int(center[1])
+
+                    # operations
+                    x = int(center[0])
+                    y = int(center[1])
                     list_x.append(x)
                     list_y.append(y)
-                    
+
                     if "mask_bool" in vars(self):
                         list_mask_check = []
                         temp_list = []
                         for key, val in self.mask_bool.items():
-                            temp_list.append(val[y,x])       
+                            temp_list.append(val[y, x])
                         list_mask_check.append(temp_list)
 
-                    rx,ry,rw,rh = cv2.boundingRect(contour)
-                    frame_roi = frame[ry:ry+rh,rx:rx+rw]
+                    rx, ry, rw, rh = cv2.boundingRect(contour)
+                    frame_roi = frame[ry : ry + rh, rx : rx + rw]
                     frame_roi_gray = cv2.cvtColor(frame_roi, cv2.COLOR_BGR2GRAY)
-                    mask_roi = fgmask[ry:ry+rh,rx:rx+rw]               
-                                
+                    mask_roi = fgmask[ry : ry + rh, rx : rx + rw]
+
                     if any("grayscale" in o for o in self.operations):
-                        grayscale = ma.array(data=frame_roi_gray, mask = np.logical_not(mask_roi))
+                        grayscale = ma.array(
+                            data=frame_roi_gray, mask=np.logical_not(mask_roi)
+                        )
                         list_grayscale.append(int(np.mean(grayscale)))
-                        
+
                     if any("grayscale_background" in o for o in self.operations):
-                        grayscale_background = ma.array(data=frame_roi_gray, mask = mask_roi)
+                        grayscale_background = ma.array(
+                            data=frame_roi_gray, mask=mask_roi
+                        )
                         if not grayscale_background.mask.all():
-                            list_grayscale_background.append(int(np.mean(grayscale_background)))
+                            list_grayscale_background.append(
+                                int(np.mean(grayscale_background))
+                            )
                         else:
                             list_grayscale_background.append(9999)
-                            
+
                     if any("bgr" in o for o in self.operations):
-                        b = ma.array(data=frame_roi[:,:,0], mask = np.logical_not(mask_roi))
+                        b = ma.array(
+                            data=frame_roi[:, :, 0], mask=np.logical_not(mask_roi)
+                        )
                         list_b.append(int(np.mean(b)))
-                        g = ma.array(data=frame_roi[:,:,1], mask = np.logical_not(mask_roi))
+                        g = ma.array(
+                            data=frame_roi[:, :, 1], mask=np.logical_not(mask_roi)
+                        )
                         list_g.append(int(np.mean(g)))
-                        r = ma.array(data=frame_roi[:,:,2], mask = np.logical_not(mask_roi))
-                        list_r.append(int(np.mean(r)))                       
-                                                                
-                    # drawing 
-                    self.overlay = cv2.drawContours(self.overlay, [contour], 0, self.overlay_colour, -1) # Draw filled contour in mask     
-                    self.overlay = cv2.putText(self.overlay, self.label, (x, y), cv2.FONT_HERSHEY_SIMPLEX,  1,self.overlay_colour,1,cv2.LINE_AA)  
-                    self.overlay = cv2.rectangle(self.overlay,(rx,ry),(int(rx+rw),int(ry+rh)),self.overlay_colour,2)
-    
-                df_list = df_list + [list_x]  
-                df_list = df_list + [list_y]  
-                df_column_names = df_column_names + ["x","y"]
-                
-                if any("diameter" in o for o in self.operations):               
-                    df_list = df_list + [list_length] 
-                    df_column_names.append("diameter")                    
-    
-                if any("area" in o for o in self.operations):               
-                    df_list = df_list + [list_area] 
-                    df_column_names.append("area")                    
+                        r = ma.array(
+                            data=frame_roi[:, :, 2], mask=np.logical_not(mask_roi)
+                        )
+                        list_r.append(int(np.mean(r)))
+
+                    # drawing
+                    self.overlay = cv2.drawContours(
+                        self.overlay, [contour], 0, self.overlay_colour, -1
+                    )  # Draw filled contour in mask
+                    self.overlay = cv2.putText(
+                        self.overlay,
+                        self.label,
+                        (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        self.overlay_colour,
+                        1,
+                        cv2.LINE_AA,
+                    )
+                    self.overlay = cv2.rectangle(
+                        self.overlay,
+                        (rx, ry),
+                        (int(rx + rw), int(ry + rh)),
+                        self.overlay_colour,
+                        2,
+                    )
+
+                df_list = df_list + [list_x]
+                df_list = df_list + [list_y]
+                df_column_names = df_column_names + ["x", "y"]
+
+                if any("diameter" in o for o in self.operations):
+                    df_list = df_list + [list_length]
+                    df_column_names.append("diameter")
+
+                if any("area" in o for o in self.operations):
+                    df_list = df_list + [list_area]
+                    df_column_names.append("area")
 
                 if any("grayscale" in o for o in self.operations):
-                    df_list = df_list + [list_grayscale] 
+                    df_list = df_list + [list_grayscale]
                     df_column_names.append("grayscale")
-    
+
                 if any("grayscale_background" in o for o in self.operations):
-                    df_list = df_list + [list_grayscale_background] 
+                    df_list = df_list + [list_grayscale_background]
                     df_column_names.append("grayscale_background")
 
                 if any("bgr" in o for o in self.operations):
-                    df_list = df_list + [list_b]  
-                    df_list = df_list + [list_g]  
-                    df_list = df_list + [list_r]              
+                    df_list = df_list + [list_b]
+                    df_list = df_list + [list_g]
+                    df_list = df_list + [list_r]
                     df_column_names = df_column_names + ["b", "g", "r"]
-                    
+
                 frame_df = pd.DataFrame(data=df_list)
-                frame_df = frame_df.transpose()                        
+                frame_df = frame_df.transpose()
                 frame_df.columns = df_column_names
                 frame_df["label"] = self.label
                 self.frame_df = frame_df
-                
+
                 if "mask_bool" in vars(self):
                     mask_df = pd.DataFrame(list_mask_check, columns=[*self.mask_bool])
-                    self.frame_df = pd.concat([frame_df.reset_index(drop=True), mask_df], axis=1)
-                    
+                    self.frame_df = pd.concat(
+                        [frame_df.reset_index(drop=True), mask_df], axis=1
+                    )
+
                 self.contours = list_contours
-                          
+
                 return fgmask, self.overlay, self.contours, self.frame_df
 
             else:
                 frame_df = pd.DataFrame()
                 return fgmask, self.overlay, [], self.frame_df
-        
+
         else:
             frame_df = pd.DataFrame()
             return fgmask, self.overlay, [], self.frame_df
-        
-        
-        
-

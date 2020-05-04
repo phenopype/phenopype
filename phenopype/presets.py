@@ -25,7 +25,7 @@ export:
     overwrite: true
 """
 
-preset1 = object_detection_plain # legacy
+preset1 = object_detection_plain  # legacy
 
 object_detection_morph = """
 segmentation:
@@ -59,7 +59,7 @@ export:
     overwrite: true
 """
 
-preset3="""
+preset3 = """
 preprocessing:
 - create_mask: # with this you create the boundary around the plates (gets saved after first run)
     label: mask1
@@ -93,7 +93,7 @@ visualization:
     label_size: 1
     fill: 0
 """
-preset4="""
+preset4 = """
 preprocessing:
 - resize_image:
     factor: 0.5

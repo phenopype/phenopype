@@ -1,13 +1,15 @@
-    #%% modules
+#%% modules
 import cv2, copy, os
 import pandas as pd
 
-from phenopype.utils_lowlevel import  _save_yaml, _load_yaml ,_contours_arr_tup
+from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
 
 #%% functions
 
-def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None, 
-                name="", resize=0.5):
+
+def save_canvas(
+    obj_input, overwrite=True, dirpath=None, save_suffix=None, name="", resize=0.5
+):
     """
     Save a canvas (processed image). 
 
@@ -32,13 +34,19 @@ def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     flag_overwrite = overwrite
 
     ## load df
-    if obj_input.__class__.__name__ == 'ndarray':
+    if obj_input.__class__.__name__ == "ndarray":
         image = copy.deepcopy(obj_input)
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.canvas)
-        if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+        if (
+            save_suffix.__class__.__name__ == "NoneType"
+            and not obj_input.save_suffix.__class__.__name__ == "NoneType"
+        ):
             save_suffix = obj_input.save_suffix
     else:
         print("No image supplied - cannot save canvas.")
@@ -46,25 +54,24 @@ def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
+        print('No save directory ("dirpath") specified - cannot save result.')
         return
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
             if q in ["True", "true", "y", "yes"]:
                 os.makedirs(dirpath)
-            else: 
+            else:
                 print("Directory not created - aborting")
                 return
-            
+
     ## resize
     if resize < 1:
-        image = cv2.resize(image, (0,0), fx=1*resize, fy=1*resize) 
-
+        image = cv2.resize(image, (0, 0), fx=1 * resize, fy=1 * resize)
 
     ## save suffix
-    if len(name)>0:
-        name = "_" + name 
+    if len(name) > 0:
+        name = "_" + name
     if save_suffix:
         path = os.path.join(dirpath, "canvas" + name + "_" + save_suffix + ".jpg")
     else:
@@ -85,10 +92,9 @@ def save_canvas(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         break
 
 
-
-
-def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-                 round_digits=1):
+def save_colours(
+    obj_input, overwrite=True, dirpath=None, save_suffix=None, round_digits=1
+):
     """
     Save colour intensities to csv. 
     
@@ -110,13 +116,19 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     flag_overwrite = overwrite
 
     ## load df
-    if obj_input.__class__.__name__ == 'DataFrame':
+    if obj_input.__class__.__name__ == "DataFrame":
         df = copy.deepcopy(obj_input)
     elif obj_input.__class__.__name__ == "container":
         df = copy.deepcopy(obj_input.df_colours)
-        if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+        if (
+            save_suffix.__class__.__name__ == "NoneType"
+            and not obj_input.save_suffix.__class__.__name__ == "NoneType"
+        ):
             save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
@@ -129,14 +141,14 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
+        print('No save directory ("dirpath") specified - cannot save result.')
         return
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
             if q in ["True", "true", "y", "yes"]:
                 os.makedirs(dirpath)
-            else: 
+            else:
                 print("Directory not created - aborting")
                 return
 
@@ -145,7 +157,7 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         path = os.path.join(dirpath, "colours_" + save_suffix + ".csv")
     else:
         path = os.path.join(dirpath, "colours.csv")
-    
+
     ## check if file exists
     while True:
         if os.path.isfile(path) and flag_overwrite == False:
@@ -157,13 +169,19 @@ def save_colours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         elif not os.path.isfile(path):
             print("- colours saved under " + path + ".")
             pass
-        df.to_csv(path_or_buf=path, sep=",",index=False)
+        df.to_csv(path_or_buf=path, sep=",", index=False)
         break
 
 
-
-def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
-                  save_coords=True, convert_coords=True, subset=None):
+def save_contours(
+    obj_input,
+    overwrite=True,
+    dirpath=None,
+    save_suffix=None,
+    save_coords=True,
+    convert_coords=True,
+    subset=None,
+):
     """
     Save contour coordinates and features to csv. This also saves skeletonization
     ouput if the data is contained in the provided DataFrame.
@@ -193,52 +211,64 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
     flag_subset = subset
 
     ## load df
-    if obj_input.__class__.__name__ == 'DataFrame':
+    if obj_input.__class__.__name__ == "DataFrame":
         df = copy.deepcopy(obj_input)
     elif obj_input.__class__.__name__ == "container":
         df = copy.deepcopy(obj_input.df_contours)
-        if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+        if (
+            save_suffix.__class__.__name__ == "NoneType"
+            and not obj_input.save_suffix.__class__.__name__ == "NoneType"
+        ):
             save_suffix = obj_input.save_suffix
     else:
         print("No contour df supplied - cannot export contours.")
         return
-   
+
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
+        print('No save directory ("dirpath") specified - cannot save result.')
         return
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
             if q in ["True", "true", "y", "yes"]:
                 os.makedirs(dirpath)
-            else: 
+            else:
                 print("Directory not created - aborting")
                 return
-            
+
     ## drop skeleton coordinates
     if "skeleton_coords" in df:
         df.drop(columns="skeleton_coords", inplace=True)
-        
+
     ## don't save coordinates
     if flag_save_coords == False:
         flag_convert_coords = False
         df.drop(columns="coords", inplace=True)
-        
-    ## subset 
+
+    ## subset
     if flag_subset == "child":
-        df = df[df['order']=="child"]
+        df = df[df["order"] == "child"]
     elif flag_subset == "parent":
-        df = df[df['order']=="parent"]
+        df = df[df["order"] == "parent"]
 
     ## convert contour coords to list of tuples
     if flag_convert_coords:
         for idx, row in df.iterrows():
-            df.at[idx,"coords"] = _contours_arr_tup(row["coords"])
+            df.at[idx, "coords"] = _contours_arr_tup(row["coords"])
         df = df.explode("coords")
-        df = pd.concat([df.reset_index(drop=True), pd.DataFrame(df["coords"].tolist(), columns=["x","y"])], axis=1)
+        df = pd.concat(
+            [
+                df.reset_index(drop=True),
+                pd.DataFrame(df["coords"].tolist(), columns=["x", "y"]),
+            ],
+            axis=1,
+        )
         df.drop(columns="coords", inplace=True)
 
     ## save suffix
@@ -258,9 +288,8 @@ def save_contours(obj_input, overwrite=True, dirpath=None, save_suffix=None,
         elif not os.path.isfile(path):
             print("- contours saved under " + path + ".")
             pass
-        df.to_csv(path_or_buf=path, sep=",",index=False)
+        df.to_csv(path_or_buf=path, sep=",", index=False)
         break
-
 
 
 def save_drawing(obj_input, overwrite=True, dirpath=None):
@@ -281,11 +310,14 @@ def save_drawing(obj_input, overwrite=True, dirpath=None):
     flag_overwrite = overwrite
 
     ## load df
-    if obj_input.__class__.__name__ == 'DataFrame':
+    if obj_input.__class__.__name__ == "DataFrame":
         df = obj_input
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_draw
-        if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
             dirpath = obj_input.dirpath
     else:
         print("No df supplied - cannot export results.")
@@ -293,22 +325,22 @@ def save_drawing(obj_input, overwrite=True, dirpath=None):
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
+        print('No save directory ("dirpath") specified - cannot save result.')
         return
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
             if q in ["True", "true", "y", "yes"]:
                 os.makedirs(dirpath)
-            else: 
+            else:
                 print("Directory not created - aborting")
                 return
-            
+
     ## load attributes file
     attr_path = os.path.join(dirpath, "attributes.yaml")
     if os.path.isfile(attr_path):
         attr = _load_yaml(attr_path)
-    else: 
+    else:
         attr = {}
     if not "drawing" in attr:
         attr["drawing"] = {}
@@ -332,7 +364,6 @@ def save_drawing(obj_input, overwrite=True, dirpath=None):
         break
 
 
-
 def save_data_entry(obj_input, overwrite=True, dirpath=None):
     """
     Save data entry to attributes.yaml 
@@ -351,11 +382,14 @@ def save_data_entry(obj_input, overwrite=True, dirpath=None):
     flag_overwrite = overwrite
 
     ## load df
-    if obj_input.__class__.__name__ == 'DataFrame':
+    if obj_input.__class__.__name__ == "DataFrame":
         df = obj_input
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_other_data
-        if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
             dirpath = obj_input.dirpath
     else:
         print("No df supplied - cannot export results.")
@@ -363,22 +397,22 @@ def save_data_entry(obj_input, overwrite=True, dirpath=None):
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
+        print('No save directory ("dirpath") specified - cannot save result.')
         return
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
             if q in ["True", "true", "y", "yes"]:
                 os.makedirs(dirpath)
-            else: 
+            else:
                 print("Directory not created - aborting")
                 return
-        
+
     ## load attributes file
     attr_path = os.path.join(dirpath, "attributes.yaml")
     if os.path.isfile(attr_path):
         attr = _load_yaml(attr_path)
-    else: 
+    else:
         attr = {}
     if not "other" in attr:
         attr["other"] = {}
@@ -420,13 +454,19 @@ def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     flag_overwrite = overwrite
 
     ## load df
-    if obj_input.__class__.__name__ == 'DataFrame':
+    if obj_input.__class__.__name__ == "DataFrame":
         df = obj_input
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_landmarks
-        if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+        if (
+            save_suffix.__class__.__name__ == "NoneType"
+            and not obj_input.save_suffix.__class__.__name__ == "NoneType"
+        ):
             save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
@@ -434,14 +474,14 @@ def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
+        print('No save directory ("dirpath") specified - cannot save result.')
         return
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
             if q in ["True", "true", "y", "yes"]:
                 os.makedirs(dirpath)
-            else: 
+            else:
                 print("Directory not created - aborting")
                 return
 
@@ -450,7 +490,7 @@ def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         path = os.path.join(dirpath, "landmarks_" + save_suffix + ".csv")
     else:
         path = os.path.join(dirpath, "landmarks.csv")
-    
+
     ## check if file exists
     while True:
         if os.path.isfile(path) and flag_overwrite == False:
@@ -462,9 +502,8 @@ def save_landmarks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         elif not os.path.isfile(path):
             print("- landmarks saved under " + path + ".")
             pass
-        df.to_csv(path_or_buf=path, sep=",",index=False)
+        df.to_csv(path_or_buf=path, sep=",", index=False)
         break
-
 
 
 def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
@@ -485,15 +524,21 @@ def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     """
     ## kwargs
     flag_overwrite = overwrite
-    
+
     ## load df
-    if obj_input.__class__.__name__ == 'ndarray':
+    if obj_input.__class__.__name__ == "ndarray":
         df = obj_input
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_masks
-        if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+        if (
+            save_suffix.__class__.__name__ == "NoneType"
+            and not obj_input.save_suffix.__class__.__name__ == "NoneType"
+        ):
             save_suffix = obj_input.save_suffix
     else:
         print("No mask df supplied - cannot save mask.")
@@ -501,14 +546,14 @@ def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
+        print('No save directory ("dirpath") specified - cannot save result.')
         return
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
             if q in ["True", "true", "y", "yes"]:
                 os.makedirs(dirpath)
-            else: 
+            else:
                 print("Directory not created - aborting")
                 return
 
@@ -517,7 +562,7 @@ def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         path = os.path.join(dirpath, "masks_" + save_suffix + ".csv")
     else:
         path = os.path.join(dirpath, "masks.csv")
-    
+
     ## check if file exists
     while True:
         if os.path.isfile(path) and flag_overwrite == False:
@@ -529,9 +574,8 @@ def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         elif not os.path.isfile(path):
             print("- masks saved under " + path + ".")
             pass
-        df.to_csv(path_or_buf=path, sep=",",index=False)
+        df.to_csv(path_or_buf=path, sep=",", index=False)
         break
-
 
 
 def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
@@ -554,13 +598,19 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     flag_overwrite = overwrite
 
     ## load df
-    if obj_input.__class__.__name__ == 'DataFrame':
+    if obj_input.__class__.__name__ == "DataFrame":
         df = obj_input
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_polylines
-        if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
             dirpath = obj_input.dirpath
-        if save_suffix.__class__.__name__ == "NoneType" and not obj_input.save_suffix.__class__.__name__ == "NoneType":
+        if (
+            save_suffix.__class__.__name__ == "NoneType"
+            and not obj_input.save_suffix.__class__.__name__ == "NoneType"
+        ):
             save_suffix = obj_input.save_suffix
     else:
         print("No df supplied - cannot export results.")
@@ -568,14 +618,14 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
+        print('No save directory ("dirpath") specified - cannot save result.')
         return
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
             if q in ["True", "true", "y", "yes"]:
                 os.makedirs(dirpath)
-            else: 
+            else:
                 print("Directory not created - aborting")
                 return
 
@@ -584,7 +634,7 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         path = os.path.join(dirpath, "polylines_" + save_suffix + ".csv")
     else:
         path = os.path.join(dirpath, "polylines.csv")
-        
+
     ## check if file exists
     while True:
         if os.path.isfile(path) and flag_overwrite == False:
@@ -596,9 +646,8 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         elif not os.path.isfile(path):
             print("- polylines saved under " + path + ".")
             pass
-        df.to_csv(path_or_buf=path, sep=",",index=False)
+        df.to_csv(path_or_buf=path, sep=",", index=False)
         break
-
 
 
 def save_scale(obj_input, overwrite=True, dirpath=None):
@@ -624,7 +673,10 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
     elif obj_input.__class__.__name__ == "container":
         if hasattr(obj_input, "scale_current_px_mm_ratio"):
             scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
-        if dirpath.__class__.__name__ == "NoneType" and not obj_input.dirpath.__class__.__name__ == "NoneType":
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
             dirpath = obj_input.dirpath
     else:
         print("No scale supplied - cannot export results.")
@@ -632,14 +684,14 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
 
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print("No save directory (\"dirpath\") specified - cannot save result.")
+        print('No save directory ("dirpath") specified - cannot save result.')
         return
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
             if q in ["True", "true", "y", "yes"]:
                 os.makedirs(dirpath)
-            else: 
+            else:
                 print("Directory not created - aborting")
                 return
 
@@ -647,11 +699,10 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
     attr_path = os.path.join(dirpath, "attributes.yaml")
     if os.path.isfile(attr_path):
         attr = _load_yaml(attr_path)
-    else: 
+    else:
         attr = {}
     if not "scale" in attr:
         attr["scale"] = {}
-
 
     ## check if file exists
     while True:

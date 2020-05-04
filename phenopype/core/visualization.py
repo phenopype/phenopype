@@ -5,13 +5,19 @@ import numpy as np
 import math
 
 from phenopype.settings import colours
-from phenopype.utils_lowlevel import _auto_line_width, _auto_point_size, _auto_text_width, _auto_text_size
+from phenopype.utils_lowlevel import (
+    _auto_line_width,
+    _auto_point_size,
+    _auto_text_width,
+    _auto_text_size,
+)
 
 #%% settings
 
 inf = math.inf
 
 #%% functions
+
 
 def select_canvas(obj_input, canvas="image_mod", multi=True):
     """
@@ -64,14 +70,14 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
     elif canvas in ["gray", "grey", "image_gray"]:
         canvas = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         print("- grayscale image")
-    elif canvas in ["g","green"]:
-        canvas = image[:,:,0]
+    elif canvas in ["g", "green"]:
+        canvas = image[:, :, 0]
         print("- green channel")
-    elif canvas in ["r","red"]:
-        canvas = image[:,:,1]
+    elif canvas in ["r", "red"]:
+        canvas = image[:, :, 1]
         print("- red channel")
-    elif canvas in ["b","blue"]:
-        canvas = image[:,:,2]
+    elif canvas in ["b", "blue"]:
+        canvas = image[:, :, 2]
         print("- blue channel")
     else:
         print("- invalid selection - defaulting to raw image")
@@ -79,7 +85,7 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
 
     ## check if 3D
     if flag_multi:
-        if len(canvas.shape)<3:
+        if len(canvas.shape) < 3:
             canvas = cv2.cvtColor(canvas, cv2.COLOR_GRAY2BGR)
 
     ## return
@@ -89,11 +95,24 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
         obj_input.canvas = canvas
 
 
-def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True, 
-                  fill=0.3, mark_holes=True, level=3, line_colour="green",
-                  label_size="auto", label_colour="black", line_width="auto", 
-                  label_width="auto", skeleton=True, watershed=False,
-                  bounding_box=False, bounding_box_ext=20):
+def draw_contours(
+    obj_input,
+    df_contours=None,
+    offset_coords=None,
+    label=True,
+    fill=0.3,
+    mark_holes=True,
+    level=3,
+    line_colour="green",
+    label_size="auto",
+    label_colour="black",
+    line_width="auto",
+    label_width="auto",
+    skeleton=True,
+    watershed=False,
+    bounding_box=False,
+    bounding_box_ext=20,
+):
     """
     Draw contours and their labels onto a canvas. Can be filled or empty, offset
     coordinates can be supplied. This will also draw the skeleton, if the argument
@@ -168,7 +187,6 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
         print("wrong input format.")
         return
 
-
     ## more kwargs
     if line_width == "auto":
         line_width = _auto_line_width(image)
@@ -199,51 +217,67 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
             fill_colour = line_colour_sel
             line_colour = line_colour_sel
         if flag_fill > 0:
-            cv2.drawContours(image=colour_mask, 
-                    contours=[row["coords"]], 
-                    contourIdx = idx,
-                    thickness=-1, 
-                    color=fill_colour, 
-                    maxLevel=level,
-                    offset=offset_coords)
-        if line_width > 0: 
-            cv2.drawContours(image=image, 
-                    contours=[row["coords"]], 
-                    contourIdx = idx,
-                    thickness=line_width, 
-                    color=line_colour, 
-                    maxLevel=level,
-                    offset=offset_coords)
+            cv2.drawContours(
+                image=colour_mask,
+                contours=[row["coords"]],
+                contourIdx=idx,
+                thickness=-1,
+                color=fill_colour,
+                maxLevel=level,
+                offset=offset_coords,
+            )
+        if line_width > 0:
+            cv2.drawContours(
+                image=image,
+                contours=[row["coords"]],
+                contourIdx=idx,
+                thickness=line_width,
+                color=line_colour,
+                maxLevel=level,
+                offset=offset_coords,
+            )
         if flag_skeleton and "skeleton_coords" in df_contours:
-            cv2.drawContours(image=image, 
-                    contours=[row["skeleton_coords"]], 
-                    contourIdx = idx,
-                    thickness=line_width, 
-                    color=colours["red"], 
-                    maxLevel=level,
-                    offset=offset_coords)
+            cv2.drawContours(
+                image=image,
+                contours=[row["skeleton_coords"]],
+                contourIdx=idx,
+                thickness=line_width,
+                color=colours["red"],
+                maxLevel=level,
+                offset=offset_coords,
+            )
         if flag_label:
-            cv2.putText(image, 
-                        str(row["contour"]) , 
-                        (row["center"]), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 
-                        label_size, 
-                        label_colour, 
-                        label_width, 
-                        cv2.LINE_AA)
-            cv2.putText(colour_mask, 
-                        str(row["contour"]) , 
-                        (row["center"]), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 
-                        label_size, 
-                        label_colour, 
-                        label_width, 
-                        cv2.LINE_AA)
+            cv2.putText(
+                image,
+                str(row["contour"]),
+                (row["center"]),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                label_size,
+                label_colour,
+                label_width,
+                cv2.LINE_AA,
+            )
+            cv2.putText(
+                colour_mask,
+                str(row["contour"]),
+                (row["center"]),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                label_size,
+                label_colour,
+                label_width,
+                cv2.LINE_AA,
+            )
         if flag_bounding_box:
-            rx,ry,rw,rh = cv2.boundingRect(row["coords"])
-            cv2.rectangle(image, (rx-q,ry-q), (rx+rw+q,ry+rh+q), fill_colour, line_width)
+            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
+            cv2.rectangle(
+                image,
+                (rx - q, ry - q),
+                (rx + rw + q, ry + rh + q),
+                fill_colour,
+                line_width,
+            )
 
-    image = cv2.addWeighted(image,1-flag_fill, colour_mask, flag_fill, 0) 
+    image = cv2.addWeighted(image, 1 - flag_fill, colour_mask, flag_fill, 0)
 
     # df_contours= df_contours.drop("skeleton_coords", axis=1)
 
@@ -254,11 +288,15 @@ def draw_contours(obj_input, df_contours=None, offset_coords=None, label=True,
         obj_input.canvas = image
 
 
-
-
-def draw_landmarks(obj_input, df_landmarks=None, point_colour="green", 
-                   point_size="auto", label_colour="black", label_size="auto", 
-                   label_width="auto"):
+def draw_landmarks(
+    obj_input,
+    df_landmarks=None,
+    point_colour="green",
+    point_size="auto",
+    label_colour="black",
+    label_size="auto",
+    label_width="auto",
+):
     """
     Draw landmarks into an image.
 
@@ -313,9 +351,17 @@ def draw_landmarks(obj_input, df_landmarks=None, point_colour="green",
 
     ## visualize
     for label, x, y in zip(df_landmarks.landmark, df_landmarks.x, df_landmarks.y):
-        cv2.circle(image, (x,y), point_size, point_colour, -1)
-        cv2.putText(image, str(label), (x,y), cv2.FONT_HERSHEY_SIMPLEX, 
-                    label_size, label_col, label_width, cv2.LINE_AA)
+        cv2.circle(image, (x, y), point_size, point_colour, -1)
+        cv2.putText(
+            image,
+            str(label),
+            (x, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            label_size,
+            label_col,
+            label_width,
+            cv2.LINE_AA,
+        )
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
@@ -324,10 +370,17 @@ def draw_landmarks(obj_input, df_landmarks=None, point_colour="green",
         obj_input.canvas = image
 
 
-
-def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue", 
-               line_width="auto", label=False, label_size="auto", 
-               label_colour="black", label_width="auto"):
+def draw_masks(
+    obj_input,
+    select=None,
+    df_masks=None,
+    line_colour="blue",
+    line_width="auto",
+    label=False,
+    label_size="auto",
+    label_colour="black",
+    label_width="auto",
+):
     """
     Draw masks into an image. This function is also used to draw the perimeter 
     of a created or detected reference scale card.
@@ -404,17 +457,22 @@ def draw_masks(obj_input, select=None, df_masks=None, line_colour="blue",
             line_colour = line_colour_sel
         cv2.polylines(image, np.array([coords]), False, line_colour, line_width)
         if flag_label:
-            cv2.putText(image, row["mask"] , coords[0], 
-                        cv2.FONT_HERSHEY_SIMPLEX, label_size, label_colour, 
-                        label_width, cv2.LINE_AA)
+            cv2.putText(
+                image,
+                row["mask"],
+                coords[0],
+                cv2.FONT_HERSHEY_SIMPLEX,
+                label_size,
+                label_colour,
+                label_width,
+                cv2.LINE_AA,
+            )
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
         return image
     elif obj_input.__class__.__name__ == "container":
         obj_input.canvas = image
-
-
 
 
 def draw_polylines(obj_input, line_colour="blue", line_width="auto"):
@@ -445,7 +503,7 @@ def draw_polylines(obj_input, line_colour="blue", line_width="auto"):
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_polylines = obj_input.df_polylines
-        
+
     ## more kwargs
     if line_width == "auto":
         line_width = _auto_line_width(image)
@@ -454,9 +512,8 @@ def draw_polylines(obj_input, line_colour="blue", line_width="auto"):
     for polyline in df_polylines["polyline"].unique():
         sub = df_polylines.groupby(["polyline"])
         sub = sub.get_group(polyline)
-        coords = list(sub[["x","y"]].itertuples(index=False, name=None))
-        cv2.polylines(image, np.array([coords]), 
-                      False, line_colour, line_width)
+        coords = list(sub[["x", "y"]].itertuples(index=False, name=None))
+        cv2.polylines(image, np.array([coords]), False, line_colour, line_width)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

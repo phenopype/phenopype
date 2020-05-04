@@ -13,8 +13,16 @@ from phenopype.utils_lowlevel import _auto_text_size, _auto_text_width
 
 #%% functions
 
-def create_mask(obj_input, df_image_data=None, include=True, label="mask1", 
-                overwrite=False, tool="rectangle", **kwargs):
+
+def create_mask(
+    obj_input,
+    df_image_data=None,
+    include=True,
+    label="mask1",
+    overwrite=False,
+    tool="rectangle",
+    **kwargs
+):
     """
     Draw rectangle or polygon mask onto image by clicking and dragging the 
     cursor over the image. One mask can contain multiple sets of coordinates, 
@@ -53,8 +61,10 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0]) ## that may not be necessary
-    elif obj_input.__class__.__name__ in ["container","motion_tracker"]:
+            df_image_data = pd.DataFrame(
+                {"filename": "unknown"}, index=[0]
+            )  ## that may not be necessary
+    elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
         image = copy.deepcopy(obj_input.image)
         if hasattr(obj_input, "df_image_data"):
             df_image_data = copy.deepcopy(obj_input.df_image_data)
@@ -63,16 +73,20 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
     else:
         print("wrong input format.")
         return
-    
+
     ## check if exists
     while True:
         if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False:
-            df_masks = df_masks[df_masks.columns.intersection(["mask", "include", "coords"])]
+            df_masks = df_masks[
+                df_masks.columns.intersection(["mask", "include", "coords"])
+            ]
             if label in df_masks["mask"].values:
                 print("- mask with label " + label + " already created (overwrite=False)")
                 break
         elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            df_masks = df_masks[df_masks.columns.intersection(["mask", "include", "coords"])]
+            df_masks = df_masks[
+                df_masks.columns.intersection(["mask", "include", "coords"])
+            ]
             if label in df_masks["mask"].values:
                 df_masks = df_masks.drop(df_masks[df_masks["mask"] == label].index)
                 print("- create mask (overwriting)")
@@ -89,7 +103,7 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":
                 print("terminated mask creation")
-                return 
+                return
             elif obj_input.__class__.__name__ == "container":
                 print("- terminated mask creation")
                 return True
@@ -99,26 +113,40 @@ def create_mask(obj_input, df_image_data=None, include=True, label="mask1",
         ## create df
         if len(coords) > 0:
             for points in coords:
-                df_masks = df_masks.append({"mask": label, "include": include, "coords": str(points)}, 
-                                ignore_index=True, sort=False)
+                df_masks = df_masks.append(
+                    {"mask": label, "include": include, "coords": str(points)},
+                    ignore_index=True,
+                    sort=False,
+                )
         else:
             print("zero coordinates - redo mask!")
         break
 
     ## merge with existing image_data frame
-    df_masks = pd.concat([pd.concat([df_image_data]*len(df_masks)).reset_index(drop=True), 
-                            df_masks.reset_index(drop=True)], axis=1)
+    df_masks = pd.concat(
+        [
+            pd.concat([df_image_data] * len(df_masks)).reset_index(drop=True),
+            df_masks.reset_index(drop=True),
+        ],
+        axis=1,
+    )
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-            return df_masks
-    elif obj_input.__class__.__name__ in ["container","motion_tracker"]:
+        return df_masks
+    elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
         obj_input.df_masks = df_masks
 
 
-
-def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False, 
-                overwrite=False, template=False, **kwargs):
+def create_scale(
+    obj_input,
+    df_image_data=None,
+    df_masks=None,
+    mask=False,
+    overwrite=False,
+    template=False,
+    **kwargs
+):
     """
     Measure a size or colour reference card. Minimum input interaction is 
     measuring a size reference: click on two points inside the provided image, 
@@ -166,8 +194,7 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
 
     """
 
-    
-    ## kwargs 
+    ## kwargs
     if df_image_data.__class__.__name__ == "DataFrame":
         flag_df = True
     else:
@@ -182,7 +209,9 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0]) ## may not be necessary
+            df_image_data = pd.DataFrame(
+                {"filename": "unknown"}, index=[0]
+            )  ## may not be necessary
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
@@ -207,61 +236,60 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
             pass
 
         ## method
-        out = _image_viewer(image, 
-                            tool="scale", 
-                            previous=test_params)
-    
+        out = _image_viewer(image, tool="scale", previous=test_params)
+
         points = out.scale_coords
-        distance_px = int(sqrt(((points[0][0]-points[1][0])**2)
-                               + ((points[0][1]-points[1][1])**2)))
-        entry = enter_data(image, 
-                           columns="length", 
-                           test_params=test_params)
+        distance_px = int(
+            sqrt(
+                ((points[0][0] - points[1][0]) ** 2)
+                + ((points[0][1] - points[1][1]) ** 2)
+            )
+        )
+        entry = enter_data(image, columns="length", test_params=test_params)
         distance_mm = int(entry["length"][0])
         px_mm_ratio = int(distance_px / distance_mm)
 
-
         ## create template for image registration
         if flag_template or flag_mask:
-            out = _image_viewer(image, 
-                                tool="template", 
-                                previous=test_params)
-    
+            out = _image_viewer(image, tool="template", previous=test_params)
+
             ## make template and mask
-            template = image[out.rect_list[0][1]:out.rect_list[0][3],
-                             out.rect_list[0][0]:out.rect_list[0][2]]
+            template = image[
+                out.rect_list[0][1] : out.rect_list[0][3],
+                out.rect_list[0][0] : out.rect_list[0][2],
+            ]
             coords = out.point_list
 
             ## check if exists
             while True:
                 if not df_masks.__class__.__name__ == "NoneType":
-                    if "scale" in df_masks['mask'].values and flag_overwrite == False:
+                    if "scale" in df_masks["mask"].values and flag_overwrite == False:
                         print("- scale template mask already created (overwrite=False)")
                         break
-                    elif "scale" in df_masks['mask'].values and flag_overwrite == True:
+                    elif "scale" in df_masks["mask"].values and flag_overwrite == True:
                         print("- add scale template mask (overwritten)")
-                        df_masks = df_masks[~df_masks['mask'].isin(['scale'])]
+                        df_masks = df_masks[~df_masks["mask"].isin(["scale"])]
                         pass
-    
+
                 ## make mask df
                 if len(coords) > 0:
                     points = coords[0]
-                    df_mask_temp = pd.DataFrame({"mask": "scale", 
-                                             "include": False, 
-                                             "coords": str(points)}, index=[0])
-                    df_mask_temp = pd.concat([df_image_data, df_mask_temp], 
-                                             axis=1,
-                                             sort=True)
-    
+                    df_mask_temp = pd.DataFrame(
+                        {"mask": "scale", "include": False, "coords": str(points)},
+                        index=[0],
+                    )
+                    df_mask_temp = pd.concat(
+                        [df_image_data, df_mask_temp], axis=1, sort=True
+                    )
+
                     ## add to existing df
-                    if df_masks.__class__.__name__ == "NoneType" :
+                    if df_masks.__class__.__name__ == "NoneType":
                         df_masks = df_mask_temp
                         break
                     if len(df_masks) > 0:
-                        df_masks = df_masks.append(df_mask_temp,
-                                                   sort=True)
+                        df_masks = df_masks.append(df_mask_temp, sort=True)
                         break
-    
+
                 else:
                     print("zero coordinates - redo template!")
                     break
@@ -298,10 +326,16 @@ def create_scale(obj_input, df_image_data=None, df_masks=None, mask=False,
         obj_input.scale_template = template
 
 
-
-def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False, 
-               label_size="auto", label_width="auto", label_colour="red", 
-               **kwargs):
+def enter_data(
+    obj_input,
+    df_image_data=None,
+    columns="ID",
+    overwrite=False,
+    label_size="auto",
+    label_width="auto",
+    label_colour="red",
+    **kwargs
+):
     """
     Generic data entry that can be added as columns to an existing DataFrame. 
     Useful for images containing labels, or other comments. 
@@ -327,26 +361,28 @@ def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False,
         contains the entered data
 
     """
-    
+
     ## kwargs
     flag_overwrite = overwrite
     test_params = kwargs.get("test_params", {})
     flag_test_mode = False
     if "flag_test_mode" in test_params:
         flag_test_mode = test_params["flag_test_mode"]
-    
+
     ## format columns
     if not columns.__class__.__name__ == "list":
-        columns = columns.replace(" ","")
+        columns = columns.replace(" ", "")
         columns = columns.split(",")
-    
+
     ## load image
     df_other_data = pd.DataFrame({}, index=[0])
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         image_copy = copy.deepcopy(obj_input)
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0]) ## may not be necessary
+            df_image_data = pd.DataFrame(
+                {"filename": "unknown"}, index=[0]
+            )  ## may not be necessary
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.image)
         image_copy = copy.deepcopy(obj_input.image)
@@ -391,17 +427,25 @@ def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False,
                 cv2.setMouseCallback("phenopype", _keyboard_entry)
 
                 if not flag_test_mode:
-                    k = cv2.waitKey(1)          
+                    k = cv2.waitKey(1)
                     if k > 0 and k != 8 and k != 13 and k != 27:
                         entry = entry + chr(k)
                     elif k == 8:
-                        entry = entry[0:len(entry)-1]
+                        entry = entry[0 : len(entry) - 1]
                 else:
                     entry = test_params["entry"]
-                        
+
                 image = copy.deepcopy(image_copy)
-                cv2.putText(image, "Enter " + col + ": " + entry, (int(image.shape[0]//10),int(image.shape[1]/3)), 
-                        cv2.FONT_HERSHEY_SIMPLEX, label_size, colours[label_colour],label_width, cv2.LINE_AA)
+                cv2.putText(
+                    image,
+                    "Enter " + col + ": " + entry,
+                    (int(image.shape[0] // 10), int(image.shape[1] / 3)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    label_size,
+                    colours[label_colour],
+                    label_width,
+                    cv2.LINE_AA,
+                )
                 cv2.imshow("phenopype", image)
 
                 if k == 27:
@@ -409,7 +453,7 @@ def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False,
                     break
                     return True
                 elif k == 13:
-                    if not entry =="":
+                    if not entry == "":
                         cv2.destroyWindow("phenopype")
                         break
                 elif flag_test_mode:
@@ -421,24 +465,36 @@ def enter_data(obj_input, df_image_data=None, columns="ID", overwrite=False,
     ## drop unspecified columns
     for col in list(df_other_data):
         if col not in columns:
-            df_other_data.drop(columns=col, inplace = True)
+            df_other_data.drop(columns=col, inplace=True)
 
     ## merge with existing image_data frame
-    df_image_data = pd.concat([pd.concat([df_image_data]*len(df_other_data)).reset_index(drop=True), 
-                            df_other_data.reset_index(drop=True)], axis=1)
+    df_image_data = pd.concat(
+        [
+            pd.concat([df_image_data] * len(df_other_data)).reset_index(drop=True),
+            df_other_data.reset_index(drop=True),
+        ],
+        axis=1,
+    )
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-            return df_image_data
+        return df_image_data
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_image_data = df_image_data
         obj_input.df_other_data = df_other_data
 
 
-
-def find_scale(obj_input, df_image_data=None, template=None, overwrite=False, 
-               equalize=False, min_matches=10, resize=1, px_mm_ratio_ref=None, 
-               df_masks=None):
+def find_scale(
+    obj_input,
+    df_image_data=None,
+    template=None,
+    overwrite=False,
+    equalize=False,
+    min_matches=10,
+    resize=1,
+    px_mm_ratio_ref=None,
+    df_masks=None,
+):
     """
     Find scale from a template created with "create_scale". Image registration 
     is run by the "AKAZE" algorithm. Future implementations will include more 
@@ -494,7 +550,7 @@ def find_scale(obj_input, df_image_data=None, template=None, overwrite=False,
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename":"unknown"}, index=[0])
+            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
         else:
             if "template_px_mm_ratio" in df_image_data:
                 px_mm_ratio_ref = df_image_data["template_px_mm_ratio"]
@@ -515,27 +571,33 @@ def find_scale(obj_input, df_image_data=None, template=None, overwrite=False,
 
     ## check if all info has been prvided
     while True:
-        if any([px_mm_ratio_ref.__class__.__name__ == "NoneType", 
-                template.__class__.__name__ == "NoneType"]):
+        if any(
+            [
+                px_mm_ratio_ref.__class__.__name__ == "NoneType",
+                template.__class__.__name__ == "NoneType",
+            ]
+        ):
             print("- scale information missing - abort")
             break
         if hasattr(obj_input, "scale_current_px_mm_ratio") and not flag_overwrite:
             scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
             print("- scale already detected (overwrite=False)")
-            break    
+            break
         elif hasattr(obj_input, "scale_current_px_mm_ratio") and flag_overwrite:
             print(" - detecting scale (overwriting)")
             pass
 
         ## if image diameter bigger than 5000 px, then automatically resize
-        if (image.shape[0] + image.shape[1])/2 > 5000 and resize == 1:
+        if (image.shape[0] + image.shape[1]) / 2 > 5000 and resize == 1:
             resize_factor = 0.5
-            print("large image - resizing by factor " 
-                          + str(resize_factor) 
-                          + " to avoid slow image registration")
+            print(
+                "large image - resizing by factor "
+                + str(resize_factor)
+                + " to avoid slow image registration"
+            )
         else:
             resize_factor = resize
-        image = cv2.resize(image, (0,0), fx=1*resize_factor, fy=1*resize_factor) 
+        image = cv2.resize(image, (0, 0), fx=1 * resize_factor, fy=1 * resize_factor)
 
         ## method
         akaze = cv2.AKAZE_create()
@@ -546,36 +608,41 @@ def find_scale(obj_input, df_image_data=None, template=None, overwrite=False,
 
         # keep only good matches
         good = []
-        for m,n in matches:
+        for m, n in matches:
             if m.distance < 0.7 * n.distance:
                 good.append(m)
 
         # find and transpose coordinates of matches
         if len(good) >= min_matches:
             ## find homography betweeen detected keypoints
-            src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
-            dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
-            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+            src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+            dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
             ## transform boundary box of template
-            rect_old = np.array([[[0, 0]], 
-                                 [[0, template.shape[0]]],  
-                                 [[template.shape[1], template.shape[0]]], 
-                                 [[template.shape[1], 0]]], dtype= np.float32)
-            rect_new = cv2.perspectiveTransform(rect_old,M)/resize_factor
+            rect_old = np.array(
+                [
+                    [[0, 0]],
+                    [[0, template.shape[0]]],
+                    [[template.shape[1], template.shape[0]]],
+                    [[template.shape[1], 0]],
+                ],
+                dtype=np.float32,
+            )
+            rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
 
             # calculate template diameter
             rect_new = rect_new.astype(np.int32)
-            (x,y),radius = cv2.minEnclosingCircle(rect_new)
-            diameter_new = (radius * 2)
+            (x, y), radius = cv2.minEnclosingCircle(rect_new)
+            diameter_new = radius * 2
 
             # calculate transformed diameter
             rect_old = rect_old.astype(np.int32)
-            (x,y),radius = cv2.minEnclosingCircle(rect_old)
-            diameter_old = (radius * 2)
+            (x, y), radius = cv2.minEnclosingCircle(rect_old)
+            diameter_old = radius * 2
 
             ## calculate ratios
-            diameter_ratio = (diameter_new / diameter_old)
+            diameter_ratio = diameter_new / diameter_old
             px_mm_ratio_new = round(diameter_ratio * px_mm_ratio_ref, 1)
 
             ## add to image df
@@ -592,35 +659,45 @@ def find_scale(obj_input, df_image_data=None, template=None, overwrite=False,
             ## create mask from new coordinates
             coords = _contours_arr_tup(rect_new)
             coords.append(coords[0])
-            if "scale" in df_masks['mask'].values:
-                df_masks = df_masks[~df_masks['mask'].isin(['scale'])]
-            row_scale = pd.DataFrame({"mask": "scale", "include": False, "coords": str([coords])}, index=[0])
-            row_scale = pd.concat([pd.concat([df_image_data]*len(row_scale)).reset_index(drop=True), 
-                        row_scale.reset_index(drop=True)], axis=1)
-            df_masks = df_masks.append(row_scale, sort=False)  
+            if "scale" in df_masks["mask"].values:
+                df_masks = df_masks[~df_masks["mask"].isin(["scale"])]
+            row_scale = pd.DataFrame(
+                {"mask": "scale", "include": False, "coords": str([coords])}, index=[0]
+            )
+            row_scale = pd.concat(
+                [
+                    pd.concat([df_image_data] * len(row_scale)).reset_index(drop=True),
+                    row_scale.reset_index(drop=True),
+                ],
+                axis=1,
+            )
+            df_masks = df_masks.append(row_scale, sort=False)
             scale_current_px_mm_ratio = px_mm_ratio_new
             break
         else:
             ## feedback
             print("---------------------------------------------------")
             print("Reference card not found - %d keypoint matches:" % len(good))
-            print("Setting \"current scale\" to None")
+            print('Setting "current scale" to None')
             print("---------------------------------------------------")
             scale_current_px_mm_ratio = None
             break
-        
+
         ## merge with existing image_data frame
         df_image_data["current_px_mm_ratio"] = scale_current_px_mm_ratio
-        
+
     # ## rectangle coords of scale in image
     # rect_new = eval(df_masks.loc[df_masks["mask"]=="scale", "coords"].reset_index(drop=True)[0])
 
     ## do histogram equalization
     if flag_equalize:
         detected_rect_mask = np.zeros(image.shape, np.uint8)
-        cv2.fillPoly(detected_rect_mask, [np.array(rect_new)], colours["white"]) 
-        (rx,ry,rw,rh) = cv2.boundingRect(np.array(rect_new))
-        detected_rect_mask =  ma.array(data=image[ry:ry+rh,rx:rx+rw], mask = detected_rect_mask[ry:ry+rh,rx:rx+rw])
+        cv2.fillPoly(detected_rect_mask, [np.array(rect_new)], colours["white"])
+        (rx, ry, rw, rh) = cv2.boundingRect(np.array(rect_new))
+        detected_rect_mask = ma.array(
+            data=image[ry : ry + rh, rx : rx + rw],
+            mask=detected_rect_mask[ry : ry + rh, rx : rx + rw],
+        )
         image = _equalize_histogram(image, detected_rect_mask, template)
         print("histograms equalized")
 
@@ -634,7 +711,6 @@ def find_scale(obj_input, df_image_data=None, template=None, overwrite=False,
         if flag_equalize:
             obj_input.image_copy = image
             obj_input.image = image
-
 
 
 def invert_image(obj_input):
@@ -651,7 +727,7 @@ def invert_image(obj_input):
     image : array or container
         inverted image
     """
-    
+
     ## load image and check if pp-project
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
@@ -661,12 +737,11 @@ def invert_image(obj_input):
     ## method
     image = cv2.bitwise_not(image)
 
-    ## return 
+    ## return
     if obj_input.__class__.__name__ == "container":
         obj_input.image = image
     else:
         return image
-
 
 
 def resize_image(obj_input, factor=1):
@@ -687,7 +762,7 @@ def resize_image(obj_input, factor=1):
         resized image
 
     """
-    
+
     ## load image and check if pp-project
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
@@ -696,9 +771,11 @@ def resize_image(obj_input, factor=1):
         df_image_data = obj_input.df_image_data
 
     ## method
-    image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor, interpolation=cv2.INTER_AREA)
+    image = cv2.resize(
+        image, (0, 0), fx=1 * factor, fy=1 * factor, interpolation=cv2.INTER_AREA
+    )
 
-    ## return 
+    ## return
     if obj_input.__class__.__name__ == "container":
         df_image_data["resized"] = factor
         obj_input.image = image
@@ -706,4 +783,3 @@ def resize_image(obj_input, factor=1):
         obj_input.df_image_data = df_image_data
     else:
         return image
-    
