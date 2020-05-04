@@ -11,5 +11,5 @@ install:
 - python -m pip install -U pip
 - pip install tox
 script:
-- sudo rm /tmp/.tX99-lock
+- sudo rm /tmp/.X99-lock
 - xvfb-run -e /dev/stdout tox
