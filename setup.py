@@ -14,6 +14,7 @@ else:
 test_deps = ["pytest", 
              "coverage", 
              "coveralls", 
+             "pyyaml",
              "mock",
              "pytest-cov"]
 
