@@ -1,0 +1,10 @@
+os:
+- linux
+language: python
+python:
+- "3.7"
+install:
+- python -m pip install -U pip
+- pip install tox"
+script:
+- tox
