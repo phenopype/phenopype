@@ -1,5 +1,9 @@
 os:
 - linux
+dist: xenial
+services:
+  - xvfb
+  
 language: python
 python:
 - "3.7"
@@ -7,4 +11,5 @@ install:
 - python -m pip install -U pip
 - pip install tox"
 script:
+- xvfb-run --server-args="-screen 0 1920x1080x24" make test
 - tox
