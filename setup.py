@@ -16,6 +16,7 @@ test_deps = ["pytest",
              "coveralls", 
              "pyyaml",
              "mock",
+             "pytest-xvfb",
              "pytest-cov"]
 
 extras = {'test': test_deps}
