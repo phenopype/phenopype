@@ -21,7 +21,9 @@ def test_load_directory(directory_path):
 
 @pytest.fixture(scope="module")
 def container(directory_path):
-    print(os.listdir(directory_path))
+    print(os.getcwd())
+    print(os.listdir(os.getcwd()))
+    print(os.listdir("_temp"))
     ct = pp.utils.load_directory(directory_path, save_suffix=pype_name)
     container = ct
     return ct
