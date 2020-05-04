@@ -1,12 +1,13 @@
-Unreleased / planned
-====================
-- add missing tutorials and examples
-- add missing API info
-
 Known bugs
 ==========
-- high GUI / windows sometimes crashes. Stop Kernel and use "cv2.destroyAllWindows()"
+- on macOS, the high throughput workflow crashes when watchdog and opencv interact - no fix yet
+- on all OSs: high GUI / windows sometimes crashes: stop Kernel and use "cv2.destroyAllWindows()"
 
+1.0.4
+-----
+- automated testing and CI implemented
+- collect_results project method implemented
+- all tutorials online, most examples online
 
 1.0.3
 -----
@@ -22,8 +23,8 @@ Known bugs
 
 1.0.2
 -----
-bugfix:
-- pype: check if container has image or is NoneType
+bugfix: 
+	- pype: check if container has image or is NoneType
 - Tutorials 1 + 2 improved
 - Example 2 added (low throughput
 - Docstrings to main, utils and preprocessing added
@@ -31,8 +32,7 @@ bugfix:
 1.0.1
 ------
 bugfix:
-- if resize==1, load_images will pass none to pype
-
+	- if resize==1, load_images will pass none to pype
 - Tutorial 1 (Python intro) and Tutorial 2 (Phenopype workflow) added
 - added update and development to installation doc
 
