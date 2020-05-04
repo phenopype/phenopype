@@ -11,4 +11,4 @@ install:
 - python -m pip install -U pip
 - pip install tox
 script:
-- xvfb-run --server-args="-screen 0 1920x1080x24" tox
+- xvfb-run -e /dev/stdout tox
