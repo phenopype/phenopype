@@ -32,6 +32,12 @@ def project_directory():
     # project_directory = image 
     return image
 
+@pytest.fixture(scope="module")
+def container(project_directory):
+    ct = pp.utils.load_directory(directory_path, save_suffix=pype_name)
+    container = ct
+    return ct
+
 @pytest.fixture(scope="session")
 def motion_tracker():
     mt = pp.motion_tracker(video_path)

@@ -9,25 +9,6 @@ from .settings import image_dir, stickle_image, pype_name, preset
 
 #%% tests
 
-@pytest.fixture(scope="module")
-def directory_path():
-    path = r"_temp/tests/project2/data/0__stickle1"
-    directory_path = path
-    return path
-
-def test_load_directory(directory_path):
-    directory = pp.utils.load_directory(directory_path)
-    assert directory.__class__.__name__ == "container"
-
-@pytest.fixture(scope="module")
-def container(directory_path):
-    print(os.getcwd())
-    print(os.listdir(os.getcwd()))
-    print(os.listdir("_temp"))
-    ct = pp.utils.load_directory(directory_path, save_suffix=pype_name)
-    container = ct
-    return ct
-
 ## actually tests load contours option of container
 def test_container_load(container):
     container.load(contours=True)
