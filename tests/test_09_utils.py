@@ -5,7 +5,7 @@ import pytest
 import phenopype as pp
 import shutil
 
-from .settings import image_save_dir
+from .settings import image_save_dir, wait_time
 
 
 #%% tests
@@ -28,10 +28,10 @@ def test_load_meta_data(image_path):
 
 def test_show_image(image_array):
     test_params = {"flag_test_mode": True,
-                   "wait_time": 1000}
+                   "wait_time": wait_time}
     pp.show_image(image_array, test_params=test_params)
     test_params = {"flag_test_mode": True,
-                   "wait_time": 10}
+                   "wait_time": wait_time}
     img_list = []
     for i in range(11):
         img_list.append(image_array)
