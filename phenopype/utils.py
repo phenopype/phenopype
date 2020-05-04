@@ -1,6 +1,5 @@
 #%% modules
 import ast, cv2, copy, os, sys, warnings
-import glob
 import numpy as np
 import pandas as pd
 
@@ -74,7 +73,7 @@ class container(object):
             suffix to include when looking for files to load
 
         """
-        files, loaded = [], []  
+        files, loaded = [], []
 
         ## data flags
         flag_contours = contours
