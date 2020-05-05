@@ -3,6 +3,11 @@ Known bugs
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact - no fix yet
 - on all OSs: high GUI / windows sometimes crashes: stop Kernel and use "cv2.destroyAllWindows()"
 
+1.0.5
+-----
+bugfix:
+	- find files with glob
+
 1.0.4
 -----
 - automated testing and CI implemented
