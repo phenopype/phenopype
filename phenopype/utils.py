@@ -409,12 +409,18 @@ def load_directory(
 
     ## load attributes-file
     attr = _load_yaml(os.path.join(directory_path, "attributes.yaml"))
+    
+    ## build 
+    
+    
 
     ## legacy
     paths = [
         attr["project"]["raw_path"],
         os.path.join(directory_path, os.path.basename(attr["project"]["raw_path"])),
-        glob.glob(os.path.join(directory_path, "raw*"))[0],
+        (glob.glob(os.path.join(directory_path, "raw*"))[0] 
+         if len(glob.glob(os.path.join(directory_path, "raw*"))) > 0 
+         else os.path.join(directory_path, "raw.jpg"))
     ]
     for path in paths:
         if os.path.isfile(path):
