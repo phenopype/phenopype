@@ -648,7 +648,79 @@ class project:
                     pass
                 copyfile(filepath, path)
                 break
+            
+    def edit_config(
+        self,
+        name,
+        step, 
+        function,
+        **kwargs
+    ):
+        """
+        [new/experimental] Add or edit functions in all configuration files of a project.
 
+        Parameters
+        ----------
+
+        name: str
+            name of config-file. this gets appended to all files and serves as and
+            identifier of a specific analysis pipeline
+        step: str
+            name of the step the function is in 
+        function: str
+            name of the function
+        """
+
+        ## kwargs
+        flag_checked = False
+        
+        ## go through project directories
+        for directory in self.dirpaths:
+            dirname = os.path.basename(directory)
+
+            ## save config
+            preset_path = os.path.join(
+                self.root_dir, directory, "pype_config_" + name + ".yaml"
+            )
+            
+            if os.path.isfile(preset_path):
+                config = _load_yaml(preset_path)
+                
+            ordered_steps = ["preprocessing",
+                          "segmentation",
+                          "measurement",
+                          "visualization",
+                          "export"
+                          ]
+
+            if not step in config.keys():
+                new_config = ordereddict([("image", ordereddict(config["image"]))])
+                new_config.update(ordereddict([("pype", ordereddict(config["pype"]))]))
+                for ordered_step in ordered_steps:
+                    if ordered_step in config:
+                        new_config.update(ordereddict([(ordered_step, config[ordered_step])]))
+                    elif not ordered_step in config and ordered_step == step:
+                        new_config.update(ordereddict([(ordered_step, [function] )]))
+            else:
+                new_config = copy.deepcopy(config)
+                if not function in new_config[step]:
+                    new_config[step].append(function)
+                    
+            
+            if flag_checked == False:
+                _show_yaml(new_config)
+                check = input("This is what the new config may look like (can differ beteeen files) - proceed?")
+            
+            if check in ["True", "true", "y", "yes"]:
+                flag_checked = True
+                _save_yaml(new_config, preset_path)
+                print("New config saved for " + dirname)
+            else:
+                print("User check failed - aborting.")
+                return 
+                
+                
+                
     @staticmethod
     def save(project, overwrite=False):
         """
