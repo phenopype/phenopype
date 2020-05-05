@@ -178,7 +178,7 @@ def save_contours(
     overwrite=True,
     dirpath=None,
     save_suffix=None,
-    save_coords=True,
+    save_coords=False,
     convert_coords=True,
     subset=None,
     round_digits=4
