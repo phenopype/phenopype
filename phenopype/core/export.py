@@ -181,6 +181,7 @@ def save_contours(
     save_coords=True,
     convert_coords=True,
     subset=None,
+    round_digits=4
 ):
     """
     Save contour coordinates and features to csv. This also saves skeletonization
@@ -202,6 +203,8 @@ def save_contours(
         convert the coordinates from array to x and y column
     subset: {"parent", "child"} str, optional
         save only a subset of the parent-child order structure
+    round_digits: int, optional
+        number of digits to round to
     """
 
     ## kwargs
@@ -270,6 +273,11 @@ def save_contours(
             axis=1,
         )
         df.drop(columns="coords", inplace=True)
+        
+    ## fix na, round, and format to string
+    df = df.fillna(-9999)
+    df = df.round(round_digits)
+    df = df.astype(str)
 
     ## save suffix
     if save_suffix:

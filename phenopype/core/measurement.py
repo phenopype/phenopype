@@ -1,9 +1,9 @@
 #%% modules
 import cv2, copy
+import math
 import numpy as np
-import pandas as pd
-
 import numpy.ma as ma
+import pandas as pd
 
 from phenopype.utils_lowlevel import (
     _image_viewer,
@@ -415,6 +415,120 @@ def polylines(
         return df_polylines
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_polylines = df_polylines
+
+
+def shape_features(
+    obj_input,
+    df_contours=None
+):
+    """
+
+
+    Parameters
+    ----------
+    obj_input : array or container
+        input object
+    df_contours : DataFrame, optional
+        contains the contours
+
+
+    Returns
+    -------
+    df_contours : DataFrame or container
+        contains contours, and added features
+
+    """
+    ## kwargs
+
+
+    ## load df
+    if obj_input.__class__.__name__ == "DataFrame":
+        df_contours = obj_input
+    elif obj_input.__class__.__name__ == "container":
+        if hasattr(obj_input, "df_contours"):
+            df_contours = obj_input.df_contours
+    else:
+        print("wrong input format.")
+        return
+    
+    if df_contours.__class__.__name__ == "NoneType":
+        print("no df supplied - cannot measure colour intensity")
+        return
+
+
+    ## custom shape descriptors
+    desc_custom_shape = ['tri_area', 'min_rect_min', 'min_rect_max', 'rect_width', 
+                 'rect_height', 'perimeter_length', 'circularity', 'roundness', 
+                 'solidity', 'compactness']
+    for name in desc_custom_shape:
+        df_contours = df_contours.assign(**{name: "NA"})
+
+    ## moments 
+    desc_moments = ['m00', 'm10', 'm01', 'm20', 'm11', 'm02', 'm30', 'm21', 
+                'm12', 'm03', 'mu20', 'mu11', 'mu02', 'mu30', 'mu21', 'mu12',
+                'mu03', 'nu20', 'nu11', 'nu02', 'nu30', 'nu21', 'nu12', 'nu03']
+    for name in desc_moments:
+        df_contours = df_contours.assign(**{name: "NA"})
+
+    ## hu moments
+    desc_hu = ['hu1','hu2','hu3','hu4','hu5','hu6','hu7']
+    for name in desc_hu:
+        df_contours = df_contours.assign(**{name: "NA"})
+
+
+    ## calculate shape descriptors from contours
+    for index, row in df_contours.iterrows():
+        
+        ## contour coords
+        coords = row["coords"]
+        
+        ## retrieve area and diameter
+        cnt_area = row["area"]
+        cnt_diameter = row["diameter"]
+    
+        ## custom shape descriptors
+        convex_hull = cv2.convexHull(coords)
+        tri_area, tri_coords = cv2.minEnclosingTriangle(coords)
+        min_rect_center, min_rect_min_max, min_rect_angle = cv2.minAreaRect(coords)
+        min_rect_min, min_rect_max = min_rect_min_max[0], min_rect_min_max[1]
+        rect_x, rect_y, rect_width, rect_height = cv2.boundingRect(coords)
+        perimeter_length = cv2.arcLength(coords, closed=True)
+        circularity = 4 * np.pi * cnt_area / math.pow(perimeter_length, 2)
+        roundness = (4 * cnt_area) / (np.pi * math.pow(cnt_diameter, 2))
+        solidity = cnt_area / cv2.contourArea(convex_hull)
+        compactness = math.sqrt(4 * cnt_area / np.pi) / cnt_diameter
+        
+        df_contours.at[index, desc_custom_shape] = (
+            tri_area,
+            min_rect_min,
+            min_rect_max,
+            rect_width,
+            rect_height,
+            perimeter_length,
+            circularity,
+            roundness,
+            solidity,
+            compactness,
+        )    
+
+                     
+        ## moments
+        moments = cv2.moments(coords)
+        df_contours.at[index, desc_moments] = list(moments.values())
+                     
+        ## hu moments
+        hu_moments = cv2.HuMoments(moments)
+        hu_moments_list = []
+        for i in hu_moments:
+            hu_moments_list.append(i[0])
+        df_contours.at[index, desc_hu] = hu_moments_list
+
+    ## return
+    if obj_input.__class__.__name__ == "DataFrame":
+        return df_contours
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df_contours = df_contours
+
 
 
 def skeletonize(
