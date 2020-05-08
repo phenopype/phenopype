@@ -15,6 +15,7 @@ _source
 _temp
 
 bin
+docs
 docs/_temp
 docs_build.bat
 develop-eggs
@@ -29,5 +30,4 @@ phenopype.egg-info/
 phenopype_copy
 spyder-debug.log
 src/*.egg-info
-test_cov.bat
-tests/resources
+tutorials
