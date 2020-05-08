@@ -15,7 +15,6 @@ _source
 _temp
 
 bin
-docs
 docs/_temp
 docs_build.bat
 develop-eggs
