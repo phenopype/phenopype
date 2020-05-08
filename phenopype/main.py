@@ -792,11 +792,9 @@ class project:
         ## legacy
         if not hasattr(proj, "dirpath_rel"):
             proj.dirpaths_rel, proj.filepaths_rel = [], []
-            for dirpath, filepath in zip(proj.dirpaths, proj.filepaths):
-                filepath_rel = os.path.relpath(filepath, proj.root_dir)
-                proj.filepaths_rel.append(filepath_rel.replace(os.sep, "/"))
-                dirpath_rel = os.path.relpath(dirpath, proj.root_dir)
-                proj.dirpaths_rel.append(dirpath_rel.replace(os.sep, "/"))
+        for dirname, filename in zip(proj.dirnames, proj.filenames):
+            proj.dirpaths_rel.append(os.path.join("data", dirname))
+            proj.filepaths_rel.append(os.path.join("data", dirname, filename))
 
         ## set correct paths
         proj.dirpaths, proj.filepaths = [], []
