@@ -15,6 +15,7 @@ _source
 _temp
 
 bin
+bier
 docs
 docs/_temp
 docs_build.bat
