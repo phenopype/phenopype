@@ -181,15 +181,17 @@ class container(object):
                 path = os.path.join(dirpath, "contours" + save_suffix + ".csv")
                 if os.path.isfile(path):
                     df = pd.read_csv(path, converters={"center": ast.literal_eval})
-                    df["coords"] = list(zip(df.x, df.y))
-                    coords = df.groupby("contour")["coords"].apply(list)
-                    coords_arr = _contours_tup_array(coords)
-                    df.drop(columns=["coords", "x", "y"], inplace=True)
-                    df = df.drop_duplicates().reset_index()
-                    df["coords"] = pd.Series(coords_arr, index=df.index)
-                    self.df_contours = df
-                    loaded.append("contours" + save_suffix + ".csv")
-
+                    if "x" in df:
+                        df["coords"] = list(zip(df.x, df.y))
+                        coords = df.groupby("contour")["coords"].apply(list)
+                        coords_arr = _contours_tup_array(coords)
+                        df.drop(columns=["coords", "x", "y"], inplace=True)
+                        df = df.drop_duplicates().reset_index()
+                        df["coords"] = pd.Series(coords_arr, index=df.index)
+                        self.df_contours = df
+                        loaded.append("contours" + save_suffix + ".csv")
+                    else:
+                        print("Could not load contours - df saved without coordinates.")
         ## landmarks
         if not hasattr(self, "df_landmarks") and "landmarks" in files:
             path = os.path.join(dirpath, "landmarks" + save_suffix + ".csv")

@@ -37,7 +37,7 @@ def test_save_contours(project_container):
     pp.export.save_contours(project_container.df_colours)
     with mock.patch('builtins.input', return_value='n'):
         pp.export.save_contours(project_container, dirpath="new")        
-    pp.export.save_contours(project_container, overwrite=True)
+    pp.export.save_contours(project_container, overwrite=True, save_coords=True)
     pp.export.save_contours(project_container, overwrite=False)    
     assert os.path.isfile(os.path.join(project_container.dirpath, "contours_" + pype_name + ".csv"))
 
