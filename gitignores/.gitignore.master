@@ -1,3 +1,5 @@
+## all branches
+
 *dev*
 .coverage
 .doctrees
@@ -8,15 +10,13 @@
 .tox
 .pytest_cache
 
-__pycache__/
+__pycache__
 _config.yml
 _local
 _source
 _temp
 
 bin
-bier
-docs
 docs/_temp
 docs_build.bat
 develop-eggs
@@ -27,8 +27,12 @@ lib
 lib64
 local
 parts
-phenopype.egg-info/
-phenopype_copy
+phenopype.egg-info
 spyder-debug.log
 src/*.egg-info
+
+## branch specific 
+
 tutorials
+docs
+conf.py
