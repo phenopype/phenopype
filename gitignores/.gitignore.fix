@@ -32,3 +32,6 @@ src/*.egg-info
 
 ## branch specific 
 docs
+source
+tests
+tutorials
