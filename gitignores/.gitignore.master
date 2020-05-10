@@ -17,7 +17,6 @@ _source
 _temp
 
 bin
-docs/_temp
 docs_build.bat
 develop-eggs
 dist
@@ -31,8 +30,4 @@ phenopype.egg-info
 spyder-debug.log
 src/*.egg-info
 
-## branch specific 
-
-tutorials
 docs
-conf.py
