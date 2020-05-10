@@ -1,3 +1,7 @@
+branches:
+  only:
+    - master
+    - fix
 os:
 - linux
 dist: xenial
