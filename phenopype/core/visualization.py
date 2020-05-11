@@ -202,8 +202,8 @@ def draw_contours(
         if flag_mark_holes:
             if row["order"] == "child":
                 if flag_watershed:
-                    fill_colour = colours["green"]
-                    line_colour = colours["green"]
+                    fill_colour = line_colour_sel
+                    line_colour = line_colour_sel
                 else:
                     fill_colour = colours["red"]
                     line_colour = colours["red"]
