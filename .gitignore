@@ -1,6 +1,3 @@
-## all branches
-
-*dev*
 .coverage
 .doctrees
 .buildinfo
@@ -17,7 +14,7 @@ _source
 _temp
 
 bin
-docs_build.bat
+docs
 develop-eggs
 dist
 eggs
@@ -30,8 +27,3 @@ phenopype.egg-info
 spyder-debug.log
 src/*.egg-info
 
-## branch specific 
-docs
-source
-tests
-tutorials
