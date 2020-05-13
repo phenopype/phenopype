@@ -784,6 +784,7 @@ class project:
         proj.root_dir = os.path.split(path)[0]
         proj.root_dir = proj.root_dir.replace(os.sep, "/")
         proj.root_dir = os.path.abspath(proj.root_dir)
+        proj.data_dir = os.path.join(os.path.abspath(proj.root_dir), "data")
 
         # ##  set working directory
         # if not proj.root_dir == os.getcwd():

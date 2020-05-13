@@ -422,7 +422,8 @@ def shape_features(
     df_contours=None
 ):
     """
-
+    Collects a set of 43 shape descriptors from every contour. The descriptors are 
+    rotation invariant. 
 
     Parameters
     ----------
@@ -510,7 +511,6 @@ def shape_features(
             solidity,
             compactness,
         )    
-
                      
         ## moments
         moments = cv2.moments(coords)

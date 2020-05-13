@@ -35,8 +35,14 @@ def test_landmarks(project_container):
     assert len(project_container.df_landmarks) == len(test_params["points"])
     
 def test_colour_intensity(project_container):
+    pp.measurement.colour_intensity("string_dummy")
+    pp.measurement.colour_intensity(project_container.df_contours)
     pp.measurement.colour_intensity(project_container, channels=["gray"])
     assert hasattr(project_container, "df_colours")
+    
+def test_shape_features(project_container):
+    pp.measurement.shape_features(project_container)
+    assert "perimeter_length" in project_container.df_contours
 
 def test_polylines(project_container):
     test_params = {"flag_test_mode": True,
