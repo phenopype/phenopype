@@ -419,11 +419,48 @@ def polylines(
 
 def shape_features(
     obj_input,
-    df_contours=None
+    df_contours=None,
+    return_basic=True,
+    return_moments=False, 
+    return_hu_moments=False
 ):
     """
-    Collects a set of 43 shape descriptors from every contour. The descriptors are 
-    rotation invariant. 
+    Collects a set of 43 shape descriptors from every contour. There are three sets of 
+    descriptors: basic shape descriptors, moments, and hu moments. 
+    
+    Of the basic shape descriptors, all 10 are translationally invariant, 
+    8 are rotation invariant (rect_height and rect_width are not) and 
+    4 are also scale invariant (circularity, compactness, roundness, 
+    solidity) raw moments.
+    https://en.wikipedia.org/wiki/Shape_factor_(image_analysis_and_microscopy)  
+                                
+    The moments set encompasses 10 raw spatial moments (some are translation and rotation
+    invariants, but not all), 7 central moments (all translational invariant) and 7 central 
+    normalized moments (all translational and scale invariant).
+    https://en.wikipedia.org/wiki/Image_moment#Central_moments
+    
+    The 7 hu moments are derived of the central moments, and are all translation, scale 
+    and rotation invariant.
+    http://www.sci.utah.edu/~gerig/CS7960-S2010/handouts/Hu.pdf
+        
+    Basic shape descriptors:
+        circularity = 4 * np.pi * contour_area / contour_perimeter_length^2
+        compactness = √(4 * contour_area / pi) / contour_diameter
+        min_rect_max = minimum bounding rectangle major axis
+        min_rect_min = minimum bounding rectangle minor axis
+        perimeter_length = total length of contour perimenter
+        rect_height = height of the bounding rectangle ("caliper dim 1")
+        rect_width = width of the bounding rectangle ("caliper dim 2")
+        roundness = (4 * contour_area) / pi * contour_perimeter_length^2
+        solidity = contour_area / convex_hull_area
+        tri_area = area of minimum bounding triangle
+
+    Moments:
+        raw moments = m00, m10, m01, m20, m11, m02, m30, m21,  m12, m03
+        central moments = mu20, mu11, mu02, mu30, mu21, mu12, mu03,  
+        normalized central moments = nu20, nu11, nu02, nu30, nu21, nu12, nu03
+
+    Hu moments = hu1, hu2, hu3, hu4, hu5, hu6, hu7
 
     Parameters
     ----------
@@ -431,16 +468,19 @@ def shape_features(
         input object
     df_contours : DataFrame, optional
         contains the contours
-
-
+    return_basic: True, opational
+        append the basic shape descriptors to a provided contour DataFrame
+    return_moments: False, optional
+        append the basic shape descriptors to a provided contour DataFrame
+    return_hu_moments: False, optional
+        append the basic shape descriptors to a provided contour DataFrame
+        
     Returns
     -------
     df_contours : DataFrame or container
         contains contours, and added features
 
     """
-    ## kwargs
-
 
     ## load df
     if obj_input.__class__.__name__ == "DataFrame":
@@ -458,10 +498,17 @@ def shape_features(
 
 
     ## custom shape descriptors
-    desc_custom_shape = ['tri_area', 'min_rect_min', 'min_rect_max', 'rect_width', 
-                 'rect_height', 'perimeter_length', 'circularity', 'roundness', 
-                 'solidity', 'compactness']
-    for name in desc_custom_shape:
+    desc_basic_shape = ['circularity',
+                         'compactness',
+                         'min_rect_max',
+                         'min_rect_min',
+                         'perimeter_length',
+                         'rect_height',
+                         'rect_width',
+                         'roundness',
+                         'solidity',
+                         'tri_area']
+    for name in desc_basic_shape:
         df_contours = df_contours.assign(**{name: "NA"})
 
     ## moments 
@@ -499,17 +546,17 @@ def shape_features(
         solidity = cnt_area / cv2.contourArea(convex_hull)
         compactness = math.sqrt(4 * cnt_area / np.pi) / cnt_diameter
         
-        df_contours.at[index, desc_custom_shape] = (
-            tri_area,
-            min_rect_min,
-            min_rect_max,
-            rect_width,
-            rect_height,
-            perimeter_length,
+        df_contours.at[index, desc_basic_shape] = (
             circularity,
+            compactness,
+            min_rect_max,
+            min_rect_min,
+            perimeter_length,
+            rect_height,
+            rect_width,
             roundness,
             solidity,
-            compactness,
+            tri_area
         )    
                      
         ## moments
@@ -522,7 +569,16 @@ def shape_features(
         for i in hu_moments:
             hu_moments_list.append(i[0])
         df_contours.at[index, desc_hu] = hu_moments_list
-
+        
+        
+    ## drop unwanted columns
+    if return_basic == False:
+        df_contours.drop(desc_basic_shape, axis=1, inplace=True)
+    if return_moments == False:
+        df_contours.drop(desc_moments, axis=1, inplace=True)
+    if return_hu_moments == False:
+        df_contours.drop(desc_hu, axis=1, inplace=True)
+        
     ## return
     if obj_input.__class__.__name__ == "DataFrame":
         return df_contours
