@@ -479,6 +479,7 @@ def load_directory(
 
 def load_image(
     obj_input,
+    mode="default",
     cont=False,
     df=False,
     dirpath=None,
@@ -495,6 +496,11 @@ def load_image(
     obj_input: str or ndarray
         can be a path to an image stored on the harddrive OR an array already 
         loaded to Python.
+    mode: {"default", "colour","gray"} str, optional
+        image conversion on loading:
+            - default: return image as is
+            - colour: convert image to 3channel bgr
+            - gray: convert image to single channel 
     cont: bool, optional
         should the loaded image (and DataFrame) be returned as a phenopype 
         container
@@ -531,6 +537,7 @@ def load_image(
     flag_resize = resize
     flag_df = df
     flag_meta = meta
+    flag_mode = mode
     flag_container = cont
     exif_fields = kwargs.get("fields", default_meta_data_fields)
     if not exif_fields.__class__.__name__ == "list":
@@ -541,7 +548,12 @@ def load_image(
         if os.path.isfile(obj_input):
             ext = os.path.splitext(obj_input)[1]
             if ext.replace(".", "") in default_filetypes:
-                image = cv2.imread(obj_input)
+                if flag_mode == "default":
+                    image = cv2.imread(obj_input)
+                elif flag_mode == "colour":
+                    image = cv2.imread(obj_input, cv2.IMREAD_COLOR)
+                elif flag_mode == "gray":
+                    image = cv2.imread(obj_input, cv2.IMREAD_GRAYSCALE)
                 if dirpath.__class__.__name__ == "NoneType":
                     dirpath = os.path.split(obj_input)[0]
                     print(
