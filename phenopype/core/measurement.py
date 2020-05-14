@@ -425,19 +425,20 @@ def shape_features(
     return_hu_moments=False
 ):
     """
-    Collects a set of 43 shape descriptors from every contour. There are three sets of 
-    descriptors: basic shape descriptors, moments, and hu moments. 
-    
-    Of the basic shape descriptors, all 10 are translationally invariant, 
-    8 are rotation invariant (rect_height and rect_width are not) and 
-    4 are also scale invariant (circularity, compactness, roundness, 
-    solidity) raw moments.
+    Collects a set of 41 shape descriptors from every contour. There are three sets of 
+    descriptors: basic shape descriptors, moments, and hu moments. Two additional features,
+    contour area and diameter are already provided by the find_contours function.
+    https://docs.opencv.org/3.4.9/d3/dc0/group__imgproc__shape.html
+
+    Of the basic shape descriptors, all 10 are translational invariants, 8 are rotation 
+    invariant (rect_height and rect_width are not) and  4 are also scale invariant 
+    (circularity, compactness, roundness, solidity).
     https://en.wikipedia.org/wiki/Shape_factor_(image_analysis_and_microscopy)  
                                 
     The moments set encompasses 10 raw spatial moments (some are translation and rotation
     invariants, but not all), 7 central moments (all translational invariant) and 7 central 
     normalized moments (all translational and scale invariant).
-    https://en.wikipedia.org/wiki/Image_moment#Central_moments
+    https://en.wikipedia.org/wiki/Image_moment
     
     The 7 hu moments are derived of the central moments, and are all translation, scale 
     and rotation invariant.
@@ -460,7 +461,8 @@ def shape_features(
         central moments = mu20, mu11, mu02, mu30, mu21, mu12, mu03,  
         normalized central moments = nu20, nu11, nu02, nu30, nu21, nu12, nu03
 
-    Hu moments = hu1, hu2, hu3, hu4, hu5, hu6, hu7
+    Hu moments:
+        hu moments = hu1, hu2, hu3, hu4, hu5, hu6, hu7
 
     Parameters
     ----------
