@@ -862,7 +862,7 @@ class pype:
         self,
         image,
         name,
-        config_preset="preset1",
+        config_preset=None,
         config_location=None,
         dirpath=None,
         skip=False,
@@ -870,6 +870,14 @@ class pype:
         delay=100,
         **kwargs
     ):
+
+        ## legacy
+        preset = kwargs.get("preset")
+        if (
+            config_preset.__class__.__name__ == "NoneType"
+            and not preset.__class__.__name__ == "NoneType"
+        ):
+            config_preset = preset
 
         ## pype name check
         if "pype_config_" in name:

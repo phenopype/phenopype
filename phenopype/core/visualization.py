@@ -101,6 +101,7 @@ def draw_contours(
     offset_coords=None,
     label=True,
     fill=0.3,
+    fill_colour=None,
     mark_holes=True,
     level=3,
     line_colour="green",
@@ -131,6 +132,8 @@ def draw_contours(
         draw contour label
     fill : float, optional
         background transparency for contour fill (0=no fill).
+    fill_colour : {"green", "red", "blue", "black", "white"} str, optional
+        contour fill colour - if not specified, defaults to line colour
     mark_holes : bool, optional
         contours located inside other contours (i.e. their holes) will be 
         highlighted in red
@@ -173,7 +176,10 @@ def draw_contours(
         flag_mark_holes = True
     line_colour_sel = colours[line_colour]
     label_colour = colours[label_colour]
-
+    if fill_colour.__class__.__name__ == "NoneType":
+        fill_colour = line_colour_sel
+    else:
+        fill_colour = colours[fill_colour]
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = copy.deepcopy(obj_input)
@@ -202,19 +208,12 @@ def draw_contours(
         if flag_mark_holes:
             if row["order"] == "child":
                 if flag_watershed:
-                    fill_colour = line_colour_sel
                     line_colour = line_colour_sel
                 else:
-                    fill_colour = colours["red"]
                     line_colour = colours["red"]
             elif row["order"] == "parent":
-                if flag_watershed:
-                    continue
-                else:
-                    fill_colour = line_colour_sel
-                    line_colour = line_colour_sel
+                line_colour = line_colour_sel
         else:
-            fill_colour = line_colour_sel
             line_colour = line_colour_sel
         if flag_fill > 0:
             cv2.drawContours(
