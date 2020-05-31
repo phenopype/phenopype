@@ -420,9 +420,12 @@ def polylines(
 def shape_features(
     obj_input,
     df_contours=None,
+    resize=True,
+    resize_to=250,
     return_basic=True,
     return_moments=False, 
-    return_hu_moments=False
+    return_hu_moments=False,
+
 ):
     """
     Collects a set of 41 shape descriptors from every contour. There are three sets of 
@@ -532,10 +535,21 @@ def shape_features(
         ## contour coords
         coords = row["coords"]
         
+        if resize==True and "current_px_mm_ratio" in row:
+            factor = resize_to / row["current_px_mm_ratio"]        
+            coords_norm = coords - row["center"]
+            coords_scaled = coords_norm * factor
+            coords = coords_scaled + row["center"]
+            coords = coords.astype(np.int32)
+            
+            ## correct in df
+            df_contours.loc[index, "diameter"] = int(row["diameter"] * factor)
+            df_contours.loc[index, "area"]  = int(cv2.contourArea(coords))
+            
         ## retrieve area and diameter
-        cnt_area = row["area"]
-        cnt_diameter = row["diameter"]
-    
+        cnt_diameter = df_contours.loc[index]["diameter"]
+        cnt_area = df_contours.loc[index]["area"]
+
         ## custom shape descriptors
         convex_hull = cv2.convexHull(coords)
         tri_area, tri_coords = cv2.minEnclosingTriangle(coords)
