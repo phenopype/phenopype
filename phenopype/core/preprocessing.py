@@ -283,7 +283,7 @@ def create_scale(
                     )
 
                     ## add to existing df
-                    if df_masks.__class__.__name__ == "NoneType":
+                    if df_masks.__class__.__name__ == "NoneType" or len(df_masks) == 0:
                         df_masks = df_mask_temp
                         break
                     if len(df_masks) > 0:
