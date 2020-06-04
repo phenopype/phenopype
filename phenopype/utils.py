@@ -265,6 +265,19 @@ class container(object):
         ## feedback
         print("AUTOSAVE")
 
+        ## check dirpath
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not self.dirpath.__class__.__name__ == "NoneType"
+        ):
+            dirpath = self.dirpath
+        if dirpath.__class__.__name__ == "NoneType":
+            print('No save directory ("dirpath") specified - cannot load files.')
+            return
+        if not os.path.isdir(dirpath):
+            print("Directory does not exist - cannot load files.")
+            return
+
         ## canvas
         if (
             not self.canvas.__class__.__name__ == "NoneType"

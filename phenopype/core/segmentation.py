@@ -8,6 +8,7 @@ from math import inf
 from phenopype.settings import colours
 from phenopype.core.preprocessing import invert_image
 from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_line_width
+from phenopype.core.visualization import draw_contours
 
 #%% functions
 
@@ -567,9 +568,9 @@ def threshold(
 def watershed(
     obj_input,
     image_thresh=None,
-    iterations=3,
+    iterations=1,
     kernel_size=3,
-    distance_cutoff=0.5,
+    distance_cutoff=0.8,
     distance_mask=0,
     distance_type="l1",
 ):
@@ -634,14 +635,20 @@ def watershed(
 
     ## sure background
     ## note: sure_bg is set as the thresholded input image
-    sure_bg = copy.deepcopy(thresh)
-
+    sure_bg= morphology(
+        thresh,
+        operation="dilate",
+        shape="ellipse",
+        kernel_size=kernel_size,
+        iterations=iterations,
+    )
+    
     ## sure foreground
     if distance_type in ["user", "l12", "fair", "welsch", "huber"]:
         distance_mask = 0
     opened = morphology(
         thresh,
-        operation="open",
+        operation="erode",
         shape="ellipse",
         kernel_size=kernel_size,
         iterations=iterations,
@@ -653,9 +660,12 @@ def watershed(
     dist_transform = cv2.normalize(
         dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX
     )
-    ret, sure_fg = cv2.threshold(
-        dist_transform, distance_cutoff * dist_transform.max(), 1, 0
-    )
+    
+    dist_transform = blur(dist_transform, kernel_size=int(2*kernel_size))
+    dist_transform = abs(255 * (1-dist_transform)) 
+    dist_transform = dist_transform.astype(np.uint8)
+
+    sure_fg = threshold(dist_transform, method="binary", value=int(distance_cutoff*255))
 
     ## finding unknown region
     sure_fg = sure_fg.astype("uint8")
@@ -668,7 +678,7 @@ def watershed(
     markers[unknown == 255] = 0
 
     ## watershed
-    markers = cv2.watershed(image, markers)
+    markers = cv2.watershed(blur(image, int(2*kernel_size)), markers)
 
     ## convert to contours
     watershed_mask = np.zeros(image.shape[:2], np.uint8)
@@ -678,8 +688,32 @@ def watershed(
     watershed_mask[0, 0 : watershed_mask.shape[1]] = 0
     watershed_mask[watershed_mask.shape[0] - 1, 0 : watershed_mask.shape[1]] = 0
 
+    contours = find_contours(watershed_mask, retrieval="ccomp")
+    image_watershed = np.zeros(watershed_mask.shape, np.uint8)
+    
+    for index, row in contours.iterrows():
+        if row["order"] == "child":
+            cv2.drawContours(
+                image=image_watershed,
+                contours=[row["coords"]],
+                contourIdx=0,
+                thickness=-1,
+                color=colours["white"],
+                maxLevel=3,
+                offset=None
+                )
+            cv2.drawContours(
+                image=image_watershed,
+                contours=[row["coords"]],
+                contourIdx=0,
+                thickness=2,
+                color=colours["black"],
+                maxLevel=3,
+                offset=None
+                )
+    
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-        return watershed_mask
+        return image_watershed
     elif obj_input.__class__.__name__ == "container":
-        obj_input.image = watershed_mask
+        obj_input.image = image_watershed
