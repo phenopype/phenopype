@@ -5,6 +5,7 @@ robocopy phenopype.egg-info dist/fix/phenopype.egg-info /E
 robocopy "E:/git_repos/phenopype" dist/fix MANIFEST.in README.md setup.py
 cd dist/fix 
 git init 
+@echo __pycache__ > .gitignore
 git add . 
 git commit -m "- no version control in hotfix -" 
 git remote add origin git@github.com:mluerig/phenopype
