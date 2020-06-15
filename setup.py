@@ -31,9 +31,9 @@ setup(
     package_data={'phenopype': ['core/*.py', 'settings/*.py']},
 	install_requires=[
 		"numpy",
-		"pandas",
-		"Pillow",
 		"opencv-contrib-python==3.*",
+        "pandas",
+		"Pillow",
         "ruamel.yaml",
         "watchdog"
 ],

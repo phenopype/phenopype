@@ -5,6 +5,11 @@ import numpy as np
 import numpy.ma as ma
 import pandas as pd
 
+import logging
+from radiomics import featureextractor
+import SimpleITK as sitk
+from tqdm import tqdm
+
 from phenopype.utils_lowlevel import (
     _image_viewer,
     _auto_line_width,
@@ -15,6 +20,160 @@ from phenopype.utils_lowlevel import (
 
 #%% methods
 
+
+def colour_intensity(
+    obj_input,
+    df_image_data=None,
+    df_contours=None,
+    channels="gray",
+    background=False,
+    background_ext=20,
+):
+    """
+    Measures pixel values within the provided contours, either across all 
+    channels ("gray") or for each channel separately ("rgb"). Measures mean 
+    and standard deviation
+    Parameters
+    ----------
+    obj_input : array or container
+        input object
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to
+        output DataFrame
+    df_contours : DataFrame, optional
+        contains the contours
+    channels : {"gray", "rgb"} str, optional
+        for which channels should pixel intensity be measured
+    background: bool, optional
+        measure the pixels of the background in an extended (background_ext) 
+        bounding box around the contour
+    background_ext: in, optional
+        value in pixels by which the bounding box should be extended
+    Returns
+    -------
+    df_colours : DataFrame or container
+        contains the pixel intensities 
+    """
+    ## kwargs
+    if channels.__class__.__name__ == "str":
+        channels = [channels]
+    if background == True:
+        flag_background = background
+        q = background_ext
+    else:
+        flag_background = False
+
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
+        if df_contours.__class__.__name__ == "NoneType":
+            print("no df supplied - cannot measure colour intensity")
+            return
+    elif obj_input.__class__.__name__ == "container":
+        image = copy.deepcopy(obj_input.image_copy)
+        df_image_data = obj_input.df_image_data
+        if hasattr(obj_input, "df_contours"):
+            df_contours = obj_input.df_contours
+    else:
+        print("wrong input format.")
+        return
+
+    ## make dataframe backbone
+    df_colours = pd.DataFrame(df_contours["contour"])
+
+    ## create forgeround mask
+    foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)
+    for index, row in df_contours.iterrows():
+        foreground_mask_inverted = cv2.fillPoly(
+            foreground_mask_inverted, [row["coords"]], 255
+        )
+    foreground_mask = np.invert(np.array(foreground_mask_inverted))
+
+    ## grayscale
+    if "gray" in channels:
+        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        new_cols = {"gray_mean": "NA", "gray_sd": "NA"}
+        df_colours = df_colours.assign(**new_cols)
+        for index, row in df_contours.iterrows():
+            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
+            grayscale = ma.array(
+                data=image_gray[ry : ry + rh, rx : rx + rw],
+                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
+            )
+            df_colours.at[index, ["gray_mean", "gray_sd"]] = (
+                np.ma.mean(grayscale),
+                np.ma.std(grayscale),
+            )
+
+    ## red, green, blue
+    if "rgb" in channels:
+        df_colours = df_colours.assign(
+            **{
+                "red_mean": "NA",
+                "red_sd": "NA",
+                "green_mean": "NA",
+                "green_sd": "NA",
+                "blue_mean": "NA",
+                "blue_sd": "NA",
+            }
+        )
+        for index, row in df_contours.iterrows():
+            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
+            blue = ma.array(
+                data=image[ry : ry + rh, rx : rx + rw, 0],
+                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
+            )
+            green = ma.array(
+                data=image[ry : ry + rh, rx : rx + rw, 1],
+                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
+            )
+            red = ma.array(
+                data=image[ry : ry + rh, rx : rx + rw, 2],
+                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
+            )
+            df_colours.at[index, ["red_mean", "red_sd"]] = np.ma.mean(red), np.ma.std(red)
+            df_colours.at[index, ["green_mean", "green_sd"]] = (
+                np.ma.mean(green),
+                np.ma.std(green),
+            )
+            df_colours.at[index, ["blue_mean", "blue_sd"]] = (
+                np.ma.mean(blue),
+                np.ma.std(blue),
+            )
+
+    ## background grayscale
+    if flag_background:
+        df_colours = df_colours.assign(**{"gray_mean_b": "NA", "gray_sd_b": "NA"})
+        for index, row in df_contours.iterrows():
+            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
+            foreground_mask_inverted_extended = foreground_mask_inverted[
+                (ry - q) : (ry + rh + q), (rx - q) : (rx + rw + q)
+            ]
+            grayscale = ma.array(
+                data=image_gray[(ry - q) : (ry + rh + q), (rx - q) : (rx + rw + q)],
+                mask=foreground_mask_inverted_extended,
+            )
+            df_colours.at[index, ["gray_mean_b", "gray_sd_b"]] = (
+                np.ma.mean(grayscale),
+                np.ma.std(grayscale),
+            )
+
+    ## merge with existing image_data frame
+    df_colours = pd.concat(
+        [
+            pd.concat([df_image_data] * len(df_colours)).reset_index(drop=True),
+            df_colours.reset_index(drop=True),
+        ],
+        axis=1,
+    )
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return df_colours
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df_colours = df_colours
 
 def landmarks(
     obj_input,
@@ -144,162 +303,6 @@ def landmarks(
         obj_input.df_landmarks = df_landmarks
 
 
-def colour_intensity(
-    obj_input,
-    df_image_data=None,
-    df_contours=None,
-    channels="gray",
-    background=False,
-    background_ext=20,
-):
-    """
-    Measures pixel values within the provided contours, either across all 
-    channels ("gray") or for each channel separately ("rgb"). Measures mean 
-    and standard deviation
-
-    Parameters
-    ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to
-        output DataFrame
-    df_contours : DataFrame, optional
-        contains the contours
-    channels : {"gray", "rgb"} str, optional
-        for which channels should pixel intensity be measured
-    background: bool, optional
-        measure the pixels of the background in an extended (background_ext) 
-        bounding box around the contour
-    background_ext: in, optional
-        value in pixels by which the bounding box should be extended
-
-    Returns
-    -------
-    df_colours : DataFrame or container
-        contains the pixel intensities 
-
-    """
-    ## kwargs
-    if channels.__class__.__name__ == "str":
-        channels = [channels]
-    if background == True:
-        flag_background = background
-        q = background_ext
-    else:
-        flag_background = False
-
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-        if df_contours.__class__.__name__ == "NoneType":
-            print("no df supplied - cannot measure colour intensity")
-            return
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image_copy)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_contours"):
-            df_contours = obj_input.df_contours
-    else:
-        print("wrong input format.")
-        return
-
-    ## make dataframe backbone
-    df_colours = pd.DataFrame(df_contours["contour"])
-
-    ## create forgeround mask
-    foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)
-    for index, row in df_contours.iterrows():
-        foreground_mask_inverted = cv2.fillPoly(
-            foreground_mask_inverted, [row["coords"]], 255
-        )
-    foreground_mask = np.invert(np.array(foreground_mask_inverted))
-
-    ## grayscale
-    if "gray" in channels:
-        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        new_cols = {"gray_mean": "NA", "gray_sd": "NA"}
-        df_colours = df_colours.assign(**new_cols)
-        for index, row in df_contours.iterrows():
-            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
-            grayscale = ma.array(
-                data=image_gray[ry : ry + rh, rx : rx + rw],
-                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
-            )
-            df_colours.at[index, ["gray_mean", "gray_sd"]] = (
-                np.ma.mean(grayscale),
-                np.ma.std(grayscale),
-            )
-
-    ## red, green, blue
-    if "rgb" in channels:
-        df_colours = df_colours.assign(
-            **{
-                "red_mean": "NA",
-                "red_sd": "NA",
-                "green_mean": "NA",
-                "green_sd": "NA",
-                "blue_mean": "NA",
-                "blue_sd": "NA",
-            }
-        )
-        for index, row in df_contours.iterrows():
-            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
-            blue = ma.array(
-                data=image[ry : ry + rh, rx : rx + rw, 0],
-                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
-            )
-            green = ma.array(
-                data=image[ry : ry + rh, rx : rx + rw, 1],
-                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
-            )
-            red = ma.array(
-                data=image[ry : ry + rh, rx : rx + rw, 2],
-                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
-            )
-            df_colours.at[index, ["red_mean", "red_sd"]] = np.ma.mean(red), np.ma.std(red)
-            df_colours.at[index, ["green_mean", "green_sd"]] = (
-                np.ma.mean(green),
-                np.ma.std(green),
-            )
-            df_colours.at[index, ["blue_mean", "blue_sd"]] = (
-                np.ma.mean(blue),
-                np.ma.std(blue),
-            )
-
-    ## background grayscale
-    if flag_background:
-        df_colours = df_colours.assign(**{"gray_mean_b": "NA", "gray_sd_b": "NA"})
-        for index, row in df_contours.iterrows():
-            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
-            foreground_mask_inverted_extended = foreground_mask_inverted[
-                (ry - q) : (ry + rh + q), (rx - q) : (rx + rw + q)
-            ]
-            grayscale = ma.array(
-                data=image_gray[(ry - q) : (ry + rh + q), (rx - q) : (rx + rw + q)],
-                mask=foreground_mask_inverted_extended,
-            )
-            df_colours.at[index, ["gray_mean_b", "gray_sd_b"]] = (
-                np.ma.mean(grayscale),
-                np.ma.std(grayscale),
-            )
-
-    ## merge with existing image_data frame
-    df_colours = pd.concat(
-        [
-            pd.concat([df_image_data] * len(df_colours)).reset_index(drop=True),
-            df_colours.reset_index(drop=True),
-        ],
-        axis=1,
-    )
-
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_colours
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_colours = df_colours
 
 
 def polylines(
@@ -601,6 +604,140 @@ def shape_features(
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_contours = df_contours
 
+
+
+def texture_features(
+    obj_input,
+    df_image_data=None,
+    df_contours=None,
+    channels="gray",
+    background=False,
+    background_ext=20,
+    min_diameter=5,
+):
+    """
+    Measures pixel values within the provided contours, either across all 
+    channels ("gray") or for each channel separately ("rgb"). Measures mean 
+    and standard deviation
+
+    Parameters
+    ----------
+    obj_input : array or container
+        input object
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to
+        output DataFrame
+    df_contours : DataFrame, optional
+        contains the contours
+    channels : {"gray", "rgb"} str, optional
+        for which channels should pixel intensity be measured
+    background: bool, optional
+        measure the pixels of the background in an extended (background_ext) 
+        bounding box around the contour
+    background_ext: in, optional
+        value in pixels by which the bounding box should be extended
+    min_diameter: int, optional
+        minimum diameter of the contour
+
+    Returns
+    -------
+    df_textures : DataFrame or container
+        contains the pixel intensities 
+
+    """
+    ## kwargs
+    if channels.__class__.__name__ == "str":
+        channels = [channels]
+    if background == True:
+        flag_background = background
+        q = background_ext
+    else:
+        flag_background = False
+
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
+        if df_contours.__class__.__name__ == "NoneType":
+            print("no df supplied - cannot measure colour intensity")
+            return
+    elif obj_input.__class__.__name__ == "container":
+        image = copy.deepcopy(obj_input.image_copy)
+        df_image_data = obj_input.df_image_data
+        if hasattr(obj_input, "df_contours"):
+            df_contours = obj_input.df_contours
+    else:
+        print("wrong input format.")
+        return
+    
+    ## deactivate warnigns from pyradiomics feature extractor
+    logger = logging.getLogger("radiomics")
+    logger.setLevel(logging.ERROR)
+
+    ## make dataframe backbone
+    df_textures_meta = df_contours.drop(columns=["coords"])
+
+    ## create forgeround mask
+    foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)
+    for index, row in df_contours.iterrows():
+        foreground_mask_inverted = cv2.fillPoly(
+            foreground_mask_inverted, [row["coords"]], 255
+        )
+
+    ## method
+    df_df_list = []
+    for channel in channels:
+        df_textures_list = []
+
+        if channel in ["grey","gray", "grayscale"]:
+            channel = "gray"
+            if len(image.shape)==3:
+                image_data = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            else:
+                image_data = copy.deepcopy(image)
+        elif channel in ["r","red"]:
+            channel = "red"
+            image_data = image[:,:,0]
+        elif channel in ["g","green"]:
+            channel = "green"
+            image_data = image[:,:,1]
+        elif channel in ["b","blue"]:
+            channel = "blue"
+            image_data = image[:,:,2]
+        for index, row in tqdm(df_contours.iterrows(), 
+                               desc="Processing " + channel + " texture features", 
+                               total=df_contours.shape[0]):
+            if row["diameter"] > min_diameter:
+                rx, ry, rw, rh = cv2.boundingRect(row["coords"])
+
+                data=image_data[ry : ry + rh, rx : rx + rw]
+                mask=foreground_mask_inverted[ry : ry + rh, rx : rx + rw]
+                sitk_data = sitk.GetImageFromArray(data)
+                sitk_mask = sitk.GetImageFromArray(mask)
+
+                extractor = featureextractor.RadiomicsFeatureExtractor()
+                features = extractor.execute(sitk_data, sitk_mask, label=255)
+                
+                output = {}
+                for key, val in features.items():
+                    if not "diagnostics" in key :
+                        output[key.split('_', 1)[1]  ] = val
+                df_textures_list.append(output)
+            else:
+                df_textures_list.append({})
+                
+        df_textures_int = pd.DataFrame(df_textures_list)
+        df_textures_int.insert(0, column="Channel", value=channel)
+        df_df_list.append(pd.concat([df_textures_meta, df_textures_int], axis=1))
+        
+    df_textures = pd.concat(df_df_list)
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return df_textures
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df_textures = df_textures
 
 
 def skeletonize(
