@@ -249,11 +249,6 @@ def save_contours(
     if "skeleton_coords" in df:
         df.drop(columns="skeleton_coords", inplace=True)
 
-    ## don't save coordinates
-    if flag_save_coords == False:
-        flag_convert_coords = False
-        df.drop(columns="coords", inplace=True)
-
     ## subset
     if flag_subset == "child":
         df = df[df["order"] == "child"]
@@ -272,6 +267,10 @@ def save_contours(
             ],
             axis=1,
         )
+
+    ## don't save coordinates
+    if flag_save_coords == False:
+        flag_convert_coords = False
         df.drop(columns="coords", inplace=True)
         
     ## fix na, round, and format to string
@@ -729,7 +728,8 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
 
 
 def save_textures(
-    obj_input, overwrite=True, dirpath=None, save_suffix=None, round_digits=1
+    obj_input, overwrite=True, dirpath=None, save_suffix=None, round_digits=1,
+    name=""
 ):
     """
     Save colour intensities to csv. 
@@ -789,10 +789,12 @@ def save_textures(
                 return
 
     ## save suffix
+    if len(name) > 0:
+        name = "_" + name
     if save_suffix:
-        path = os.path.join(dirpath, "textures_" + save_suffix + ".csv")
+        path = os.path.join(dirpath, "textures" + name + "_" + save_suffix + ".csv")
     else:
-        path = os.path.join(dirpath, "textures.csv")
+        path = os.path.join(dirpath, "textures" + name + ".csv")
 
     ## check if file exists
     while True:
@@ -804,6 +806,86 @@ def save_textures(
             pass
         elif not os.path.isfile(path):
             print("- textures saved under " + path + ".")
+            pass
+        df.to_csv(path_or_buf=path, sep=",", index=False, na_rep='NA')
+        break
+
+def save_shapes(
+    obj_input, overwrite=True, dirpath=None, save_suffix=None, round_digits=1
+):
+    """
+    Save colour intensities to csv. 
+    
+    Parameters
+    ----------
+    obj_input : DataFrame or container
+        input object
+    overwrite: bool optional
+        overwrite csv if it already exists
+    dirpath: str, optional
+        location to save df
+    round_digits: int, optional
+        number of digits to round to
+    save_suffix : str, optional
+        suffix to append to filename
+    """
+
+    ## kwargs
+    flag_overwrite = overwrite
+
+    ## load df
+    if obj_input.__class__.__name__ == "DataFrame":
+        df = copy.deepcopy(obj_input)
+    elif obj_input.__class__.__name__ == "container":
+        df = copy.deepcopy(obj_input.df_shapes)
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not obj_input.dirpath.__class__.__name__ == "NoneType"
+        ):
+            dirpath = obj_input.dirpath
+        if (
+            save_suffix.__class__.__name__ == "NoneType"
+            and not obj_input.save_suffix.__class__.__name__ == "NoneType"
+        ):
+            save_suffix = obj_input.save_suffix
+    else:
+        print("No df supplied - cannot export results.")
+        return
+
+    ## fix na, round, and format to string
+    # df = df.fillna(-9999)
+    df = df.round(round_digits)
+    df = df.astype(str)
+
+    ## dirpath
+    if dirpath.__class__.__name__ == "NoneType":
+        print('No save directory ("dirpath") specified - cannot save result.')
+        return
+    else:
+        if not os.path.isdir(dirpath):
+            q = input("Save folder {} does not exist - create?.".format(dirpath))
+            if q in ["True", "true", "y", "yes"]:
+                os.makedirs(dirpath)
+            else:
+                print("Directory not created - aborting")
+                return
+
+    ## save suffix
+    if save_suffix:
+        path = os.path.join(dirpath, "shapes_" + save_suffix + ".csv")
+    else:
+        path = os.path.join(dirpath, "shapes.csv")
+
+    ## check if file exists
+    while True:
+        if os.path.isfile(path) and flag_overwrite == False:
+            print("- shapes not saved - file already exists (overwrite=False).")
+            break
+        elif os.path.isfile(path) and flag_overwrite == True:
+            print("- shapes saved under " + path + " (overwritten).")
+            pass
+        elif not os.path.isfile(path):
+            print("- shapes saved under " + path + ".")
             pass
         df.to_csv(path_or_buf=path, sep=",", index=False, na_rep='NA')
         break

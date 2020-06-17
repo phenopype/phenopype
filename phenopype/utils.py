@@ -316,8 +316,6 @@ class container(object):
             print("save_polylines")
             save_polylines(self, dirpath=dirpath, overwrite=flag_overwrite)
 
-        ## other data
-
         ## drawing
         if hasattr(self, "df_draw") and not "save_drawing" in export_list:
             print("save_drawing")
@@ -327,6 +325,17 @@ class container(object):
         if hasattr(self, "scale_current_px_mm_ratio") and not "save_scale" in export_list:
             print("save_scale")
             save_scale(self, dirpath=dirpath, overwrite=True)
+            
+        ## shapes
+        if hasattr(self, "df_shapes") and not "save_shapes" in export_list:
+            print("save_shapes")
+            save_shapes(self, dirpath=dirpath, overwrite=True)
+            
+        ## textures
+        if hasattr(self, "df_textures") and not "save_textures" in export_list:
+            print("save_textures")
+            save_textures(self, dirpath=dirpath, overwrite=True)
+            
 
     # def show(self, **kwargs):
     #     """

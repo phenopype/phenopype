@@ -420,14 +420,101 @@ def polylines(
         obj_input.df_polylines = df_polylines
 
 
+def skeletonize(
+    obj_input, df_image_data=None, df_contours=None, thinning="zhangsuen", padding=10
+):
+    """
+    Applies a binary blob thinning operation, to achieve a skeletization of 
+    the input image using the technique, i.e. retrieve the topological skeleton
+    (https://en.wikipedia.org/wiki/Topological_skeleton), using the algorithms 
+    of Thang-Suen or Guo-Hall.
+
+    Parameters
+    ----------
+    obj_input : array or container
+        input object (binary)
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to contour
+        output DataFrame
+    df_contours : DataFrame, optional
+        contains contours
+    thinning: {"zhangsuen", "guohall"} str, optional
+        type of thinning algorithm to apply
+
+    Returns
+    -------
+    image : array or container
+        thinned binary image
+    """
+
+    ## kwargs
+    skeleton_alg = {
+        "zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
+        "guohall": cv2.ximgproc.THINNING_GUOHALL,
+    }
+
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        if df_image_data.__class__.__name__ == "NoneType":
+            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
+        if df_contours.__class__.__name__ == "NoneType":
+            print("no df supplied - cannot measure colour intensity")
+            return
+    elif obj_input.__class__.__name__ == "container":
+        image = copy.deepcopy(obj_input.image_copy)
+        df_image_data = obj_input.df_image_data
+        if hasattr(obj_input, "df_contours"):
+            df_contours = obj_input.df_contours
+    else:
+        print("wrong input format.")
+        return
+
+    ## create forgeround mask
+    df_contours = df_contours.assign(
+        **{"skeleton_perimeter": "NA", "skeleton_coords": "NA"}
+    )
+
+    for index, row in df_contours.iterrows():
+        coords = copy.deepcopy(row["coords"])
+        rx, ry, rw, rh = cv2.boundingRect(coords)
+        image_sub = image[
+            (ry - padding) : (ry + rh + padding), (rx - padding) : (rx + rw + padding)
+        ]
+
+        mask = np.zeros(image_sub.shape[0:2], np.uint8)
+        mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx + padding, -ry + padding))
+
+        skeleton = cv2.ximgproc.thinning(mask, thinningType=skeleton_alg[thinning])
+        skel_ret, skel_contour, skel_hierarchy = cv2.findContours(
+            skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        perimeter = int(cv2.arcLength(skel_contour[0], closed=False) / 2)
+
+        skel_contour = skel_contour[0]
+        skel_contour[:, :, 0] = skel_contour[:, :, 0] + rx - padding
+        skel_contour[:, :, 1] = skel_contour[:, :, 1] + ry - padding
+
+        df_contours.at[index, ["skeleton_perimeter", "skeleton_coords"]] = (
+            perimeter,
+            skel_contour,
+        )
+
+    if obj_input.__class__.__name__ == "ndarray":
+        return df_contours
+    elif obj_input.__class__.__name__ == "container":
+        obj_input.df_contours = df_contours
+
+
 def shape_features(
     obj_input,
     df_contours=None,
     resize=True,
-    resize_to=250,
+    resize_to=100,
     return_basic=True,
     return_moments=False, 
-    return_hu_moments=False,
+    return_hu_moments=True,
 
 ):
     """
@@ -501,9 +588,11 @@ def shape_features(
         return
     
     if df_contours.__class__.__name__ == "NoneType":
-        print("no df supplied - cannot measure colour intensity")
+        print("no df supplied - cannot measure shape features")
         return
-
+    
+    ## make dataframe backbone
+    df_shapes = copy.deepcopy(df_contours.drop(columns=["coords"]))
 
     ## custom shape descriptors
     desc_basic_shape = ['circularity',
@@ -517,19 +606,19 @@ def shape_features(
                          'solidity',
                          'tri_area']
     for name in desc_basic_shape:
-        df_contours = df_contours.assign(**{name: "NA"})
+        df_shapes = df_shapes.assign(**{name: "NA"})
 
     ## moments 
     desc_moments = ['m00', 'm10', 'm01', 'm20', 'm11', 'm02', 'm30', 'm21', 
                 'm12', 'm03', 'mu20', 'mu11', 'mu02', 'mu30', 'mu21', 'mu12',
                 'mu03', 'nu20', 'nu11', 'nu02', 'nu30', 'nu21', 'nu12', 'nu03']
     for name in desc_moments:
-        df_contours = df_contours.assign(**{name: "NA"})
+        df_shapes = df_shapes.assign(**{name: "NA"})
 
     ## hu moments
     desc_hu = ['hu1','hu2','hu3','hu4','hu5','hu6','hu7']
     for name in desc_hu:
-        df_contours = df_contours.assign(**{name: "NA"})
+        df_shapes = df_shapes.assign(**{name: "NA"})
 
 
     ## calculate shape descriptors from contours
@@ -546,8 +635,8 @@ def shape_features(
             coords = coords.astype(np.int32)
             
             ## correct in df
-            df_contours.loc[index, "diameter"] = int(row["diameter"] * factor)
-            df_contours.loc[index, "area"]  = int(cv2.contourArea(coords))
+            df_shapes.loc[index, "diameter"] = int(row["diameter"] * factor)
+            df_shapes.loc[index, "area"]  = int(cv2.contourArea(coords))
             
         ## retrieve area and diameter
         cnt_diameter = df_contours.loc[index]["diameter"]
@@ -565,7 +654,7 @@ def shape_features(
         solidity = cnt_area / cv2.contourArea(convex_hull)
         compactness = math.sqrt(4 * cnt_area / np.pi) / cnt_diameter
         
-        df_contours.at[index, desc_basic_shape] = (
+        df_shapes.at[index, desc_basic_shape] = (
             circularity,
             compactness,
             min_rect_max,
@@ -580,29 +669,29 @@ def shape_features(
                      
         ## moments
         moments = cv2.moments(coords)
-        df_contours.at[index, desc_moments] = list(moments.values())
+        df_shapes.at[index, desc_moments] = list(moments.values())
                      
         ## hu moments
         hu_moments = cv2.HuMoments(moments)
         hu_moments_list = []
         for i in hu_moments:
             hu_moments_list.append(i[0])
-        df_contours.at[index, desc_hu] = hu_moments_list
+        df_shapes.at[index, desc_hu] = hu_moments_list
         
         
     ## drop unwanted columns
     if return_basic == False:
-        df_contours.drop(desc_basic_shape, axis=1, inplace=True)
+        df_shapes.drop(desc_basic_shape, axis=1, inplace=True)
     if return_moments == False:
-        df_contours.drop(desc_moments, axis=1, inplace=True)
+        df_shapes.drop(desc_moments, axis=1, inplace=True)
     if return_hu_moments == False:
-        df_contours.drop(desc_hu, axis=1, inplace=True)
+        df_shapes.drop(desc_hu, axis=1, inplace=True)
         
     ## return
     if obj_input.__class__.__name__ == "DataFrame":
-        return df_contours
+        return df_shapes
     elif obj_input.__class__.__name__ == "container":
-        obj_input.df_contours = df_contours
+        obj_input.df_shapes = df_shapes
 
 
 
@@ -715,6 +804,8 @@ def texture_features(
                 mask=foreground_mask_inverted[ry : ry + rh, rx : rx + rw]
                 sitk_data = sitk.GetImageFromArray(data)
                 sitk_mask = sitk.GetImageFromArray(mask)
+                
+                # pp.show_image(foreground_mask_inverted)
 
                 extractor = featureextractor.RadiomicsFeatureExtractor()
                 features = extractor.execute(sitk_data, sitk_mask, label=255)
@@ -739,89 +830,3 @@ def texture_features(
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_textures = df_textures
 
-
-def skeletonize(
-    obj_input, df_image_data=None, df_contours=None, thinning="zhangsuen", padding=10
-):
-    """
-    Applies a binary blob thinning operation, to achieve a skeletization of 
-    the input image using the technique, i.e. retrieve the topological skeleton
-    (https://en.wikipedia.org/wiki/Topological_skeleton), using the algorithms 
-    of Thang-Suen or Guo-Hall.
-
-    Parameters
-    ----------
-    obj_input : array or container
-        input object (binary)
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to contour
-        output DataFrame
-    df_contours : DataFrame, optional
-        contains contours
-    thinning: {"zhangsuen", "guohall"} str, optional
-        type of thinning algorithm to apply
-
-    Returns
-    -------
-    image : array or container
-        thinned binary image
-    """
-
-    ## kwargs
-    skeleton_alg = {
-        "zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
-        "guohall": cv2.ximgproc.THINNING_GUOHALL,
-    }
-
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-        if df_contours.__class__.__name__ == "NoneType":
-            print("no df supplied - cannot measure colour intensity")
-            return
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image_copy)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_contours"):
-            df_contours = obj_input.df_contours
-    else:
-        print("wrong input format.")
-        return
-
-    ## create forgeround mask
-    df_contours = df_contours.assign(
-        **{"skeleton_perimeter": "NA", "skeleton_coords": "NA"}
-    )
-
-    for index, row in df_contours.iterrows():
-        coords = copy.deepcopy(row["coords"])
-        rx, ry, rw, rh = cv2.boundingRect(coords)
-        image_sub = image[
-            (ry - padding) : (ry + rh + padding), (rx - padding) : (rx + rw + padding)
-        ]
-
-        mask = np.zeros(image_sub.shape[0:2], np.uint8)
-        mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx + padding, -ry + padding))
-
-        skeleton = cv2.ximgproc.thinning(mask, thinningType=skeleton_alg[thinning])
-        skel_ret, skel_contour, skel_hierarchy = cv2.findContours(
-            skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-
-        perimeter = int(cv2.arcLength(skel_contour[0], closed=False) / 2)
-
-        skel_contour = skel_contour[0]
-        skel_contour[:, :, 0] = skel_contour[:, :, 0] + rx - padding
-        skel_contour[:, :, 1] = skel_contour[:, :, 1] + ry - padding
-
-        df_contours.at[index, ["skeleton_perimeter", "skeleton_coords"]] = (
-            perimeter,
-            skel_contour,
-        )
-
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_contours
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_contours = df_contours
