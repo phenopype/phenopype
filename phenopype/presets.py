@@ -553,3 +553,77 @@ export:
 - save_polylines:
     save_suffix: v2
 """
+
+
+ex8_1 = """
+preprocessing:
+- create_mask: # select teeth
+    label: mask1
+- create_scale # manual scale selection
+segmentation:
+- blur: 
+    kernel_size: 25
+- threshold: 
+    method: binary
+    value: 170
+    blocksize: 49      ## for adaptive 
+    constant: 3        ## for adaptive 
+    channel: green
+- morphology:
+    operation: close # connect pixels
+    shape: ellipse
+    kernel_size: 3
+    iterations: 3
+# - draw
+- find_contours:
+    retrieval: ext
+    min_diameter: 0
+    min_area: 500
+measurement:
+- shape_features
+visualization:
+- select_canvas:
+    canvas: red
+- draw_contours:
+    line_width: 2
+    label_width: 1
+    label_size: 1
+    fill: 0
+"""
+
+
+ex8_2 = """
+preprocessing:
+- create_scale: # manual scale selection
+    mask: true
+segmentation:
+- blur:
+    kernel_size: 5
+- threshold:
+    method: binary
+    value: 190
+    blocksize: 49      ## for adaptive 
+    constant: 3        ## for adaptive 
+    channel: blue
+    invert: true
+- morphology:
+    operation: open # connect pixels
+    shape: cross
+    kernel_size: 3
+    iterations: 3
+# - draw
+- find_contours:
+    retrieval: ext
+    min_diameter: 0
+    min_area: 500
+measurement:
+- shape_features
+visualization:
+- select_canvas:
+    canvas: red
+- draw_contours:
+    line_width: 2
+    label_width: 1
+    label_size: 1
+    fill: 0
+"""

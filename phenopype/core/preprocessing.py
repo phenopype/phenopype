@@ -239,15 +239,14 @@ def create_scale(
         out = _image_viewer(image, tool="scale", previous=test_params)
 
         points = out.scale_coords
-        distance_px = int(
-            sqrt(
+        distance_px = sqrt(
                 ((points[0][0] - points[1][0]) ** 2)
                 + ((points[0][1] - points[1][1]) ** 2)
             )
-        )
+        
         entry = enter_data(image, columns="length", test_params=test_params)
-        distance_mm = int(entry["length"][0])
-        px_mm_ratio = int(distance_px / distance_mm)
+        distance_mm = float(entry["length"][0])
+        px_mm_ratio = float(distance_px / distance_mm)
 
         ## create template for image registration
         if flag_template or flag_mask:
