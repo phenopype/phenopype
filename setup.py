@@ -30,8 +30,8 @@ setup(
     package_dir={'phenopype': 'phenopype'},
     package_data={'phenopype': ['core/*.py', 'settings/*.py']},
 	install_requires=[
-		"numpy",
-		"opencv-contrib-python==3.*",
+		"numpy==1.18.5",
+		"opencv-contrib-python===3.4.9.33",
         "pandas",
 		"Pillow",
         "pyradiomics",
