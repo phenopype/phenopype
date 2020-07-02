@@ -256,7 +256,7 @@ def save_contours(
         df = df[df["order"] == "parent"]
 
     ## convert contour coords to list of tuples
-    if flag_convert_coords:
+    if flag_convert_coords and flag_save_coords:
         for idx, row in df.iterrows():
             df.at[idx, "coords"] = _contours_arr_tup(row["coords"])
         df = df.explode("coords")
@@ -267,11 +267,8 @@ def save_contours(
             ],
             axis=1,
         )
-
-    ## don't save coordinates
-    if flag_save_coords == False:
-        flag_convert_coords = False
-        df.drop(columns="coords", inplace=True)
+    else:
+        df.drop(columns=["coords"], inplace=True)
         
     ## fix na, round, and format to string
     # df = df.fillna(-9999)
