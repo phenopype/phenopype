@@ -364,7 +364,7 @@ export:
 """
 
 
-ex5 = """
+ex5_1 = """
 preprocessing:
 - create_mask:
     tool: polygon
@@ -387,7 +387,7 @@ segmentation:
 - watershed:
     distance_cutoff: 0.8
 # - draw:
-    # line_colour: white
+    # line_colour: black # "black" connects, "white" separates 
     # overwrite: True
 - find_contours:
     retrieval: ccomp
@@ -404,6 +404,41 @@ visualization:
 - draw_masks
 export:
 - save_contours:
+    overwrite: true
+"""
+
+
+ex5_2 = """
+preprocessing:
+- create_mask:
+    tool: polygon
+- find_scale
+- enter_data:
+    columns: ID
+segmentation:
+- blur:
+    kernel_size: 5
+- threshold:
+    method: binary
+    value: 200
+# - draw:
+    # line_colour: black # "black" connects, "white" separates 
+- find_contours:
+    retrieval: ext
+    min_area: 100
+measurement:
+visualization:
+- select_canvas:
+    canvas: red
+- draw_contours:
+    line_width: 2
+    label_width: 0
+    label_size: 1
+    fill: 0.3
+- draw_masks
+export:
+- save_contours:
+    save_coords: false
     overwrite: true
 """
 
