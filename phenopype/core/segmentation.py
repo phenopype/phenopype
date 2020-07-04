@@ -349,6 +349,7 @@ def find_contours(
                         "idx_parent": hier[3],
                         "coords": contour,
                     }
+        print("Found " + str(len(contour_dict)) + " contours that match criteria.")
     else:
         print("No contours found.")
 
