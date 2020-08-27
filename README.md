@@ -1,7 +1,7 @@
 # Phenopype: a phenotyping pipeline for Python
 
 **Author:** [Moritz Lürig](https://luerig.net)<br/>
-**License:** [LGPL](https://opensource.org/licenses/MIT)<br/>
+**License:** [LGPL](https://opensource.org/licenses/LGPL-3.0)<br/>
 
 <!-- badges: start -->
 

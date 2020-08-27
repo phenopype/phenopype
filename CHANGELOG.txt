@@ -1,18 +1,27 @@
 Known bugs
 ==========
+- any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact - no fix yet
-- all systems: high GUI / windows sometimes crashes: stop Kernel and use "cv2.destroyAllWindows()"
+
+1.0.6
+-----
+bugfix:
+	- tutorial 2: NoneType error when drawing contours under low throughput (fixes https://github.com/mluerig/phenopype/issues/7)
+	- tutorial 5: unexpected keyword when drawing polylines (fixes https://github.com/mluerig/phenopype/issues/8)
+	- presets to all examples added
+- new feature in measurement module: texture_features calculates 93 texture features (using pyradiomics as dependency)
+- example 8 added
 
 1.0.5
 -----
 bugfix:
-	- find files with glob
 	- data_dir on project load 
 - new feature in measurement module: shape_features calculates 41 shape features
 - example 3 added
 
 1.0.4
 -----
+- new feature in measurement module: colour_intensity can now also measure the background of detected objects
 - automated testing and CI implemented
 - collect_results project method implemented
 - all tutorials online, most examples online
