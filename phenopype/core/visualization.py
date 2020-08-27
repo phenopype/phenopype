@@ -304,7 +304,7 @@ def draw_landmarks(
     obj_input : array or container
         input object
     df_landmarks: DataFrame, optional
-        should contain contour coordinates as an array in a df cell
+        should contain landmark coordinates as an array in a df cell
     point_colour: {"green", "red", "blue", "black", "white"} str, optional
         landmark point colour
     point_size: int, optional
@@ -474,7 +474,12 @@ def draw_masks(
         obj_input.canvas = image
 
 
-def draw_polylines(obj_input, line_colour="blue", line_width="auto"):
+def draw_polylines(
+        obj_input, 
+        df_polylines=None, 
+        line_colour="blue", 
+        line_width="auto",
+        ):
     """
     Draw polylines onto an image. 
     
@@ -482,6 +487,8 @@ def draw_polylines(obj_input, line_colour="blue", line_width="auto"):
     ----------
     obj_input : array or container
         input object
+    df_polylines: DataFrame, optional
+        should contain polyline coordinates as an array in a df cell
     line_colour: {"blue", "red", "green", "black", "white"} str, optional
         polyline colour
     line_width: int, optional
@@ -499,9 +506,15 @@ def draw_polylines(obj_input, line_colour="blue", line_width="auto"):
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
+        if df_polylines.__class__.__name__ == "NoneType":
+            print("No df provided - cannot draw landmarks.")
+            return
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
         df_polylines = obj_input.df_polylines
+    else:
+        print("wrong input format.")
+        return
 
     ## more kwargs
     if line_width == "auto":
