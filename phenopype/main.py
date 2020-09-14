@@ -293,13 +293,14 @@ class project:
 
             ## load image
             image = load_image(filepath, resize=flag_resize)
-
+            fileending = os.path.splitext(os.path.basename(filepath))[1]
+            
             ## copy or link raw files
             if flag_raw_mode == "copy":
                 raw_path = os.path.join(
                     self.data_dir,
                     dirname,
-                    "raw" + os.path.splitext(os.path.basename(filepath))[1],
+                    "raw" + fileending,
                 )
                 if resize < 1:
                     cv2.imwrite(raw_path, image)
@@ -312,10 +313,9 @@ class project:
                 raw_path = filepath
 
             ## path reformatting
-            raw_relpath = os.path.relpath(raw_path, self.root_dir)
-            raw_relpath = raw_relpath.replace(os.sep, "/")
             dir_relpath = os.path.relpath(dirpath, self.root_dir)
             dir_relpath = dir_relpath.replace(os.sep, "/")
+            raw_relpath = os.path.join(dir_relpath, "raw" + fileending)
 
             ## collect attribute-data and save
             image_data = load_image_data(filepath, flag_resize)
@@ -343,10 +343,12 @@ class project:
 
             ## add to project object
             if not dirname in self.dirnames:
+                
                 ## directories
                 self.dirnames.append(dirname)
                 self.dirpaths_rel.append(dir_relpath)
                 self.dirpaths.append(os.path.join(self.root_dir, dir_relpath))
+                
                 ## files
                 self.filenames.append(image_data["filename"])
                 self.filepaths_rel.append(raw_relpath)
