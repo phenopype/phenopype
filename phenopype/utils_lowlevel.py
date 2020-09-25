@@ -740,6 +740,7 @@ def _file_walker(
     directory,
     filetypes=[],
     include=[],
+    include_all=True,
     exclude=[],
     raw_mode="copy",
     search_mode="dir",
@@ -758,6 +759,8 @@ def _file_walker(
         single or multiple string patterns to target files with certain endings
     include (optional): list of str
         single or multiple string patterns to target certain files to include
+    include_all (optional): bool,
+        either all (True) or any (False) of the provided keywords have to match
     exclude (optional): list of str
         single or multiple string patterns to target certain files to exclude - can overrule "include"
     unique_mode (optional): str (default: "filepath")
@@ -778,6 +781,7 @@ def _file_walker(
         include = [include]
     if not exclude.__class__.__name__ == "list":
         exclude = [exclude]
+    flag_include_all = include_all
 
     ## find files
     filepaths1, filepaths2, filepaths3, filepaths4 = [], [], [], []
@@ -804,8 +808,12 @@ def _file_walker(
     ## include
     if len(include) > 0:
         for filepath in filepaths2:
-            if any(inc in os.path.basename(filepath) for inc in include):
-                filepaths3.append(filepath)
+            if flag_include_all:
+                if all(inc in os.path.basename(filepath) for inc in include):
+                    filepaths3.append(filepath)
+            else:
+                if any(inc in os.path.basename(filepath) for inc in include):
+                    filepaths3.append(filepath)
     else:
         filepaths3 = filepaths2
 

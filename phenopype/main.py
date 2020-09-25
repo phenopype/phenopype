@@ -152,6 +152,7 @@ class project:
         image_dir,
         filetypes=default_filetypes,
         include=[],
+        include_all=True,
         exclude=[],
         raw_mode="copy",
         search_mode="dir",
@@ -185,6 +186,8 @@ class project:
             "default_filetypes" are configured in settings.py
         include: list or str, optional
             single or multiple string patterns to target certain files to include
+        include_all (optional): bool,
+            either all (True) or any (False) of the provided keywords have to match
         exclude: list or str, optional
             single or multiple string patterns to target certain files to exclude - 
             can overrule "include"
@@ -222,6 +225,7 @@ class project:
             filetypes=filetypes,
             exclude=exclude,
             include=include,
+            include_all = include_all,
         )
 
         ## feedback
@@ -856,6 +860,8 @@ class pype:
         skip directories that already have "name" as a suffix in the filename
     feedback: bool, optional
         don't open text editor or window, just apply functions and terminate
+    max_dim: int, optional
+        maximum dimension that window can have 
     kwargs: 
         developer options
     """
@@ -870,6 +876,7 @@ class pype:
         skip=False,
         feedback=True,
         delay=100,
+        max_dim=1000,
         **kwargs
     ):
 
@@ -1074,7 +1081,7 @@ class pype:
                         print("- autoselect canvas")
                     if flag_test_mode:
                         update = test_params
-                    iv = _image_viewer(self.container.canvas, previous=update)
+                    iv = _image_viewer(self.container.canvas, previous=update, max_dim=max_dim)
                     update, terminate = iv.__dict__, iv.done
                 except Exception as ex:
                     print(
