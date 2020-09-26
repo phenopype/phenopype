@@ -20,7 +20,9 @@ def create_mask(
     include=True,
     label="mask1",
     overwrite=False,
+    edit=False,
     tool="rectangle",
+    max_dim=None,
     **kwargs
 ):
     """
@@ -54,7 +56,8 @@ def create_mask(
 
     ## kwargs
     flag_overwrite = overwrite
-    test_params = kwargs.get("test_params", {})
+    flag_edit = edit
+    test_params = kwargs.get("test_params", None)
 
     ## load image
     df_masks = None
@@ -76,13 +79,25 @@ def create_mask(
 
     ## check if exists
     while True:
-        if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False:
+        if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False and flag_edit == False:
             df_masks = df_masks[
                 df_masks.columns.intersection(["mask", "include", "coords"])
             ]
             if label in df_masks["mask"].values:
                 print("- mask with label " + label + " already created (overwrite=False)")
                 break
+        elif not df_masks.__class__.__name__ == "NoneType" and flag_edit == True:
+            prev_point_list = []
+            prev_rect_list = []
+            for index, row in df_masks.iterrows():
+                coords = eval(row["coords"])
+                prev_point_list.append(coords)
+                if len(coords) == 5:
+                    prev_rect_list.append([coords[0][0], coords[0][1], coords[2][0], coords[2][1]])
+            prev_masks = {"point_list": prev_point_list,
+                          "rect_list": prev_rect_list}
+            print("edit mask")
+            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
         elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
             df_masks = df_masks[
                 df_masks.columns.intersection(["mask", "include", "coords"])
@@ -93,12 +108,15 @@ def create_mask(
                 pass
         elif df_masks.__class__.__name__ == "NoneType":
             print("- create mask")
-            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
             pass
 
         ## method
-        out = _image_viewer(image, mode="interactive", tool=tool, previous=test_params)
-
+        if not test_params.__class__.__name__ == "NoneType":
+            out = _image_viewer(image, mode="interactive", tool=tool, previous=test_params, max_dim=max_dim)
+        elif not df_masks.__class__.__name__ == "NoneType" and flag_edit == True:
+            out = _image_viewer(image, mode="interactive", tool=tool, previous=prev_masks, max_dim=max_dim)
+        else:
+            out = _image_viewer(image, mode="interactive", tool=tool, max_dim=max_dim)
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":

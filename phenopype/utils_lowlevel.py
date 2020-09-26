@@ -39,7 +39,10 @@ class _image_viewer:
         self.window_name = kwargs.get("window_name", "phenopype")
         window_aspect = kwargs.get("window_aspect", cv2.WINDOW_AUTOSIZE)
         window_control = kwargs.get("window_control", "internal")
-        window_max_dimension = kwargs.get("max_dim", 1000)
+        max_dim = kwargs.get("max_dim", None)
+        if max_dim.__class__.__name__ == "NoneType":
+            max_dim = 1000
+        window_max_dimension = max_dim
 
         ## new kwargs
         self.flag_test_mode = kwargs.get("test_mode", False)
@@ -120,6 +123,12 @@ class _image_viewer:
         if self.flag_draw:
             self.line_colour = colours[kwargs.get("line_colour", "black")]
 
+
+        ## this needs to be decluttered. there should only be one type of list 
+        ## (points, not rectangle separately). relevant parameters for the 
+        ## polylines should be forwarded from the functions themselves
+
+
         ## update from previous call
         if kwargs.get("previous"):
             prev_attr = kwargs.get("previous")
@@ -128,16 +137,31 @@ class _image_viewer:
                 for i in prev_attr
                 if i not in ["canvas_copy", "canvas", "image_copy", "image"]
             }
-            self.__dict__.update(prev_attr)
+            self.__dict__.update(copy.deepcopy(prev_attr))
             if hasattr(self, "point_list"):
-                for point in self.point_list:
-                    cv2.polylines(
-                        self.image_copy,
-                        np.array([point]),
-                        False,
-                        colours["green"],
-                        self.line_width,
-                    )
+                if (
+                    self.flag_tool == "rectangle"
+                    or self.flag_tool == "rect"
+                    or self.flag_tool == "template"
+                ):
+                    for point in self.point_list:
+                        cv2.polylines(
+                            self.image_copy,
+                            np.array([point]),
+                            False,
+                            colours["green"],
+                            self.line_width,
+                        )
+                    self.point_list = []
+                elif self.flag_tool == "line" or self.flag_tool == "polyline":
+                    for point in self.point_list:
+                        cv2.polylines(
+                            self.image_copy,
+                            np.array([point]),
+                            False,
+                            self.line_colour,
+                            self.line_width,
+                        ) 
             self.canvas = self.image_copy[
                 self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2,
             ]
@@ -157,7 +181,6 @@ class _image_viewer:
         cv2.imshow(self.window_name, self.canvas)
 
         ## window control
-
         if window_control == "internal":
             if self.flag_test_mode == True:
                 self.done = True
@@ -256,7 +279,9 @@ class _image_viewer:
                 self._on_mouse_polygon(event, x, y, flags, draw=True)
             elif self.flag_tool == "line" or self.flag_tool == "lines":
                 self._on_mouse_polygon(event, x, y, flags, draw=True)
-
+            elif self.flag_tool == "polyline" or self.flag_tool == "polylines":
+                self._on_mouse_polygon(event, x, y, flags, polyline=True)
+                
     def _on_mouse_point(self, event, x, y):
         if event == cv2.EVENT_LBUTTONDOWN:  ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
             self.coords_original = (
@@ -328,7 +353,7 @@ class _image_viewer:
         flag_draw = kwargs.get("draw", False)
 
         if event == cv2.EVENT_MOUSEMOVE:
-            if (scale or flag_draw) and len(self.points) == 2:
+            if (scale or flag_draw) and self.flag_tool == "line" and len(self.points) == 2:
                 return
             self.coords_original = (
                 int(self.zoom_x1 + (x * self.global_fx)),
@@ -347,7 +372,7 @@ class _image_viewer:
                     self.line_colour,
                     self.line_width,
                 )
-            elif (scale or flag_draw) and len(self.points) > 2:
+            elif (scale or flag_draw) and self.flag_tool == "line" and len(self.points) > 2:
                 pass
             cv2.imshow(self.window_name, self.canvas)
         if event == cv2.EVENT_LBUTTONDOWN:  ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
@@ -388,7 +413,7 @@ class _image_viewer:
             if scale and len(self.points) == 2:
                 print("Scale set")
                 self.scale_coords = self.points
-            if flag_draw and len(self.points) == 2:
+            if flag_draw and self.flag_tool == "line" and len(self.points) == 2:
                 self.point_list.append(self.points)
                 self.points = []
 
@@ -471,7 +496,6 @@ class _image_viewer:
     def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
         ## kwargs
         template = kwargs.get("template", False)
-
         if event == cv2.EVENT_LBUTTONDOWN:  ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
             if template == True and len(self.rect_list) == 1:
                 return

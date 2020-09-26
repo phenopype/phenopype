@@ -5,8 +5,8 @@ auto_text_size_factor = 0.00025
 
 colours = {
     "green": (0, 255, 0),
-    "red": (0, 0, 255),
     "blue": (255, 0, 0),
+    "red": (0, 0, 255),
     "black": (0, 0, 0),
     "white": (255, 255, 255),
 }

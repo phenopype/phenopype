@@ -1,7 +1,7 @@
 #%% modules
-import cv2, copy
+import ast, cv2, copy, os
 import numpy as np
-
+import pandas as pd
 import math
 
 from phenopype.settings import colours
@@ -10,6 +10,7 @@ from phenopype.utils_lowlevel import (
     _auto_point_size,
     _auto_text_width,
     _auto_text_size,
+    _contours_tup_array,
 )
 
 #%% settings
@@ -99,6 +100,8 @@ def draw_contours(
     obj_input,
     df_contours=None,
     offset_coords=None,
+    compare=None,
+    compare_line_width=1,
     label=True,
     fill=0.3,
     fill_colour=None,
@@ -128,6 +131,10 @@ def draw_contours(
         contains the contours
     offset_coords : tuple, optional
         offset coordinates, will be added to all contours
+    compare: str or list, optional
+        draw previously detected contours as well (e.g. from other pype-run). 
+        string or list of strings with file-suffixes, has to be in the same 
+        directory.
     label : bool, optional
         draw contour label
     fill : float, optional
@@ -180,6 +187,7 @@ def draw_contours(
         fill_colour = line_colour_sel
     else:
         fill_colour = colours[fill_colour]
+        
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = copy.deepcopy(obj_input)
@@ -192,7 +200,7 @@ def draw_contours(
     else:
         print("wrong input format.")
         return
-
+    
     ## more kwargs
     if line_width == "auto":
         line_width = _auto_line_width(image)
@@ -200,7 +208,7 @@ def draw_contours(
         label_size = _auto_text_size(image)
     if label_width == "auto":
         label_width = _auto_text_width(image)
-
+        
     ## method
     idx = 0
     colour_mask = copy.deepcopy(image)
@@ -277,6 +285,55 @@ def draw_contours(
             )
 
     image = cv2.addWeighted(image, 1 - flag_fill, colour_mask, flag_fill, 0)
+
+    ## load previous contours
+    if obj_input.__class__.__name__ == "container" and not compare.__class__.__name__ == "NoneType":
+        while True:
+            if compare.__class__.__name__ == "str":
+                compare = [compare]
+            elif compare.__class__.__name__ == "list" and len(compare) > 3:
+                print("compare supports a maximum of three contour files")
+                break
+            col_idx = 0
+            cols = ["green","blue","red","black","white"]
+            for comp in compare:
+                if line_colour == cols[col_idx]:
+                    col_idx +=1
+                comp_line_colour = colours[cols[col_idx]]
+                comp_path = os.path.join(obj_input.dirpath, "contours_" + comp + ".csv")
+                col_idx +=1
+                if os.path.isfile(comp_path):
+                    compare_df = pd.read_csv(comp_path, converters={"center": ast.literal_eval})
+                    if "x" in compare_df:
+                        compare_df["coords"] = list(zip(compare_df.x, compare_df.y))
+                        coords = compare_df.groupby("contour")["coords"].apply(list)
+                        coords_arr = _contours_tup_array(coords)
+                        compare_df.drop(columns=["coords", "x", "y"], inplace=True)
+                        compare_df = compare_df.drop_duplicates().reset_index()
+                        compare_df["coords"] = pd.Series(coords_arr, index=compare_df.index)
+                    else:
+                        print("no coords found, cannot draw contours for comparison")
+                        continue
+                    print(comp + " contours loaded")           
+                    for index, row in compare_df.iterrows():
+                        cv2.drawContours(
+                            image=image,
+                            contours=[row["coords"]],
+                            contourIdx=0,
+                            thickness=compare_line_width,
+                            color=comp_line_colour,
+                            maxLevel=level,
+                            offset=None,
+                        )
+                else:
+                    print("wrong compare suffix")
+            break
+    else:
+        print("compare only works with the pype class")
+        
+
+
+
 
     # df_contours= df_contours.drop("skeleton_coords", axis=1)
 

@@ -1,5 +1,6 @@
 #%% modules
 import cv2, copy, os, sys, warnings
+import inspect
 import numpy as np
 import pandas as pd
 import pickle
@@ -422,7 +423,6 @@ class project:
                 }
             }
             config.update(_load_yaml(config_preset))
-            print(config)
         elif not config_preset.__class__.__name__ == "NoneType" and not hasattr(
             presets, config_preset
         ):
@@ -877,6 +877,7 @@ class pype:
         feedback=True,
         delay=100,
         max_dim=1000,
+        overwite=True,
         **kwargs
     ):
 
@@ -905,6 +906,7 @@ class pype:
         flag_autoshow = kwargs.get("autoshow", False)
         flag_presetting = kwargs.get("presetting", False)
         flag_meta = kwargs.get("meta", True)
+        flag_overwrite = kwargs.get("overwrite", True)
         exif_fields = kwargs.get("fields", default_meta_data_fields)
         if not exif_fields.__class__.__name__ == "list":
             exif_fields = [exif_fields]
@@ -1045,6 +1047,11 @@ class pype:
                                 visualization.select_canvas(self.container)
                                 print("- autoselect canvas")
 
+                        ## check if method has max_dim option and otherwise add
+                        args = inspect.getfullargspec(eval(step + "." + method_name)).args
+                        if "max_dim" in args and not "max_dim" in method_args:
+                            method_args["max_dim"] = max_dim
+                        
                         ## run method
                         print(method_name)
                         method_loaded = eval(step + "." + method_name)
@@ -1071,7 +1078,7 @@ class pype:
                 self.container.show(show_list=show_list)
             if not flag_presetting:
                 if flag_autosave:
-                    self.container.save(export_list=export_list)
+                    self.container.save(export_list=export_list, overwrite=flag_overwrite)
 
             ## visualize output
             if flag_feedback:

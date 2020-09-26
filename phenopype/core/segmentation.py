@@ -68,9 +68,11 @@ def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75, sigma_spa
 def draw(
     obj_input,
     overwrite=False,
+    edit=False,
     tool="line",
     line_colour="black",
     line_width="auto",
+    max_dim=None,
     **kwargs
 ):
     """
@@ -99,8 +101,9 @@ def draw(
     """
     ## kwargs
     flag_overwrite = overwrite
-    test_params = kwargs.get("test_params", {})
-
+    flag_edit = edit
+    test_params = kwargs.get("test_params", None)
+    
     ## load image
     df_draw, df_image_data = None, None
     if obj_input.__class__.__name__ == "ndarray":
@@ -124,29 +127,34 @@ def draw(
 
     while True:
         ## check if exists
-        if not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == False:
+        if not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == False and flag_edit == False:
             print("- polylines already drawn (overwrite=False)")
             break
+        elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
+            print("- draw polylines (editing)")
+            prev_drawings = {"point_list": eval(df_draw["coords"][0])}
+            pass
         elif not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == True:
             print("- draw polylines (overwriting)")
             pass
-        ## future option: edit drawings
-        # elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
-        #     print("- draw polylines (editing)")
-        #     pass
         elif df_draw.__class__.__name__ == "NoneType":
             print("- draw polylines")
             pass
 
         ## method
-        out = _image_viewer(
-            image,
-            tool=tool,
-            draw=True,
-            line_width=line_width,
-            line_colour=line_colour,
-            previous=test_params,
-        )
+        if not test_params.__class__.__name__ == "NoneType":
+            out = _image_viewer(image,tool=tool, draw=True, 
+                    line_width=line_width,line_colour=line_colour,
+                    previous=test_params,max_dim = max_dim)
+        elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
+            print("edit")
+            out = _image_viewer(image,tool=tool, draw=True, 
+                                line_width=line_width,line_colour=line_colour,
+                                previous=prev_drawings,max_dim = max_dim)
+        else:
+            out = _image_viewer(image,tool=tool, draw=True, 
+                                line_width=line_width,line_colour=line_colour,
+                                max_dim = max_dim)
 
         ## abort
         if not out.done:
@@ -169,7 +177,7 @@ def draw(
     for idx, row in df_draw.iterrows():
         coord_list = eval(row["coords"])
         for coords in coord_list:
-            if row["tool"] in ["line", "lines"]:
+            if row["tool"] in ["line", "lines","polyline","polylines"]:
                 cv2.polylines(
                     image,
                     np.array([coords]),

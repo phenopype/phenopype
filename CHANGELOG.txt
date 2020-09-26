@@ -3,6 +3,16 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact - no fix yet
 
+1.0.7
+-----
+bugfix:
+	- create_scale in interactive template mode did not get saved
+	- fixed raw.file in proj. lists issue
+- draw_contours now accepts previously run contour-files via "compare" argument
+- create_mask window now has the same size as pype-window
+- create_ mask and draw now have edit mode: add and modify previous runs
+
+
 1.0.6
 -----
 bugfix:
