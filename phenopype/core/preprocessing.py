@@ -108,6 +108,7 @@ def create_mask(
                 pass
         elif df_masks.__class__.__name__ == "NoneType":
             print("- create mask")
+            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
             pass
 
         ## method
@@ -117,6 +118,7 @@ def create_mask(
             out = _image_viewer(image, mode="interactive", tool=tool, previous=prev_masks, max_dim=max_dim)
         else:
             out = _image_viewer(image, mode="interactive", tool=tool, max_dim=max_dim)
+            
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":

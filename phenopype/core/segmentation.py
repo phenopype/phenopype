@@ -65,38 +65,182 @@ def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75, sigma_spa
         return image
 
 
+# def draw(
+#     obj_input,
+#     overwrite=False,
+#     edit=False,
+#     tool="line",
+#     line_colour="black",
+#     line_width="auto",
+#     max_dim=None,
+#     **kwargs
+# ):
+#     """
+#     Draw lines, rectangles or polygons onto a colour or binary image. Can be 
+#     used to connect. disconnect or erase contours. 
+
+#     Parameters
+#     ----------
+#     obj_input : array or container
+#         input object
+#     overwrite : bool, optional
+#         if a container is supplied, or when working from the pype, should any 
+#         exsting drawings be overwritten
+#     tool : {line, polygon, rectangle} str, optional
+#         type of tool to use for drawing
+#     line_colour : {"black", "white", "green", "red", "blue"} str, optional
+#         line or filling (for rectangle and polygon) colour
+#     line_width : int, optional
+#         line width
+
+#     Returns
+#     -------
+#     image : array or container
+#         image with drawings
+
+#     """
+#     ## kwargs
+#     flag_overwrite = overwrite
+#     flag_edit = edit
+#     test_params = kwargs.get("test_params", None)
+    
+#     ## load image
+#     df_draw, df_image_data = None, None
+#     if obj_input.__class__.__name__ == "ndarray":
+#         image = obj_input
+#         if df_image_data.__class__.__name__ == "NoneType":
+#             df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
+#     elif obj_input.__class__.__name__ == "container":
+#         image = copy.deepcopy(obj_input.image)
+#         df_image_data = obj_input.df_image_data
+#         if hasattr(obj_input, "df_draw"):
+#             df_draw = obj_input.df_draw
+#     else:
+#         print("wrong input format.")
+#         return
+
+#     ## more kwargs
+#     if line_width == "auto":
+#         line_width = _auto_line_width(image)
+#     if tool in ["rect", "rectangle", "poly", "polygon"]:
+#         line_width = -1
+
+#     while True:
+#         ## check if exists
+#         if not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == False and flag_edit == False:
+#             print("- polylines already drawn (overwrite=False)")
+#             break
+#         elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
+#             print("- draw polylines (editing)")
+#             prev_drawings = {"point_list": eval(df_draw["coords"][0])}
+#             pass
+#         elif not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == True:
+#             print("- draw polylines (overwriting)")
+#             pass
+#         elif df_draw.__class__.__name__ == "NoneType":
+#             print("- draw polylines")
+#             pass
+
+#         ## method
+#         if not test_params.__class__.__name__ == "NoneType":
+#             out = _image_viewer(image,tool=tool, draw=True, 
+#                     line_width=line_width,line_colour=line_colour,
+#                     previous=test_params,max_dim = max_dim)
+#         elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
+#             print("edit")
+#             out = _image_viewer(image,tool=tool, draw=True, 
+#                                 line_width=line_width,line_colour=line_colour,
+#                                 previous=prev_drawings,max_dim = max_dim)
+#         else:
+#             out = _image_viewer(image,tool=tool, draw=True, 
+#                                 line_width=line_width,line_colour=line_colour,
+#                                 max_dim = max_dim)
+
+#         ## abort
+#         if not out.done:
+#             if obj_input.__class__.__name__ == "ndarray":
+#                 print("terminated polyline creation")
+#                 return
+#             elif obj_input.__class__.__name__ == "container":
+#                 print("- terminated polyline creation")
+#                 return True
+
+#         ## create df
+#         df_draw = pd.DataFrame({"tool": tool}, index=[0])
+#         df_draw["line_width"] = line_width
+#         df_draw["colour"] = line_colour
+#         df_draw["coords"] = str(out.point_list)
+
+#         break
+
+#     ## draw
+#     for idx, row in df_draw.iterrows():
+#         coord_list = eval(row["coords"])
+#         for coords in coord_list:
+#             if row["tool"] in ["line", "lines","polyline","polylines"]:
+#                 cv2.polylines(
+#                     image,
+#                     np.array([coords]),
+#                     False,
+#                     colours[row["colour"]],
+#                     row["line_width"],
+#                 )
+#             elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
+#                 cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
+
+#     ## return
+#     if obj_input.__class__.__name__ == "ndarray":
+#         df_draw = pd.concat(
+#             [
+#                 pd.concat([df_image_data] * len(df_draw)).reset_index(drop=True),
+#                 df_draw.reset_index(drop=True),
+#             ],
+#             axis=1,
+#         )
+#         return image
+#     elif obj_input.__class__.__name__ == "container":
+#         obj_input.df_draw = df_draw
+#         obj_input.image = image
+
+
 def draw(
     obj_input,
+    df_image_data=None,
     overwrite=False,
     edit=False,
+    label="drawing1",
     tool="line",
-    line_colour="black",
     line_width="auto",
+    line_colour="black",
     max_dim=None,
     **kwargs
 ):
     """
-    Draw lines, rectangles or polygons onto a colour or binary image. Can be 
-    used to connect. disconnect or erase contours. 
+    Set points, draw a connected line between them, and measure its length. 
 
     Parameters
     ----------
     obj_input : array or container
         input object
-    overwrite : bool, optional
-        if a container is supplied, or when working from the pype, should any 
-        exsting drawings be overwritten
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to
+        output DataFrame
+    overwrite: bool, optional
+        if working using a container, or from a phenopype project directory, 
+        should existing polylines be overwritten
+    label: str, optinal
+        assigns a label to the drawing
     tool : {line, polygon, rectangle} str, optional
         type of tool to use for drawing
-    line_colour : {"black", "white", "green", "red", "blue"} str, optional
+    line_colour : {"black", "white"} str, optional
         line or filling (for rectangle and polygon) colour
     line_width : int, optional
         line width
 
     Returns
     -------
-    image : array or container
-        image with drawings
+    df_polylines : DataFrame or container
+        contains the drawn polylines
 
     """
     ## kwargs
@@ -105,7 +249,7 @@ def draw(
     test_params = kwargs.get("test_params", None)
     
     ## load image
-    df_draw, df_image_data = None, None
+    df_drawings = None
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
@@ -113,8 +257,8 @@ def draw(
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_draw"):
-            df_draw = obj_input.df_draw
+        if hasattr(obj_input, "df_drawings"):
+            df_drawings = obj_input.df_drawings
     else:
         print("wrong input format.")
         return
@@ -122,23 +266,51 @@ def draw(
     ## more kwargs
     if line_width == "auto":
         line_width = _auto_line_width(image)
-    if tool in ["rect", "rectangle", "poly", "polygon"]:
-        line_width = -1
+    test_params = kwargs.get("test_params", None)
 
     while True:
+        
+        if not df_drawings.__class__.__name__ == "NoneType":
+            ## select df_drawing that matches label
+            df_drawings_sub = df_drawings.loc[df_drawings['label'] == label]
+            ## remove meta-columns
+            df_drawings_sub = df_drawings_sub[
+                df_drawings_sub.columns.intersection(["label", "tool", "line_colour","line_width","coords"])
+            ]
+        
         ## check if exists
-        if not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == False and flag_edit == False:
-            print("- polylines already drawn (overwrite=False)")
-            break
-        elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
-            print("- draw polylines (editing)")
-            prev_drawings = {"point_list": eval(df_draw["coords"][0])}
+        if not df_drawings.__class__.__name__ == "NoneType" and flag_overwrite == False and not flag_edit == True:
+            if label in df_drawings_sub["label"].values:
+                print("- drawing with label " + label + " already created (overwrite=False)")
+                break
+        elif not df_drawings.__class__.__name__ == "NoneType" and flag_edit == True:
+            ## extract previous drawing and convert to dict
+            if label in df_drawings_sub["label"].values:
+                prev_point_list = []
+                for index, row in df_drawings_sub.iterrows():
+                    coords = eval(row["coords"])
+                    prev_point_list.append(coords) 
+                prev_drawings = {"tool": df_drawings_sub["tool"].unique()[0],
+                                 "line_colour": colours[df_drawings_sub["line_colour"].unique()[0]],
+                                 "line_width": df_drawings_sub["line_width"].unique()[0],
+                                 "point_list": prev_point_list}
+                
+                ## remove rows from original drawing df
+                df_drawings = df_drawings.drop(df_drawings[df_drawings["label"] == label].index)
+                print("- drawing (editing)")
             pass
-        elif not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            print("- draw polylines (overwriting)")
+        elif not df_drawings.__class__.__name__ == "NoneType" and flag_overwrite == True:
+            
+            if label in df_drawings["label"].values:
+                
+                ## remove rows from original drawing df
+                df_drawings = df_drawings.drop(df_drawings[df_drawings["label"] == label].index)
+                print("- drawing (overwriting)")
             pass
-        elif df_draw.__class__.__name__ == "NoneType":
-            print("- draw polylines")
+        
+        elif df_drawings.__class__.__name__ == "NoneType":
+            df_drawings = pd.DataFrame(columns=["label", "tool", "line_colour","line_width","coords"])
+            print("- drawing")
             pass
 
         ## method
@@ -146,8 +318,8 @@ def draw(
             out = _image_viewer(image,tool=tool, draw=True, 
                     line_width=line_width,line_colour=line_colour,
                     previous=test_params,max_dim = max_dim)
-        elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
-            print("edit")
+        elif not df_drawings.__class__.__name__ == "NoneType" and flag_edit == True:
+            print(prev_drawings)
             out = _image_viewer(image,tool=tool, draw=True, 
                                 line_width=line_width,line_colour=line_colour,
                                 previous=prev_drawings,max_dim = max_dim)
@@ -155,53 +327,69 @@ def draw(
             out = _image_viewer(image,tool=tool, draw=True, 
                                 line_width=line_width,line_colour=line_colour,
                                 max_dim = max_dim)
-
+        coords = out.point_list
+        
         ## abort
         if not out.done:
             if obj_input.__class__.__name__ == "ndarray":
-                print("terminated polyline creation")
+                print("terminated drawing")
                 return
             elif obj_input.__class__.__name__ == "container":
-                print("- terminated polyline creation")
+                print("- terminated drawing")
                 return True
 
         ## create df
-        df_draw = pd.DataFrame({"tool": tool}, index=[0])
-        df_draw["line_width"] = line_width
-        df_draw["colour"] = line_colour
-        df_draw["coords"] = str(out.point_list)
-
-        break
-
-    ## draw
-    for idx, row in df_draw.iterrows():
-        coord_list = eval(row["coords"])
-        for coords in coord_list:
-            if row["tool"] in ["line", "lines","polyline","polylines"]:
-                cv2.polylines(
-                    image,
-                    np.array([coords]),
-                    False,
-                    colours[row["colour"]],
-                    row["line_width"],
+        df_drawings_sub_new = pd.DataFrame()
+        if len(coords) > 0:
+            for points in coords:
+                df_drawings_sub_new = df_drawings_sub_new.append(
+                    {"label": label, 
+                     "tool": tool, 
+                     "line_colour": line_colour, 
+                     "line_width": line_width,
+                     "coords": str(points)},
+                    ignore_index=True,
+                    sort=True,
                 )
-            elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
-                cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
-
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        df_draw = pd.concat(
+            df_drawings_sub_new.line_width = df_drawings_sub_new.line_width.astype(int)
+        else:
+            print("zero coordinates - redo drawing!")
+            
+        ## merge with existing image_data frame
+        print("concat")
+        df_drawings_sub_new = pd.concat(
             [
-                pd.concat([df_image_data] * len(df_draw)).reset_index(drop=True),
-                df_draw.reset_index(drop=True),
+                pd.concat([df_image_data] * len(df_drawings_sub_new)).reset_index(drop=True),
+                df_drawings_sub_new.reset_index(drop=True),
             ],
             axis=1,
         )
-        return image
+        df_drawings = df_drawings.append(df_drawings_sub_new)
+        break
+    
+    ## draw
+    for idx, row in df_drawings.loc[df_drawings['label'] == label].iterrows():
+        coords = eval(row["coords"])
+        if row["tool"] in ["line", "lines","polyline","polylines"]:
+            cv2.polylines(
+                image,
+                np.array([coords]),
+                False,
+                colours[row["line_colour"]],
+                row["line_width"],
+            )
+        elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
+            cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
+            
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return image, df_drawings
     elif obj_input.__class__.__name__ == "container":
-        obj_input.df_draw = df_draw
+        obj_input.df_drawings = df_drawings
         obj_input.image = image
 
+# pp.show_image(image)
 
 def find_contours(
     obj_input,

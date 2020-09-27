@@ -296,35 +296,113 @@ def save_contours(
         break
 
 
-def save_drawing(obj_input, overwrite=True, dirpath=None):
-    """
-    Save drawing coordinates to attributes.yaml 
+# def save_drawing(obj_input, overwrite=True, dirpath=None):
+#     """
+#     Save drawing coordinates to attributes.yaml 
     
+#     Parameters
+#     ----------
+#     obj_input : DataFrame or container
+#         input object
+#     overwrite: bool optional
+#         overwrite if drawing already exists
+#     dirpath: str, optional
+#         location to save df
+
+#     """
+#     ## kwargs
+#     flag_overwrite = overwrite
+
+#     ## load df
+#     if obj_input.__class__.__name__ == "DataFrame":
+#         df = obj_input
+#     elif obj_input.__class__.__name__ == "container":
+#         df = obj_input.df_draw
+#         if (
+#             dirpath.__class__.__name__ == "NoneType"
+#             and not obj_input.dirpath.__class__.__name__ == "NoneType"
+#         ):
+#             dirpath = obj_input.dirpath
+#     else:
+#         print("No df supplied - cannot export results.")
+#         return
+
+#     ## dirpath
+#     if dirpath.__class__.__name__ == "NoneType":
+#         print('No save directory ("dirpath") specified - cannot save result.')
+#         return
+#     else:
+#         if not os.path.isdir(dirpath):
+#             q = input("Save folder {} does not exist - create?.".format(dirpath))
+#             if q in ["True", "true", "y", "yes"]:
+#                 os.makedirs(dirpath)
+#             else:
+#                 print("Directory not created - aborting")
+#                 return
+
+#     ## load attributes file
+#     attr_path = os.path.join(dirpath, "attributes.yaml")
+#     if os.path.isfile(attr_path):
+#         attr = _load_yaml(attr_path)
+#     else:
+#         attr = {}
+#     if not "drawing" in attr:
+#         attr["drawing"] = {}
+
+#     ## check if file exists
+#     while True:
+#         if "drawing" in attr and flag_overwrite == False:
+#             print("- drawing not saved (overwrite=False)")
+#             break
+#         elif "drawing" in attr and flag_overwrite == True:
+#             print("- drawing saved (overwriting)")
+#             pass
+#         elif not "drawing" in attr:
+#             attr["drawing"] = {}
+#             print("- drawing saved")
+#             pass
+#         for idx, row in df.iterrows():
+#             # if not row["coords"] == attr["drawing"]["coords"]:
+#             attr["drawing"] = dict(row)
+#         _save_yaml(attr, attr_path)
+#         break
+    
+def save_drawing(obj_input, overwrite=True, dirpath=None, save_suffix=None):
+    """
+    Save drawing coordinates and information ("include"" and "label") to csv.
+
     Parameters
     ----------
     obj_input : DataFrame or container
         input object
     overwrite: bool optional
-        overwrite if drawing already exists
+        overwrite csv if it already exists
     dirpath: str, optional
         location to save df
+    save_suffix : str, optional
+        suffix to append to filename
 
     """
     ## kwargs
     flag_overwrite = overwrite
 
     ## load df
-    if obj_input.__class__.__name__ == "DataFrame":
+    if obj_input.__class__.__name__ == "ndarray":
         df = obj_input
     elif obj_input.__class__.__name__ == "container":
-        df = obj_input.df_draw
+        df = obj_input.df_drawings
         if (
             dirpath.__class__.__name__ == "NoneType"
             and not obj_input.dirpath.__class__.__name__ == "NoneType"
         ):
             dirpath = obj_input.dirpath
+        if (
+            save_suffix.__class__.__name__ == "NoneType"
+            and not obj_input.save_suffix.__class__.__name__ == "NoneType"
+        ):
+            save_suffix = obj_input.save_suffix
     else:
-        print("No df supplied - cannot export results.")
+        print("No drawing df supplied - cannot save drawing.")
         return
 
     ## dirpath
@@ -340,32 +418,26 @@ def save_drawing(obj_input, overwrite=True, dirpath=None):
                 print("Directory not created - aborting")
                 return
 
-    ## load attributes file
-    attr_path = os.path.join(dirpath, "attributes.yaml")
-    if os.path.isfile(attr_path):
-        attr = _load_yaml(attr_path)
+    ## save suffix
+    if save_suffix:
+        path = os.path.join(dirpath, "drawings_" + save_suffix + ".csv")
     else:
-        attr = {}
-    if not "drawing" in attr:
-        attr["drawing"] = {}
+        path = os.path.join(dirpath, "drawings.csv")
 
     ## check if file exists
     while True:
-        if "drawing" in attr and flag_overwrite == False:
-            print("- drawing not saved (overwrite=False)")
+        if os.path.isfile(path) and flag_overwrite == False:
+            print("- drawings not saved - file already exists (overwrite=False).")
             break
-        elif "drawing" in attr and flag_overwrite == True:
-            print("- drawing saved (overwriting)")
+        elif os.path.isfile(path) and flag_overwrite == True:
+            print("- drawings saved under " + path + " (overwritten).")
             pass
-        elif not "drawing" in attr:
-            attr["drawing"] = {}
-            print("- drawing saved")
+        elif not os.path.isfile(path):
+            print("- drawings saved under " + path + ".")
             pass
-        for idx, row in df.iterrows():
-            # if not row["coords"] == attr["drawing"]["coords"]:
-            attr["drawing"] = dict(row)
-        _save_yaml(attr, attr_path)
+        df.to_csv(path_or_buf=path, sep=",", index=False)
         break
+
 
 
 def save_data_entry(obj_input, overwrite=True, dirpath=None):

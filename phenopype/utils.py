@@ -130,13 +130,6 @@ class container(object):
         attr_path = os.path.join(dirpath, "attributes.yaml")
         if os.path.isfile(attr_path):
 
-            ## drawing
-            if not hasattr(self, "df_draw"):
-                attr = _load_yaml(attr_path)
-                if "drawing" in attr:
-                    self.df_draw = pd.DataFrame(attr["drawing"], index=[0])
-                    loaded.append("drawing loaded from attributes.yaml")
-
             ## other data
             if not hasattr(self, "df_other_data"):
                 attr = _load_yaml(attr_path)
@@ -192,6 +185,21 @@ class container(object):
                         loaded.append("contours" + save_suffix + ".csv")
                     else:
                         print("Could not load contours - df saved without coordinates.")
+                        
+        # ## drawing
+        # if not hasattr(self, "df_draw"):
+        #     attr = _load_yaml(attr_path)
+        #     if "drawing" in attr:
+        #         self.df_draw = pd.DataFrame(attr["drawing"], index=[0])
+        #         loaded.append("drawing loaded from attributes.yaml")                      
+                
+        ## drawings
+        if not hasattr(self, "df_drawings") and "drawings" in files:
+            path = os.path.join(dirpath, "drawings" + save_suffix + ".csv")
+            if os.path.isfile(path):
+                self.df_drawings = pd.read_csv(path)
+                loaded.append("drawings" + save_suffix + ".csv")
+                        
         ## landmarks
         if not hasattr(self, "df_landmarks") and "landmarks" in files:
             path = os.path.join(dirpath, "landmarks" + save_suffix + ".csv")
@@ -205,7 +213,7 @@ class container(object):
             if os.path.isfile(path):
                 self.df_polylines = pd.read_csv(path)
                 loaded.append("polylines" + save_suffix + ".csv")
-
+                
         ## masks
         if not hasattr(self, "df_masks") and "masks" in files:
             path = os.path.join(dirpath, "masks" + save_suffix + ".csv")
@@ -317,7 +325,7 @@ class container(object):
             save_polylines(self, dirpath=dirpath, overwrite=flag_overwrite)
 
         ## drawing
-        if hasattr(self, "df_draw") and not "save_drawing" in export_list:
+        if hasattr(self, "df_drawings") and not "save_drawing" in export_list:
             print("save_drawing")
             save_drawing(self, dirpath=dirpath, overwrite=True)
 
