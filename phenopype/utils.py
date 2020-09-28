@@ -325,9 +325,9 @@ class container(object):
             save_polylines(self, dirpath=dirpath, overwrite=flag_overwrite)
 
         ## drawing
-        if hasattr(self, "df_drawings") and not "save_drawing" in export_list:
-            print("save_drawing")
-            save_drawing(self, dirpath=dirpath, overwrite=True)
+        if hasattr(self, "df_drawings") and not "save_drawings" in export_list:
+            print("save_drawings")
+            save_drawings(self, dirpath=dirpath, overwrite=True)
 
         ## scale
         if hasattr(self, "scale_current_px_mm_ratio") and not "save_scale" in export_list:

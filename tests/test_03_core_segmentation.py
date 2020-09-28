@@ -33,9 +33,11 @@ def test_watershed(project_container):
 
 def test_draw(project_container):
     test_params = {"flag_test_mode": True,
+                   "line_width": 2,
+                   "line_colour": (0,0,0),
                    "point_list": [[(1417, 327), (1410, 346)]]}
     pp.segmentation.draw(project_container, overwrite=flag_overwrite, test_params=test_params)
-    assert project_container.df_draw.iloc[0]["coords"] == "[[(1417, 327), (1410, 346)]]"
+    assert project_container.df_drawings.iloc[0]["coords"] == "[(1417, 327), (1410, 346)]"
     
 def test_find_contours(project_container):
     pp.segmentation.find_contours(project_container, min_area=250)

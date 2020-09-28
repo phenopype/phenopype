@@ -56,17 +56,15 @@ def test_save_polylines(project_container):
     pp.export.save_polylines(project_container, overwrite=True)
     pp.export.save_polylines(project_container, overwrite=False)    
     assert os.path.isfile(os.path.join(project_container.dirpath, "polylines_" + pype_name + ".csv"))
-    
-    
-    
-def test_save_drawing(project_container):
-    pp.export.save_drawing(project_container.df_draw)
+
+def test_save_drawings(project_container):
+    pp.export.save_drawings(project_container.df_drawings)
     with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_drawing(project_container, dirpath="new")        
-    pp.export.save_drawing(project_container, overwrite=True)
-    pp.export.save_drawing(project_container, overwrite=False)    
-    attr = pp.utils_lowlevel._load_yaml(os.path.join(project_container.dirpath, "attributes.yaml"))
-    assert "drawing" in attr
+        pp.export.save_drawings(project_container, dirpath="new")        
+    pp.export.save_drawings(project_container, overwrite=True)
+    pp.export.save_drawings(project_container, overwrite=False)    
+    assert os.path.isfile(os.path.join(project_container.dirpath, "drawings_" + pype_name + ".csv"))
+    
     
 def test_save_data_entry(project_container):
     pp.export.save_data_entry(project_container.df_other_data)

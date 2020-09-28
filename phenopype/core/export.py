@@ -367,7 +367,7 @@ def save_contours(
 #         _save_yaml(attr, attr_path)
 #         break
     
-def save_drawing(obj_input, overwrite=True, dirpath=None, save_suffix=None):
+def save_drawings(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     """
     Save drawing coordinates and information ("include"" and "label") to csv.
 
