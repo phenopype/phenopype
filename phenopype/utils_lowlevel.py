@@ -153,7 +153,7 @@ class _image_viewer:
                             self.line_width,
                         )
                     self.point_list = []
-                elif self.flag_tool == "line" or self.flag_tool == "polyline" or self.flag_test_mode == True:
+                elif self.flag_tool == "line" or self.flag_tool == "polyline" or self.flag_tool == "polygon" or self.flag_test_mode == True:
                     for point in self.point_list:
                         cv2.polylines(
                             self.image_copy,

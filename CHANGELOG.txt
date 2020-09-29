@@ -3,6 +3,13 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact - no fix yet
 
+1.0.8
+-----
+bugfix:
+	- create mask in edit mode would edit all masks (not just the one with the selected label)
+	- pypi readme markdown formatting
+- rewritten create_mask function to match drawing
+
 1.0.7
 -----
 bugfix:

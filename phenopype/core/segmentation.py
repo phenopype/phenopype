@@ -279,7 +279,7 @@ def draw(
             ]
         
         ## check if exists
-        if not df_drawings.__class__.__name__ == "NoneType" and flag_overwrite == False and not flag_edit == True:
+        if not df_drawings.__class__.__name__ == "NoneType" and flag_overwrite == False and flag_edit == False:
             if label in df_drawings_sub["label"].values:
                 print("- drawing with label " + label + " already created (overwrite=False)")
                 break
@@ -635,6 +635,7 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close", iterat
 
     ## return
     if obj_input.__class__.__name__ == "container":
+        obj_input.image = image
         obj_input.image = image
     else:
         return image

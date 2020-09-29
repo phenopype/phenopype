@@ -21,6 +21,10 @@ test_deps = ["pytest",
 
 extras = {'test': test_deps}
 
+## readme encoding
+with open('README.md'), encoding='utf-8') as readme:
+    long_description = readme.read()
+
 setup(
 	name='phenopype',
 	url='https://github.com/mluerig/phenopype',
@@ -42,7 +46,7 @@ setup(
 	version=verstr,
 	license='LGPL',
 	description='a phenotyping pipeline for python',
-	long_description=open('README.md').read(), 
+	long_description=long_description, 
 	long_description_content_type='text/markdown',
     tests_require=test_deps,
     extras_require=extras,

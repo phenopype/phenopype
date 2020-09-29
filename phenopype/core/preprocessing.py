@@ -79,44 +79,51 @@ def create_mask(
 
     ## check if exists
     while True:
+        
+        if not df_masks.__class__.__name__ == "NoneType":
+            ## select df_drawing that matches label
+            df_masks_sub = df_masks.loc[df_masks["mask"] == label]
+            ## remove meta-columns
+            df_masks_sub = df_masks_sub[
+                df_masks_sub.columns.intersection(["mask", "include","coords"])
+            ]  
         if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False and flag_edit == False:
-            df_masks = df_masks[
-                df_masks.columns.intersection(["mask", "include", "coords"])
-            ]
-            if label in df_masks["mask"].values:
-                print("- mask with label " + label + " already created (overwrite=False)")
+            if label in df_masks_sub["mask"].values:
+                print("- mask with label " + label + " already created (edit/overwrite=False)")
                 break
         elif not df_masks.__class__.__name__ == "NoneType" and flag_edit == True:
-            prev_point_list = []
-            prev_rect_list = []
-            for index, row in df_masks.iterrows():
-                coords = eval(row["coords"])
-                prev_point_list.append(coords)
-                if len(coords) == 5:
-                    prev_rect_list.append([coords[0][0], coords[0][1], coords[2][0], coords[2][1]])
-            prev_masks = {"point_list": prev_point_list,
-                          "rect_list": prev_rect_list}
-            print("edit mask")
-            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
-        elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            df_masks = df_masks[
-                df_masks.columns.intersection(["mask", "include", "coords"])
-            ]
-            if label in df_masks["mask"].values:
+            if label in df_masks_sub["mask"].values:
+                prev_point_list = []
+                prev_rect_list = []
+                for index, row in df_masks_sub.iterrows():
+                    coords = eval(row["coords"])
+                    prev_point_list.append(coords)
+                    if tool == "rect" or tool == "rectangle":
+                        prev_rect_list.append([coords[0][0], coords[0][1], coords[2][0], coords[2][1]])
+                prev_masks = {"point_list": prev_point_list,
+                              "rect_list": prev_rect_list}
                 df_masks = df_masks.drop(df_masks[df_masks["mask"] == label].index)
-                print("- create mask (overwriting)")
+                print("- creating mask (editing)")
+        elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
+            if label in df_masks["mask"].values:
+                ## remove rows from original drawing df
+                df_masks = df_masks.drop(df_masks[df_masks["mask"] == label].index)
+                print("- creating mask (overwriting)")
                 pass
         elif df_masks.__class__.__name__ == "NoneType":
-            print("- create mask")
             df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
+            print("- creating mask")
             pass
 
         ## method
         if not test_params.__class__.__name__ == "NoneType":
+            print("1")
             out = _image_viewer(image, mode="interactive", tool=tool, previous=test_params, max_dim=max_dim)
         elif not df_masks.__class__.__name__ == "NoneType" and flag_edit == True:
+            print("2")
             out = _image_viewer(image, mode="interactive", tool=tool, previous=prev_masks, max_dim=max_dim)
         else:
+            print("3")
             out = _image_viewer(image, mode="interactive", tool=tool, max_dim=max_dim)
             
         ## abort
@@ -131,9 +138,10 @@ def create_mask(
             coords = out.point_list
 
         ## create df
+        df_masks_sub_new = pd.DataFrame()
         if len(coords) > 0:
             for points in coords:
-                df_masks = df_masks.append(
+                df_masks_sub_new = df_masks_sub_new.append(
                     {"mask": label, "include": include, "coords": str(points)},
                     ignore_index=True,
                     sort=False,
@@ -143,13 +151,14 @@ def create_mask(
         break
 
     ## merge with existing image_data frame
-    df_masks = pd.concat(
+    df_masks_sub_new = pd.concat(
         [
-            pd.concat([df_image_data] * len(df_masks)).reset_index(drop=True),
-            df_masks.reset_index(drop=True),
+            pd.concat([df_image_data] * len(df_masks_sub_new)).reset_index(drop=True),
+            df_masks_sub_new.reset_index(drop=True),
         ],
         axis=1,
     )
+    df_masks = df_masks.append(df_masks_sub_new)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
