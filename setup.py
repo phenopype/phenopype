@@ -22,7 +22,7 @@ test_deps = ["pytest",
 extras = {'test': test_deps}
 
 ## readme encoding
-with open('README.md'), encoding='utf-8') as readme:
+with open('README.md', encoding='utf-8') as readme:
     long_description = readme.read()
 
 setup(
