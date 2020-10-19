@@ -33,8 +33,9 @@ setup(
 	packages=['phenopype'],
     package_dir={'phenopype': 'phenopype'},
     package_data={'phenopype': ['core/*.py', 'settings/*.py']},
-	install_requires=[
+    install_requires = [
 		"numpy==1.18.5",
+        'pyradiomics',
 		"opencv-contrib-python==3.4.9.33",
         "pandas",
 		"Pillow",
@@ -42,7 +43,7 @@ setup(
         "tqdm",
         "ruamel.yaml",
         "watchdog"
-],
+    ],
 	version=verstr,
 	license='LGPL',
 	description='a phenotyping pipeline for python',
