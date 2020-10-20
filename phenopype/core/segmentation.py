@@ -319,7 +319,6 @@ def draw(
                     line_width=line_width,line_colour=line_colour,
                     previous=test_params,max_dim = max_dim)
         elif not df_drawings.__class__.__name__ == "NoneType" and flag_edit == True:
-            print(prev_drawings)
             out = _image_viewer(image,tool=tool, draw=True, 
                                 line_width=line_width,line_colour=line_colour,
                                 previous=prev_drawings,max_dim = max_dim)
