@@ -65,143 +65,6 @@ def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75, sigma_spa
         return image
 
 
-# def draw(
-#     obj_input,
-#     overwrite=False,
-#     edit=False,
-#     tool="line",
-#     line_colour="black",
-#     line_width="auto",
-#     max_dim=None,
-#     **kwargs
-# ):
-#     """
-#     Draw lines, rectangles or polygons onto a colour or binary image. Can be 
-#     used to connect. disconnect or erase contours. 
-
-#     Parameters
-#     ----------
-#     obj_input : array or container
-#         input object
-#     overwrite : bool, optional
-#         if a container is supplied, or when working from the pype, should any 
-#         exsting drawings be overwritten
-#     tool : {line, polygon, rectangle} str, optional
-#         type of tool to use for drawing
-#     line_colour : {"black", "white", "green", "red", "blue"} str, optional
-#         line or filling (for rectangle and polygon) colour
-#     line_width : int, optional
-#         line width
-
-#     Returns
-#     -------
-#     image : array or container
-#         image with drawings
-
-#     """
-#     ## kwargs
-#     flag_overwrite = overwrite
-#     flag_edit = edit
-#     test_params = kwargs.get("test_params", None)
-    
-#     ## load image
-#     df_draw, df_image_data = None, None
-#     if obj_input.__class__.__name__ == "ndarray":
-#         image = obj_input
-#         if df_image_data.__class__.__name__ == "NoneType":
-#             df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-#     elif obj_input.__class__.__name__ == "container":
-#         image = copy.deepcopy(obj_input.image)
-#         df_image_data = obj_input.df_image_data
-#         if hasattr(obj_input, "df_draw"):
-#             df_draw = obj_input.df_draw
-#     else:
-#         print("wrong input format.")
-#         return
-
-#     ## more kwargs
-#     if line_width == "auto":
-#         line_width = _auto_line_width(image)
-#     if tool in ["rect", "rectangle", "poly", "polygon"]:
-#         line_width = -1
-
-#     while True:
-#         ## check if exists
-#         if not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == False and flag_edit == False:
-#             print("- polylines already drawn (overwrite=False)")
-#             break
-#         elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
-#             print("- draw polylines (editing)")
-#             prev_drawings = {"point_list": eval(df_draw["coords"][0])}
-#             pass
-#         elif not df_draw.__class__.__name__ == "NoneType" and flag_overwrite == True:
-#             print("- draw polylines (overwriting)")
-#             pass
-#         elif df_draw.__class__.__name__ == "NoneType":
-#             print("- draw polylines")
-#             pass
-
-#         ## method
-#         if not test_params.__class__.__name__ == "NoneType":
-#             out = _image_viewer(image,tool=tool, draw=True, 
-#                     line_width=line_width,line_colour=line_colour,
-#                     previous=test_params,max_dim = max_dim)
-#         elif not df_draw.__class__.__name__ == "NoneType" and flag_edit == True:
-#             print("edit")
-#             out = _image_viewer(image,tool=tool, draw=True, 
-#                                 line_width=line_width,line_colour=line_colour,
-#                                 previous=prev_drawings,max_dim = max_dim)
-#         else:
-#             out = _image_viewer(image,tool=tool, draw=True, 
-#                                 line_width=line_width,line_colour=line_colour,
-#                                 max_dim = max_dim)
-
-#         ## abort
-#         if not out.done:
-#             if obj_input.__class__.__name__ == "ndarray":
-#                 print("terminated polyline creation")
-#                 return
-#             elif obj_input.__class__.__name__ == "container":
-#                 print("- terminated polyline creation")
-#                 return True
-
-#         ## create df
-#         df_draw = pd.DataFrame({"tool": tool}, index=[0])
-#         df_draw["line_width"] = line_width
-#         df_draw["colour"] = line_colour
-#         df_draw["coords"] = str(out.point_list)
-
-#         break
-
-#     ## draw
-#     for idx, row in df_draw.iterrows():
-#         coord_list = eval(row["coords"])
-#         for coords in coord_list:
-#             if row["tool"] in ["line", "lines","polyline","polylines"]:
-#                 cv2.polylines(
-#                     image,
-#                     np.array([coords]),
-#                     False,
-#                     colours[row["colour"]],
-#                     row["line_width"],
-#                 )
-#             elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
-#                 cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
-
-#     ## return
-#     if obj_input.__class__.__name__ == "ndarray":
-#         df_draw = pd.concat(
-#             [
-#                 pd.concat([df_image_data] * len(df_draw)).reset_index(drop=True),
-#                 df_draw.reset_index(drop=True),
-#             ],
-#             axis=1,
-#         )
-#         return image
-#     elif obj_input.__class__.__name__ == "container":
-#         obj_input.df_draw = df_draw
-#         obj_input.image = image
-
 
 def draw(
     obj_input,
@@ -210,6 +73,7 @@ def draw(
     edit=False,
     label="drawing1",
     tool="line",
+    canvas="image",
     line_width="auto",
     line_colour="black",
     max_dim=None,
@@ -246,6 +110,7 @@ def draw(
     ## kwargs
     flag_overwrite = overwrite
     flag_edit = edit
+    flag_canvas = canvas
     test_params = kwargs.get("test_params", None)
     
     ## load image
@@ -255,7 +120,10 @@ def draw(
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
+        if flag_canvas == "image":
+            image = copy.deepcopy(obj_input.image)
+        elif flag_canvas == "canvas":
+            image = copy.deepcopy(obj_input.canvas)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_drawings"):
             df_drawings = obj_input.df_drawings

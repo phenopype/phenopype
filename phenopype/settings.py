@@ -11,7 +11,7 @@ colours = {
     "white": (255, 255, 255),
 }
 
-default_filetypes = ["jpg", "JPG", "jpeg", "JPEG", "tif", "png"]
+default_filetypes = ["jpg", "JPG", "jpeg", "JPEG", "tif", "png", "bmp"]
 default_meta_data_fields = [
     "DateTimeOriginal",
     "Model",

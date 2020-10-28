@@ -907,6 +907,7 @@ class pype:
         flag_presetting = kwargs.get("presetting", False)
         flag_meta = kwargs.get("meta", True)
         flag_overwrite = kwargs.get("overwrite", True)
+        
         exif_fields = kwargs.get("fields", default_meta_data_fields)
         if not exif_fields.__class__.__name__ == "list":
             exif_fields = [exif_fields]
@@ -977,7 +978,6 @@ class pype:
             if platform.system() == "Darwin":  # macOS
                 subprocess.call(("open", self.config_location))
             elif platform.system() == "Windows":  # Windows
-                print(self.config_location)
                 os.startfile(self.config_location)
             else:  # linux variants
                 subprocess.call(("xdg-open", self.config_location))
@@ -1011,52 +1011,58 @@ class pype:
             restart = None
             export_list, show_list = [], []
 
-            ## apply pype
-            for step in list(self.config.keys()):
-                if step in ["image", "meta", "pype"]:
+            ## apply pype: loop through steps and contained methods
+            for step in self.config:
+                step_name = step[0]
+                step_method_list = step[1]
+                      
+                ## skip cases: meta-steps, none, or presetting mode
+                if step_name in ["image", "meta", "pype"]:
                     continue
-                if not self.config[step]:
+                if step_method_list.__class__.__name__=="NoneType":
                     continue
-                if step == "export" and flag_presetting == True:
+                if step_name == "export" and flag_presetting == True:
                     continue
-                print(step.upper())
-                for item in self.config[step]:
-                    try:
-
-                        ## construct method name and arguments
-                        if item.__class__.__name__ == "str":
-                            method_name = item
-                            method_args = {}
-                        elif item.__class__.__name__ == "CommentedMap":
-                            method_name = list(item)[0]
-                            if not list(dict(item).values())[0]:
-                                method_args = {}
-                            else:
-                                method_args = dict(list(dict(item).values())[0])
-
-                        ## collect save-calls
-                        if step == "export":
-                            export_list.append(method_name)
-
-                        elif step == "visualization":
-                            show_list.append(method_name)
-                            if (
-                                not "select_canvas" in show_list
-                                and self.container.canvas.__class__.__name__ == "NoneType"
-                            ):
-                                visualization.select_canvas(self.container)
-                                print("- autoselect canvas")
-
-                        ## check if method has max_dim option and otherwise add
-                        args = inspect.getfullargspec(eval(step + "." + method_name)).args
-                        if "max_dim" in args and not "max_dim" in method_args:
-                            method_args["max_dim"] = max_dim
+                
+                ## feedback: print step name
+                print(step_name.upper())
+                
+                ## iterate through step list
+                for method in step_method_list:
+                    
+                    ## re-format method if necessary
+                    if method.__class__.__name__ == "str":
+                        method = [(method,{})]
                         
+                    ## format method name and arguments
+                    method_name = method[0][0]
+                    method_arguments = dict(method[0][1])
+
+                    ## collect save- and visualization calls
+                    if step_name == "export":
+                        export_list.append(method_name)
+                    elif step_name == "visualization":
+                        show_list.append(method_name)
+                        
+                    ## check if canvas is selcted, and otherwise execute with default values
+                    if (
+                        not "select_canvas" in show_list
+                        and self.container.canvas.__class__.__name__ == "NoneType"
+                    ):
+                        visualization.select_canvas(self.container)
+                        print("- autoselect canvas")
+
+                    ## check if method has max_dim option and otherwise add
+                    args = inspect.getfullargspec(eval(step_name + "." + method_name)).args
+                    if "max_dim" in args and not "max_dim" in method_arguments:
+                        method_arguments["max_dim"] = max_dim
+                        
+                    try:
                         ## run method
                         print(method_name)
-                        method_loaded = eval(step + "." + method_name)
-                        restart = method_loaded(self.container, **method_args)
-
+                        method_loaded = eval(step_name + "." + method_name)
+                        restart = method_loaded(self.container, **method_arguments)
+    
                         ## control
                         if restart:
                             print("RESTART")
@@ -1064,7 +1070,7 @@ class pype:
 
                     except Exception as ex:
                         location = (
-                            step + "." + method_name + ": " + str(ex.__class__.__name__)
+                            step_name + "." + method_name + ": " + str(ex.__class__.__name__)
                         )
                         print(location + " - " + str(ex))
 

@@ -7,11 +7,16 @@ import time
 from datetime import datetime
 from stat import S_IWRITE
 from ruamel.yaml import YAML
+from ruamel.yaml.constructor import SafeConstructor
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
 from phenopype.settings import colours, default_pype_config_name, default_pype_config
 from phenopype import presets
+
+#%% settings
+
+
 
 #%% classes
 
@@ -720,6 +725,21 @@ def _contours_tup_array(list_tup_list):
     return coords_arr_list
 
 
+
+def _construct_yaml_map(self, node):
+    # test if there are duplicate node keys
+    data = []
+    yield data
+    for key_node, value_node in node.value:
+        key = self.construct_object(key_node, deep=True)
+        val = self.construct_object(value_node, deep=True)
+        data.append((key, val))
+
+
+SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
+
+
+
 def _create_generic_pype_config(preset, config_name):
 
     pype_preset = _load_yaml(eval("presets." + preset))
@@ -902,7 +922,7 @@ def _equalize_histogram(image, detected_rect_mask, template):
 
 
 def _load_yaml(string):
-    yaml = YAML()
+    yaml = YAML(typ="safe")
     if string.__class__.__name__ == "str":
         if os.path.isfile(string):
             with open(string, "r") as file:
@@ -961,8 +981,9 @@ def _load_pype_config(obj_input, **kwargs):
 
 
 def _show_yaml(odict):
-    yaml = YAML()
+    yaml = YAML(typ='safe')
     yaml.dump(odict, sys.stdout)
+    
 
 
 def _save_yaml(odict, filepath):

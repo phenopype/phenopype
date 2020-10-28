@@ -18,9 +18,10 @@ def create_mask(
     obj_input,
     df_image_data=None,
     include=True,
-    label="mask1",
     overwrite=False,
     edit=False,
+    canvas="image",
+    label="mask1",
     tool="rectangle",
     max_dim=None,
     **kwargs
@@ -57,6 +58,7 @@ def create_mask(
     ## kwargs
     flag_overwrite = overwrite
     flag_edit = edit
+    flag_canvas = canvas
     test_params = kwargs.get("test_params", None)
 
     ## load image
@@ -68,7 +70,10 @@ def create_mask(
                 {"filename": "unknown"}, index=[0]
             )  ## that may not be necessary
     elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
-        image = copy.deepcopy(obj_input.image)
+        if flag_canvas == "image":
+            image = copy.deepcopy(obj_input.image)
+        elif flag_canvas == "canvas":
+            image = copy.deepcopy(obj_input.canvas)
         if hasattr(obj_input, "df_image_data"):
             df_image_data = copy.deepcopy(obj_input.df_image_data)
         if hasattr(obj_input, "df_masks"):

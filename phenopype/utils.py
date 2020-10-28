@@ -168,6 +168,13 @@ class container(object):
                         else:
                             print("cannot read template image")
 
+        ## drawings
+        if self.canvas.__class__.__name__ == "NoneType":
+            path = os.path.join(dirpath, "canvas" + save_suffix + ".jpg")
+            if os.path.isfile(path):
+                self.canvas = load_image(path)
+                loaded.append("canvas" + save_suffix + ".jpg")
+
         ## contours
         if flag_contours:
             if not hasattr(self, "df_contours") and "contours" in files:
@@ -184,14 +191,7 @@ class container(object):
                         self.df_contours = df
                         loaded.append("contours" + save_suffix + ".csv")
                     else:
-                        print("Could not load contours - df saved without coordinates.")
-                        
-        # ## drawing
-        # if not hasattr(self, "df_draw"):
-        #     attr = _load_yaml(attr_path)
-        #     if "drawing" in attr:
-        #         self.df_draw = pd.DataFrame(attr["drawing"], index=[0])
-        #         loaded.append("drawing loaded from attributes.yaml")                      
+                        print("Could not load contours - df saved without coordinates.")                  
                 
         ## drawings
         if not hasattr(self, "df_drawings") and "drawings" in files:
