@@ -124,9 +124,16 @@ def draw(
             image = copy.deepcopy(obj_input.image)
         elif flag_canvas == "canvas":
             image = copy.deepcopy(obj_input.canvas)
+        image = copy.deepcopy(obj_input.canvas)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_drawings"):
             df_drawings = obj_input.df_drawings
+        if hasattr(obj_input, "image_bin"):
+            image_bin = obj_input.image_bin
+        else:
+            print("no binary image provided")
+            return
+    
     else:
         print("wrong input format.")
         return
@@ -239,22 +246,21 @@ def draw(
         coords = eval(row["coords"])
         if row["tool"] in ["line", "lines","polyline","polylines"]:
             cv2.polylines(
-                image,
+                image_bin,
                 np.array([coords]),
                 False,
                 colours[row["line_colour"]],
                 row["line_width"],
             )
         elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
-            cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
-            
+            cv2.fillPoly(image_bin, np.array([coords]), colours[row["colour"]])
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
-        return image, df_drawings
+        return image_bin, df_drawings
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_drawings = df_drawings
-        obj_input.image = image
+        obj_input.image = image_bin
 
 # pp.show_image(image)
 
