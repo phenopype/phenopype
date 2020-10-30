@@ -68,7 +68,7 @@ class container(object):
         self.dirpath = dirpath
         self.save_suffix = save_suffix
 
-    def load(self, dirpath=None, save_suffix=None, contours=False, **kwargs):
+    def load(self, dirpath=None, save_suffix=None, contours=False, canvas=False, **kwargs):
         """
         Autoload function for container: loads results files with given save_suffix
         into the container. Can be used manually, but is typically used within the
@@ -168,8 +168,8 @@ class container(object):
                         else:
                             print("cannot read template image")
 
-        ## drawings
-        if self.canvas.__class__.__name__ == "NoneType":
+        ## canvas
+        if self.canvas.__class__.__name__ == "NoneType" and canvas == True:
             path = os.path.join(dirpath, "canvas" + save_suffix + ".jpg")
             if os.path.isfile(path):
                 self.canvas = load_image(path)
@@ -442,10 +442,6 @@ def load_directory(
     ## load attributes-file
     attr = _load_yaml(os.path.join(directory_path, "attributes.yaml"))
     
-    ## build 
-    
-    
-
     ## legacy
     paths = [
         attr["project"]["raw_path"],

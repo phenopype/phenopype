@@ -399,7 +399,7 @@ class project:
         flag_interactive = interactive
         flag_overwrite = overwrite
 
-        ## legacy
+        ## legacy: config_preset = preset
         preset = kwargs.get("preset")
         if (
             config_preset.__class__.__name__ == "NoneType"
@@ -422,7 +422,14 @@ class project:
                     "date_created": datetime.today().strftime("%Y%m%d_%H%M%S"),
                 }
             }
-            config.update(_load_yaml(config_preset))
+            
+            ## dict > yaml-format > string buffer > list 
+            config = _load_yaml(_show_yaml(config, ret=True), typ="safe")
+            
+            ## load preset and append to config-list
+            preset_loaded = _load_yaml(config_preset, typ="safe")
+            config = config + preset_loaded
+            
         elif not config_preset.__class__.__name__ == "NoneType" and not hasattr(
             presets, config_preset
         ):
@@ -430,7 +437,7 @@ class project:
             return
         elif config_preset.__class__.__name__ == "NoneType":
             print("No preset provided - defaulting to preset " + default_pype_config)
-            config = _load_yaml(eval("presets." + default_pype_config))
+            config = _load_yaml(eval("presets." + default_pype_config), typ="safe")
 
         ## modify
         if flag_interactive:
@@ -438,11 +445,17 @@ class project:
                 self.root_dir,
                 "pype_template_image" + os.path.splitext(self.filenames[idx])[1],
             )
-            copyfile(self.filepaths[idx], image_location)
+            
+            if os.path.isfile(self.filepaths[idx]):
+                template_origin = self.filepaths[idx]
+            else: 
+                template_origin = os.path.join(self.dirpaths[idx], "raw" + os.path.splitext(os.path.basename(self.filepaths[idx]))[1])
+             
+            copyfile(template_origin, image_location)
             config_location = os.path.join(
                 self.root_dir, "pype_config_template-" + name + ".yaml"
             )
-            _save_yaml(config, config_location)
+            _save_yaml(config, config_location, typ="safe")
             p = pype(
                 image_location,
                 name="template-" + name,
@@ -454,8 +467,12 @@ class project:
         ## go through project directories
         for directory in self.dirpaths:
             attr = _load_yaml(os.path.join(self.root_dir, directory, "attributes.yaml"))
-            pype_preset = {"image": attr["image"]}
-            pype_preset.update(config)
+            
+            ## dict > yaml-format > string buffer > list 
+            image_attr = _load_yaml(_show_yaml( {"image": attr["image"]}, ret=True), typ="safe")
+            
+            ## construct preset
+            pype_preset = image_attr + config
 
             ## save config
             preset_path = os.path.join(
@@ -473,10 +490,10 @@ class project:
                 continue
             elif os.path.isfile(preset_path) and flag_overwrite == True:
                 print("pype_" + name + ".yaml created for " + dirname + " (overwritten)")
-                _save_yaml(pype_preset, preset_path)
+                _save_yaml(pype_preset, preset_path, typ="safe")
             else:
                 print("pype_" + name + ".yaml created for " + dirname)
-                _save_yaml(pype_preset, preset_path)
+                _save_yaml(pype_preset, preset_path, typ="safe")
 
     def add_scale(self, reference_image, overwrite=False, **kwargs):
         """
@@ -690,7 +707,7 @@ class project:
             )
             
             if os.path.isfile(preset_path):
-                config = _load_yaml(preset_path)
+                config = _load_yaml(preset_path, typ="safe")
                 
             ordered_steps = ["preprocessing",
                           "segmentation",
@@ -719,7 +736,7 @@ class project:
             
             if check in ["True", "true", "y", "yes"]:
                 flag_checked = True
-                _save_yaml(new_config, preset_path)
+                _save_yaml(new_config, preset_path, typ="safe")
                 print("New config saved for " + dirname)
             else:
                 print("User check failed - aborting.")
@@ -906,8 +923,7 @@ class pype:
         flag_autoshow = kwargs.get("autoshow", False)
         flag_presetting = kwargs.get("presetting", False)
         flag_meta = kwargs.get("meta", True)
-        flag_overwrite = kwargs.get("overwrite", True)
-        
+        flag_overwrite = kwargs.get("overwrite", True) 
         exif_fields = kwargs.get("fields", default_meta_data_fields)
         if not exif_fields.__class__.__name__ == "list":
             exif_fields = [exif_fields]
@@ -1036,7 +1052,10 @@ class pype:
                         
                     ## format method name and arguments
                     method_name = method[0][0]
-                    method_arguments = dict(method[0][1])
+                    if method[0][1].__class__.__name__ == "NoneType" :
+                        method_arguments = {}
+                    else:
+                        method_arguments = dict(method[0][1])
 
                     ## collect save- and visualization calls
                     if step_name == "export":

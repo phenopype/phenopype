@@ -61,6 +61,8 @@ def create_mask(
     flag_canvas = canvas
     test_params = kwargs.get("test_params", None)
 
+    prev_masks = {}
+
     ## load image
     df_masks = None
     if obj_input.__class__.__name__ == "ndarray":

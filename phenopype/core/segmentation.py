@@ -113,6 +113,8 @@ def draw(
     flag_canvas = canvas
     test_params = kwargs.get("test_params", None)
     
+    prev_drawings = {}
+    
     ## load image
     df_drawings = None
     if obj_input.__class__.__name__ == "ndarray":
@@ -353,7 +355,7 @@ def find_contours(
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
+        image = obj_input.image_bin
         df_image_data = obj_input.df_image_data
     else:
         print("wrong input format.")
@@ -509,7 +511,7 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close", iterat
     ## return
     if obj_input.__class__.__name__ == "container":
         obj_input.image = image
-        obj_input.image = image
+        obj_input.image_bin = image
     else:
         return image
 

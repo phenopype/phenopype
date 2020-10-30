@@ -14,9 +14,22 @@ from watchdog.events import PatternMatchingEventHandler
 from phenopype.settings import colours, default_pype_config_name, default_pype_config
 from phenopype import presets
 
+## capture yaml output - temp
+from contextlib import redirect_stdout
+import io
+
 #%% settings
 
+def _construct_yaml_map(self, node):
+    # test if there are duplicate node keys
+    data = []
+    yield data
+    for key_node, value_node in node.value:
+        key = self.construct_object(key_node, deep=True)
+        val = self.construct_object(value_node, deep=True)
+        data.append((key, val))
 
+SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
 
 #%% classes
 
@@ -647,7 +660,7 @@ class _yaml_file_monitor:
         self.event_handler.on_any_event = self.on_update
 
         ## intitialize
-        self.content = _load_yaml(self.filepath)
+        self.content = _load_yaml(self.filepath, typ="safe")
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
         self.observer.start()
@@ -655,7 +668,7 @@ class _yaml_file_monitor:
         self.delay = delay
 
     def on_update(self, event):
-        self.content = _load_yaml(self.filepath)
+        self.content = _load_yaml(self.filepath, typ="safe")
         cv2.destroyWindow("phenopype")
         for i in range(self.delay):
             cv2.waitKey(1)
@@ -723,20 +736,6 @@ def _contours_tup_array(list_tup_list):
             arr_list.append([arr])
         coords_arr_list.append(np.array(arr_list, dtype=np.int32))
     return coords_arr_list
-
-
-
-def _construct_yaml_map(self, node):
-    # test if there are duplicate node keys
-    data = []
-    yield data
-    for key_node, value_node in node.value:
-        key = self.construct_object(key_node, deep=True)
-        val = self.construct_object(value_node, deep=True)
-        data.append((key, val))
-
-
-SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
 
 
 
@@ -921,8 +920,16 @@ def _equalize_histogram(image, detected_rect_mask, template):
     return interp_template_values[image]
 
 
-def _load_yaml(string):
-    yaml = YAML(typ="safe")
+def _load_yaml(string, typ="regular"):
+    
+    ## has to be "safe" for pype
+    flag_type = typ
+    
+    if flag_type == "regular":
+        yaml =  YAML()
+    elif flag_type == "safe":
+        yaml = YAML(typ="safe")
+        
     if string.__class__.__name__ == "str":
         if os.path.isfile(string):
             with open(string, "r") as file:
@@ -945,14 +952,14 @@ def _load_pype_config(obj_input, **kwargs):
     if obj_input.__class__.__name__ == "str":
         config_location = obj_input
         if os.path.isfile(config_location):
-            return _load_yaml(config_location), config_location
+            return _load_yaml(config_location, typ="safe"), config_location
     elif obj_input.__class__.__name__ == "container":
         dirpath = obj_input.dirpath
         config_location = os.path.join(dirpath, "pype_config_" + config_name + ".yaml")
 
     ## check if exists, otherwise ask to create
     if os.path.isfile(config_location):
-        return _load_yaml(config_location), config_location
+        return _load_yaml(config_location, typ="safe"), config_location
     elif not os.path.isfile(config_location):
         create = input(
             'Did not find "pype_config_'
@@ -980,16 +987,59 @@ def _load_pype_config(obj_input, **kwargs):
         sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
 
 
-def _show_yaml(odict):
-    yaml = YAML(typ='safe')
-    yaml.dump(odict, sys.stdout)
+def _show_yaml(odict, ret=False):
+    yaml = YAML()
+    if ret:
+        with io.StringIO() as buf, redirect_stdout(buf):
+            yaml.dump(odict, sys.stdout)
+            return buf.getvalue()
+    else:
+        yaml.dump(odict, sys.stdout)
+        
+
+def _save_yaml(odict, filepath, typ="regular"):
     
-
-
-def _save_yaml(odict, filepath):
-    with open(filepath, "w") as config_file:
+    flag_type = typ
+    
+    if flag_type == "regular":
+        with open(filepath, "w") as config_file:
+            yaml = YAML()
+            yaml.dump(odict, config_file)
+        
+    elif flag_type == "safe":
         yaml = YAML()
-        yaml.dump(odict, config_file)
+        with open(filepath, "w") as config_file:
+
+            for step in odict:
+                                    
+                step_name = step[0]
+                step_method_list = step[1]
+                                                 
+                config_file.write(step_name + ":\n")
+                
+                
+                # print(step_method_list)
+                ## iterate through step list
+                for method in step_method_list:
+                    
+                    # print( method)
+                    
+                    ## re-format method if necessary
+                    if method.__class__.__name__ == "str":
+                        method_name = method
+                        method_arguments = None
+                    elif method.__class__.__name__ == "list":
+                        method_name = method[0][0]
+                        method_arguments = dict(method[0][1])   
+                    elif method.__class__.__name__ == "tuple":
+                        method_name = method[0]
+                        method_arguments = method[1]                  
+                        config_file.write("  " + str(method_name) + ": " + str(method_arguments) + "\n")  
+
+                    if method_arguments.__class__.__name__ == "dict":
+                        config_file.write("- " + method_name + ":\n")
+                        for key, value in method_arguments.items():
+                            config_file.write("    " + key + ": " + str(value) + "\n")
 
 
 def _timestamp():
