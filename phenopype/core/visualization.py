@@ -116,6 +116,8 @@ def draw_contours(
     watershed=False,
     bounding_box=False,
     bounding_box_ext=20,
+    bounding_box_colour="black",
+    bounding_box_line_width="auto"
 ):
     """
     Draw contours and their labels onto a canvas. Can be filled or empty, offset
@@ -163,6 +165,10 @@ def draw_contours(
         draw bounding box around the contour
     bounding_box_ext: in, optional
         value in pixels by which the bounding box should be extended
+    bounding_box_colour: {"green", "red", "blue", "black", "white"} str, optional
+        bounding box line colour
+    bounding_box_line_width: int, optional
+        bounding box line width
         
     Returns
     -------
@@ -183,6 +189,8 @@ def draw_contours(
         flag_mark_holes = True
     line_colour_sel = colours[line_colour]
     label_colour = colours[label_colour]
+    bounding_box_colour_sel = colours[bounding_box_colour]
+    
     if fill_colour.__class__.__name__ == "NoneType":
         fill_colour = line_colour_sel
     else:
@@ -204,6 +212,8 @@ def draw_contours(
     ## more kwargs
     if line_width == "auto":
         line_width = _auto_line_width(image)
+    if bounding_box_line_width == "auto":
+        bounding_box_line_width = _auto_line_width(image)
     if label_size == "auto":
         label_size = _auto_text_size(image)
     if label_width == "auto":
@@ -274,17 +284,19 @@ def draw_contours(
                 label_width,
                 cv2.LINE_AA,
             )
+
+    image = cv2.addWeighted(image, 1 - flag_fill, colour_mask, flag_fill, 0)
+    
+    for index, row in df_contours.iterrows():
         if flag_bounding_box:
             rx, ry, rw, rh = cv2.boundingRect(row["coords"])
             cv2.rectangle(
                 image,
                 (rx - q, ry - q),
                 (rx + rw + q, ry + rh + q),
-                fill_colour,
-                line_width,
+                bounding_box_colour_sel,
+                bounding_box_line_width,
             )
-
-    image = cv2.addWeighted(image, 1 - flag_fill, colour_mask, flag_fill, 0)
 
     ## load previous contours
     if obj_input.__class__.__name__ == "container" and not compare.__class__.__name__ == "NoneType":

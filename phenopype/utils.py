@@ -960,9 +960,9 @@ def save_image(
     flag_overwrite = overwrite
 
     # set dir and names
-    if "." in name:
-        warnings.warn("need name and extension specified separately")
-        return
+    # if "." in name:
+    #     warnings.warn("need name and extension specified separately")
+    #     return
     if append == "":
         append = ""
     else:
