@@ -581,11 +581,14 @@ def load_image(
                 elif flag_mode == "gray":
                     image = cv2.imread(obj_input, cv2.IMREAD_GRAYSCALE)
                 if dirpath.__class__.__name__ == "NoneType":
-                    dirpath = os.path.split(obj_input)[0]
+                    dirpath = os.path.split(os.path.abspath(obj_input))[0]
                     print(
                         "dirpath defaulted to file directory - "
                         + os.path.abspath(dirpath)
                     )
+                    
+                    
+                    
             else:
                 print(
                     "could not load file of type "

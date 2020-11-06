@@ -946,7 +946,10 @@ def _load_pype_config(obj_input, **kwargs):
 
     ## kwargs
     config_name = kwargs.get("config_name", default_pype_config_name)
-    preset = kwargs.get("preset", default_pype_config)
+    preset = kwargs.get("preset")
+    
+    if preset.__class__.__name__ == "NoneType":
+        preset = default_pype_config
 
     ## load config location
     if obj_input.__class__.__name__ == "str":
