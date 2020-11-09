@@ -1,4 +1,3 @@
-git checkout dev
 RMDIR "dist/latest" /S /Q
 python setup.py sdist
 robocopy phenopype dist/latest/phenopype /E
