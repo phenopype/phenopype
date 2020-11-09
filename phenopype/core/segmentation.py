@@ -130,6 +130,9 @@ def draw(
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_drawings"):
             df_drawings = obj_input.df_drawings
+            if "index" in df_drawings:
+                df_drawings.drop(columns = ["index"], inplace=True)
+            df_drawings.reset_index(drop=True, inplace=True)
         if hasattr(obj_input, "image_bin"):
             image_bin = obj_input.image_bin
         else:
@@ -177,18 +180,34 @@ def draw(
                 print("- drawing (editing)")
             pass
         elif not df_drawings.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            
-            if label in df_drawings["label"].values:
-                
+            if label in df_drawings["label"].values:            
                 ## remove rows from original drawing df
                 df_drawings = df_drawings.drop(df_drawings[df_drawings["label"] == label].index)
                 print("- drawing (overwriting)")
             pass
         
-        elif df_drawings.__class__.__name__ == "NoneType":
+        elif df_drawings.__class__.__name__ == "NoneType" or len(df_drawings) == 0:
             df_drawings = pd.DataFrame(columns=["label", "tool", "line_colour","line_width","coords"])
+            prev_drawings = {}
             print("- drawing")
             pass
+
+        ## add other labels for reference
+        if len(df_drawings) > 0:
+            for idx, row in df_drawings.iterrows():
+                coords = eval(row["coords"])
+                if row["tool"] in ["line", "lines","polyline","polylines"]:
+                    cv2.polylines(
+                        image,
+                        np.array([coords]),
+                        False,
+                        colours[row["line_colour"]],
+                        row["line_width"],
+                    )
+                elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
+                    cv2.fillPoly(image, np.array([coords]), colours[row["colour"]])
+
+        
 
         ## method
         if not test_params.__class__.__name__ == "NoneType":
@@ -232,7 +251,6 @@ def draw(
             print("zero coordinates - redo drawing!")
             
         ## merge with existing image_data frame
-        print("concat")
         df_drawings_sub_new = pd.concat(
             [
                 pd.concat([df_image_data] * len(df_drawings_sub_new)).reset_index(drop=True),
@@ -256,6 +274,10 @@ def draw(
             )
         elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
             cv2.fillPoly(image_bin, np.array([coords]), colours[row["colour"]])
+
+
+    ## drop index before saving
+    df_drawings.reset_index(drop=True, inplace=True)
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":
@@ -420,9 +442,9 @@ def find_contours(
                         "idx_parent": hier[3],
                         "coords": contour,
                     }
-        print("Found " + str(len(contour_dict)) + " contours that match criteria.")
+        print("- found " + str(len(contour_dict)) + " contours that match criteria")
     else:
-        print("No contours found.")
+        print("- no contours found")
 
     ## output
     df_contours = pd.DataFrame(contour_dict).T
@@ -612,24 +634,27 @@ def threshold(
     ## apply masks
     if not df_masks.__class__.__name__ == "NoneType":
         ## include == True
-        mask_bool, include_idx = np.zeros(image.shape, dtype=bool), 0
+        mask_bool, include_idx, exclude_idx = np.zeros(image.shape, dtype=bool), 0,0
         for index, row in df_masks.iterrows():
             if row["include"] == True:
                 if not row["mask"] == "":
                     coords = eval(row["coords"])
                     mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
-                    print('- include mask "' + row["mask"] + '" pixels')
                     include_idx += 1
         if include_idx > 0:
             image[mask_bool == False] = 0
-        ## include == False
         for index, row in df_masks.iterrows():
             if row["include"] == False:
                 if not row["mask"] == "":
                     coords = eval(row["coords"])
                     image[_create_mask_bool(image, coords)] = 0
-                    print('- exclude mask "' + row["mask"] + '" pixels')
+                    exclude_idx += 1
+        if exclude_idx>0:
+            print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
+        if include_idx>0:
+            print("- including pixels from " + str(include_idx) + " drawn masks ")
 
+        
     ## return
     if obj_input.__class__.__name__ == "ndarray":
         return image

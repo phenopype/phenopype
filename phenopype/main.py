@@ -1000,7 +1000,7 @@ class pype:
 
         ## initialize
         self.FM = _yaml_file_monitor(self.config_location, delay)
-        update, terminate, iv = {}, False, None
+        update, terminate, self.iv = {}, False, None
 
         # =============================================================================
         # pype
@@ -1113,8 +1113,8 @@ class pype:
                         print("- autoselect canvas")
                     if flag_test_mode:
                         update = test_params
-                    iv = _image_viewer(self.container.canvas, previous=update, max_dim=max_dim)
-                    update, terminate = iv.__dict__, iv.done
+                    self.iv = _image_viewer(self.container.canvas, previous=update, max_dim=max_dim)
+                    update, done, terminate = self.iv.__dict__, self.iv.done, self.iv.finished
                 except Exception as ex:
                     print(
                         "visualisation: " + str(ex.__class__.__name__) + " - " + str(ex)

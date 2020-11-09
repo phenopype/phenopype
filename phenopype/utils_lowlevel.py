@@ -208,12 +208,18 @@ class _image_viewer:
                 if cv2.waitKey() == 13:
                     self.done = True
                     cv2.destroyAllWindows()
-                    for i in range(10):
-                        cv2.waitKey(1)
+                    # for i in range(10):
+                    #     cv2.waitKey(1)
+                elif cv2.waitKey() == 10:
+                    self.done = True
+                    self.finished = True
+                    cv2.destroyAllWindows()
+                    # for i in range(10):
+                    #     cv2.waitKey(1)
                 elif cv2.waitKey() == 27:
                     cv2.destroyAllWindows()
-                    for i in range(10):
-                        cv2.waitKey(1)
+                    # for i in range(10):
+                    #     cv2.waitKey(1)
                     sys.exit("\n\nTERMINATE (by user)")
             if (
                 self.flag_tool == "polygon"
@@ -591,8 +597,9 @@ class _image_viewer:
                 cv2.imshow(self.window_name, self.canvas)
 
     def _zoom_fun(self, x, y):
-        """Helper function for image_viewer. Takes current xy coordinates and zooms in within a rectangle around mouse coordinates. 
-        Transforms current coordinates back to original coordinate space
+        """Helper function for image_viewer. Takes current xy coordinates and 
+        zooms in within a rectangle around mouse coordinates while transforming 
+        current cursor coordinates back to original coordinate space
         """
         if y <= 0:
             y = 1
@@ -631,8 +638,14 @@ class _image_viewer:
                 y1 = y1 - (y2 - self.image_height)
                 y2 = self.image_height
 
+        ## failsafe when zooming out, sets zoom-coords to image coords
+        if self.zoom_idx == 1:
+            x1,x2,y1,y2 = 0, self.image_width, 0, self.image_height
+
+        ## zoom coords
         self.zoom_x1, self.zoom_x2, self.zoom_y1, self.zoom_y2 = x1, x2, y1, y2
 
+        ## global magnification factor
         self.global_fx = self.canvas_fx * (
             (self.zoom_x2 - self.zoom_x1) / self.image_width
         )
@@ -640,6 +653,7 @@ class _image_viewer:
             (self.zoom_y2 - self.zoom_y1) / self.image_height
         )
 
+        ## create convas from image
         self.canvas = self.image_copy[y1:y2, x1:x2]
         self.canvas = cv2.resize(
             self.canvas,

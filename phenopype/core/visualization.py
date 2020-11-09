@@ -326,7 +326,7 @@ def draw_contours(
                     else:
                         print("no coords found, cannot draw contours for comparison")
                         continue
-                    print(comp + " contours loaded")           
+                    print("- " + comp + " contours loaded")           
                     for index, row in compare_df.iterrows():
                         cv2.drawContours(
                             image=image,
@@ -515,7 +515,6 @@ def draw_masks(
                 continue
         else:
             pass
-        print(" - show mask: " + row["mask"] + ".")
         coords = eval(row["coords"])
         if coords[0].__class__.__name__ == "list":
             coords = coords[0]
@@ -535,6 +534,9 @@ def draw_masks(
                 label_width,
                 cv2.LINE_AA,
             )
+
+    for mask in df_masks["mask"].unique():
+        print("drawing mask: " + str(mask)) 
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

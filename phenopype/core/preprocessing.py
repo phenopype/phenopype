@@ -80,6 +80,9 @@ def create_mask(
             df_image_data = copy.deepcopy(obj_input.df_image_data)
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
+            if "index" in df_masks:
+                df_masks.drop(columns = ["index"], inplace=True)
+            df_masks.reset_index(drop=True, inplace=True)
     else:
         print("wrong input format.")
         return
@@ -124,13 +127,10 @@ def create_mask(
 
         ## method
         if not test_params.__class__.__name__ == "NoneType":
-            print("1")
             out = _image_viewer(image, mode="interactive", tool=tool, previous=test_params, max_dim=max_dim)
         elif not df_masks.__class__.__name__ == "NoneType" and flag_edit == True:
-            print("2")
             out = _image_viewer(image, mode="interactive", tool=tool, previous=prev_masks, max_dim=max_dim)
         else:
-            print("3")
             out = _image_viewer(image, mode="interactive", tool=tool, max_dim=max_dim)
             
         ## abort
@@ -166,6 +166,10 @@ def create_mask(
         axis=1,
     )
     df_masks = df_masks.append(df_masks_sub_new)
+    
+    ## drop index before saving
+    df_masks.reset_index(drop=True, inplace=True)
+
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

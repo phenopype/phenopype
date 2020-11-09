@@ -223,7 +223,7 @@ class container(object):
 
         ## feedback
         if len(loaded) > 0:
-            print("AUTOLOAD\n- " + "\n- ".join(loaded))
+            print("=== AUTOLOAD ===\n- " + "\n- ".join(loaded))
         else:
             print("Nothing loaded.")
 
@@ -270,21 +270,19 @@ class container(object):
         flag_overwrite = overwrite
         export_list = kwargs.get("export_list", [])
 
-        ## feedback
-        print("AUTOSAVE")
-
         ## check dirpath
         if (
             dirpath.__class__.__name__ == "NoneType"
             and not self.dirpath.__class__.__name__ == "NoneType"
         ):
+            print("=== AUTOSAVE ===")
             dirpath = self.dirpath
         if dirpath.__class__.__name__ == "NoneType":
-            print('No save directory ("dirpath") specified - cannot load files.')
+            print('No save directory ("dirpath") specified - cannot save files.')
             return
         if not os.path.isdir(dirpath):
-            print("Directory does not exist - cannot load files.")
-            return
+            print("Directory does not exist - cannot save files.")
+
 
         ## canvas
         if (
@@ -343,7 +341,7 @@ class container(object):
         if hasattr(self, "df_textures") and not "save_textures" in export_list:
             print("save_textures")
             save_textures(self, dirpath=dirpath, overwrite=True)
-            
+
 
     # def show(self, **kwargs):
     #     """
