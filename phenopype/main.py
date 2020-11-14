@@ -1056,6 +1056,10 @@ class pype:
                         method_arguments = {}
                     else:
                         method_arguments = dict(method[0][1])
+                        
+                    if not flag_feedback:
+                        if method_name in ["create_mask", "draw"]:
+                            continue
 
                     ## collect save- and visualization calls
                     if step_name == "export":
