@@ -192,6 +192,7 @@ class _image_viewer:
 
         ## show canvas
         self.done = False
+        self.finished = False
         cv2.namedWindow(self.window_name, window_aspect)
         cv2.startWindowThread()  ## needed for Mac OS ??
         cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
