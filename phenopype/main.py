@@ -19,6 +19,7 @@ from phenopype.settings import (
     default_filetypes,
     default_pype_config,
     default_meta_data_fields,
+    pandas_max_rows,
 )
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
@@ -38,7 +39,7 @@ from phenopype.utils_lowlevel import (
 
 #%% settings
 
-pd.options.display.max_rows = 10  # how many rows of pd-dataframe to show
+pd.options.display.max_rows = pandas_max_rows  # how many rows of pd-dataframe to show
 pretty = pprint.PrettyPrinter(width=30)  # pretty print short strings
 ruamel.yaml.Representer.add_representer(
     ordereddict, ruamel.yaml.Representer.represent_dict

@@ -1,0 +1,20 @@
+- preprocessing: 
+    - find_scale
+    - enter_data
+- measurement:
+    - landmarks:
+        point_size: 12
+        point_colour: green
+        label_size: 2
+        label_width: 2
+- visualization:
+    - draw_masks
+    - draw_landmarks:
+        point_size: 12
+        point_colour: green
+        label_size: 2
+        label_width: 2
+- export:
+    - save_landmarks
+    - save_masks
+    - save_data_entry

@@ -1,0 +1,32 @@
+- preprocessing:
+    - create_mask
+    - create_scale:
+        mask: true
+- segmentation:
+    - blur:
+        kernel_size: 15
+    - threshold:
+        method: adaptive
+        blocksize: 49
+        constant: 5
+        channel: green
+    - morphology:
+        operation: open
+        shape: cross
+        kernel_size: 9
+        iterations: 2
+    - find_contours:
+        retrieval: ccomp
+        min_diameter: 0
+        min_area: 250
+- visualization:
+    - select_canvas:
+        canvas: image
+    - draw_contours:
+        line_width: 2
+        label_width: 1
+        label_size: 1
+        fill: 0.3
+- export:
+    - save_contours:
+        overwrite: true

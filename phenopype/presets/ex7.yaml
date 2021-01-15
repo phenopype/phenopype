@@ -1,0 +1,28 @@
+- preprocessing:
+    - create_mask
+- segmentation:
+    - threshold:
+        method: adaptive
+        blocksize: 49
+        constant: 5
+    - draw
+    - find_contours:
+        retrieval: ccomp
+        min_diameter: 50
+        min_area: 0
+- measurement:
+    - skeletonize
+    - polylines
+- visualization:
+    - select_canvas:
+        canvas: image
+    - draw_contours:
+        line_width: 2
+        label_width: 1
+        label_size: 1
+        fill: 0.3
+    - draw_masks
+    - draw_polylines
+- export:
+    - save_contours:
+        overwrite: true

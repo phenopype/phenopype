@@ -1,0 +1,34 @@
+- preprocessing:
+    - create_mask:
+        # include: false
+        # overwrite: true
+- segmentation:
+    - blur:
+        kernel_size: 9
+    - threshold:
+        method: adaptive
+        blocksize: 299
+        constant: 10
+    - watershed:
+        # distance_cutoff: 0.01
+    - morphology:
+        operation: close
+        shape: ellipse
+        kernel_size: 3
+        iterations: 3
+    - draw  # to separate phytoplankton cells
+    - find_contours:
+        retrieval: ext # needs to be ccomp for watershed
+        min_diameter: 0
+        min_area: 10
+- visualization:
+    - select_canvas:
+        canvas: raw
+    - draw_contours:
+        line_width: 2
+        label_width: 1
+        label_size: 1
+        fill: 0
+- export:
+    - save_contours:
+        save_coords: true

@@ -25,3 +25,5 @@ default_pype_config = "preset1"
 default_save_suffix = "v1"
 
 default_window_size = 1000
+
+pandas_max_rows = 10

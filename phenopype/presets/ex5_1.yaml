@@ -1,0 +1,39 @@
+- preprocessing:
+    - create_mask:
+        tool: polygon
+    - find_scale
+    - enter_data:
+        columns: ID
+- segmentation:
+    - blur:
+        kernel_size: 9
+    - threshold:
+        method: adaptive
+        blocksize: 99
+        constant: 3
+        channel: red
+    - morphology:
+        operation: close
+        shape: ellipse
+        kernel_size: 3
+        iterations: 3
+    - watershed:
+        distance_cutoff: 0.8
+     - draw:
+        line_colour: black # "black" connects, "white" separates 
+    - find_contours:
+        retrieval: ccomp
+        min_area: 100
+- measurement:
+- visualization:
+    - select_canvas:
+        canvas: red
+    - draw_contours:
+        line_width: 2
+        label_width: 0
+        label_size: 1
+        fill: 0.3
+    - draw_masks
+- export:
+    - save_contours:
+        overwrite: true

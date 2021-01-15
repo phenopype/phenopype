@@ -14,7 +14,7 @@ else:
 test_deps = ["pytest", 
              "coverage", 
              "coveralls", 
-             "pyyaml",
+             # "pyyaml",
              "mock",
              "pytest-xvfb",
              "pytest-cov"]
@@ -32,17 +32,16 @@ setup(
 	author_email='moritz.luerig@gmail.com',
 	packages=['phenopype'],
     package_dir={'phenopype': 'phenopype'},
-    package_data={'phenopype': ['core/*.py', 'settings/*.py']},
+    package_data={'phenopype': ['core/*.py', 'presets/*.yaml']},
     install_requires = [
 		"numpy==1.18.5",
-        'pyradiomics',
 		"opencv-contrib-python==3.4.9.33",
-        "pandas",
-		"Pillow",
-        "pyradiomics",
-        "tqdm",
-        "ruamel.yaml",
-        "watchdog"
+        "pandas==1.1.2",
+		"pillow==8.1.0",
+        "pyradiomics==3.0.1",
+        "radiomics==0.1",
+        "ruamel.yaml==0.16.12",
+        "watchdog==0.10.4"
     ],
 	version=verstr,
 	license='LGPL',

@@ -1,2 +1,2 @@
-recursive-include examples *
 recursive-include core *
+recursive-include presets *
