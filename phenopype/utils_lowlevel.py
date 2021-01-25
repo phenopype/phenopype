@@ -1027,37 +1027,38 @@ def _save_yaml(odict, filepath, typ="regular"):
     elif flag_type == "safe":
         yaml = YAML()
         with open(filepath, "w") as config_file:
-
+        
             for step in odict:
                                     
                 step_name = step[0]
                 step_method_list = step[1]
-                                                 
                 config_file.write(step_name + ":\n")
                 
-                
-                # print(step_method_list)
-                ## iterate through step list
-                for method in step_method_list:
-                    
-                    # print( method)
-                    
-                    ## re-format method if necessary
-                    if method.__class__.__name__ == "str":
-                        method_name = method
-                        method_arguments = None
-                    elif method.__class__.__name__ == "list":
-                        method_name = method[0][0]
-                        method_arguments = dict(method[0][1])   
-                    elif method.__class__.__name__ == "tuple":
-                        method_name = method[0]
-                        method_arguments = method[1]                  
-                        config_file.write("  " + str(method_name) + ": " + str(method_arguments) + "\n")  
-
-                    if method_arguments.__class__.__name__ == "dict":
-                        config_file.write("- " + method_name + ":\n")
-                        for key, value in method_arguments.items():
-                            config_file.write("    " + key + ": " + str(value) + "\n")
+                if not step_method_list.__class__.__name__ == "NoneType":
+                    for method in step_method_list:
+                                            
+                        ## methods without arguments
+                        if method.__class__.__name__ == "str":
+                            method_name = method
+                            config_file.write("- " + str(method_name) + "\n")
+                        ## methods with arguments
+                        elif method.__class__.__name__ == "list":
+                            method_name = method[0][0]
+                            if method[0][1].__class__.__name__ == "NoneType":
+                                method_arguments = {}
+                            else:
+                                method_arguments = dict(method[0][1])   
+                            config_file.write("- " + method_name + ":\n")
+                            for key, value in method_arguments.items():
+                                config_file.write("    " + key + ": " + str(value) + "\n")
+                        ## meta-data
+                        elif method.__class__.__name__ == "tuple":
+                            method_name = method[0]
+                            method_arguments = method[1]         
+                            if method_name == "date_created":
+                                method_arguments = str(method_arguments)
+                                method_arguments = method_arguments[0:8] + "_" + method_arguments[8:16]
+                            config_file.write("  " + str(method_name) + ": " + str(method_arguments) + "\n")  
 
 
 def _timestamp():
