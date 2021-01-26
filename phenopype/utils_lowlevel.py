@@ -1005,27 +1005,43 @@ def _load_pype_config(obj_input, **kwargs):
         sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
 
 
-def _show_yaml(odict, ret=False):
-    yaml = YAML()
-    if ret:
-        with io.StringIO() as buf, redirect_stdout(buf):
+def _show_yaml(odict, ret=False, typ="regular"):
+    
+    ## has to be "safe" for pype
+    flag_type = typ
+    
+    if flag_type == "regular":
+        yaml =  YAML()
+        if ret:
+            with io.StringIO() as buf, redirect_stdout(buf):
+                yaml.dump(odict, sys.stdout)
+                return buf.getvalue()
+        else:
             yaml.dump(odict, sys.stdout)
-            return buf.getvalue()
-    else:
-        yaml.dump(odict, sys.stdout)
+        
+    elif flag_type == "safe":
+        print("Cannot print yaml in safe-mode")
+
+
         
 
 def _save_yaml(odict, filepath, typ="regular"):
     
+    
+    ## has to be "safe" for pype
     flag_type = typ
     
     if flag_type == "regular":
+        yaml =  YAML()
+    elif flag_type == "safe":
+        yaml = YAML(typ="safe")
+        
+        
+    if flag_type == "regular":
         with open(filepath, "w") as config_file:
-            yaml = YAML()
             yaml.dump(odict, config_file)
         
     elif flag_type == "safe":
-        yaml = YAML()
         with open(filepath, "w") as config_file:
         
             for step in odict:
