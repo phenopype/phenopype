@@ -16,6 +16,7 @@ from shutil import copyfile, rmtree
 
 from phenopype import presets
 from phenopype.settings import (
+    confirm_options,
     default_filetypes,
     default_pype_config,
     default_meta_data_fields,
@@ -673,77 +674,71 @@ class project:
                 copyfile(filepath, path)
                 break
             
+
+
     def edit_config(
         self,
         name,
-        step, 
-        function,
+        target,
+        replacement, 
         **kwargs
     ):
         """
-        [new/experimental] Add or edit functions in all configuration files of a project.
+        Add or edit functions in all configuration files of a project. Finds and
+        replaces single or multiline string-patterns 
+        
 
         Parameters
         ----------
 
         name: str
-            name of config-file. this gets appended to all files and serves as and
-            identifier of a specific analysis pipeline
-        step: str
-            name of the step the function is in 
-        function: str
-            name of the function
+            name (suffix) of config-file (e.g. "v1" in "pype_config_v1.yaml")
+        target: str
+            string pattern to be replaced. should be multiline to be exact
+        replacement: str
+            string pattern for replacement. should be multiline to be exact
         """
-
-        ## kwargs
-        flag_checked = False
         
+        ## setup
+        flag_checked = False
+       
         ## go through project directories
         for directory in self.dirpaths:
-            dirname = os.path.basename(directory)
+            dirname = os.path.basename(directory)            
 
-            ## save config
-            preset_path = os.path.join(
-                self.root_dir, directory, "pype_config_" + name + ".yaml"
+            ## get config path
+            config_path = os.path.join(
+                self.root_dir, 
+                "data",
+                dirname, 
+                "pype_config_" + name + ".yaml"
             )
             
-            if os.path.isfile(preset_path):
-                config = _load_yaml(preset_path, typ="safe")
-                
-            ordered_steps = ["preprocessing",
-                          "segmentation",
-                          "measurement",
-                          "visualization",
-                          "export"
-                          ]
-
-            if not step in config.keys():
-                new_config = ordereddict([("image", ordereddict(config["image"]))])
-                new_config.update(ordereddict([("pype", ordereddict(config["pype"]))]))
-                for ordered_step in ordered_steps:
-                    if ordered_step in config:
-                        new_config.update(ordereddict([(ordered_step, config[ordered_step])]))
-                    elif not ordered_step in config and ordered_step == step:
-                        new_config.update(ordereddict([(ordered_step, [function] )]))
-            else:
-                new_config = copy.deepcopy(config)
-                if not function in new_config[step]:
-                    new_config[step].append(function)
-                    
+            ## open config-file
+            if os.path.isfile(config_path):
+                with open(config_path, "r") as config_text:
+                    config_string = config_text.read()
             
+            ## string replacement
+            new_config_string = config_string.replace(target, replacement)
+            
+            ## show user replacement-result and ask for confirmation
             if flag_checked == False:
-                _show_yaml(new_config)
+                print(new_config_string)
                 check = input("This is what the new config may look like (can differ beteeen files) - proceed?")
             
-            if check in ["True", "true", "y", "yes"]:
+            ## replace for all config files after positive user check
+            if check in confirm_options:
                 flag_checked = True
-                _save_yaml(new_config, preset_path, typ="safe")
+                with open(config_path, "w") as config_text:
+                    config_text.write(new_config_string)
+                
                 print("New config saved for " + dirname)
             else:
                 print("User check failed - aborting.")
-                return 
-                
-                
+                break 
+
+
                 
     @staticmethod
     def save(project, overwrite=False):
@@ -1059,8 +1054,10 @@ class pype:
                         method_arguments = dict(method[0][1])
                         
                     if not flag_feedback:
-                        if method_name in ["create_mask", "draw"]:
+                        if method_name in ["create_mask"]:
                             continue
+                        elif method_name == "draw":
+                            method_arguments.update({"mode": "silent"})
 
                     ## collect save- and visualization calls
                     if step_name == "export":

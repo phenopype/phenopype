@@ -69,6 +69,7 @@ def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75, sigma_spa
 def draw(
     obj_input,
     df_image_data=None,
+    mode="silent",
     overwrite=False,
     edit=False,
     label="drawing1",
@@ -163,6 +164,9 @@ def draw(
             if label in df_drawings_sub["label"].values:
                 print("- drawing with label " + label + " already created (overwrite=False)")
                 break
+        elif mode == "silent":
+            print("Silent mode - using existing coordinates")
+            break
         elif not df_drawings.__class__.__name__ == "NoneType" and flag_edit == True:
             ## extract previous drawing and convert to dict
             if label in df_drawings_sub["label"].values:
