@@ -23,5 +23,6 @@ default_meta_data_fields = [
 default_pype_config_name = "v1"
 default_pype_config = "preset1"
 default_save_suffix = "v1"
-
 default_window_size = 1000
+
+confirm_options = ["True", "true", "y", "yes"]
