@@ -1,18 +1,16 @@
 #%% modules
+
 import cv2, copy, os, sys, warnings
 import numpy as np
 
 import time
-
 from datetime import datetime
 from stat import S_IWRITE
 from ruamel.yaml import YAML
-from ruamel.yaml.constructor import SafeConstructor
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
 from phenopype.settings import colours, default_pype_config_name, default_pype_config
-from phenopype import presets
 
 ## capture yaml output - temp
 from contextlib import redirect_stdout
@@ -20,16 +18,6 @@ import io
 
 #%% settings
 
-def _construct_yaml_map(self, node):
-    # test if there are duplicate node keys
-    data = []
-    yield data
-    for key_node, value_node in node.value:
-        key = self.construct_object(key_node, deep=True)
-        val = self.construct_object(value_node, deep=True)
-        data.append((key, val))
-
-SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
 
 #%% classes
 
@@ -800,9 +788,8 @@ def _file_walker(
     include=[],
     include_all=True,
     exclude=[],
-    raw_mode="copy",
-    search_mode="dir",
-    unique_mode="path",
+    recursive=False,
+    unique="path",
     **kwargs
 ):
     """
@@ -811,8 +798,9 @@ def _file_walker(
     ----------
     directory : str
         path to directory to search for files
-    search_mode: {"dir", "recursive"}, str, optional
-        "dir" searches current directory for valid files; "recursive" walks through all subdirectories
+    recursive: (optional): bool,
+        "False" searches only current directory for valid files; "True" walks 
+        through all subdirectories
     filetypes (optional): list of str
         single or multiple string patterns to target files with certain endings
     include (optional): list of str
@@ -821,7 +809,7 @@ def _file_walker(
         either all (True) or any (False) of the provided keywords have to match
     exclude (optional): list of str
         single or multiple string patterns to target certain files to exclude - can overrule "include"
-    unique_mode (optional): str (default: "filepath")
+    unique (optional): str (default: "filepath")
         how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
         if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
         whereas filename will ignore all those files after their first occurrence.
@@ -840,16 +828,18 @@ def _file_walker(
     if not exclude.__class__.__name__ == "list":
         exclude = [exclude]
     flag_include_all = include_all
-
+    flag_recursive = recursive
+    flag_unique = unique
+    
     ## find files
     filepaths1, filepaths2, filepaths3, filepaths4 = [], [], [], []
-    if search_mode == "recursive":
+    if flag_recursive == True:
         for root, dirs, files in os.walk(directory):
             for file in os.listdir(root):
                 filepath = os.path.join(root, file)
                 if os.path.isfile(filepath):
                     filepaths1.append(filepath)
-    elif search_mode == "dir":
+    else:
         for file in os.listdir(directory):
             filepath = os.path.join(directory, file)
             if os.path.isfile(filepath):
@@ -892,13 +882,13 @@ def _file_walker(
     filenames, unique_filename, unique, duplicate = [], [], [], []
     for filepath in filepaths:
         filenames.append(os.path.basename(filepath))
-    if unique_mode in ["filepaths", "filepath", "path"]:
+    if flag_unique in ["filepaths", "filepath", "path"]:
         for filename, filepath in zip(filenames, filepaths):
             if not filepath in unique:
                 unique.append(filepath)
             else:
                 duplicate.append(filepath)
-    elif unique_mode in ["filenames", "filename", "name"]:
+    elif flag_unique in ["filenames", "filename", "name"]:
         for filename, filepath in zip(filenames, filepaths):
             if not filename in unique_filename:
                 unique_filename.append(filename)
@@ -935,16 +925,10 @@ def _equalize_histogram(image, detected_rect_mask, template):
     return interp_template_values[image]
 
 
-def _load_yaml(string, typ="regular"):
-    
-    ## has to be "safe" for pype
-    flag_type = typ
-    
-    if flag_type == "regular":
-        yaml =  YAML()
-    elif flag_type == "safe":
-        yaml = YAML(typ="safe")
+def _load_yaml(string, typ="base"):
         
+    yaml = YAML(typ=typ)
+
     if string.__class__.__name__ == "str":
         if os.path.isfile(string):
             with open(string, "r") as file:
@@ -1005,7 +989,7 @@ def _load_pype_config(obj_input, **kwargs):
         sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
 
 
-def _show_yaml(odict, ret=False, typ="regular"):
+def _show_yaml(odict, ret=False, typ="base"):
     
     ## has to be "safe" for pype
     flag_type = typ
@@ -1025,57 +1009,14 @@ def _show_yaml(odict, ret=False, typ="regular"):
 
         
 
-def _save_yaml(odict, filepath, typ="regular"):
+def _save_yaml(dictionary, filepath, typ="base"):
     
-    
-    ## has to be "safe" for pype
-    flag_type = typ
-    
-    if flag_type == "regular":
-        yaml =  YAML()
-    elif flag_type == "safe":
-        yaml = YAML(typ="safe")
+    yaml = YAML(typ=typ)      
         
-        
-    if flag_type == "regular":
-        with open(filepath, "w") as config_file:
-            yaml.dump(odict, config_file)
-        
-    elif flag_type == "safe":
-        with open(filepath, "w") as config_file:
-        
-            for step in odict:
-                                    
-                step_name = step[0]
-                step_method_list = step[1]
-                config_file.write(step_name + ":\n")
-                
-                if not step_method_list.__class__.__name__ == "NoneType":
-                    for method in step_method_list:
-                                            
-                        ## methods without arguments
-                        if method.__class__.__name__ == "str":
-                            method_name = method
-                            config_file.write("- " + str(method_name) + "\n")
-                        ## methods with arguments
-                        elif method.__class__.__name__ == "list":
-                            method_name = method[0][0]
-                            if method[0][1].__class__.__name__ == "NoneType":
-                                method_arguments = {}
-                            else:
-                                method_arguments = dict(method[0][1])   
-                            config_file.write("- " + method_name + ":\n")
-                            for key, value in method_arguments.items():
-                                config_file.write("    " + key + ": " + str(value) + "\n")
-                        ## meta-data
-                        elif method.__class__.__name__ == "tuple":
-                            method_name = method[0]
-                            method_arguments = method[1]         
-                            if method_name == "date_created":
-                                method_arguments = str(method_arguments)
-                                method_arguments = method_arguments[0:8] + "_" + method_arguments[8:16]
-                            config_file.write("  " + str(method_name) + ": " + str(method_arguments) + "\n")  
+    with open(filepath, "w") as out:
+        yaml.dump(dictionary, out)
 
+        
 
 def _timestamp():
     return datetime.today().strftime("%Y:%m:%d %H:%M:%S")

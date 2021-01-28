@@ -1,3 +1,9 @@
+#%% modules
+
+import pkg_resources
+
+#%%
+
 auto_line_width_factor = 0.002
 auto_point_size_factor = 0.002
 auto_text_width_factor = 0.0005
@@ -25,8 +31,13 @@ default_pype_config = "preset1"
 default_save_suffix = "v1"
 default_window_size = 1000
 
-<<<<<<< HEAD
 pandas_max_rows = 10
-=======
+
 confirm_options = ["True", "true", "y", "yes"]
->>>>>>> glee
+
+
+
+## templates
+template_dir = pkg_resources.resource_filename("phenopype","templates")
+template_list = pkg_resources.resource_listdir("phenopype","templates")
+

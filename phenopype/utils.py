@@ -677,9 +677,6 @@ def load_image_data(obj_input, resize=1):
     obj_input: str or ndarray
         can be a path to an image stored on the harddrive OR an array already 
         loaded to Python.
-    resize: float
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
-        original size). gets stored to a DataFrame column
 
     Returns
     -------
@@ -690,9 +687,6 @@ def load_image_data(obj_input, resize=1):
     if obj_input.__class__.__name__ == "str":
         if os.path.isfile(obj_input):
             path = obj_input
-        elif os.path.isdir(obj_input):
-            attr = _load_yaml(os.path.join(obj_input, "attributes.yaml"))
-            path = attr["project"]["raw_path"]
         image = Image.open(path)
         width, height = image.size
         image.close()
@@ -700,9 +694,8 @@ def load_image_data(obj_input, resize=1):
             "filename": os.path.split(obj_input)[1],
             "filepath": obj_input,
             "filetype": os.path.splitext(obj_input)[1],
-            "width": int(width * resize),
-            "height": int(height * resize),
-            "size_ratio_original": resize,
+            "width": width,
+            "height": height,
         }
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
@@ -711,9 +704,8 @@ def load_image_data(obj_input, resize=1):
             "filename": "unknown",
             "filepath": "unknown",
             "filetype": "ndarray",
-            "width": int(width * resize),
-            "height": int(height * resize),
-            "size_ratio_original": resize,
+            "width": width,
+            "height": height,
         }
     else:
         warnings.warn("Not a valid image file - cannot read image data.")

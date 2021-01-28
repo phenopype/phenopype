@@ -1,28 +1,33 @@
 #%% modules
-import cv2, copy, os, sys, warnings
+import copy
 import inspect
-import numpy as np
+import os
 import pandas as pd
 import pickle
 import platform
 import pprint
 import subprocess
-import time
-import ruamel.yaml
+import sys
 
+import cv2
+import ruamel.yaml
 from datetime import datetime
 from ruamel.yaml.comments import CommentedMap as ordereddict
 from shutil import copyfile, rmtree
 
-from phenopype import presets
+from phenopype import __version__ as pp_version
 from phenopype.settings import (
     confirm_options,
     default_filetypes,
     default_pype_config,
     default_meta_data_fields,
     pandas_max_rows,
+    template_dir,
+    template_list,
 )
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
+
+from phenopype.core.preprocessing import resize_image
 from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
 from phenopype.utils_lowlevel import (
     _image_viewer,
@@ -112,36 +117,20 @@ class project:
             ## make directories
             self.root_dir = root_dir
             os.makedirs(self.root_dir)
-            self.data_dir = os.path.join(self.root_dir, "data")
-            os.makedirs(self.data_dir)
-
-            # ##  set working directory
-            # if not os.path.abspath(root_dir) == os.getcwd():
-            #     os.chdir(root_dir)
-            #     print("Current working directory changed to " + os.path.abspath(root_dir))
-            # else:
-            #     print("Already in " + os.path.abspath(root_dir))
-
-            ## generate empty lists
-            for lst in [
-                "dirnames",
-                "dirpaths_rel",
-                "dirpaths",
-                "filenames",
-                "filepaths_rel",
-                "filepaths",
-            ]:
-                setattr(self, lst, [])
+            os.makedirs(os.path.join(self.root_dir,"data"))
 
             ## global project attributes
-            project_data = {
-                "date_created": datetime.today().strftime("%Y%m%d_%H%M%S"),
-                "date_changed": datetime.today().strftime("%Y%m%d_%H%M%S"),
-                "root_dir": self.root_dir,
-                "data_dir": self.data_dir,
+            project_info = {
+                "date_created": datetime.today().strftime("%Y%m%d%H%M%S"),
+                "date_changed": datetime.today().strftime("%Y%m%d%H%M%S"),
+                "phenopype_version": pp_version,
             }
 
-            _save_yaml(project_data, os.path.join(self.root_dir, "attributes.yaml"))
+            project_attributes = {
+                "info":project_info,
+                "data":None}
+
+            _save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
 
             print(
                 "\nproject attributes written to "
@@ -157,11 +146,11 @@ class project:
         include=[],
         include_all=True,
         exclude=[],
-        raw_mode="copy",
-        search_mode="dir",
-        unique_mode="path",
+        mode="copy",
+        recursive=False,
         overwrite=False,
         resize=1,
+        unique="path",
         **kwargs
     ):
         """
@@ -194,15 +183,15 @@ class project:
         exclude: list or str, optional
             single or multiple string patterns to target certain files to exclude - 
             can overrule "include"
-        raw_mode: {"copy", "link"} str, optional
+        mode: {"copy", "link"} str, optional
             how should the raw files be passed on to the phenopype directory tree: 
             "copy" will make a copy of the original file, "link" will only send the 
             link to the original raw file to attributes, but not copy the actual 
             file (useful for big files)
-        search_mode: {"dir", "recursive"}, str, optional
-            "dir" searches current directory for valid files; "recursive" walks 
+        recursive: (optional): bool,
+            "False" searches only current directory for valid files; "True" walks 
             through all subdirectories
-        unique_mode: {"filepath", "filename"}, str, optional:
+        unique: {"filepath", "filename"}, str, optional:
             how to deal with image duplicates - "filepath" is useful if identically 
             named files exist in different subfolders (folder structure will be 
             collapsed and goes into the filename), whereas filename will ignore 
@@ -212,19 +201,25 @@ class project:
         """
 
         # kwargs
-        flag_raw_mode = raw_mode
+        flag_mode = mode
         flag_overwrite = overwrite
-        flag_resize = resize
-
+        flag_resize = False
+        if resize < 1:
+            flag_resize = True
+        resize_factor = resize
+        
         ## path conversion
         image_dir = image_dir.replace(os.sep, "/")
         image_dir = os.path.abspath(image_dir)
+            
+        ## load_project attributes file from root folder
+        project_attributes = _load_yaml(os.path.join(self.root_dir, "attributes.yaml"))
 
         ## collect filepaths
         filepaths, duplicates = _file_walker(
             directory=image_dir,
-            search_mode=search_mode,
-            unique_mode=unique_mode,
+            recursive=recursive,
+            unique=unique,
             filetypes=filetypes,
             exclude=exclude,
             include=include,
@@ -233,7 +228,7 @@ class project:
 
         ## feedback
         print("--------------------------------------------")
-        print("phenopype will search for files at\n")
+        print("phenopype will search for image files at\n")
         print(image_dir)
         print("\nusing the following settings:\n")
         print(
@@ -243,19 +238,22 @@ class project:
             + str(include)
             + ", exclude: "
             + str(exclude)
-            + ", raw_mode: "
-            + str(raw_mode)
-            + ", search_mode: "
-            + str(search_mode)
-            + ", unique_mode: "
-            + str(unique_mode)
+            + ", mode: "
+            + str(mode)
+            + ", recursive: "
+            + str(recursive)
+            + ", resize: "
+            + str(flag_resize)
+            + ", unique: "
+            + str(unique)
             + "\n"
         )
 
         ## loop through files
         for filepath in filepaths:
 
-            ## generate phenopype dir-tree
+            ## generate folder paths by flattening nested directories; one 
+            ## folder per file
             relpath = os.path.relpath(filepath, image_dir)
             depth = relpath.count("\\")
             relpath_flat = os.path.dirname(relpath).replace("\\", "__")
@@ -263,6 +261,7 @@ class project:
                 subfolder_prefix = str(depth) + "__" + relpath_flat + "__"
             else:
                 subfolder_prefix = str(depth) + "__"
+                
             dirname = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
             dirpath = os.path.join(self.root_dir, "data", dirname)
 
@@ -298,68 +297,57 @@ class project:
                 )
                 os.mkdir(dirpath)
 
-            ## load image
-            image = load_image(filepath, resize=flag_resize)
-            fileending = os.path.splitext(os.path.basename(filepath))[1]
-            
+            ## load image, image-data, and image-meta-data
+            image = load_image(filepath)
+            image_basename = os.path.basename(filepath)
+            image_data_original = load_image_data(filepath)
+            image_data_phenopype = {
+                "mode": flag_mode,
+                "date_added": datetime.today().strftime("%Y%m%d%H%M%S"),
+                    }
+
             ## copy or link raw files
-            if flag_raw_mode == "copy":
-                raw_path = os.path.join(
-                    self.data_dir,
+            if flag_mode == "copy":
+                image_phenopype_path = os.path.join(
+                    self.root_dir,
+                    "data",
                     dirname,
-                    "raw" + fileending,
+                    "copy_" + image_basename,
                 )
-                if resize < 1:
-                    cv2.imwrite(raw_path, image)
-                else:
-                    copyfile(filepath, raw_path)
+                if resize_factor < 1:
+                    image = resize_image(image, resize_factor)
+                cv2.imwrite(image_phenopype_path, image)
+                image_data_phenopype.update({"resize": flag_resize})
+                image_data_phenopype.update(load_image_data(image_phenopype_path))
 
-            elif flag_raw_mode == "link":
-                if resize < 1:
-                    warnings.warn("cannot resize image in link mode")
-                raw_path = filepath
-
-            ## path reformatting
-            dir_relpath = os.path.relpath(dirpath, self.root_dir)
-            dir_relpath = dir_relpath.replace(os.sep, "/")
-            raw_relpath = os.path.join(dir_relpath, "raw" + fileending)
-
-            ## collect attribute-data and save
-            image_data = load_image_data(filepath, flag_resize)
-            meta_data = load_meta_data(filepath)
-            project_data = {
-                "dirname": dirname,
-                "dirpath": dir_relpath,
-                "raw_mode": flag_raw_mode,
-                "raw_path": raw_relpath,
-            }
-
-            if meta_data:
-                attributes = {
-                    "image": image_data,
-                    "meta": meta_data,
-                    "project": project_data,
-                }
-            else:
-                attributes = {"image": image_data, "project": project_data}
+            elif flag_mode == "link":
+                if resize_factor < 1:
+                    print("cannot resize image in link mode")
+                image_phenopype_path = filepath
 
             ## write attributes file
+            attributes = {
+                "image_original":image_data_original,
+                "image_phenopype":image_data_phenopype}
+            
             _save_yaml(
-                attributes, os.path.join(self.root_dir, dir_relpath, "attributes.yaml")
+                attributes, os.path.join(dirpath, "attributes.yaml")
             )
 
-            ## add to project object
-            if not dirname in self.dirnames:
-                
-                ## directories
-                self.dirnames.append(dirname)
-                self.dirpaths_rel.append(dir_relpath)
-                self.dirpaths.append(os.path.join(self.root_dir, dir_relpath))
-                
-                ## files
-                self.filenames.append(image_data["filename"])
-                self.filepaths_rel.append(raw_relpath)
-                self.filepaths.append(os.path.join(self.root_dir, raw_relpath))
+            
+        ## list dirs in data and add to project-attributes file in project root
+        project_attributes["data"] = os.listdir(os.path.join(self.root_dir, "data"))
+        _save_yaml(
+            project_attributes, os.path.join(self.root_dir, "attributes.yaml")
+        )
+        
+        ## add dirlist to project object (always overwrite)
+        dirnames = os.listdir(os.path.join(self.root_dir, "data"))
+        dirpaths = []
+        for dirname in dirnames:
+            dirpaths.append(os.path.join(self.root_dir, "data", dirname))
+        self.dirnames = dirnames
+        self.dirpaths = dirpaths
 
         print("\nFound {} files".format(len(filepaths)))
         print("--------------------------------------------")
@@ -367,10 +355,11 @@ class project:
     def add_config(
         self,
         name,
-        config_preset=None,
+        template=None,
         interactive=False,
         overwrite=False,
         idx=0,
+        typ="rt",
         **kwargs
     ):
         """
@@ -397,51 +386,60 @@ class project:
             developer options
         """
 
-        ## kwargs
+        ## kwargs and setup
         flag_interactive = interactive
         flag_overwrite = overwrite
-
-        ## legacy: config_preset = preset
-        preset = kwargs.get("preset")
-        if (
-            config_preset.__class__.__name__ == "NoneType"
-            and not preset.__class__.__name__ == "NoneType"
-        ):
-            config_preset = preset
-
+        step_names = ["preprocessing", 
+                      "segmentation", 
+                      "measurement",  
+                      "visualization", 
+                      "export"]
+        
         ## load config
-        if not config_preset.__class__.__name__ == "NoneType" and hasattr(
-            presets, config_preset
-        ):
-            config = _create_generic_pype_config(preset=config_preset, config_name=name)
-        elif not config_preset.__class__.__name__ == "NoneType" and os.path.isfile(
-            config_preset
-        ):
-            config = {
-                "pype": {
-                    "name": name,
-                    "preset": config_preset,
-                    "date_created": datetime.today().strftime("%Y%m%d_%H%M%S"),
-                }
-            }
-            
-            ## dict > yaml-format > string buffer > list 
-            config = _load_yaml(_show_yaml(config, ret=True), typ="safe")
-            
-            ## load preset and append to config-list
-            preset_loaded = _load_yaml(config_preset, typ="safe")
-            config = config + preset_loaded
-            
-        elif not config_preset.__class__.__name__ == "NoneType" and not hasattr(
-            presets, config_preset
-        ):
-            print("Provided preset NOT found - terminating")
+        if template.__class__.__name__ == "str":
+            if os.path.isfile(template):
+                template_name = os.path.basename(template)
+                template_path = template
+                user_config = _load_yaml(template, typ=typ)
+                print("Custom user config template loaded from \"{}\"".format(template))
+                if user_config.__class__.__name__ in ["dict", 'CommentedMap']:
+                    if "info" in user_config:
+                        user_config.pop('info', None)
+                        print("Removed existing \"info\" section")
+                    if "steps" in user_config:
+                        config_steps = user_config["steps"]
+                    else:
+                        print("Check for correct template structure")
+                        return
+                elif user_config.__class__.__name__ in ["list",'CommentedSeq'] and any(step in user_config[0] for step in step_names):
+                    config_steps = user_config
+            else:
+                if not template.endswith(".yaml"):
+                    template_name =  template + ".yaml" 
+                else:
+                    template_name = template
+                if template_name in template_list:
+                    template_path = os.path.join(template_dir, template_name)
+                    config_steps = _load_yaml(template_path)
+                    print("Phenopype template {} loaded".format(template))
+                else:
+                    print("Template not found")
+                    return
+        elif template.__class__.__name__ == "NoneType":
+            print("No template provided")
             return
-        elif config_preset.__class__.__name__ == "NoneType":
-            print("No preset provided - defaulting to preset " + default_pype_config)
-            config = _load_yaml(eval("presets." + default_pype_config), typ="safe")
+                
+        config_info = {"config_name":name,
+         "template_name":template_name,
+         "template_path":template_path,
+         "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
+         "date_last_modified":None}
 
-        ## modify
+
+        config = {"info":config_info,
+                  "steps":config_steps}
+
+        ## interactive template modification
         if flag_interactive:
             image_location = os.path.join(
                 self.root_dir,
@@ -466,22 +464,17 @@ class project:
             )
             config = p.config
 
-        ## go through project directories
-        for directory in self.dirpaths:
-            attr = _load_yaml(os.path.join(self.root_dir, directory, "attributes.yaml"))
+        ## save config to each directory
+        for dirname in self.dirnames:
             
-            ## dict > yaml-format > string buffer > list 
-            image_attr = _load_yaml(_show_yaml( {"image": attr["image"]}, ret=True), typ="safe")
-            
-            ## construct preset
-            pype_preset = image_attr + config
-
             ## save config
-            preset_path = os.path.join(
-                self.root_dir, directory, "pype_config_" + name + ".yaml"
+            config_path = os.path.join(
+                self.root_dir, 
+                "data",
+                dirname, 
+                "pype_config_" + name + ".yaml"
             )
-            dirname = attr["project"]["dirname"]
-            if os.path.isfile(preset_path) and flag_overwrite == False:
+            if os.path.isfile(config_path) and flag_overwrite == False:
                 print(
                     "pype_"
                     + name
@@ -490,12 +483,14 @@ class project:
                     + " (overwrite=False)"
                 )
                 continue
-            elif os.path.isfile(preset_path) and flag_overwrite == True:
+            elif os.path.isfile(config_path) and flag_overwrite == True:
                 print("pype_" + name + ".yaml created for " + dirname + " (overwritten)")
-                _save_yaml(pype_preset, preset_path, typ="safe")
+                _save_yaml(config, config_path, typ=typ)
             else:
                 print("pype_" + name + ".yaml created for " + dirname)
-                _save_yaml(pype_preset, preset_path, typ="safe")
+                _save_yaml(config, config_path, typ=typ)
+
+
 
     def add_scale(self, reference_image, overwrite=False, **kwargs):
         """
@@ -776,58 +771,53 @@ class project:
             break
 
     @staticmethod
-    def load(path):
+    def load(root_dir):
         """
         Load phenoype project.data file to Python namespace.
     
         Parameters
         ----------
-        path: str
-            path to project.data, or the directory project.data is contained in
-            (root_dir)
+        root_dir: str
+            path to project root directory that containes "project.data"
+            and "attributes.yaml"
 
         Returns
         -------
         project: project
             phenopype project object
         """
-
-        if "project.data" in path:
-            pass
-        else:
-            path = os.path.join(path, "project.data")
-        with open(path, "rb") as output:
-            proj = pickle.load(output)
-
+        
         ## path conversion
-        proj.root_dir = os.path.split(path)[0]
-        proj.root_dir = proj.root_dir.replace(os.sep, "/")
-        proj.root_dir = os.path.abspath(proj.root_dir)
-        proj.data_dir = os.path.join(os.path.abspath(proj.root_dir), "data")
+        root_dir = root_dir.replace(os.sep, "/")
+        root_dir = os.path.abspath(root_dir)
 
-        # ##  set working directory
-        # if not proj.root_dir == os.getcwd():
-        #     os.chdir(proj.root_dir)
+        ## load pickled project object
+        if "attributes.yaml" in os.listdir(root_dir) and \
+            "project.data" in os.listdir(root_dir):
+            project_data_path = os.path.join(root_dir, "project.data")
+            with open(project_data_path, "rb") as output:
+                proj = pickle.load(output)
+            proj.root_dir = root_dir
+                    
+            ## add dirlist to project object (always overwrite)
+            dirnames = os.listdir(os.path.join(proj.root_dir, "data"))
+            dirpaths = []
+            for dirname in dirnames:
+                dirpaths.append(os.path.join(proj.root_dir, "data", dirname))
+            proj.dirnames = dirnames
+            proj.dirpaths = dirpaths
+            
+            print("--------------------------------------------")
+            print("Project loaded from \n" + proj.root_dir)
+            print("\ntogether with {} project image files".format(len(proj.dirpaths)))
+            print("--------------------------------------------")
+            
+            return proj
+                
+        else:
+            print("Could not load phenopype project - no \"attributes.yaml\" \
+                  or \"project.data\" found in " + root_dir)
 
-        ## legacy
-        if not hasattr(proj, "dirpath_rel"):
-            proj.dirpaths_rel, proj.filepaths_rel = [], []
-        for dirname, filename in zip(proj.dirnames, proj.filenames):
-            proj.dirpaths_rel.append(os.path.join("data", dirname))
-            proj.filepaths_rel.append(os.path.join("data", dirname, filename))
-
-        ## set correct paths
-        proj.dirpaths, proj.filepaths = [], []
-        for dirpath_rel, filepath_rel in zip(proj.dirpaths_rel, proj.filepaths_rel):
-            proj.dirpaths.append(os.path.join(proj.root_dir, dirpath_rel))
-            proj.filepaths.append(os.path.join(proj.root_dir, filepath_rel))
-
-        ## feedback
-        print("--------------------------------------------")
-        print("Project loaded from \n" + proj.root_dir)
-        print("--------------------------------------------")
-
-        return proj
 
 
 class pype:
