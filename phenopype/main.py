@@ -8,6 +8,7 @@ import platform
 import pprint
 import subprocess
 import sys
+from shutil import copyfile
 
 import cv2
 import ruamel.yaml
@@ -127,8 +128,8 @@ class project:
             }
 
             project_attributes = {
-                "info":project_info,
-                "data":None}
+                "project_info":project_info,
+                "project_data":None}
 
             _save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
 
@@ -147,9 +148,10 @@ class project:
         include_all=True,
         exclude=[],
         mode="copy",
+        extension="tif",
         recursive=False,
         overwrite=False,
-        resize=1,
+        resize_factor=1,
         unique="path",
         **kwargs
     ):
@@ -183,11 +185,6 @@ class project:
         exclude: list or str, optional
             single or multiple string patterns to target certain files to exclude - 
             can overrule "include"
-        mode: {"copy", "link"} str, optional
-            how should the raw files be passed on to the phenopype directory tree: 
-            "copy" will make a copy of the original file, "link" will only send the 
-            link to the original raw file to attributes, but not copy the actual 
-            file (useful for big files)
         recursive: (optional): bool,
             "False" searches only current directory for valid files; "True" walks 
             through all subdirectories
@@ -196,6 +193,17 @@ class project:
             named files exist in different subfolders (folder structure will be 
             collapsed and goes into the filename), whereas filename will ignore 
             all similar named files after their first occurrence.
+        mode: {"copy", "save", "link"} str, optional
+            how should the raw files be passed on to the phenopype directory tree: 
+            "copy" will make a copy of the original file, "replica" will store a 
+            .tif version of the orginal image that can be resized, and "link" 
+            will only store the link to the original file location to attributes, 
+            but not copy the actual file (useful for big files, but the orginal 
+            location needs always to be available)
+        extension: {".tif", ".bmp", ".jpg", ".png"}, str, optional
+            file extension for "replica" mode
+        resize_factor: float, optional
+            
         kwargs: 
             developer options
         """
@@ -204,17 +212,16 @@ class project:
         flag_mode = mode
         flag_overwrite = overwrite
         flag_resize = False
-        if resize < 1:
+        if resize_factor < 1:
             flag_resize = True
-        resize_factor = resize
+            if not mode=="replica":
+                flag_mode = "replica"
+                print("Resize factor <1 or >1 - switched to \"replica\" mode")
         
         ## path conversion
         image_dir = image_dir.replace(os.sep, "/")
         image_dir = os.path.abspath(image_dir)
             
-        ## load_project attributes file from root folder
-        project_attributes = _load_yaml(os.path.join(self.root_dir, "attributes.yaml"))
-
         ## collect filepaths
         filepaths, duplicates = _file_walker(
             directory=image_dir,
@@ -299,11 +306,12 @@ class project:
 
             ## load image, image-data, and image-meta-data
             image = load_image(filepath)
-            image_basename = os.path.basename(filepath)
+            image_name = os.path.basename(filepath)
+            image_basename = os.path.splitext(image_name)[0]
             image_data_original = load_image_data(filepath)
             image_data_phenopype = {
-                "mode": flag_mode,
                 "date_added": datetime.today().strftime("%Y%m%d%H%M%S"),
+                "mode": flag_mode,
                     }
 
             ## copy or link raw files
@@ -312,17 +320,27 @@ class project:
                     self.root_dir,
                     "data",
                     dirname,
-                    "copy_" + image_basename,
+                    "copy_" + image_name,
                 )
+                copyfile(filepath, image_phenopype_path)
+            elif flag_mode == "replica":
                 if resize_factor < 1:
                     image = resize_image(image, resize_factor)
+                if not "." in extension:
+                    extension = "." + extension
+                image_phenopype_path = os.path.join(
+                    self.root_dir,
+                    "data",
+                    dirname,
+                    "replica_" + image_basename + extension,
+                )
                 cv2.imwrite(image_phenopype_path, image)
-                image_data_phenopype.update({"resize": flag_resize})
+                image_data_phenopype.update({
+                    "resize": flag_resize,
+                    "resize_factor":resize_factor,
+                    })
                 image_data_phenopype.update(load_image_data(image_phenopype_path))
-
             elif flag_mode == "link":
-                if resize_factor < 1:
-                    print("cannot resize image in link mode")
                 image_phenopype_path = filepath
 
             ## write attributes file
@@ -334,8 +352,8 @@ class project:
                 attributes, os.path.join(dirpath, "attributes.yaml")
             )
 
-            
         ## list dirs in data and add to project-attributes file in project root
+        project_attributes = _load_yaml(os.path.join(self.root_dir, "attributes.yaml"))
         project_attributes["data"] = os.listdir(os.path.join(self.root_dir, "data"))
         _save_yaml(
             project_attributes, os.path.join(self.root_dir, "attributes.yaml")
@@ -359,7 +377,6 @@ class project:
         interactive=False,
         overwrite=False,
         idx=0,
-        typ="rt",
         **kwargs
     ):
         """
@@ -400,7 +417,7 @@ class project:
             if os.path.isfile(template):
                 template_name = os.path.basename(template)
                 template_path = template
-                user_config = _load_yaml(template, typ=typ)
+                user_config = _load_yaml(template)
                 print("Custom user config template loaded from \"{}\"".format(template))
                 if user_config.__class__.__name__ in ["dict", 'CommentedMap']:
                     if "info" in user_config:
@@ -515,7 +532,7 @@ class project:
         flag_overwrite = overwrite
         test_params = kwargs.get("test_params", {})
 
-        ## load template image
+        ## load reference image
         if reference_image.__class__.__name__ == "str":
             if os.path.isfile(reference_image):
                 reference_image = cv2.imread(reference_image)

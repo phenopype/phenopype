@@ -925,7 +925,7 @@ def _equalize_histogram(image, detected_rect_mask, template):
     return interp_template_values[image]
 
 
-def _load_yaml(string, typ="base"):
+def _load_yaml(string, typ="rt"):
         
     yaml = YAML(typ=typ)
 
@@ -989,7 +989,7 @@ def _load_pype_config(obj_input, **kwargs):
         sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
 
 
-def _show_yaml(odict, ret=False, typ="base"):
+def _show_yaml(odict, ret=False, typ="rt"):
     
     ## has to be "safe" for pype
     flag_type = typ
@@ -1009,7 +1009,7 @@ def _show_yaml(odict, ret=False, typ="base"):
 
         
 
-def _save_yaml(dictionary, filepath, typ="base"):
+def _save_yaml(dictionary, filepath, typ="rt"):
     
     yaml = YAML(typ=typ)      
         
