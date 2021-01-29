@@ -323,6 +323,7 @@ class project:
                     "copy_" + image_name,
                 )
                 copyfile(filepath, image_phenopype_path)
+                image_data_phenopype.update(load_image_data(image_phenopype_path, path_and_type=False))
             elif flag_mode == "replica":
                 if resize_factor < 1:
                     image = resize_image(image, resize_factor)
@@ -339,7 +340,7 @@ class project:
                     "resize": flag_resize,
                     "resize_factor":resize_factor,
                     })
-                image_data_phenopype.update(load_image_data(image_phenopype_path))
+                image_data_phenopype.update(load_image_data(image_phenopype_path, path_and_type=False))
             elif flag_mode == "link":
                 image_phenopype_path = filepath
 
@@ -369,6 +370,8 @@ class project:
 
         print("\nFound {} files".format(len(filepaths)))
         print("--------------------------------------------")
+        
+        
 
     def add_config(
         self,

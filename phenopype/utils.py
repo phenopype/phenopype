@@ -668,7 +668,7 @@ def load_image(
             return image
 
 
-def load_image_data(obj_input, resize=1):
+def load_image_data(obj_input, path_and_type=True, resize=1):
     """
     Create a DataFreame with image information (e.g. dimensions).
 
@@ -677,6 +677,8 @@ def load_image_data(obj_input, resize=1):
     obj_input: str or ndarray
         can be a path to an image stored on the harddrive OR an array already 
         loaded to Python.
+    path_and_type: bool, optional
+        return image path and filetype to image_data dictionary
 
     Returns
     -------
@@ -692,11 +694,15 @@ def load_image_data(obj_input, resize=1):
         image.close()
         image_data = {
             "filename": os.path.split(obj_input)[1],
-            "filepath": obj_input,
-            "filetype": os.path.splitext(obj_input)[1],
             "width": width,
             "height": height,
         }
+        
+        if path_and_type: 
+            image_data.update({
+                "filepath": obj_input,
+                "filetype": os.path.splitext(obj_input)[1]})
+            
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         width, height = image.shape[0:2]
