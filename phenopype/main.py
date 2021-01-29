@@ -354,7 +354,7 @@ class project:
 
         ## list dirs in data and add to project-attributes file in project root
         project_attributes = _load_yaml(os.path.join(self.root_dir, "attributes.yaml"))
-        project_attributes["data"] = os.listdir(os.path.join(self.root_dir, "data"))
+        project_attributes["project_data"] = os.listdir(os.path.join(self.root_dir, "data"))
         _save_yaml(
             project_attributes, os.path.join(self.root_dir, "attributes.yaml")
         )
@@ -457,29 +457,29 @@ class project:
                   "steps":config_steps}
 
         ## interactive template modification
-        if flag_interactive:
-            image_location = os.path.join(
-                self.root_dir,
-                "pype_template_image" + os.path.splitext(self.filenames[idx])[1],
-            )
+        # if flag_interactive:
+        #     image_location = os.path.join(
+        #         self.root_dir,
+        #         "pype_template_image" + os.path.splitext(self.filenames[idx])[1],
+        #     )
             
-            if os.path.isfile(self.filepaths[idx]):
-                template_origin = self.filepaths[idx]
-            else: 
-                template_origin = os.path.join(self.dirpaths[idx], "raw" + os.path.splitext(os.path.basename(self.filepaths[idx]))[1])
+        #     if os.path.isfile(self.filepaths[idx]):
+        #         template_origin = self.filepaths[idx]
+        #     else: 
+        #         template_origin = os.path.join(self.dirpaths[idx], "raw" + os.path.splitext(os.path.basename(self.filepaths[idx]))[1])
              
-            copyfile(template_origin, image_location)
-            config_location = os.path.join(
-                self.root_dir, "pype_config_template-" + name + ".yaml"
-            )
-            _save_yaml(config, config_location, typ="safe")
-            p = pype(
-                image_location,
-                name="template-" + name,
-                config_location=config_location,
-                presetting=True,
-            )
-            config = p.config
+        #     copyfile(template_origin, image_location)
+        #     config_location = os.path.join(
+        #         self.root_dir, "pype_config_template-" + name + ".yaml"
+        #     )
+        #     _save_yaml(config, config_location)
+        #     p = pype(
+        #         image_location,
+        #         name="template-" + name,
+        #         config_location=config_location,
+        #         presetting=True,
+        #     )
+        #     config = p.config
 
         ## save config to each directory
         for dirname in self.dirnames:
@@ -502,14 +502,19 @@ class project:
                 continue
             elif os.path.isfile(config_path) and flag_overwrite == True:
                 print("pype_" + name + ".yaml created for " + dirname + " (overwritten)")
-                _save_yaml(config, config_path, typ=typ)
+                _save_yaml(config, config_path)
             else:
                 print("pype_" + name + ".yaml created for " + dirname)
-                _save_yaml(config, config_path, typ=typ)
+                _save_yaml(config, config_path)
 
 
 
-    def add_scale(self, reference_image, overwrite=False, **kwargs):
+    def add_reference(self, 
+                  name,
+                  reference_image, 
+                  template=False,
+                  overwrite=False, 
+                  **kwargs):
         """
         Add pype configuration presets to all project directories. 
 
@@ -528,84 +533,138 @@ class project:
             measure its dimensions, and adjust pixel-to-mm-ratio and colour space
         """
 
-        ## kwargs
+        ## kwargs and setup
         flag_overwrite = overwrite
+        flag_template = template
         test_params = kwargs.get("test_params", {})
+        print_save_msg = "== no msg =="
 
         ## load reference image
         if reference_image.__class__.__name__ == "str":
+            reference_image_path = os.path.join(self.root_dir, "data", reference_image)
             if os.path.isfile(reference_image):
-                reference_image = cv2.imread(reference_image)
-            elif os.path.isdir(os.path.join(self.data_dir, reference_image)):
-                attr = _load_yaml(
-                    os.path.join(self.data_dir, reference_image, "attributes.yaml")
-                )
+                reference_image_path = reference_image
+                reference_image = cv2.imread(reference_image_path)
+                print("Reference image loaded from " + reference_image_path)
+            elif os.path.isdir(reference_image_path):
                 reference_image = cv2.imread(
-                    os.path.join(self.root_dir, attr["project"]["raw_path"])
+                   reference_image_path
                 )
-            elif reference_image in self.dirnames:
-                attr = _load_yaml(
-                    os.path.join(self.data_dir, reference_image, "attributes.yaml")
-                )
-                reference_image = cv2.imread(attr["project"]["raw_path"])
             else:
-                print("wrong path - cannot load reference image")
+                print("Wrong path - cannot load reference image")
                 return
         elif reference_image.__class__.__name__ == "ndarray":
+            reference_image_path = "none (array-type)"
             pass
         elif reference_image.__class__.__name__ == "int":
-            reference_image = cv2.imread(self.filepaths[reference_image])
+            reference_image_path = self.filepaths[reference_image]
+            reference_image = cv2.imread(reference_image_path)
         else:
-            print("wrong type - cannot load reference image")
+            print("Cannot load reference image - check input")
             return
+        
+        # =============================================================================
+        # METHOD START
+        # =============================================================================
 
-        ## save template
-        template_path = os.path.join(self.root_dir, "scale_template.jpg")
         while True:
-            if os.path.isfile(template_path) and flag_overwrite == False:
-                print(
-                    "- scale template not saved - file already exists (overwrite=False)."
-                )
+            
+            ## generate reference name and check if exists
+            reference_name = "reference_" + name + ".tif"
+            reference_path = os.path.join(self.root_dir, reference_name)
+            
+            if os.path.isfile(reference_path) and flag_overwrite == False:
+                print_save_msg = "Reference image not saved, file already exists\
+                 - use \"overwrite==True\" or chose different name."
                 break
-            elif os.path.isfile(template_path) and flag_overwrite == True:
-                print("- scale template saved under " + template_path + " (overwritten).")
+            elif os.path.isfile(reference_path) and flag_overwrite == True:
+                print_save_msg = "Reference image saved under " + reference_path + " (overwritten)."
                 pass
-            elif not os.path.isfile(template_path):
-                print("- scale template saved under " + template_path + ".")
+            elif not os.path.isfile(reference_path):
+                print_save_msg = "Reference image saved under " + reference_path
                 pass
+            
+            
+            ## generate template name and check if exists
+            if flag_template:
+                template_name = "reference_template_" + name + ".tif"
+                template_path = os.path.join(self.root_dir, template_name)
+    
+                if os.path.isfile(template_path) and flag_overwrite == False:
+                    print_save_msg = "Reference template not saved, file already exists\
+                     - use \"overwrite==True\" or chose different name."
+                    break
+                elif os.path.isfile(template_path) and flag_overwrite == True:
+                    print_save_msg = print_save_msg + "\nReference image saved under " + template_path + " (overwritten)."
+                    pass
+                elif not os.path.isfile(template_path):
+                    print_save_msg = print_save_msg + "\nReference image saved under " + template_path 
+                    pass
+                
+                ## measure scale with template
+                px_mm_ratio, df_masks, template = preprocessing.create_scale(
+                    reference_image, template=True, test_params=test_params
+                )
+            else:
+                ## measure scale
+                px_mm_ratio = preprocessing.create_scale(
+                    reference_image, template=False, test_params=test_params
+                )
 
-            ## measure scale
-            px_mm_ratio, df_masks, template = preprocessing.create_scale(
-                reference_image, template=True, test_params=test_params
-            )
-            cv2.imwrite(template_path, template)
+
+            ## create reference attributes
+            reference_info = {
+                    "date_added":datetime.today().strftime("%Y%m%d%H%M%S"),
+                    "reference_image":reference_name,
+                    "original_filepath":reference_image_path,
+                    "px_mm_ratio": px_mm_ratio,
+                    }
+            if flag_template:
+                reference_info.update({
+                    "template":True,
+                    "template_image":template_name})
+            
+            
+            ## load project attributes and temporarily drop project data list to 
+            ## be reattched later, so it is always at then end of the file
+            project_attributes = _load_yaml(os.path.join(self.root_dir, "attributes.yaml"))
+            if "project_data" in project_attributes:
+                project_data = project_attributes["project_data"]
+                project_attributes.pop('project_data', None)
+            if "reference" in project_attributes:
+                reference_list = project_attributes["reference"]
+
+            reference_count = 0
+            for idx,item in enumerate(reference_list):            
+                if list(item)[0] == name:
+                    reference_list[idx] = {name: reference_info}
+                    reference_count += 1
+            if reference_count == 0:
+                reference_list.append({name: reference_info})
+            elif reference_count > 1:
+                print_save_msg = "Duplicate reference names detected - aborting."
+                break
+            
+            project_attributes["reference"] = reference_list
+            project_attributes["project_data"] = project_data
+            
+
+            ## save all after successful completion of all method-steps 
+            cv2.imwrite(reference_path, reference_image)
+            if flag_template:
+                cv2.imwrite(template_path, template)
+    
+            _save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
+            print_save_msg = print_save_msg + "\nSaved reference info to project attributes." 
+        
             break
+        
+        # =============================================================================
+        # METHOD END
+        # =============================================================================
+        
+        print(print_save_msg)
 
-        ## save scale information
-        for directory in self.dirpaths:
-            attr = _load_yaml(os.path.join(self.root_dir, directory, "attributes.yaml"))
-            if not "scale" in attr:
-                print("added scale information to " + attr["project"]["dirname"])
-                pass
-            elif "scale" in attr and flag_overwrite:
-                print(
-                    "added scale information to "
-                    + attr["project"]["dirname"]
-                    + " (overwritten)"
-                )
-                pass
-            elif "scale" in attr and not flag_overwrite:
-                print(
-                    "could not add scale information to "
-                    + attr["project"]["dirname"]
-                    + " (overwrite=False)"
-                )
-                continue
-            attr["scale"] = {
-                "template_px_mm_ratio": px_mm_ratio,
-                "template_path": template_path,
-            }
-            _save_yaml(attr, os.path.join(self.root_dir, directory, "attributes.yaml"))
 
     def collect_results(self, name, files=None, folder="results", overwrite=False):
         """

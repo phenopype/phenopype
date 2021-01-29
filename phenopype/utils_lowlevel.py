@@ -991,20 +991,15 @@ def _load_pype_config(obj_input, **kwargs):
 
 def _show_yaml(odict, ret=False, typ="rt"):
     
-    ## has to be "safe" for pype
-    flag_type = typ
+    yaml =  YAML(typ=typ)
     
-    if flag_type == "regular":
-        yaml =  YAML()
-        if ret:
-            with io.StringIO() as buf, redirect_stdout(buf):
-                yaml.dump(odict, sys.stdout)
-                return buf.getvalue()
-        else:
+    if ret:
+        with io.StringIO() as buf, redirect_stdout(buf):
             yaml.dump(odict, sys.stdout)
-        
-    elif flag_type == "safe":
-        print("Cannot print yaml in safe-mode")
+            return buf.getvalue()
+    else:
+        yaml.dump(odict, sys.stdout)
+    
 
 
         
