@@ -1,8 +1,9 @@
-#%% modules
+#%% load modules
 
-import pkg_resources
+import os
+from importlib.resources import path
 
-#%%
+#%% scalars and definitions
 
 auto_line_width_factor = 0.002
 auto_point_size_factor = 0.002
@@ -26,8 +27,7 @@ default_meta_data_fields = [
     "ISOSpeedRatings",
     "FNumber",
 ]
-default_pype_config_name = "v1"
-default_pype_config = "preset1"
+
 default_save_suffix = "v1"
 default_window_size = 1000
 
@@ -36,8 +36,22 @@ pandas_max_rows = 10
 confirm_options = ["True", "true", "y", "yes"]
 
 
+#%% pype templates
 
-## templates
-template_dir = pkg_resources.resource_filename("phenopype","templates")
-template_list = pkg_resources.resource_listdir("phenopype","templates")
+default_pype_config_name = "v1"
+default_pype_config = "ex1"
+        
+## create template list
+pype_config_templates = {}
+with path(__package__, 'templates') as template_dir:
+    template_list = os.listdir(template_dir)
+    for template_name in template_list:
+        if template_name.endswith(".yaml"):
+            template_path = os.path.join(template_dir, template_name)
+            pype_config_templates[template_name] = template_path
+            
+            
+            
+#%% flags
 
+flag_verbose = False

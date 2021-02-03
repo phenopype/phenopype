@@ -7,20 +7,20 @@ import pandas as pd
 from pprint import PrettyPrinter
 from PIL import Image, ExifTags
 
-from phenopype.utils_lowlevel import _image_viewer, _contours_tup_array, _load_yaml
+from phenopype.utils_lowlevel import _image_viewer, _contours_tup_array, _load_yaml, _show_yaml
+
 from phenopype.core.export import *
-from phenopype.settings import colours, default_meta_data_fields, default_filetypes
+from phenopype.settings import colours, default_meta_data_fields, default_filetypes, flag_verbose, pype_config_templates, confirm_options
+
 
 #%% settings
 
 Image.MAX_IMAGE_PIXELS = 999999999
 pretty = PrettyPrinter(width=30)
 
-
 def custom_formatwarning(msg, *args, **kwargs):
     # ignore everything except the message
     return "WARNING: " + str(msg) + "\n"
-
 
 warnings.formatwarning = custom_formatwarning
 warnings.simplefilter("always", UserWarning)
@@ -226,6 +226,8 @@ class container(object):
             print("=== AUTOLOAD ===\n- " + "\n- ".join(loaded))
         else:
             print("Nothing loaded.")
+            
+            
 
     def reset(self):
         """
@@ -248,7 +250,7 @@ class container(object):
         if hasattr(self, "df_contours"):
             del self.df_contours
 
-    def save(self, dirpath=None, overwrite=False, **kwargs):
+    def save(self, dirpath=None, export_list=[], overwrite=False, **kwargs):
         """
         Autosave function for container. 
 
@@ -268,7 +270,6 @@ class container(object):
 
         ## kwargs
         flag_overwrite = overwrite
-        export_list = kwargs.get("export_list", [])
 
         ## check dirpath
         if (
@@ -391,8 +392,8 @@ class container(object):
 #%% functions
 
 
-def load_directory(
-    directory_path, cont=True, df=True, meta=True, resize=1, save_suffix=None, **kwargs
+def load_phenopype_directory(
+    directory_path, cont=True, df=True, save_suffix=None, **kwargs
 ):
     """
     Parameters
@@ -406,12 +407,6 @@ def load_directory(
     df: bool, optional
         should a DataFrame containing image information (e.g. dimensions) 
         be returned.
-    meta: bool, optional
-        should the DataFrame encompass image meta data (e.g. from exif-data). 
-        This works only when obj_input is a path string to the original file.
-    resize: float, optional
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
-        original size).
     save_suffix : str, optional
         suffix to append to filename of results files
     kwargs: 
@@ -429,68 +424,48 @@ def load_directory(
     ## kwargs
     flag_df = df
     flag_container = cont
-    exif_fields = kwargs.get("fields", default_meta_data_fields)
-    if not exif_fields.__class__.__name__ == "list":
-        exif_fields = [exif_fields]
 
     ## check if directory
     if not os.path.isdir(directory_path):
-        sys.exit("Not a valid phenoype directory - cannot load files.")
-
-    ## load attributes-file
-    attr = _load_yaml(os.path.join(directory_path, "attributes.yaml"))
+        print("Not a valid phenoype directory - cannot load files.")
+        return
     
-    ## legacy
-    paths = [
-        attr["project"]["raw_path"],
-        os.path.join(directory_path, os.path.basename(attr["project"]["raw_path"])),
-        (glob.glob(os.path.join(directory_path, "raw*"))[0] 
-         if len(glob.glob(os.path.join(directory_path, "raw*"))) > 0 
-         else os.path.join(directory_path, "raw.jpg"))
-    ]
-    for path in paths:
-        if os.path.isfile(path):
-            image = cv2.imread(path)
-            break
-
-    df_image_data = pd.DataFrame(
-        {
-            "filename": attr["image"]["filename"],
-            "width": attr["image"]["width"],
-            "height": attr["image"]["height"],
-        },
-        index=[0],
-    )
-
-    if "size_ratio_original" in attr["image"]:
-        df_image_data["size_ratio_original"] = attr["image"]["size_ratio_original"]
-
-    if "scale" in attr:
-        if "template_px_mm_ratio" in attr["scale"]:
-            df_image_data["template_px_mm_ratio"] = attr["scale"]["template_px_mm_ratio"]
-        if "current_px_mm_ratio" in attr["scale"]:
-            df_image_data["current_px_mm_ratio"] = attr["scale"]["current_px_mm_ratio"]
-
-    # ## add meta-data
-    # if flag_meta:
-    #     exif_data_all, exif_data = attr["meta"], {}
-    #     for field in exif_fields:
-    #         if field in exif_data_all:
-    #             exif_data[field] = exif_data_all[field]
-    #     exif_data = dict(sorted(exif_data.items()))
-    #     df_image_data = pd.concat([df_image_data.reset_index(drop=True),
-    # pd.DataFrame(exif_data, index=[0])], axis=1)
-
+    ## check if attributes file and load otherwise
+    if not os.path.join(directory_path, "attributes.yaml"):
+        print("Attributes file missing - cannot load files.")
+        return
+    else:
+        attributes = _load_yaml(os.path.join(directory_path, "attributes.yaml"))
+    
+    ## check if requires info is contained in attributes and load image
+    if not "image_phenopype" in attributes or not "image_original" in attributes:
+        print("Attributes doesn't contain required meta-data - cannot load files.")
+        return 
+    else:
+        image_original = dict(attributes["image_original"])
+        image_phenopype = dict(attributes["image_phenopype"])
+        image_path = os.path.join(directory_path, image_phenopype["filename"])
+        image = load_image(image_path, dirpath=directory_path)
+    
+    
+    ## create image df
+    df_image_dict = {
+        "filename_original": image_original["filename"],
+        "filename_phenopype": image_phenopype["filename"],
+        "width": image_phenopype["width"],
+        "height": image_phenopype["height"],            
+        }
+    if image_phenopype["resize"] == True:
+        df_image_dict.update({
+            "resize": image_phenopype["resize"], 
+            "resite_factor": image_phenopype["resize_factor"] })
+    df_image_data = pd.DataFrame(df_image_dict, index=[0])
+    
     ## return
     if flag_container == True:
         ct = container(image, df_image_data)
         ct.dirpath = directory_path
         ct.save_suffix = save_suffix
-        ct.image_data = attr["image"]
-
-    # ## other, saved data to pass on
-    # if "other" in attr:
-    #    ct.df_other = pd.DataFrame(attr["other"], index=[0])
 
     if flag_container == True:
         return ct
@@ -532,7 +507,8 @@ def load_image(
         should a DataFrame containing image information (e.g. dimensions) be 
         returned.
     dirpath: str, optional
-        path to an existing directory where all output should be stored
+        path to an existing directory where all output should be stored. default 
+        is the current working directory ("cwd") of the python session.
     meta: bool, optional
         should the DataFrame encompass image meta data (e.g. from exif-data). 
         This works only when obj_input is a path string to the original file.
@@ -558,16 +534,12 @@ def load_image(
 
     """
     ## kwargs
-    flag_resize = resize
     flag_df = df
     flag_meta = meta
     flag_mode = mode
     flag_container = cont
-    exif_fields = kwargs.get("fields", default_meta_data_fields)
-    if not exif_fields.__class__.__name__ == "list":
-        exif_fields = [exif_fields]
-
-    ## method
+    
+    ## load image
     if obj_input.__class__.__name__ == "str":
         if os.path.isfile(obj_input):
             ext = os.path.splitext(obj_input)[1]
@@ -577,89 +549,73 @@ def load_image(
                 elif flag_mode == "colour":
                     image = cv2.imread(obj_input, cv2.IMREAD_COLOR)
                 elif flag_mode == "gray":
-                    image = cv2.imread(obj_input, cv2.IMREAD_GRAYSCALE)
-                if dirpath.__class__.__name__ == "NoneType":
-                    dirpath = os.path.split(os.path.abspath(obj_input))[0]
-                    print(
-                        "dirpath defaulted to file directory - "
-                        + os.path.abspath(dirpath)
-                    )
-                    
-                    
-                    
+                    image = cv2.imread(obj_input, cv2.IMREAD_GRAYSCALE)     
             else:
-                print(
-                    "could not load file of type "
-                    + ext
-                    + ": "
-                    + os.path.basename(obj_input)
-                )
+                print("Invalid file extension \"{}\" - could not load image:\n".format(ext) \
+                        + os.path.basename(obj_input))
                 return
         else:
-            sys.exit("Invalid image path - cannot load image from str.")
+            print("Invalid image path - could not load image.")
+            return
     elif obj_input.__class__.__name__ == "ndarray":
         image = obj_input
-        if dirpath.__class__.__name__ == "NoneType":
-            dirpath = os.getcwd()
-            print(
-                "dirpath defaulted to current working directory - "
-                + os.path.abspath(dirpath)
-            )
-
     else:
-        sys.exit("Invalid input format - cannot load image.")
+        print("Invalid input format - could not load image.")
+        return
 
-    ## resize
-    if flag_resize < 1:
-        image = cv2.resize(
-            image,
-            (0, 0),
-            fx=1 * flag_resize,
-            fy=1 * flag_resize,
-            interpolation=cv2.INTER_AREA,
-        )
 
     ## load image data
-    image_data = load_image_data(obj_input, flag_resize)
-    df_image_data = pd.DataFrame(
-        {
-            "filename": image_data["filename"],
-            "width": int(image_data["width"] * flag_resize),
-            "height": int(image_data["height"] * flag_resize),
-            "size_ratio_original": flag_resize,
-        },
-        index=[0],
-    )
+    image_data = load_image_data(obj_input, path_and_type=False)
+    df_image_data = pd.DataFrame(image_data, index=[0])
 
-    ## add meta-data
-    if flag_meta:
-        meta_data = load_meta_data(obj_input, fields=exif_fields)
-        df_image_data = pd.concat(
-            [df_image_data.reset_index(drop=True), pd.DataFrame(meta_data, index=[0])],
-            axis=1,
-        )
 
     ## check dirpath
-    if not dirpath.__class__.__name__ == "NoneType":
-        if not os.path.isdir(dirpath):
-            q = input(
-                "Save folder {} does not exist - create?.".format(
-                    os.path.abspath(dirpath)
+    if flag_container == True:
+        if dirpath == "cwd":
+            dirpath = os.getcwd()
+            if flag_verbose:
+                print(
+                    "Setting directory to save phenopype-container output to current working directory:\n" \
+                    + os.path.abspath(dirpath)
                 )
-            )
-            if q in ["True", "true", "y", "yes"]:
-                os.makedirs(dirpath)
+        elif dirpath.__class__.__name__ == "str":
+            if not os.path.isdir(dirpath):
+                user_input = input(
+                    "Provided directory to save phenopype-container output {} does not exist - create?.".format(
+                        os.path.abspath(dirpath)
+                    )
+                )
+                if user_input in confirm_options:
+                    os.makedirs(dirpath)
+                else:
+                    print("Directory not created - aborting")
+                    return
             else:
-                print("Directory not created - aborting")
-        else:
-            print("Directory to save files set at - " + os.path.abspath(dirpath))
-
-    ## return
+                print("Directory to save phenopype-container output set at - " + os.path.abspath(dirpath))
+        elif dirpath.__class__.__name__ == "NoneType":
+            if obj_input.__class__.__name__ == "str":
+                if os.path.isfile(obj_input):
+                    dirpath = os.path.dirname(os.path.abspath(obj_input))
+                    print("Directory to save phenopype-container output set to parent folder of image:\n{}".format(dirpath))
+            else: 
+                print(
+                    "No directory provided to save phenopype-container output" +
+                    " - provide dirpath or use dirpath==\"cwd\" to set save" +
+                    " paths to current working directory - aborting."
+                      )
+                return
+            
+            
+    ## create container
     if flag_container == True:
         ct = container(image, df_image_data)
         ct.image_data = image_data
         ct.dirpath = dirpath
         ct.save_suffix = save_suffix
+            
+
+    ## return
+    if flag_container == True:
         return ct
     elif flag_container == False:
         if flag_df or flag_meta:
@@ -917,6 +873,34 @@ def show_image(
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             break
+        
+        
+        
+def show_config_template(template):
+    """
+    
+    Helper function to print phenopype configuration file in formatted yaml.
+
+    Parameters
+    ----------
+    template : str
+        name of pype configuration file to print (with or without ".yaml")
+
+    Returns
+    -------
+    None
+
+    """
+    
+    if not template.endswith(".yaml"):
+        template_name = template + ".yaml"
+    else:
+        template_name = template
+    if template_name in pype_config_templates:
+        config_steps = _load_yaml(pype_config_templates[template_name])
+        print("SHOWING BUILTIN PHENOPYPE TEMPLATE " + template_name + "\n\n")
+        _show_yaml(config_steps)
+        
 
 
 def save_image(

@@ -941,7 +941,7 @@ def _load_yaml(string, typ="rt"):
         return
 
 
-def _load_pype_config(obj_input, **kwargs):
+def _load_pype_config2(obj_input, **kwargs):
 
     ## kwargs
     config_name = kwargs.get("config_name", default_pype_config_name)
@@ -987,6 +987,129 @@ def _load_pype_config(obj_input, **kwargs):
             sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
     else:
         sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
+        
+        
+
+def _load_pype_config(config, name, **kwargs):
+
+    ## kwargs and setup
+    flag_rebuild_info = False    
+    flag_rebuild_steps = False    
+
+    # ## load config
+    # if os.path.isfile(config):
+    #     config_temp = _load_yaml(config)
+    #     if user_config.__class__.__name__ in ["dict", 'CommentedMap']:
+    #         if not "info" in user_config:
+    #             print("WARNING - \"info\" section missing from pype configuration - rebuilding.")
+    #             flag_rebuild_info = True              
+    #         if not "steps" in user_config:
+    #             print("WARNING - \"steps\" section missing from pype configuration - rebuilding.")
+    #             flag_rebuild_steps = True
+    #     elif user_config.__class__.__name__ in ["list",'CommentedSeq'] and any(step in user_config[0] for step in step_names):
+    #         print("WARNING - incorrect structure for pype configuration - attempting to rebuild.")
+    #         config_steps = user_config
+            
+    # else:
+    #     if not template.endswith(".yaml"):
+    #         template_name = template + ".yaml"
+    #     else:
+    #         template_name = template
+    #     if template_name in pype_config_templates:
+    #         config_steps = _load_yaml(pype_config_templates[template_name])
+    #         template_path = pype_config_templates[template_name]
+    #         print("Phenopype template {} loaded".format(template))
+    #     else:
+    #         print("Template not found")
+    #         return
+
+    #     config_info = {"config_name":name,
+    #     "template_name":template_name,
+    #     "template_path":None,
+    #     "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
+    #     "date_last_modified":None}
+
+
+    # if os.path.isfile(config):
+        
+        
+                        
+    #     if not template.endswith(".yaml"):
+    #         template_name = template + ".yaml"
+    #     else:
+    #         template_name = template 
+            
+            
+    #     config_steps = _load_yaml(pype_config_templates[template_name])
+    #     print("SHOWING BUILTIN PHENOPYPE TEMPLATE " + template_name + "\n\n")
+    #     _show_yaml(config_steps)
+            
+            
+
+
+            
+                
+    # if template_name in pype_config_templates:
+    #     config_path = pype_config_templates[template_name]
+    #     self.config = _load_yaml(config_path)
+            
+            
+            
+            
+            
+
+        # ## load config from container directory or directly from path
+        # config_path = None
+        # if config.__class__.__name__ == "NoneType":
+        #     config_path = os.path.join(self.dirpath, "pype_config_" + name + ".yaml")
+        #     if os.path.isfile(config_path):
+        #         config_path = config_path
+        # elif config.__class__.__name__ == "str":
+        #     if os.path.isfile(config):
+        #         config_path = config
+        # if config_path.__class__.__name__ == "NoneType" :
+        #     if not template.__class__.__name__ == "NoneType":
+
+        #     print("No config provided - cannot run pype.")
+        #     return
+        # elif config_path.__class__.__name__ == "str":
+
+
+#             config_location = obj_input
+#         if os.path.isfile(config_location):
+#             return _load_yaml(config_location, typ="safe"), config_location
+#     elif obj_input.__class__.__name__ == "container":
+#         dirpath = obj_input.dirpath
+#         config_location = os.path.join(dirpath, "pype_config_" + config_name + ".yaml")
+
+#     ## check if exists, otherwise ask to create
+#     if os.path.isfile(config_location):
+#         return _load_yaml(config_location, typ="safe"), config_location
+#     elif not os.path.isfile(config_location):
+#         create = input(
+#             'Did not find "pype_config_'
+#             + config_name
+#             + '.yaml" - '
+#             + " create at following location? (y/n):\n"
+#             + config_location
+#             + "\n"
+#         )
+#         if create == "y" or create == "yes":
+#             pype_preset = _create_generic_pype_config(preset, config_name)
+#             config = {"image": copy.deepcopy(obj_input.image_data)}
+#             config.update(pype_preset)
+#             print(
+#                 'Created and saved new pype config "'
+#                 + os.path.basename(config_location)
+#                 + '" in folder '
+#                 + os.path.dirname(config_location)
+#             )
+#             _save_yaml(config, config_location)
+#             return pype_preset, config_location
+#         else:
+#             sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
+#     else:
+#         sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
 
 
 def _show_yaml(odict, ret=False, typ="rt"):

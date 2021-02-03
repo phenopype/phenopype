@@ -1,4 +1,4 @@
-#%% modules
+#%% load modules
 import copy
 import inspect
 import os
@@ -23,13 +23,13 @@ from phenopype.settings import (
     default_pype_config,
     default_meta_data_fields,
     pandas_max_rows,
-    template_dir,
-    template_list,
+    pype_config_templates,
+    flag_verbose,
 )
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
 from phenopype.core.preprocessing import resize_image
-from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
+from phenopype.utils import load_image, load_phenopype_directory, load_image_data, load_meta_data
 from phenopype.utils_lowlevel import (
     _image_viewer,
     _del_rw,
@@ -160,8 +160,8 @@ class project:
         Specify in- or exclude arguments, filetypes, duplicate-action and copy 
         or link raw files to save memory on the harddrive. For each found image,
         a folder will be created in the "data" folder within the projects root
-        directory. If found images are in subfolders and search_mode is 
-        recursive, the respective phenopype directories will be created with 
+        directory. If found images are in subfolders and "recursive==True", 
+        the respective phenopype directories will be created with 
         flattened path as prefix. 
         
         E.g., with "raw_files" as folder with the original image files 
@@ -394,10 +394,15 @@ class project:
         name: str
             name of config-file. this gets appended to all files and serves as and
             identifier of a specific analysis pipeline
-        preset: str, optional
-            can be either a string denoting a template name (e.g. preset1, preset2, 
-            landamarking1, ... - in "phenopype/settings/presets.py") or a path to a 
-            compatible yaml file
+        template: str, optional
+            can be either a path to a template or config-file in yaml-format
+            or a phenopype template name (e.g. ex1, ex2,...). phenopype comes with 
+            a range of templates that correspond to the tutorials and that can 
+            be inspected using the following helper functions:
+            
+            pp.pype_config_templates        # gives a dictionary with template names
+            pp.show_config_template('ex1')  # prints the configuration for example 1
+
         interactive: bool, optional
             start a pype and modify preset before saving it to phenopype directories
         overwrite: bool, optional
@@ -435,12 +440,12 @@ class project:
                     config_steps = user_config
             else:
                 if not template.endswith(".yaml"):
-                    template_name =  template + ".yaml" 
+                    template_name = template + ".yaml"
                 else:
                     template_name = template
-                if template_name in template_list:
-                    template_path = os.path.join(template_dir, template_name)
-                    config_steps = _load_yaml(template_path)
+                if template_name in pype_config_templates:
+                    config_steps = _load_yaml(pype_config_templates[template_name])
+                    template_path = pype_config_templates[template_name]
                     print("Phenopype template {} loaded".format(template))
                 else:
                     print("Template not found")
@@ -472,14 +477,14 @@ class project:
         #         template_origin = os.path.join(self.dirpaths[idx], "raw" + os.path.splitext(os.path.basename(self.filepaths[idx]))[1])
              
         #     copyfile(template_origin, image_location)
-        #     config_location = os.path.join(
+        #     config_path = os.path.join(
         #         self.root_dir, "pype_config_template-" + name + ".yaml"
         #     )
-        #     _save_yaml(config, config_location)
+        #     _save_yaml(config, config_path)
         #     p = pype(
         #         image_location,
         #         name="template-" + name,
-        #         config_location=config_location,
+        #         config_path=config_path,
         #         presetting=True,
         #     )
         #     config = p.config
@@ -712,7 +717,7 @@ class project:
         ## search
         found, duplicates = _file_walker(
             self.data_dir,
-            search_mode="recursive",
+            recursive=True,
             include=search_strings,
             exclude=["pype_config"],
         )
@@ -928,9 +933,9 @@ class pype:
     name: str
         name of pype-config - will be appended to all results files
     config_preset: str, optional
-        chose from given presets in phenopype/settings/pype_presets.py 
-        (e.g. preset1, preset2, ...)
-    config_location: str, optional
+        chose from list of provided templates  
+        (e.g. ex1, ex2, ...)
+    config_path: str, optional
         custom path to a pype template (needs to adhere to yaml syntax and 
         phenopype structure)
     delay: int, optional
@@ -952,8 +957,8 @@ class pype:
         self,
         image,
         name,
-        config_preset=None,
-        config_location=None,
+        config=None,
+        config_template=None,
         dirpath=None,
         skip=False,
         feedback=True,
@@ -963,13 +968,21 @@ class pype:
         **kwargs
     ):
 
-        ## legacy
-        preset = kwargs.get("preset")
-        if (
-            config_preset.__class__.__name__ == "NoneType"
-            and not preset.__class__.__name__ == "NoneType"
-        ):
-            config_preset = preset
+        ## kwargs and setup
+        flag_feedback = feedback
+        flag_skip = skip
+        flag_autoload = kwargs.get("autoload", True)
+        flag_autosave = kwargs.get("autosave", True)
+        flag_autoshow = kwargs.get("autoshow", False)
+        flag_presetting = kwargs.get("presetting", False)
+        flag_overwrite = kwargs.get("overwrite", True) 
+        
+        ## mode for package tests
+        test_params = kwargs.get("test_params", None)
+        if test_params.__class__.__name__ == "dict":
+            flag_test_mode = True
+        else:
+            flag_test_mode = False
 
         ## pype name check
         if "pype_config_" in name:
@@ -978,50 +991,59 @@ class pype:
             name = name.replace(".yaml", "")
         for char in "[@_!#$%^&*()<>?/|}{~:]\\":
             if char in name:
-                sys.exit("no special characters allowed in pype name")
-
-        ## kwargs
-        flag_feedback = feedback
-        flag_skip = skip
-        flag_autoload = kwargs.get("autoload", True)
-        flag_autosave = kwargs.get("autosave", True)
-        flag_autoshow = kwargs.get("autoshow", False)
-        flag_presetting = kwargs.get("presetting", False)
-        flag_meta = kwargs.get("meta", True)
-        flag_overwrite = kwargs.get("overwrite", True) 
-        exif_fields = kwargs.get("fields", default_meta_data_fields)
-        if not exif_fields.__class__.__name__ == "list":
-            exif_fields = [exif_fields]
-        test_params = kwargs.get("test_params", None)
-        if test_params.__class__.__name__ == "dict":
-            flag_test_mode = True
-        else:
-            flag_test_mode = False
+                print("No special characters allowed in pype name - aborting.")
+                return
 
         ## load image as cointainer from array, file, or directory
         if image.__class__.__name__ == "ndarray":
-            self.container = load_image(image, cont=True, meta=flag_meta)
-            self.container.save_suffix = name
+            self.container = load_image(image, cont=True)
+            self.container.save_suffix = name            
         elif image.__class__.__name__ == "str":
             if os.path.isfile(image):
-                self.container = load_image(image, cont=True, meta=False)
+                self.container = load_image(image, cont=True)
                 self.container.save_suffix = name
             elif os.path.isdir(image):
-                self.container = load_directory(image, meta=flag_meta, fields=exif_fields)
+                self.container = load_phenopype_directory(image, cont=True) 
                 self.container.save_suffix = name
             else:
-                sys.exit("Invalid path - cannot run pype.")
+                print("Invalid path - cannot run pype.")
+                return
         else:
-            sys.exit("Wrong input format - cannot run pype.")
+            print("Wrong input path or format - cannot run pype.")
+            return
+        
+        ## load pype config
+        
+        ## 1. check if config path can be read from container-directory or 
+        ## from provided path
+        config_path = None
+        if config.__class__.__name__ == "NoneType":
+            config = os.path.join(self.container.dirpath, "pype_config_" + name + ".yaml")
+            if os.path.isfile(config):
+                config_path = config
+        elif config.__class__.__name__ == "str":
+            if os.path.isfile(config):
+                config_path = config
+                
+        ## 2. if config-path are still NoneType, check if config-template was provided
+        if config_path.__class__.__name__ == "NoneType" :
+            if not config_template.__class__.__name__ == "NoneType":
+                self.config = _load_pype_config(config=config_template,name=name)
+                self.config_path = os.path.join(self.container.dirpath, "pype_config_" + name + ".yaml")
+                _save_yaml(self.config_path)
+                print("Create pype configuration from phenopype template {}\n".format(config_template) +
+                      "Saving configuration file to {}".format(self.config_path))
+            else:
+                print("No config provided - cannot run pype.")
+                return
+        elif config_path.__class__.__name__ == "str":
+            self.config = _load_pype_config(config=config_path,name=name)
+            self.config_path = config_path
+            if flag_verbose:
+                print("Loaded pype config from {}".format(self.config_path))
 
-        ## emergency check
-        if (
-            not hasattr(self.container, "image")
-            or self.container.image.__class__.__name__ == "NoneType"
-        ):
-            sys.exit("Internal error - no image loaded.")
 
-        ## supply dirpath manually
+        ## manually supply dirpath to save files (overwrites container dirpath)
         if not dirpath.__class__.__name__ == "NoneType":
             if not os.path.isdir(dirpath):
                 q = input("Save folder {} does not exist - create?.".format(dirpath))
@@ -1031,6 +1053,7 @@ class pype:
                     print("Directory not created - aborting")
                     return
             self.container.dirpath = dirpath
+
 
         ## skip directories that already contain specified files
         if flag_skip == True:
@@ -1042,31 +1065,39 @@ class pype:
             )
             if len(filepaths) > 0:
                 print(
-                    '\n found existing result files containing "' + name + '" - skipped\n'
+                    '\nFound existing result files containing "' + name + '" - skipped\n'
                 )
                 return
 
-        ## load config
-        if config_location:
-            self.config, self.config_location = _load_pype_config(config_location)
-        else:
-            self.config, self.config_location = _load_pype_config(
-                self.container, config_name=name, preset=config_preset
-            )
-
+        
         ## open config file with system viewer
         if flag_feedback and not flag_test_mode:
             if platform.system() == "Darwin":  # macOS
-                subprocess.call(("open", self.config_location))
+                subprocess.call(("open", self.config_path))
             elif platform.system() == "Windows":  # Windows
-                os.startfile(self.config_location)
+                os.startfile(self.config_path)
             else:  # linux variants
-                subprocess.call(("xdg-open", self.config_location))
+                subprocess.call(("xdg-open", self.config_path))
 
         ## initialize
-        self.FM = _yaml_file_monitor(self.config_location, delay)
+        self.FM = _yaml_file_monitor(self.config_path, delay)
         update, terminate, self.iv = {}, False, None
-
+        
+        
+        ## check components before starting pype to see if something went wrong
+        if (
+            not hasattr(self.container, "image")
+            or self.container.image.__class__.__name__ == "NoneType"
+        ):
+            print("Pype error - no image loaded.")
+            return
+        if (
+            not hasattr(self.container, "dirpath")
+            or self.container.dirpath.__class__.__name__ == "NoneType"
+        ):
+            print("Pype error - no dirpath provided.")
+            return
+        
         # =============================================================================
         # pype
         # =============================================================================
@@ -1093,35 +1124,41 @@ class pype:
             export_list, show_list = [], []
 
             ## apply pype: loop through steps and contained methods
-            for step in self.config:
-                step_name = step[0]
-                step_method_list = step[1]
-                      
-                ## skip cases: meta-steps, none, or presetting mode
-                if step_name in ["image", "meta", "pype"]:
+            step_list = self.config["steps"]
+            
+            for step in step_list:
+                
+                if step.__class__.__name__=="str":
                     continue
-                if step_method_list.__class__.__name__=="NoneType":
+                
+                ## get step name 
+                step = dict(step)
+                step_name = list(step.keys())[0]
+                method_list = list(step.values())[0]
+                                      
+                ## skip cases: meta-steps, none, or presetting mode
+                if method_list.__class__.__name__=="NoneType":
                     continue
                 if step_name == "export" and flag_presetting == True:
                     continue
                 
-                ## feedback: print step name
+                ## print current step
                 print(step_name.upper())
-                
+
                 ## iterate through step list
-                for method in step_method_list:
-                    
-                    ## re-format method if necessary
-                    if method.__class__.__name__ == "str":
-                        method = [(method,{})]
-                        
-                    ## format method name and arguments
-                    method_name = method[0][0]
-                    if method[0][1].__class__.__name__ == "NoneType" :
+                for method in method_list:
+
+                    ## format method name and arguments       
+                    if method.__class__.__name__ in ["dict", 'CommentedMap']:
+                        method = dict(method)
+                        method_name = list(method.keys())[0]
+                        method_arguments = dict(list(method.values())[0])
+                    elif method.__class__.__name__ == "str":
+                        method_name = method
                         method_arguments = {}
-                    else:
-                        method_arguments = dict(method[0][1])
                         
+                    ## activate silent mode for interactive functions 
+                    ## if feedback is deactivated
                     if not flag_feedback:
                         if method_name in ["create_mask"]:
                             continue
@@ -1133,14 +1170,13 @@ class pype:
                         export_list.append(method_name)
                     elif step_name == "visualization":
                         show_list.append(method_name)
-                        
-                    ## check if canvas is selcted, and otherwise execute with default values
-                    if (
-                        not "select_canvas" in show_list
-                        and self.container.canvas.__class__.__name__ == "NoneType"
-                    ):
-                        visualization.select_canvas(self.container)
-                        print("- autoselect canvas")
+                        ## check if canvas is selected, and otherwise execute with default values
+                        if (
+                            not "select_canvas" in show_list
+                            and self.container.canvas.__class__.__name__ == "NoneType"
+                        ):
+                            visualization.select_canvas(self.container)
+                            print("- autoselect canvas")
 
                     ## check if method has max_dim option and otherwise add
                     args = inspect.getfullargspec(eval(step_name + "." + method_name)).args

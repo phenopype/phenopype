@@ -32,15 +32,15 @@ setup(
 	author_email='moritz.luerig@gmail.com',
 	packages=['phenopype'],
     package_dir={'phenopype': 'phenopype'},
-    package_data={'phenopype': ['core/*.py', 'presets/*.yaml']},
+    package_data={'phenopype': ['core/*.py', 'templates/*.py','templates/*.yaml']},
     install_requires = [
 		"numpy==1.18.5",
 		"opencv-contrib-python==3.4.9.33",
         "pandas==1.1.2",
 		"pillow==8.1.0",
         "pyradiomics==3.0.1",
-        "radiomics==0.1",
         "ruamel.yaml==0.16.12",
+        "tqdm",
         "watchdog==0.10.4"
     ],
 	version=verstr,
