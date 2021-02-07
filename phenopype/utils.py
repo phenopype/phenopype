@@ -392,88 +392,7 @@ class container(object):
 #%% functions
 
 
-def load_phenopype_directory(
-    directory_path, cont=True, df=True, save_suffix=None, **kwargs
-):
-    """
-    Parameters
-    ----------
-    directory_path: str or ndarray
-        path to a phenopype project directory containing raw image, attributes 
-        file, masks files, results df, etc.
-    cont: bool, optional
-        should the loaded image (and DataFrame) be returned as a phenopype 
-        container
-    df: bool, optional
-        should a DataFrame containing image information (e.g. dimensions) 
-        be returned.
-    save_suffix : str, optional
-        suffix to append to filename of results files
-    kwargs: 
-        developer options
-        
-    Returns
-    -------
-    container
-        A phenopype container is a Python class where loaded images, 
-        dataframes, detected contours, intermediate output, etc. are stored 
-        so that they are available for inspection or storage at the end of 
-        the analysis. 
 
-    """
-    ## kwargs
-    flag_df = df
-    flag_container = cont
-
-    ## check if directory
-    if not os.path.isdir(directory_path):
-        print("Not a valid phenoype directory - cannot load files.")
-        return
-    
-    ## check if attributes file and load otherwise
-    if not os.path.join(directory_path, "attributes.yaml"):
-        print("Attributes file missing - cannot load files.")
-        return
-    else:
-        attributes = _load_yaml(os.path.join(directory_path, "attributes.yaml"))
-    
-    ## check if requires info is contained in attributes and load image
-    if not "image_phenopype" in attributes or not "image_original" in attributes:
-        print("Attributes doesn't contain required meta-data - cannot load files.")
-        return 
-    else:
-        image_original = dict(attributes["image_original"])
-        image_phenopype = dict(attributes["image_phenopype"])
-        image_path = os.path.join(directory_path, image_phenopype["filename"])
-        image = load_image(image_path, dirpath=directory_path)
-    
-    
-    ## create image df
-    df_image_dict = {
-        "filename_original": image_original["filename"],
-        "filename_phenopype": image_phenopype["filename"],
-        "width": image_phenopype["width"],
-        "height": image_phenopype["height"],            
-        }
-    if image_phenopype["resize"] == True:
-        df_image_dict.update({
-            "resize": image_phenopype["resize"], 
-            "resite_factor": image_phenopype["resize_factor"] })
-    df_image_data = pd.DataFrame(df_image_dict, index=[0])
-    
-    ## return
-    if flag_container == True:
-        ct = container(image, df_image_data)
-        ct.dirpath = directory_path
-        ct.save_suffix = save_suffix
-
-    if flag_container == True:
-        return ct
-    elif flag_container == False:
-        if flag_df:
-            return image, df_image_data
-        else:
-            return image
 
 
 def load_image(
@@ -761,6 +680,92 @@ def load_meta_data(image_path, show_fields=False, fields=default_meta_data_field
     ## close image and return meta data
     image.close()
     return exif_data
+
+
+
+def load_phenopype_directory(
+    directory_path, cont=True, df=True, save_suffix=None, **kwargs
+):
+    """
+    Parameters
+    ----------
+    directory_path: str or ndarray
+        path to a phenopype project directory containing raw image, attributes 
+        file, masks files, results df, etc.
+    cont: bool, optional
+        should the loaded image (and DataFrame) be returned as a phenopype 
+        container
+    df: bool, optional
+        should a DataFrame containing image information (e.g. dimensions) 
+        be returned.
+    save_suffix : str, optional
+        suffix to append to filename of results files
+    kwargs: 
+        developer options
+        
+    Returns
+    -------
+    container
+        A phenopype container is a Python class where loaded images, 
+        dataframes, detected contours, intermediate output, etc. are stored 
+        so that they are available for inspection or storage at the end of 
+        the analysis. 
+
+    """
+    ## kwargs
+    flag_df = df
+    flag_container = cont
+
+    ## check if directory
+    if not os.path.isdir(directory_path):
+        print("Not a valid phenoype directory - cannot load files.")
+        return
+    
+    ## check if attributes file and load otherwise
+    if not os.path.join(directory_path, "attributes.yaml"):
+        print("Attributes file missing - cannot load files.")
+        return
+    else:
+        attributes = _load_yaml(os.path.join(directory_path, "attributes.yaml"))
+    
+    ## check if requires info is contained in attributes and load image
+    if not "image_phenopype" in attributes or not "image_original" in attributes:
+        print("Attributes doesn't contain required meta-data - cannot load files.")
+        return 
+    else:
+        image_original = dict(attributes["image_original"])
+        image_phenopype = dict(attributes["image_phenopype"])
+        image_path = os.path.join(directory_path, image_phenopype["filename"])
+        image = load_image(image_path, dirpath=directory_path)
+    
+    
+    ## create image df
+    df_image_dict = {
+        "filename_original": image_original["filename"],
+        "filename_phenopype": image_phenopype["filename"],
+        "width": image_phenopype["width"],
+        "height": image_phenopype["height"],            
+        }
+    if image_phenopype["resize"] == True:
+        df_image_dict.update({
+            "resize": image_phenopype["resize"], 
+            "resite_factor": image_phenopype["resize_factor"] })
+    df_image_data = pd.DataFrame(df_image_dict, index=[0])
+    
+    ## return
+    if flag_container == True:
+        ct = container(image, df_image_data)
+        ct.dirpath = directory_path
+        ct.save_suffix = save_suffix
+
+    if flag_container == True:
+        return ct
+    elif flag_container == False:
+        if flag_df:
+            return image, df_image_data
+        else:
+            return image
+
 
 
 def show_image(

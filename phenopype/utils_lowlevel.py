@@ -1136,8 +1136,8 @@ def _save_yaml(dictionary, filepath, typ="rt"):
 
         
 
-def _timestamp():
-    return datetime.today().strftime("%Y:%m:%d %H:%M:%S")
+# def _timestamp():
+#     return datetime.today().strftime("%Y:%m:%d %H:%M:%S")
 
 
 # def get_median_grayscale(image, **kwargs):
