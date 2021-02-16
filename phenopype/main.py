@@ -1039,12 +1039,6 @@ class pype:
             self.container.dirpath = dirpath
 
         ## load pype config
-        if all([config.__class__.__name__ == "NoneType",
-           template.__class__.__name__ == "NoneType"]):
-            config_path = os.path.join(self.container.dirpath,
-                                       "pype_config_" + name + ".yaml")
-            self.config = _load_pype_config(config=config_path, template=None)
-            self.config_path = config_path
         if all([config.__class__.__name__ == "str",
                template.__class__.__name__ == "NoneType"]):
              self.config = _load_pype_config(config=config, template=None, name=name)
@@ -1054,7 +1048,14 @@ class pype:
             self.config = _load_pype_config(config=None, template=template, name=name)
             self.config_path = os.path.join(self.container.dirpath,
                                        "pype_config_" + name + ".yaml")
-
+            _save_yaml(self.config, self.config_path)
+        if all([config.__class__.__name__ == "NoneType",
+           template.__class__.__name__ == "NoneType"]):
+            config_path = os.path.join(self.container.dirpath,
+                                       "pype_config_" + name + ".yaml")
+            self.config = _load_pype_config(config=config_path, template=None)
+            self.config_path = config_path
+            
         ## skip directories that already contain specified files
         if flag_skip == True:
             filepaths, duplicates = _file_walker(
@@ -1084,6 +1085,7 @@ class pype:
             return
         if (
             not hasattr(self, "config")
+            or self.config.__class__.__name__ == "NoneType"
         ):
             print("Pype error - no config file provided.")
             return

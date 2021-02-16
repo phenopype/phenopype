@@ -931,19 +931,9 @@ def _load_pype_config(config=None,
             config = config + ".yaml"
         if os.path.isfile(config):
             flag_load_existing_config = True
-        else:
-            if config in pype_config_templates:
-                q = input("Config {} does not exist, but can be loaded".format(config) + \
-                      " as a phenopype-template - proceed?")
-                if q in confirm_options:
-                    template = config
-                    flag_create_from_phenopype_template = True
-                else:
-                    print("Not loading template {} - aborting.".format(config))
-                    return
-            else:
-                print("No configuration file found under:\n{}".format(config))
-                return
+        else:    
+            print("No config file found at: {}".format(config))
+            return
     elif config.__class__.__name__ == "NoneType" and template.__class__.__name__ == "str":
         if not template.endswith(".yaml"):
             template = template + ".yaml"
@@ -960,20 +950,21 @@ def _load_pype_config(config=None,
     
     ## decision tree 2 - return
     if flag_load_existing_config:
-        config = _load_yaml(config)
-        if flag_verbose:
-            print("Loaded existing pype configuration from:\n{} ".format(config))
+        config_name = os.path.basename(config)
+        config_path = config
+        print("Succesfully loaded existing pype config ({}) from:\n{} ".format((config_name),(config_path)))
+        config = _load_yaml(config_path)
         return config
     if flag_create_from_phenopype_template:
         config_steps = _load_yaml(pype_config_templates[template])
         template_name = template
         template_path = pype_config_templates[template]
-        print("New pype configuration created from phenopype template ({})".format(template))
+        print("New pype configuration created ({}) from phenopype template:\n{}".format((template),(template_path)))
     if flag_create_from_user_template:
         config_loaded = _load_yaml(template)
         template_name = os.path.basename(template)
         template_path = template
-        print("New pype configuration created from custom user template:\n{}".format(template))
+        print("New pype configuration created ({}) from custom user template:\n{}".format((template),(template_path)))
         if config_loaded.__class__.__name__ in ["dict", 'CommentedMap']:
             if "info" in config_loaded:
                 config_loaded.pop('info', None)
