@@ -36,7 +36,6 @@ from phenopype.utils_lowlevel import (
     _del_rw,
     _file_walker,
     _load_pype_config,
-    _create_generic_pype_config,
 )
 from phenopype.utils_lowlevel import (
     _load_yaml,
@@ -423,60 +422,16 @@ class project:
         ## kwargs and setup
         flag_interactive = interactive
         flag_overwrite = overwrite
-        step_names = ["preprocessing", 
-                      "segmentation", 
-                      "measurement",  
-                      "visualization", 
-                      "export"]
         
         ## for package-testing
         test_params = kwargs.get("test_params", {})
         
         ## load config
-        if template.__class__.__name__ == "str":
-            if os.path.isfile(template):
-                template_name = os.path.basename(template)
-                template_path = template
-                user_config = _load_yaml(template)
-                print("Custom user config template loaded from \"{}\"".format(template))
-                if user_config.__class__.__name__ in ["dict", 'CommentedMap']:
-                    if "info" in user_config:
-                        user_config.pop('info', None)
-                        print("Removed existing \"info\" section")
-                    if "steps" in user_config:
-                        config_steps = user_config["steps"]
-                    else:
-                        print("Check for correct template structure")
-                        return
-                elif user_config.__class__.__name__ in ["list",'CommentedSeq'] and any(step in user_config[0] for step in step_names):
-                    config_steps = user_config
-            else:
-                if not template.endswith(".yaml"):
-                    template_name = template + ".yaml"
-                else:
-                    template_name = template
-                if template_name in pype_config_templates:
-                    config_steps = _load_yaml(pype_config_templates[template_name])
-                    template_path = pype_config_templates[template_name]
-                    print("Phenopype template {} loaded".format(template))
-                else:
-                    print("Template not found")
-                    return
-        elif template.__class__.__name__ == "NoneType":
-            print("No template provided")
+        config = _load_pype_config(config=None, template=template, name=name)
+        if config.__class__.__name__ == "NoneType":
             return
-                
-        ## create config-layout
-        config_info = {"config_name":name,
-         "template_name":template_name,
-         "template_path":template_path,
-         "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
-         "date_last_modified":None}
-        config = {"info":config_info,
-                  "steps":config_steps}
-
-
-        # interactive template modification
+        
+        ## interactive template modification
         if flag_interactive:
             while True:
                 if len(self.dirpaths)>0:
@@ -556,7 +511,6 @@ class project:
             else:
                 print("pype_" + name + ".yaml created for " + dirname)
                 _save_yaml(config, config_path)
-
 
 
     def add_reference(self, 
@@ -1017,13 +971,13 @@ class pype:
         image,
         name,
         config=None,
-        config_template=None,
+        template=None,
         dirpath=None,
         skip=False,
         feedback=True,
+        overwrite=True,
         delay=100,
         max_dim=1000,
-        overwite=True,
         **kwargs
     ):
 
@@ -1072,38 +1026,7 @@ class pype:
         else:
             print("Wrong input path or format - cannot run pype.")
             return
-        
-        ## load pype config
-        
-        ## 1. check if config path can be read from container-directory or 
-        ## from provided path
-        config_path = None
-        if config.__class__.__name__ == "NoneType":
-            config = os.path.join(self.container.dirpath, "pype_config_" + name + ".yaml")
-            if os.path.isfile(config):
-                config_path = config
-        elif config.__class__.__name__ == "str":
-            if os.path.isfile(config):
-                config_path = config
-                
-        ## 2. if config-path are still NoneType, check if config-template was provided
-        if config_path.__class__.__name__ == "NoneType" :
-            if not config_template.__class__.__name__ == "NoneType":
-                self.config = _load_pype_config(config=config_template,name=name)
-                self.config_path = os.path.join(self.container.dirpath, "pype_config_" + name + ".yaml")
-                _save_yaml(self.config_path)
-                print("Create pype configuration from phenopype template {}\n".format(config_template) +
-                      "Saving configuration file to {}".format(self.config_path))
-            else:
-                print("No config provided - cannot run pype.")
-                return
-        elif config_path.__class__.__name__ == "str":
-            self.config = _load_pype_config(config=config_path,name=name)
-            self.config_path = config_path
-            if flag_verbose:
-                print("Loaded pype config from {}".format(self.config_path))
-
-
+    
         ## manually supply dirpath to save files (overwrites container dirpath)
         if not dirpath.__class__.__name__ == "NoneType":
             if not os.path.isdir(dirpath):
@@ -1115,6 +1038,22 @@ class pype:
                     return
             self.container.dirpath = dirpath
 
+        ## load pype config
+        if all([config.__class__.__name__ == "NoneType",
+           template.__class__.__name__ == "NoneType"]):
+            config_path = os.path.join(self.container.dirpath,
+                                       "pype_config_" + name + ".yaml")
+            self.config = _load_pype_config(config=config_path, template=None)
+            self.config_path = config_path
+        if all([config.__class__.__name__ == "str",
+               template.__class__.__name__ == "NoneType"]):
+             self.config = _load_pype_config(config=config, template=None, name=name)
+             self.config_path = config           
+        if all([config.__class__.__name__ == "NoneType",
+               template.__class__.__name__ == "str"]):
+            self.config = _load_pype_config(config=None, template=template, name=name)
+            self.config_path = os.path.join(self.container.dirpath,
+                                       "pype_config_" + name + ".yaml")
 
         ## skip directories that already contain specified files
         if flag_skip == True:
@@ -1129,21 +1068,6 @@ class pype:
                     '\nFound existing result files containing "' + name + '" - skipped\n'
                 )
                 return
-
-        
-        ## open config file with system viewer
-        if flag_feedback and not flag_test_mode:
-            if platform.system() == "Darwin":  # macOS
-                subprocess.call(("open", self.config_path))
-            elif platform.system() == "Windows":  # Windows
-                os.startfile(self.config_path)
-            else:  # linux variants
-                subprocess.call(("xdg-open", self.config_path))
-
-        ## initialize
-        self.FM = _yaml_file_monitor(self.config_path, delay)
-        update, terminate, self.iv = {}, False, None
-        
         
         ## check components before starting pype to see if something went wrong
         if (
@@ -1158,6 +1082,25 @@ class pype:
         ):
             print("Pype error - no dirpath provided.")
             return
+        if (
+            not hasattr(self, "config")
+        ):
+            print("Pype error - no config file provided.")
+            return
+        
+        
+        ## open config file with system viewer
+        if flag_feedback and not flag_test_mode:
+            if platform.system() == "Darwin":  # macOS
+                subprocess.call(("open", self.config_path))
+            elif platform.system() == "Windows":  # Windows
+                os.startfile(self.config_path)
+            else:  # linux variants
+                subprocess.call(("xdg-open", self.config_path))
+
+        ## initialize
+        self.FM = _yaml_file_monitor(self.config_path, delay)
+        update, terminate, self.iv = {}, False, None
         
         # =============================================================================
         # pype
