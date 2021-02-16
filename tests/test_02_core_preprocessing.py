@@ -1,8 +1,5 @@
 #%% modules
 
-import os
-import pytest
-
 import phenopype as pp
 
 from .settings import flag_overwrite

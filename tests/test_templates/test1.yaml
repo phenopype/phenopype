@@ -1,0 +1,68 @@
+- preprocessing:
+    - create_mask:
+        tool: polygon
+- segmentation:
+    - threshold:
+        method: adaptive
+        blocksize: 149
+        constant: 5
+        channel: red
+    - morphology:
+        operation: close
+        shape: ellipse
+        kernel_size: 3
+        iterations: 3
+    - find_contours:
+        retrieval: ccomp
+        min_area: 150
+        min_nodes: 5
+        min_diameter: 10
+        approximation: simple
+- measurement:
+    - landmarks
+    - polylines
+    - skeletonize
+    - colour_intensity:
+        channels: [gray, rgb]
+        background: true
+- visualization:
+    - select_canvas:
+        canvas: image
+    - draw_contours:
+        line_width: 2
+        label_width: 1
+        label_size: 1
+        fill: 0.3
+        skeleton: true
+        bounding_box: true
+        mark_holes: True
+        label: true
+        label_colour: black
+    - draw_masks:
+        line_width: 4
+        line_colour: red
+    - draw_polylines:
+        line_colour: blue
+        line_width: 2
+    - draw_landmarks:
+        point_size: 15
+        point_colour: green
+        label_size: 2
+        label_width: 3
+- export:
+    - save_canvas:
+        resize: 0.5
+        save_suffix: v2
+    - save_colours:
+        save_suffix: v2
+        round_digits: 2
+    - save_contours:
+        save_suffix: v2
+        flag_subset: parent
+        flag_convert_coords: true
+    - save_landmarks:
+        save_suffix: v2
+    - save_masks:
+        save_suffix: v2
+    - save_polylines:
+        save_suffix: v2

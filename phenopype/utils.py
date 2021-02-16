@@ -683,7 +683,7 @@ def load_meta_data(image_path, show_fields=False, fields=default_meta_data_field
 
 
 
-def load_phenopype_directory(
+def load_directory(
     directory_path, cont=True, df=True, save_suffix=None, **kwargs
 ):
     """
@@ -746,10 +746,12 @@ def load_phenopype_directory(
         "width": image_phenopype["width"],
         "height": image_phenopype["height"],            
         }
-    if image_phenopype["resize"] == True:
-        df_image_dict.update({
-            "resize": image_phenopype["resize"], 
-            "resite_factor": image_phenopype["resize_factor"] })
+    
+    if "resize" in image_phenopype:
+        if image_phenopype["resize"] == True:
+            df_image_dict.update({
+                "resize": image_phenopype["resize"], 
+                "resite_factor": image_phenopype["resize_factor"] })
     df_image_data = pd.DataFrame(df_image_dict, index=[0])
     
     ## return

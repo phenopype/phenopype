@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import pickle
 import platform
+
 import pprint
 import subprocess
 import sys
@@ -29,7 +30,7 @@ from phenopype.settings import (
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
 from phenopype.core.preprocessing import resize_image
-from phenopype.utils import load_image, load_phenopype_directory, load_image_data, load_meta_data
+from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
 from phenopype.utils_lowlevel import (
     _image_viewer,
     _del_rw,
@@ -119,6 +120,10 @@ class project:
             self.root_dir = root_dir
             os.makedirs(self.root_dir)
             os.makedirs(os.path.join(self.root_dir,"data"))
+            
+            ## add empty directory lists
+            self.dirnames = []
+            self.dirpaths = []
 
             ## global project attributes
             project_info = {
@@ -378,8 +383,8 @@ class project:
         name,
         template=None,
         interactive=False,
+        interactive_image="first",
         overwrite=False,
-        idx=0,
         **kwargs
     ):
         """
@@ -404,7 +409,11 @@ class project:
             pp.show_config_template('ex1')  # prints the configuration for example 1
 
         interactive: bool, optional
-            start a pype and modify preset before saving it to phenopype directories
+            start a pype and modify template before saving it to phenopype directories
+        interactive_image: str, optional
+            to modify pype config in interactive mode, select image from list of images
+            (directory names) already included in the project. special flag "first" is 
+            default and takes first image in "data" folder. 
         overwrite: bool, optional
             overwrite option, if a given pype config-file already exist
         kwargs: 
@@ -419,6 +428,9 @@ class project:
                       "measurement",  
                       "visualization", 
                       "export"]
+        
+        ## for package-testing
+        test_params = kwargs.get("test_params", {})
         
         ## load config
         if template.__class__.__name__ == "str":
@@ -454,40 +466,70 @@ class project:
             print("No template provided")
             return
                 
+        ## create config-layout
         config_info = {"config_name":name,
          "template_name":template_name,
          "template_path":template_path,
          "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
          "date_last_modified":None}
-
-
         config = {"info":config_info,
                   "steps":config_steps}
 
-        ## interactive template modification
-        # if flag_interactive:
-        #     image_location = os.path.join(
-        #         self.root_dir,
-        #         "pype_template_image" + os.path.splitext(self.filenames[idx])[1],
-        #     )
-            
-        #     if os.path.isfile(self.filepaths[idx]):
-        #         template_origin = self.filepaths[idx]
-        #     else: 
-        #         template_origin = os.path.join(self.dirpaths[idx], "raw" + os.path.splitext(os.path.basename(self.filepaths[idx]))[1])
-             
-        #     copyfile(template_origin, image_location)
-        #     config_path = os.path.join(
-        #         self.root_dir, "pype_config_template-" + name + ".yaml"
-        #     )
-        #     _save_yaml(config, config_path)
-        #     p = pype(
-        #         image_location,
-        #         name="template-" + name,
-        #         config_path=config_path,
-        #         presetting=True,
-        #     )
-        #     config = p.config
+
+        # interactive template modification
+        if flag_interactive:
+            while True:
+                if len(self.dirpaths)>0:
+                    if interactive_image.__class__.__name__ == "str":
+                        if interactive_image == "first":    
+                            image_location = self.dirpaths[0]
+                            print_msg = "Entered interactive config mode using first image (" + \
+                                interactive_image + ")."
+                        elif interactive_image in self.dirnames:
+                            image_location = os.path.join(
+                                self.root_dir,
+                                "data",
+                                interactive_image,
+                            )
+                            print_msg = "Entered interactive config mode using " + interactive_image
+                        else:
+                            print_msg = "Could not enter interactive mode - did not find: " + interactive_image
+                            break
+                    elif interactive_image.__class__.__name__ == "int":
+                        image_location = self.dirpaths[interactive_image-1]
+                        print_msg = "Entered interactive config mode using index {}".format(interactive_image) + \
+                            " ({})".format(self.dirnames[interactive_image])
+                    else:
+                        print_msg = "Could not enter interactive mode - wrong input."
+                        break
+                else:
+                    print_msg = "Project contains no images - could not add config files in interactive mode."
+                    break
+                
+                if os.path.isdir(image_location):
+                    interactive_container = load_directory(image_location)
+                    interactive_container.dirpath = self.root_dir
+                else: 
+                    print_msg = "Could not enter interactive mode - invalid directory."
+
+                ## save under project root dir
+                config_path = os.path.join(
+                    self.root_dir, "pype_config_MOD_" + name + ".yaml"
+                )
+                _save_yaml(config, config_path)
+                
+                ## run pype 
+                p = pype(
+                    interactive_container,
+                    name=name,
+                    config=config_path,
+                    presetting=True,
+                    test_params=test_params,
+                )
+                config = p.config
+                break
+            print(print_msg)
+
 
         ## save config to each directory
         for dirname in self.dirnames:
@@ -555,9 +597,11 @@ class project:
                 reference_image = cv2.imread(reference_image_path)
                 print("Reference image loaded from " + reference_image_path)
             elif os.path.isdir(reference_image_path):
-                reference_image = cv2.imread(
+                reference_image = load_directory(
                    reference_image_path
                 )
+                reference_image = reference_image.image
+                print("Reference image loaded from phenopype dir: \"" + os.path.basename(reference_image_path) + "\"")
             else:
                 print("Wrong path - cannot load reference image")
                 return
@@ -565,8 +609,12 @@ class project:
             reference_image_path = "none (array-type)"
             pass
         elif reference_image.__class__.__name__ == "int":
-            reference_image_path = self.filepaths[reference_image]
-            reference_image = cv2.imread(reference_image_path)
+            reference_image_path = os.path.join(self.root_dir, "data", self.dirpaths[reference_image])
+            reference_image = load_directory(
+               reference_image_path
+            )
+            reference_image = reference_image.image
+            print("Reference image loaded from phenopype dir: \"" +  os.path.basename(reference_image_path) + "\"")
         else:
             print("Cannot load reference image - check input")
             return
@@ -582,8 +630,8 @@ class project:
             reference_path = os.path.join(self.root_dir, reference_name)
             
             if os.path.isfile(reference_path) and flag_overwrite == False:
-                print_save_msg = "Reference image not saved, file already exists\
-                 - use \"overwrite==True\" or chose different name."
+                print_save_msg = "Reference image not saved, file already exists " + \
+                 "- use \"overwrite==True\" or chose different name."
                 break
             elif os.path.isfile(reference_path) and flag_overwrite == True:
                 print_save_msg = "Reference image saved under " + reference_path + " (overwritten)."
@@ -635,12 +683,14 @@ class project:
             
             ## load project attributes and temporarily drop project data list to 
             ## be reattched later, so it is always at then end of the file
+            reference_list = []
             project_attributes = _load_yaml(os.path.join(self.root_dir, "attributes.yaml"))
             if "project_data" in project_attributes:
                 project_data = project_attributes["project_data"]
                 project_attributes.pop('project_data', None)
             if "reference" in project_attributes:
                 reference_list = project_attributes["reference"]
+
 
             reference_count = 0
             for idx,item in enumerate(reference_list):            
@@ -655,7 +705,6 @@ class project:
             
             project_attributes["reference"] = reference_list
             project_attributes["project_data"] = project_data
-            
 
             ## save all after successful completion of all method-steps 
             cv2.imwrite(reference_path, reference_image)
@@ -716,7 +765,7 @@ class project:
 
         ## search
         found, duplicates = _file_walker(
-            self.data_dir,
+            os.path.join(self.root_dir,"data"),
             recursive=True,
             include=search_strings,
             exclude=["pype_config"],
@@ -764,18 +813,26 @@ class project:
     ):
         """
         Add or edit functions in all configuration files of a project. Finds and
-        replaces single or multiline string-patterns 
+        replaces single or multiline string-patterns. Ideally this is done via 
+        python docstrings that represent the parts of the yaml file to be replaced, 
+        for example:
         
-
+        target = \
+        \"\"\"- threshold:
+                method: adaptive\"\"\"
+        replacement = 
+        \"\"\"- threshold:
+                method: otsu\"\"\"
+                
         Parameters
         ----------
 
         name: str
             name (suffix) of config-file (e.g. "v1" in "pype_config_v1.yaml")
         target: str
-            string pattern to be replaced. should be multiline to be exact
+            string pattern to be replaced. should be in triple-quotes to be exact
         replacement: str
-            string pattern for replacement. should be multiline to be exact
+            string pattern for replacement. should be in triple-quotes to be exact
         """
         
         ## setup
@@ -797,7 +854,9 @@ class project:
             if os.path.isfile(config_path):
                 with open(config_path, "r") as config_text:
                     config_string = config_text.read()
-            
+            else:
+                print("Did not find config file to edit - check provided name/suffix.")
+                return
             ## string replacement
             new_config_string = config_string.replace(target, replacement)
             
@@ -893,7 +952,7 @@ class project:
             
             print("--------------------------------------------")
             print("Project loaded from \n" + proj.root_dir)
-            print("\ntogether with {} project image files".format(len(proj.dirpaths)))
+            print("\nProject has {} image folders".format(len(proj.dirpaths)))
             print("--------------------------------------------")
             
             return proj
@@ -932,11 +991,11 @@ class pype:
         source image file or path to a valid phenopype directory
     name: str
         name of pype-config - will be appended to all results files
-    config_preset: str, optional
+    config_template: str, optional
         chose from list of provided templates  
         (e.g. ex1, ex2, ...)
     config_path: str, optional
-        custom path to a pype template (needs to adhere to yaml syntax and 
+        custom path to a pype template (needs to adhere yaml syntax and 
         phenopype structure)
     delay: int, optional
         time in ms to add between reload attemps of yaml monitor. increase this 
@@ -978,8 +1037,8 @@ class pype:
         flag_overwrite = kwargs.get("overwrite", True) 
         
         ## mode for package tests
-        test_params = kwargs.get("test_params", None)
-        if test_params.__class__.__name__ == "dict":
+        test_params = kwargs.get("test_params", {})
+        if len(test_params)>0:
             flag_test_mode = True
         else:
             flag_test_mode = False
@@ -1003,11 +1062,13 @@ class pype:
                 self.container = load_image(image, cont=True)
                 self.container.save_suffix = name
             elif os.path.isdir(image):
-                self.container = load_phenopype_directory(image, cont=True) 
+                self.container = load_directory(image, cont=True) 
                 self.container.save_suffix = name
             else:
                 print("Invalid path - cannot run pype.")
                 return
+        elif image.__class__.__name__ == "container":
+            self.container = image
         else:
             print("Wrong input path or format - cannot run pype.")
             return
@@ -1159,7 +1220,7 @@ class pype:
                         
                     ## activate silent mode for interactive functions 
                     ## if feedback is deactivated
-                    if not flag_feedback:
+                    if not flag_feedback or flag_test_mode:
                         if method_name in ["create_mask"]:
                             continue
                         elif method_name == "draw":

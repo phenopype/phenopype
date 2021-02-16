@@ -191,6 +191,7 @@ class _image_viewer:
         if window_control == "internal":
             if self.flag_test_mode == True:
                 self.done = True
+                self.finished = True
                 cv2.waitKey(self.wait_time)
                 cv2.destroyAllWindows()
             elif self.flag_test_mode == False:
@@ -990,44 +991,48 @@ def _load_pype_config2(obj_input, **kwargs):
         
         
 
-def _load_pype_config(config, name, **kwargs):
+def _load_pype_config(config, **kwargs):
 
     ## kwargs and setup
     flag_rebuild_info = False    
     flag_rebuild_steps = False    
 
-    # ## load config
-    # if os.path.isfile(config):
-    #     config_temp = _load_yaml(config)
-    #     if user_config.__class__.__name__ in ["dict", 'CommentedMap']:
-    #         if not "info" in user_config:
-    #             print("WARNING - \"info\" section missing from pype configuration - rebuilding.")
-    #             flag_rebuild_info = True              
-    #         if not "steps" in user_config:
-    #             print("WARNING - \"steps\" section missing from pype configuration - rebuilding.")
-    #             flag_rebuild_steps = True
-    #     elif user_config.__class__.__name__ in ["list",'CommentedSeq'] and any(step in user_config[0] for step in step_names):
-    #         print("WARNING - incorrect structure for pype configuration - attempting to rebuild.")
-    #         config_steps = user_config
-            
-    # else:
-    #     if not template.endswith(".yaml"):
-    #         template_name = template + ".yaml"
-    #     else:
-    #         template_name = template
-    #     if template_name in pype_config_templates:
-    #         config_steps = _load_yaml(pype_config_templates[template_name])
-    #         template_path = pype_config_templates[template_name]
-    #         print("Phenopype template {} loaded".format(template))
-    #     else:
-    #         print("Template not found")
-    #         return
+    ## load config
+    if config.__class__.__name__ == "str"
+        if os.path.isfile(config):
+            config_temp = _load_yaml(config)
+            if user_config.__class__.__name__ in ["dict", 'CommentedMap']:
+                if not "info" in user_config:
+                    print("WARNING - \"info\" section missing from pype configuration - rebuilding.")
+                    flag_rebuild_info = True              
+                if not "steps" in user_config:
+                    print("WARNING - \"steps\" section missing from pype configuration - rebuilding.")
+                    flag_rebuild_steps = True
+            elif user_config.__class__.__name__ in ["list",'CommentedSeq'] and any(step in user_config[0] for step in step_names):
+                print("WARNING - incorrect structure for pype configuration - attempting to rebuild.")
+                config_steps = user_config
+                
+                
+                
+                
+        else:
+            if not template.endswith(".yaml"):
+                template_name = template + ".yaml"
+            else:
+                template_name = template
+            if template_name in pype_config_templates:
+                config_steps = _load_yaml(pype_config_templates[template_name])
+                template_path = pype_config_templates[template_name]
+                print("Phenopype template {} loaded".format(template))
+            else:
+                print("Template not found")
+                return
 
-    #     config_info = {"config_name":name,
-    #     "template_name":template_name,
-    #     "template_path":None,
-    #     "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
-    #     "date_last_modified":None}
+        config_info = {"config_name":name,
+        "template_name":template_name,
+        "template_path":None,
+        "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
+        "date_last_modified":None}
 
 
     # if os.path.isfile(config):
@@ -1043,20 +1048,13 @@ def _load_pype_config(config, name, **kwargs):
     #     config_steps = _load_yaml(pype_config_templates[template_name])
     #     print("SHOWING BUILTIN PHENOPYPE TEMPLATE " + template_name + "\n\n")
     #     _show_yaml(config_steps)
-            
-            
 
-
-            
                 
     # if template_name in pype_config_templates:
     #     config_path = pype_config_templates[template_name]
     #     self.config = _load_yaml(config_path)
             
-            
-            
-            
-            
+
 
         # ## load config from container directory or directly from path
         # config_path = None

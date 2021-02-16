@@ -19,7 +19,7 @@
         iterations: 3
     - watershed:
         distance_cutoff: 0.8
-     - draw:
+    - draw:
         line_colour: black # "black" connects, "white" separates 
     - find_contours:
         retrieval: ccomp

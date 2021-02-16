@@ -1,9 +1,6 @@
 #%% modules
 import mock
-import os
-import pytest
 import phenopype as pp
-import shutil
 
 from .settings import image_save_dir, wait_time
 

@@ -4,7 +4,7 @@ import pytest
 import shutil    
 import phenopype as pp
 
-from .settings import root_dir2, video_path, image_dir, image_save_dir, image_filepath, pype_name, preset, stickle_image, flag_overwrite
+from .settings import root_dir2, video_path, image_dir, image_save_dir, image_filepath, pype_name, template_test1, flag_overwrite
 
 #%% project
 
@@ -16,7 +16,7 @@ def project_container():
     proj.add_files(image_dir=image_dir, 
                       raw_mode="copy", 
                       include="stickle")
-    proj.add_config(name=pype_name, config_preset=preset)
+    proj.add_config(name=pype_name, template=template_test1)
     pp.project.save(proj)
     proj = pp.project.load(root_dir2)
     obj_input = pp.load_directory(proj.dirpaths[0], save_suffix=pype_name)

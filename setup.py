@@ -1,30 +1,21 @@
 from setuptools import setup
 import re
 
+## read and format version from file
 VERSIONFILE="phenopype/_version.py"
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)
-
 if mo:
     verstr = mo.group(1)
 else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
-test_deps = ["pytest", 
-             "coverage", 
-             "coveralls", 
-             # "pyyaml",
-             "mock",
-             "pytest-xvfb",
-             "pytest-cov"]
-
-extras = {'test': test_deps}
-
 ## readme encoding
 with open('README.md', encoding='utf-8') as readme:
     long_description = readme.read()
 
+## setup
 setup(
 	name='phenopype',
 	url='https://github.com/mluerig/phenopype',
@@ -41,14 +32,20 @@ setup(
         "pyradiomics==3.0.1",
         "ruamel.yaml==0.16.12",
         "tqdm",
-        "watchdog==0.10.4"
+        "watchdog==2.0.0"
     ],
 	version=verstr,
 	license='LGPL',
 	description='a phenotyping pipeline for python',
 	long_description=long_description, 
 	long_description_content_type='text/markdown',
-    tests_require=test_deps,
-    extras_require=extras,
+    extras_require={'test_pks': [
+            "pytest", 
+             "coverage", 
+             "coveralls", 
+             # "pyyaml",
+             "mock",
+             "pytest-xvfb",
+             "pytest-cov"]},
 	setup_requires=["pytest-runner"]
 )

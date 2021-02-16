@@ -2,7 +2,6 @@
 
 import copy
 import numpy as np
-import pytest
 
 import phenopype as pp
 
@@ -23,8 +22,8 @@ def test_threshold(project_container):
 def test_morphology(project_container):
     pp.segmentation.morphology(project_container, operation="close", 
                                 shape="ellipse", kernel_size=3, iterations=2)
-    assert not (project_container.image_bin==project_container.image).all()
-    
+    assert not np.any(np.not_equal(project_container.image_bin, project_container.image))
+        
 def test_watershed(project_container):
     image = copy.deepcopy(project_container.image_copy)
     thresh = copy.deepcopy(project_container.image)
