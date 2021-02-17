@@ -10,7 +10,7 @@ from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-from phenopype.settings import colours, default_pype_config_name, default_pype_config, confirm_options, pype_config_templates
+from phenopype.settings import colours, confirm_options, pype_config_templates
 from phenopype.settings import flag_verbose
 
 ## capture yaml output - temp
@@ -885,32 +885,6 @@ def _file_walker(
     return unique, duplicate
 
 
-def _equalize_histogram(image, detected_rect_mask, template):
-    """Histogram equalization via interpolation, upscales the results from the detected reference card to the entire image.
-    May become a standalone function at some point in the future. THIS STRONGLY DEPENDS ON THE QUALITY OF YOUR TEMPLATE.
-    Mostly inspired by this SO question: https://stackoverflow.com/questions/32655686/histogram-matching-of-two-images-in-python-2-x
-    More theory here: https://docs.opencv.org/master/d4/d1b/tutorial_histogram_equalization.html
-    """
-    detected_ravel = detected_rect_mask.ravel()
-    template_ravel = template.ravel()
-
-    detected_counts = np.bincount(detected_ravel, minlength=256)
-    detected_quantiles = np.cumsum(detected_counts).astype(np.float64)
-    detected_quantiles /= detected_quantiles[-1]
-
-    template_values = np.arange(0, 256, 1, dtype=np.uint8)
-    template_counts = np.bincount(template_ravel, minlength=256)
-    template_quantiles = np.cumsum(template_counts).astype(np.float64)
-    template_quantiles /= template_quantiles[-1]
-
-    interp_template_values = np.interp(
-        detected_quantiles, template_quantiles, template_values
-    )
-    interp_template_values = interp_template_values.astype(image.dtype)
-
-    return interp_template_values[image]
-
-
 def _load_pype_config(config=None, 
                       template=None,
                       name=None):
@@ -957,20 +931,22 @@ def _load_pype_config(config=None,
         return config
     if flag_create_from_phenopype_template:
         config_steps = _load_yaml(pype_config_templates[template])
+        config_path = "NA"
         template_name = template
         template_path = pype_config_templates[template]
         print("New pype configuration created ({}) from phenopype template:\n{}".format((template),(template_path)))
     if flag_create_from_user_template:
         config_loaded = _load_yaml(template)
+        config_path = "NA"
         template_name = os.path.basename(template)
         template_path = template
         print("New pype configuration created ({}) from custom user template:\n{}".format((template),(template_path)))
         if config_loaded.__class__.__name__ in ["dict", 'CommentedMap']:
-            if "info" in config_loaded:
-                config_loaded.pop('info', None)
-                print("Removed existing \"info\" section")
-            if "steps" in config_loaded:
-                config_steps = config_loaded["steps"]
+            if "config_info" in config_loaded:
+                config_loaded.pop('config_info', None)
+                print("Removed existing \"config_info\" section")
+            if "processing_steps" in config_loaded:
+                config_steps = config_loaded["processing_steps"]
             else:
                 print("Broken template - check for correct template structure")
                 return
@@ -979,14 +955,17 @@ def _load_pype_config(config=None,
             
     ## create config-layout
     if name.__class__.__name__ == "NoneType":
-        name = "NA"
-    config_info = {"config_name":name,
+        config_name = "NA"
+    elif name.__class__.__name__ == "str":
+        config_name = "pype_config_" + name + ".yaml"
+    config_info = {"config_name":config_name,
+                   "config_path": config_path,
                    "template_name":template_name,
                    "template_path":template_path,
                    "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
                    "date_last_modified":None}
-    config = {"info":config_info,
-              "steps":config_steps}
+    config = {"config_info":config_info,
+              "processing_steps":config_steps}
             
     ## return
     return config

@@ -340,12 +340,6 @@ def draw_contours(
                 else:
                     print("wrong compare suffix")
             break
-    else:
-        print("compare only works with the pype class")
-        
-
-
-
 
     # df_contours= df_contours.drop("skeleton_coords", axis=1)
 

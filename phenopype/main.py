@@ -197,15 +197,15 @@ class project:
             named files exist in different subfolders (folder structure will be 
             collapsed and goes into the filename), whereas filename will ignore 
             all similar named files after their first occurrence.
-        mode: {"copy", "save", "link"} str, optional
+        mode: {"copy", "mod", "link"} str, optional
             how should the raw files be passed on to the phenopype directory tree: 
-            "copy" will make a copy of the original file, "replica" will store a 
+            "copy" will make a copy of the original file, "mod" will store a 
             .tif version of the orginal image that can be resized, and "link" 
             will only store the link to the original file location to attributes, 
             but not copy the actual file (useful for big files, but the orginal 
             location needs always to be available)
         extension: {".tif", ".bmp", ".jpg", ".png"}, str, optional
-            file extension for "replica" mode
+            file extension for "mod" mode
         resize_factor: float, optional
             
         kwargs: 
@@ -218,9 +218,9 @@ class project:
         flag_resize = False
         if resize_factor < 1:
             flag_resize = True
-            if not mode=="replica":
-                flag_mode = "replica"
-                print("Resize factor <1 or >1 - switched to \"replica\" mode")
+            if not mode=="mod":
+                flag_mode = "mod"
+                print("Resize factor <1 or >1 - switched to \"mod\" mode")
         
         ## path conversion
         image_dir = image_dir.replace(os.sep, "/")
@@ -328,7 +328,7 @@ class project:
                 )
                 copyfile(filepath, image_phenopype_path)
                 image_data_phenopype.update(load_image_data(image_phenopype_path, path_and_type=False))
-            elif flag_mode == "replica":
+            elif flag_mode == "mod":
                 if resize_factor < 1:
                     image = resize_image(image, resize_factor)
                 if not "." in extension:
@@ -337,7 +337,7 @@ class project:
                     self.root_dir,
                     "data",
                     dirname,
-                    "replica_" + image_basename + extension,
+                    "mod_" + image_basename + extension,
                 )
                 cv2.imwrite(image_phenopype_path, image)
                 image_data_phenopype.update({
@@ -507,18 +507,21 @@ class project:
                 continue
             elif os.path.isfile(config_path) and flag_overwrite == True:
                 print("pype_" + name + ".yaml created for " + dirname + " (overwritten)")
+                config["config_info"]["config_path"] = config_path
                 _save_yaml(config, config_path)
             else:
                 print("pype_" + name + ".yaml created for " + dirname)
+                config["config_info"]["config_path"] = config_path
                 _save_yaml(config, config_path)
 
 
     def add_reference(self, 
-                  name,
-                  reference_image, 
-                  template=False,
-                  overwrite=False, 
-                  **kwargs):
+                      name,
+                      reference_image, 
+                      activate=True,
+                      template=False,
+                      overwrite=False,
+                      **kwargs):
         """
         Add pype configuration presets to all project directories. 
 
@@ -529,6 +532,11 @@ class project:
             name of template image, either project directory or file link. template 
             image gets stored in root directory, and information appended to all 
             attributes files in the project directories
+        activate: bool, optional
+            writes the setting for the currently active reference to the attributes 
+            files of all directories within the project. can be used in conjunction
+            with overwrite=False so that the actual reference remains unchanced. this
+            setting useful when managing multiple references per project
         overwrite: bool, optional
             overwrite option, if a given pype config-file already exist
         template: bool, optional
@@ -540,6 +548,7 @@ class project:
         ## kwargs and setup
         flag_overwrite = overwrite
         flag_template = template
+        flag_activate = activate
         test_params = kwargs.get("test_params", {})
         print_save_msg = "== no msg =="
 
@@ -666,15 +675,42 @@ class project:
                 cv2.imwrite(template_path, template)
     
             _save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
-            print_save_msg = print_save_msg + "\nSaved reference info to project attributes." 
-        
+            print_save_msg = print_save_msg + "\nSaved reference info to project attributes."
             break
+                
+        print(print_save_msg)
         
         # =============================================================================
         # METHOD END
         # =============================================================================
         
-        print(print_save_msg)
+        ## save scale information
+        for dirname, dirpath in zip(self.dirnames, self.dirpaths):
+            attr = _load_yaml(os.path.join(dirpath, "attributes.yaml"))
+            if not "project_variables" in attr:
+                attr["project_variables"] = {}
+            if not "reference" in attr["project_variables"]:
+                print("added reference information to " + dirname)
+                pass
+            elif "reference" in attr["project_variables"] and flag_overwrite:
+                print(
+                    "added reference information to " + dirname + " (overwritten)"
+                )
+                pass
+            elif "reference" in attr["project_variables"] and not flag_overwrite:
+                if flag_activate==False:
+                    print(
+                        "could not add reference information to " + dirname + " (overwrite=False/active=False)"
+                    )
+                    continue
+                elif flag_activate==True:
+                    print(
+                        "setting active reference to \"" + name + "\" in " + dirname + " (active=True)"
+                    )
+                    pass
+                
+            attr["project_variables"]["reference"] = name
+            _save_yaml(attr, os.path.join(dirpath, "attributes.yaml"))
 
 
     def collect_results(self, name, files=None, folder="results", overwrite=False):
@@ -769,14 +805,14 @@ class project:
         Add or edit functions in all configuration files of a project. Finds and
         replaces single or multiline string-patterns. Ideally this is done via 
         python docstrings that represent the parts of the yaml file to be replaced, 
-        for example:
+        for example (with ' as "):
         
         target = \
-        \"\"\"- threshold:
-                method: adaptive\"\"\"
+        '''- threshold:
+                method: adaptive'''
         replacement = 
-        \"\"\"- threshold:
-                method: otsu\"\"\"
+        '''- threshold:
+                method: otsu'''
                 
         Parameters
         ----------
@@ -1057,6 +1093,7 @@ class pype:
                           "To load an existing file, use \"config\" instead of \"template\".")
                 if q in confirm_options:
                     self.config = _load_pype_config(config=None, template=template, name=name)
+                    self.config["config_info"]["config_path"] = self.config_path
                     _save_yaml(self.config, self.config_path)
                 else: 
                     self.config = _load_pype_config(config=self.config_path, template=None)     
@@ -1143,7 +1180,7 @@ class pype:
             export_list, show_list = [], []
 
             ## apply pype: loop through steps and contained methods
-            step_list = self.config["steps"]
+            step_list = self.config["processing_steps"]
             
             for step in step_list:
                 
