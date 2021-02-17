@@ -1025,7 +1025,7 @@ def _show_yaml(odict, ret=False, typ="rt"):
 def _save_yaml(dictionary, filepath, typ="rt"):
     
     yaml = YAML(typ=typ)      
-        
+    
     with open(filepath, "w") as out:
         yaml.dump(dictionary, out)
 

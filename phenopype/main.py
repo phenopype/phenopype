@@ -1038,19 +1038,32 @@ class pype:
                     return
             self.container.dirpath = dirpath
 
-        ## load pype config
+        ## load pype config (three contexts):
+        ## 1) load from existing file
         if all([config.__class__.__name__ == "str",
-               template.__class__.__name__ == "NoneType"]):
+                template.__class__.__name__ == "NoneType"]):
              self.config = _load_pype_config(config=config, template=None, name=name)
-             self.config_path = config           
+             self.config_path = config       
+             
+        ## 2) create new from template or, if already exists, load from file
         if all([config.__class__.__name__ == "NoneType",
-               template.__class__.__name__ == "str"]):
-            self.config = _load_pype_config(config=None, template=template, name=name)
+                template.__class__.__name__ == "str"]):
             self.config_path = os.path.join(self.container.dirpath,
                                        "pype_config_" + name + ".yaml")
-            _save_yaml(self.config, self.config_path)
+            if os.path.isfile(self.config_path):
+                q = input("pype_config_" + name + ".yaml already exists - overwrite?\n" + \
+                          "y: yes, file will be overwritten and loaded\n" + 
+                          "n: no, existing file will be loaded instead\n" + \
+                          "To load an existing file, use \"config\" instead of \"template\".")
+                if q in confirm_options:
+                    self.config = _load_pype_config(config=None, template=template, name=name)
+                    _save_yaml(self.config, self.config_path)
+                else: 
+                    self.config = _load_pype_config(config=self.config_path, template=None)     
+                    
+        ## 3) check if config file exists in directory (for project directory)
         if all([config.__class__.__name__ == "NoneType",
-           template.__class__.__name__ == "NoneType"]):
+                template.__class__.__name__ == "NoneType"]):
             config_path = os.path.join(self.container.dirpath,
                                        "pype_config_" + name + ".yaml")
             self.config = _load_pype_config(config=config_path, template=None)
