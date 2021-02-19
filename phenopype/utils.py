@@ -3,6 +3,8 @@ import ast, cv2, copy, os, sys, warnings
 import numpy as np
 import glob
 import pandas as pd
+from pathlib import Path
+
 
 from pprint import PrettyPrinter
 from PIL import Image, ExifTags
@@ -67,6 +69,7 @@ class container(object):
         ## attributes
         self.dirpath = dirpath
         self.save_suffix = save_suffix
+        self.reference_manual_mode = False
 
     def load(self, dirpath=None, save_suffix=None, contours=False, canvas=False, **kwargs):
         """
@@ -141,32 +144,45 @@ class container(object):
                         + " from attributes.yaml"
                     )
 
-            ## scale
-            if not hasattr(self, "scale_template_px_mm_ratio"):
-                attr = _load_yaml(attr_path)
-                if "scale" in attr:
-                    if "template_px_mm_ratio" in attr["scale"]:
-                        self.scale_template_px_mm_ratio = attr["scale"][
-                            "template_px_mm_ratio"
-                        ]
-                        loaded.append(
-                            "template scale information loaded from attributes.yaml"
-                        )
-                    if "current_px_mm_ratio" in attr["scale"]:
-                        self.scale_current_px_mm_ratio = attr["scale"][
-                            "current_px_mm_ratio"
-                        ]
-                        loaded.append(
-                            "current scale information loaded from attributes.yaml"
-                        )
-                    if "template_path" in attr["scale"]:
-                        if os.path.isfile(attr["scale"]["template_path"]):
-                            self.scale_template = cv2.imread(
-                                attr["scale"]["template_path"]
-                            )
-                            loaded.append("template loaded from root directory")
-                        else:
-                            print("cannot read template image")
+            ## reference
+            if not any([hasattr(self, "reference_template_px_mm_ratio"),
+                        hasattr(self, "reference_template_px_mm_ratio")]):
+                
+                ## load local (image specific) and global (project level) attributes 
+                attr_local = _load_yaml(attr_path)
+                attr_proj_path =  os.path.abspath(os.path.join(attr_path ,r"../../../","attributes.yaml"))
+                attr_proj = _load_yaml(attr_proj_path)
+
+                if "reference" in attr_local:
+                    
+                    ## manually measured px-mm-ratio
+                    if "manually_measured_px_mm_ratio" in attr_local["reference"]:
+                        self.reference_manually_measured_px_mm_ratio = attr_local["reference"]["manually_measured_px_mm_ratio"]
+                        loaded.append("manually measured local reference information loaded")
+                        
+                    ## find active project level references
+                    if "project_level" in attr_local["reference"]:
+                        n_active = 0
+                        for key, value in attr_local["reference"]["project_level"].items():
+                            if attr_local["reference"]["project_level"][key]["active"] == True:
+                                active_ref = key
+                                n_active += 1
+                        if n_active > 1:
+                            print("WARNING: multiple active reference detected - fix with running add_reference again.")                            
+                        self.reference_active = active_ref
+                        self.reference_template_px_mm_ratio = attr_proj["reference"][active_ref]["template_px_mm_ratio"]
+                        loaded.append("project level reference information loaded for " + active_ref)
+                    
+                    ## load previously detect px-mm-ratio
+                    if "detected_px_mm_ratio" in attr_local["reference"]["project_level"]:
+                        self.reference_detected_px_mm_ratio = attr_local["reference"]["project_level"]["detected_px_mm_ratio"]
+                        loaded.append("detected local reference information loaded for " + active_ref)
+                        
+                    ## load tempate image from project level attributes
+                    if "template_image" in attr_proj["reference"][active_ref]:
+                        self.reference_template_image = cv2.imread(os.path.join(attr_path ,r"../../..", attr_proj["reference"][active_ref]["template_image"]))
+                        loaded.append("reference template image loaded from root directory")
+
 
         ## canvas
         if self.canvas.__class__.__name__ == "NoneType" and canvas == True:
@@ -243,6 +259,7 @@ class container(object):
 
         ## attributes
         self.df_image_data = copy.deepcopy(self.df_image_data_copy)
+        self.reference_manual_mode = False
 
         # if hasattr(self, "df_masks"):
         #     del(self.df_masks)
@@ -329,9 +346,9 @@ class container(object):
             save_drawings(self, dirpath=dirpath, overwrite=True)
 
         ## scale
-        if hasattr(self, "scale_current_px_mm_ratio") and not "save_scale" in export_list:
+        if hasattr(self, "reference_detected_px_mm_ratio") and not "save_scale" in export_list:
             print("save_scale")
-            save_scale(self, dirpath=dirpath, overwrite=True)
+            save_scale(self, dirpath=dirpath, overwrite=True, active_ref=self.reference_active)
             
         ## shapes
         if hasattr(self, "df_shapes") and not "save_shapes" in export_list:

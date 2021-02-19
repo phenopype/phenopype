@@ -726,7 +726,7 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         break
 
 
-def save_scale(obj_input, overwrite=True, dirpath=None):
+def save_scale(obj_input, overwrite=True, dirpath=None, active_ref=None):
     """
     Save a created or detected scale to attributes.yaml
     
@@ -742,13 +742,16 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
 
     ## kwargs
     flag_overwrite = overwrite
-
+    
     ## load df
     if obj_input.__class__.__name__ in ["int", "float"]:
-        scale_current_px_mm_ratio = obj_input
+        px_mm_ratio = obj_input
     elif obj_input.__class__.__name__ == "container":
-        if hasattr(obj_input, "scale_current_px_mm_ratio"):
-            scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
+        if hasattr(obj_input, "reference_detected_px_mm_ratio"):
+            px_mm_ratio = obj_input.reference_detected_px_mm_ratio
+        if hasattr(obj_input, "reference_manually_measured_px_mm_ratio") and obj_input.reference_manual_mode==True:
+            px_mm_ratio = obj_input.reference_manually_measured_px_mm_ratio
+            active_ref = None
         if (
             dirpath.__class__.__name__ == "NoneType"
             and not obj_input.dirpath.__class__.__name__ == "NoneType"
@@ -771,29 +774,45 @@ def save_scale(obj_input, overwrite=True, dirpath=None):
                 print("Directory not created - aborting")
                 return
 
-    ## load attributes file
+    ## load attributes file        
     attr_path = os.path.join(dirpath, "attributes.yaml")
     if os.path.isfile(attr_path):
         attr = _load_yaml(attr_path)
-    else:
-        attr = {}
-    if not "scale" in attr:
-        attr["scale"] = {}
+        if not "reference" in attr:
+            attr["reference"] = {}      
+        if not "project_level" in attr["reference"]:
+            attr["reference"]["project_level"] = {}     
 
+    print(active_ref)
     ## check if file exists
-    while True:
-        if "current_px_mm_ratio" in attr["scale"] and flag_overwrite == False:
-            print("- scale not saved (overwrite=False)")
+    if not active_ref.__class__.__name__ == "NoneType":
+        while True:
+            if "detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and flag_overwrite == False:
+                print("- scale not saved (overwrite=False)")
+                break
+            elif "detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and flag_overwrite == True:
+                print("- save scale to attributes (overwriting)")
+                pass
+            else:
+                print("- save scale to attributes")
+                pass
+            attr["reference"]["project_level"][active_ref]["detected_px_mm_ratio"] = px_mm_ratio
             break
-        elif "current_px_mm_ratio" in attr["scale"] and flag_overwrite == True:
-            print("- save scale to attributes (overwriting)")
-            pass
-        else:
-            print("- save scale to attributes")
-            pass
-        attr["scale"]["current_px_mm_ratio"] = scale_current_px_mm_ratio
-        break
-    _save_yaml(attr, attr_path)
+        _save_yaml(attr, attr_path)
+    else: 
+        while True:
+            if "manually_measured_px_mm_ratio" in attr["reference"] and flag_overwrite == False:
+                print("- scale not saved (overwrite=False)")
+                break
+            elif "manually_measured_px_mm_ratio" in attr["reference"] and flag_overwrite == True:
+                print("- save scale to attributes (overwriting)")
+                pass
+            else:
+                print("- save scale to attributes")
+                pass
+            attr["reference"]["manually_measured_px_mm_ratio"] = px_mm_ratio
+            break
+        _save_yaml(attr, attr_path)        
 
 
 def save_textures(

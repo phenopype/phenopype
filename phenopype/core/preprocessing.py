@@ -8,7 +8,7 @@ import numpy.ma as ma
 
 from phenopype.settings import colours
 from phenopype.utils import load_image_data
-from phenopype.utils_lowlevel import _image_viewer, _equalize_histogram, _contours_arr_tup
+from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, _equalize_histogram
 from phenopype.utils_lowlevel import _auto_text_size, _auto_text_width
 
 #%% functions
@@ -255,8 +255,8 @@ def create_scale(
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "scale_current_px_mm_ratio"):
-            px_mm_ratio = copy.deepcopy(obj_input.scale_current_px_mm_ratio)
+        if hasattr(obj_input, "reference_template_px_mm_ratio"):
+            px_mm_ratio = copy.deepcopy(obj_input.reference_template_px_mm_ratio)
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
     else:
@@ -266,7 +266,7 @@ def create_scale(
     ## check if exists
     while True:
         if not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
-            print("- scale pixel-to-mm-ratio already measured (overwrite=False)")
+            print("- pixel-to-mm-ratio already measured (overwrite=False)")
             break
         elif not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
             print("- measure pixel-to-mm-ratio (overwritten)")
@@ -358,8 +358,8 @@ def create_scale(
             else:
                 return px_mm_ratio
     elif obj_input.__class__.__name__ == "container":
-        obj_input.scale_current_px_mm_ratio = px_mm_ratio
-        obj_input.scale_template_px_mm_ratio = px_mm_ratio
+        obj_input.reference_manually_measured_px_mm_ratio = px_mm_ratio
+        obj_input.reference_manual_mode = True
         obj_input.df_image_data = df_image_data
         obj_input.df_masks = df_masks
         obj_input.scale_template = template
@@ -566,13 +566,13 @@ def find_scale(
         images with diameter > 5000px (WARNING: too low values may 
         result in poor detection performance or even crashes)
     overwrite : bool, optional
-        overwrite existing scale_current_px_mm_ratio in container
+        overwrite existing reference_detected_px_mm_ratio in container
     px_mm_ratio_ref : int, optional
         pixel-to-mm-ratio of the template image
 
     Returns
     -------
-    scale_current_px_mm_ratio: int or container
+    reference_detected_px_mm_ratio: int or container
         pixel to mm ratio of current image
     image: array or container
         if scale contains colour information, this is the corrected image
@@ -592,17 +592,17 @@ def find_scale(
             df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
         else:
             if "template_px_mm_ratio" in df_image_data:
-                px_mm_ratio_ref = df_image_data["template_px_mm_ratio"]
+                template_px_mm_ratio = df_image_data["template_px_mm_ratio"]
                 print("template_px_mm_ratio loaded")
         if df_masks.__class__.__name__ == "NoneType":
             df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
     elif obj_input.__class__.__name__ == "container":
         image = copy.deepcopy(obj_input.image)
         df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "scale_template_px_mm_ratio"):
-            px_mm_ratio_ref = obj_input.scale_template_px_mm_ratio
-        if hasattr(obj_input, "scale_template"):
-            template = obj_input.scale_template
+        if hasattr(obj_input, "reference_template_px_mm_ratio"):
+            template_px_mm_ratio = obj_input.reference_template_px_mm_ratio
+        if hasattr(obj_input, "reference_template_image"):
+            reference_template_image = obj_input.reference_template_image
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
         else:
@@ -612,17 +612,17 @@ def find_scale(
     while True:
         if any(
             [
-                px_mm_ratio_ref.__class__.__name__ == "NoneType",
-                template.__class__.__name__ == "NoneType",
+                template_px_mm_ratio.__class__.__name__ == "NoneType",
+                reference_template_image.__class__.__name__ == "NoneType",
             ]
         ):
             print("- scale information missing - abort")
             break
-        if hasattr(obj_input, "scale_current_px_mm_ratio") and not flag_overwrite:
-            scale_current_px_mm_ratio = obj_input.scale_current_px_mm_ratio
+        if hasattr(obj_input, "reference_detected_px_mm_ratio") and not flag_overwrite:
+            detected_px_mm_ratio = obj_input.reference_detected_px_mm_ratio
             print("- scale already detected (overwrite=False)")
             break
-        elif hasattr(obj_input, "scale_current_px_mm_ratio") and flag_overwrite:
+        elif hasattr(obj_input, "reference_detected_px_mm_ratio") and flag_overwrite:
             print(" - detecting scale (overwriting)")
             pass
 
@@ -640,7 +640,7 @@ def find_scale(
 
         ## method
         akaze = cv2.AKAZE_create()
-        kp1, des1 = akaze.detectAndCompute(template, None)
+        kp1, des1 = akaze.detectAndCompute(reference_template_image, None)
         kp2, des2 = akaze.detectAndCompute(image, None)
         matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
         matches = matcher.knnMatch(des1, des2, 2)
@@ -662,9 +662,9 @@ def find_scale(
             rect_old = np.array(
                 [
                     [[0, 0]],
-                    [[0, template.shape[0]]],
-                    [[template.shape[1], template.shape[0]]],
-                    [[template.shape[1], 0]],
+                    [[0, reference_template_image.shape[0]]],
+                    [[reference_template_image.shape[1], reference_template_image.shape[0]]],
+                    [[reference_template_image.shape[1], 0]],
                 ],
                 dtype=np.float32,
             )
@@ -682,7 +682,7 @@ def find_scale(
 
             ## calculate ratios
             diameter_ratio = diameter_new / diameter_old
-            px_mm_ratio_new = round(diameter_ratio * px_mm_ratio_ref, 1)
+            px_mm_ratio_new = round(diameter_ratio * template_px_mm_ratio, 1)
 
             ## add to image df
             df_image_data["current_px_mm_ratio"] = px_mm_ratio_new
@@ -690,7 +690,7 @@ def find_scale(
             ## feedback
             print("---------------------------------------------------")
             print("Reference card found with %d keypoint matches:" % len(good))
-            print("template image has %s pixel per mm." % (px_mm_ratio_ref))
+            print("template image has %s pixel per mm." % (template_px_mm_ratio))
             print("current image has %s pixel per mm." % (px_mm_ratio_new))
             print("= %s %% of template image." % round(diameter_ratio * 100, 3))
             print("---------------------------------------------------")
@@ -711,7 +711,7 @@ def find_scale(
                 axis=1,
             )
             df_masks = df_masks.append(row_scale, sort=False)
-            scale_current_px_mm_ratio = px_mm_ratio_new
+            detected_px_mm_ratio = px_mm_ratio_new
             break
         else:
             ## feedback
@@ -719,11 +719,11 @@ def find_scale(
             print("Reference card not found - %d keypoint matches:" % len(good))
             print('Setting "current scale" to None')
             print("---------------------------------------------------")
-            scale_current_px_mm_ratio = None
+            detected_px_mm_ratio = None
             break
 
         ## merge with existing image_data frame
-        df_image_data["current_px_mm_ratio"] = scale_current_px_mm_ratio
+        df_image_data["current_px_mm_ratio"] = detected_px_mm_ratio
 
     # ## rectangle coords of scale in image
     # rect_new = eval(df_masks.loc[df_masks["mask"]=="scale", "coords"].reset_index(drop=True)[0])
@@ -737,7 +737,7 @@ def find_scale(
             data=image[ry : ry + rh, rx : rx + rw],
             mask=detected_rect_mask[ry : ry + rh, rx : rx + rw],
         )
-        image = _equalize_histogram(image, detected_rect_mask, template)
+        image = _equalize_histogram(image, detected_rect_mask, reference_template_image)
         print("histograms equalized")
 
     ## return
@@ -746,7 +746,7 @@ def find_scale(
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_image_data = df_image_data
         obj_input.df_masks = df_masks
-        obj_input.scale_current_px_mm_ratio = scale_current_px_mm_ratio
+        obj_input.reference_detected_px_mm_ratio = detected_px_mm_ratio
         if flag_equalize:
             obj_input.image_copy = image
             obj_input.image = image

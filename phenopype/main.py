@@ -549,6 +549,8 @@ class project:
         flag_overwrite = overwrite
         flag_template = template
         flag_activate = activate
+        
+        reference_name = name
         test_params = kwargs.get("test_params", {})
         print_save_msg = "== no msg =="
 
@@ -589,8 +591,8 @@ class project:
         while True:
             
             ## generate reference name and check if exists
-            reference_name = "reference_" + name + ".tif"
-            reference_path = os.path.join(self.root_dir, reference_name)
+            reference_filename = "reference_" + reference_name + ".tif"
+            reference_path = os.path.join(self.root_dir, reference_filename)
             
             if os.path.isfile(reference_path) and flag_overwrite == False:
                 print_save_msg = "Reference image not saved, file already exists " + \
@@ -606,7 +608,7 @@ class project:
             
             ## generate template name and check if exists
             if flag_template:
-                template_name = "reference_template_" + name + ".tif"
+                template_name = "reference_template_" + reference_name + ".tif"
                 template_path = os.path.join(self.root_dir, template_name)
     
                 if os.path.isfile(template_path) and flag_overwrite == False:
@@ -634,39 +636,26 @@ class project:
             ## create reference attributes
             reference_info = {
                     "date_added":datetime.today().strftime("%Y%m%d%H%M%S"),
-                    "reference_image":reference_name,
+                    "reference_image":reference_filename,
                     "original_filepath":reference_image_path,
-                    "px_mm_ratio": px_mm_ratio,
+                    "template_px_mm_ratio": px_mm_ratio,
                     }
             if flag_template:
                 reference_info.update({
-                    "template":True,
                     "template_image":template_name})
-            
-            
+                        
             ## load project attributes and temporarily drop project data list to 
             ## be reattched later, so it is always at then end of the file
-            reference_list = []
+            reference_dict = {}
             project_attributes = _load_yaml(os.path.join(self.root_dir, "attributes.yaml"))
             if "project_data" in project_attributes:
                 project_data = project_attributes["project_data"]
                 project_attributes.pop('project_data', None)
             if "reference" in project_attributes:
-                reference_list = project_attributes["reference"]
-
-
-            reference_count = 0
-            for idx,item in enumerate(reference_list):            
-                if list(item)[0] == name:
-                    reference_list[idx] = {name: reference_info}
-                    reference_count += 1
-            if reference_count == 0:
-                reference_list.append({name: reference_info})
-            elif reference_count > 1:
-                print_save_msg = "Duplicate reference names detected - aborting."
-                break
+                reference_dict = project_attributes["reference"]
+            reference_dict[reference_name] = reference_info
             
-            project_attributes["reference"] = reference_list
+            project_attributes["reference"] = reference_dict
             project_attributes["project_data"] = project_data
 
             ## save all after successful completion of all method-steps 
@@ -684,33 +673,31 @@ class project:
         # METHOD END
         # =============================================================================
         
-        ## save scale information
+        ## set active reference information in file specific attributes
         for dirname, dirpath in zip(self.dirnames, self.dirpaths):
             attr = _load_yaml(os.path.join(dirpath, "attributes.yaml"))
-            if not "project_variables" in attr:
-                attr["project_variables"] = {}
-            if not "reference" in attr["project_variables"]:
-                print("added reference information to " + dirname)
-                pass
-            elif "reference" in attr["project_variables"] and flag_overwrite:
-                print(
-                    "added reference information to " + dirname + " (overwritten)"
-                )
-                pass
-            elif "reference" in attr["project_variables"] and not flag_overwrite:
-                if flag_activate==False:
-                    print(
-                        "could not add reference information to " + dirname + " (overwrite=False/active=False)"
-                    )
-                    continue
-                elif flag_activate==True:
-                    print(
-                        "setting active reference to \"" + name + "\" in " + dirname + " (active=True)"
-                    )
-                    pass
+            
+            ## create nested dict
+            if not "reference" in attr:
+                attr["reference"] = {}      
+            if not "project_level" in attr["reference"]:
+                attr["reference"]["project_level"] = {}      
+            if not reference_name in attr["reference"]["project_level"]:
+                attr["reference"]["project_level"][reference_name] = {}
                 
-            attr["project_variables"]["reference"] = name
-            _save_yaml(attr, os.path.join(dirpath, "attributes.yaml"))
+            ## loop through entries and set active reference
+            if flag_activate==True:
+                for key, value in attr["reference"]["project_level"].items():
+                    if key == reference_name:
+                        attr["reference"]["project_level"][key]["active"] = True
+                    else:
+                        attr["reference"]["project_level"][key]["active"] = False
+                _save_yaml(attr, os.path.join(dirpath, "attributes.yaml"))
+                print("setting active reference to \"" + reference_name + "\" for " + \
+                        dirname + " (active=True)")
+            else:
+                print("could not set active reference for " + dirname + \
+                        " (overwrite=False/activate=False)")
 
 
     def collect_results(self, name, files=None, folder="results", overwrite=False):
