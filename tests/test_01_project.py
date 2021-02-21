@@ -22,7 +22,7 @@ def test_project(new_project):
         project = pp.project(root_dir=root_dir1)
     with mock.patch('builtins.input', return_value='y'):
         project = pp.project(root_dir=root_dir1)
-    assert os.path.isdir(root_dir1)    
+    assert os.path.isdir(project.root_dir)    
         
 def test_project_add_files(new_project):
     new_project.add_files(image_dir=image_dir, 
@@ -57,12 +57,12 @@ def test_project_add_config(new_project):
     config = pp.utils_lowlevel._load_yaml(os.path.join(new_project.root_dir, 
                                                        new_project.dirpaths[0], 
                                                        "pype_config_" + pype_name + ".yaml"))
-    assert config["info"]["template_name"] == os.path.basename(template_test1)
+    assert config["config_info"]["template_name"] == os.path.basename(template_test1)
 
 def test_project_add_reference(new_project):
     test_params = {"flag_test_mode": True,
-          "flag_tool": "scale",
-          "scale_coords": [(701, 741), 
+          "flag_tool": "reference",
+          "reference_coords": [(701, 741), 
                            (1053, 774)],
           "point_list": [[(316, 675), 
                           (1236, 675), 

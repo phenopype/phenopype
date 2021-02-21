@@ -75,11 +75,11 @@ def test_save_data_entry(project_container):
     attr = pp.utils_lowlevel._load_yaml(os.path.join(project_container.dirpath, "attributes.yaml"))
     assert "other" in attr    
     
-def test_save_scale(project_container):
-    pp.export.save_scale(project_container.scale_current_px_mm_ratio)
+def test_save_reference(project_container):
+    pp.export.save_reference(project_container.reference_detected_px_mm_ratio)
     with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_scale(project_container, dirpath="new")        
-    pp.export.save_scale(project_container, overwrite=True)
-    pp.export.save_scale(project_container, overwrite=False)  
+        pp.export.save_reference(project_container, dirpath="new")        
+    pp.export.save_reference(project_container, overwrite=True)
+    pp.export.save_reference(project_container, overwrite=False)  
     attr = pp.utils_lowlevel._load_yaml(os.path.join(project_container.dirpath, "attributes.yaml"))
-    assert "scale" in attr
+    assert "reference" in attr

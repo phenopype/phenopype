@@ -445,7 +445,7 @@ def draw_masks(
 ):
     """
     Draw masks into an image. This function is also used to draw the perimeter 
-    of a created or detected reference scale card.
+    of a created or detected reference card.
     
     Parameters
     ----------        
@@ -512,7 +512,7 @@ def draw_masks(
         coords = eval(row["coords"])
         if coords[0].__class__.__name__ == "list":
             coords = coords[0]
-        if row["mask"] == "scale":
+        if row["mask"] == "reference":
             line_colour = colours["red"]
         else:
             line_colour = line_colour_sel

@@ -726,9 +726,9 @@ def save_polylines(obj_input, overwrite=True, dirpath=None, save_suffix=None):
         break
 
 
-def save_scale(obj_input, overwrite=True, dirpath=None, active_ref=None):
+def save_reference(obj_input, overwrite=True, dirpath=None, active_ref=None):
     """
-    Save a created or detected scale to attributes.yaml
+    Save a created or detected reference to attributes.yaml
     
     Parameters
     ----------
@@ -758,7 +758,7 @@ def save_scale(obj_input, overwrite=True, dirpath=None, active_ref=None):
         ):
             dirpath = obj_input.dirpath
     else:
-        print("No scale supplied - cannot export results.")
+        print("No reference supplied - cannot export results.")
         return
 
     ## dirpath
@@ -788,13 +788,13 @@ def save_scale(obj_input, overwrite=True, dirpath=None, active_ref=None):
     if not active_ref.__class__.__name__ == "NoneType":
         while True:
             if "detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and flag_overwrite == False:
-                print("- scale not saved (overwrite=False)")
+                print("- reference not saved (overwrite=False)")
                 break
             elif "detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and flag_overwrite == True:
-                print("- save scale to attributes (overwriting)")
+                print("- save reference to attributes (overwriting)")
                 pass
             else:
-                print("- save scale to attributes")
+                print("- save reference to attributes")
                 pass
             attr["reference"]["project_level"][active_ref]["detected_px_mm_ratio"] = px_mm_ratio
             break
@@ -802,13 +802,13 @@ def save_scale(obj_input, overwrite=True, dirpath=None, active_ref=None):
     else: 
         while True:
             if "manually_measured_px_mm_ratio" in attr["reference"] and flag_overwrite == False:
-                print("- scale not saved (overwrite=False)")
+                print("- reference not saved (overwrite=False)")
                 break
             elif "manually_measured_px_mm_ratio" in attr["reference"] and flag_overwrite == True:
-                print("- save scale to attributes (overwriting)")
+                print("- save reference to attributes (overwriting)")
                 pass
             else:
-                print("- save scale to attributes")
+                print("- save reference to attributes")
                 pass
             attr["reference"]["manually_measured_px_mm_ratio"] = px_mm_ratio
             break

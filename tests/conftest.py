@@ -4,7 +4,8 @@ import pytest
 import shutil    
 import phenopype as pp
 
-from .settings import root_dir2, video_path, image_dir, image_save_dir, image_filepath, pype_name, template_test1, flag_overwrite
+from .settings import root_dir2, video_path, image_dir, image_save_dir, image_filepath, image_ref_filepath
+from .settings import pype_name, template_test1, flag_overwrite
 
 #%% project
 
@@ -18,9 +19,21 @@ def project_container():
                       include="stickle")
     proj.add_config(name=pype_name, template=template_test1)
     pp.project.save(proj)
-    proj = pp.project.load(root_dir2)
+    ref_params = {"flag_test_mode": True,
+                  "flag_tool": "reference",
+                  "reference_coords": [(701, 741), 
+                       (1053, 774)],
+                  "point_list": [[(316, 675), 
+                      (1236, 675), 
+                      (1236, 1549), 
+                      (316, 1549), 
+                      (316, 675)]],
+                  "rect_list": [[316, 675, 1236, 1549]],
+                  "entry": "10",
+                  "wait_time": 100}
+    proj.add_reference(name="ref1", reference_image=0, template=True, test_params=ref_params)
     obj_input = pp.load_directory(proj.dirpaths[0], save_suffix=pype_name)
-    project_container = obj_input
+    obj_input.load()
     return obj_input 
 
 @pytest.fixture(scope="session")

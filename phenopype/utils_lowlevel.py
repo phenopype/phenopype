@@ -283,8 +283,8 @@ class _image_viewer:
                 self._on_mouse_polygon(event, x, y, flags)
             elif self.flag_tool == "polyline" or self.flag_tool == "polylines":
                 self._on_mouse_polygon(event, x, y, flags, polyline=True)
-            elif self.flag_tool == "scale":
-                self._on_mouse_polygon(event, x, y, flags, scale=True)
+            elif self.flag_tool == "reference":
+                self._on_mouse_polygon(event, x, y, flags, reference=True)
             elif self.flag_tool == "template":
                 self._on_mouse_rectangle(event, x, y, flags, template=True)
         elif self.flag_tool and self.flag_draw:
@@ -364,11 +364,11 @@ class _image_viewer:
 
         ## kwargs
         polyline = kwargs.get("polyline", False)
-        scale = kwargs.get("scale", False)
+        reference = kwargs.get("reference", False)
         flag_draw = kwargs.get("draw", False)
 
         if event == cv2.EVENT_MOUSEMOVE:
-            if (scale or flag_draw) and self.flag_tool == "line" and len(self.points) == 2:
+            if (reference or flag_draw) and self.flag_tool == "line" and len(self.points) == 2:
                 return
             self.coords_original = (
                 int(self.zoom_x1 + (x * self.global_fx)),
@@ -387,11 +387,11 @@ class _image_viewer:
                     self.line_colour,
                     self.line_width,
                 )
-            elif (scale or flag_draw) and self.flag_tool == "line" and len(self.points) > 2:
+            elif (reference or flag_draw) and self.flag_tool == "line" and len(self.points) > 2:
                 pass
             cv2.imshow(self.window_name, self.canvas)
         if event == cv2.EVENT_LBUTTONDOWN:  ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
-            if scale and len(self.points) == 2:
+            if reference and len(self.points) == 2:
                 print("already two points selected")
                 return
             self.coords_original = (
@@ -425,9 +425,9 @@ class _image_viewer:
             )
             self.canvas_copy = copy.deepcopy(self.canvas)
             cv2.imshow(self.window_name, self.canvas)
-            if scale and len(self.points) == 2:
-                print("Scale set")
-                self.scale_coords = self.points
+            if reference and len(self.points) == 2:
+                print("Reference set")
+                self.reference_coords = self.points
             if flag_draw and self.flag_tool == "line" and len(self.points) == 2:
                 self.point_list.append(self.points)
                 self.points = []

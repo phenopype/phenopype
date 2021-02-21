@@ -1,6 +1,6 @@
 - preprocessing:
     - create_mask
-    - create_scale:
+    - create_reference:
         mask: true
 - segmentation:
     - blur:

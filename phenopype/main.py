@@ -540,7 +540,7 @@ class project:
         overwrite: bool, optional
             overwrite option, if a given pype config-file already exist
         template: bool, optional
-            should a template for scale detection be created. with an existing 
+            should a template for reference detection be created. with an existing 
             template, phenopype can try to find a reference card in a given image,
             measure its dimensions, and adjust pixel-to-mm-ratio and colour space
         """
@@ -622,13 +622,13 @@ class project:
                     print_save_msg = print_save_msg + "\nReference image saved under " + template_path 
                     pass
                 
-                ## measure scale with template
-                px_mm_ratio, df_masks, template = preprocessing.create_scale(
+                ## measure reference
+                px_mm_ratio, df_masks, template = preprocessing.create_reference(
                     reference_image, template=True, test_params=test_params
                 )
             else:
-                ## measure scale
-                px_mm_ratio = preprocessing.create_scale(
+                ## measure reference
+                px_mm_ratio = preprocessing.create_reference(
                     reference_image, template=False, test_params=test_params
                 )
 

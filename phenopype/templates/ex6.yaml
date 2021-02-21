@@ -1,6 +1,6 @@
 - preprocessing:
     - create_mask
-    - create_scale
+    - create_reference
     - enter_data
 - segmentation:
     - blur:

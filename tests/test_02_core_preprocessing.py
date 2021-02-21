@@ -41,10 +41,16 @@ def test_enter_data(project_container):
                                 test_params=test_params)
     assert project_container.df_image_data.iloc[0]["ID"] == "142501"
 
-def test_create_scale(project_container):
+def test_detect_reference(project_container):
+    pp.preprocessing.detect_reference(project_container, 
+                                      overwrite=flag_overwrite,
+                                      equalize=True)
+    assert project_container.reference_detected_px_mm_ratio == 35.4
+
+def test_create_reference(project_container):
     test_params = {"flag_test_mode": True,
-              "flag_tool": "scale",
-              "scale_coords": [(701, 741), 
+              "flag_tool": "reference",
+              "reference_coords": [(701, 741), 
                                (1053, 774)],
               "point_list": [[(316, 675), 
                               (1236, 675), 
@@ -53,16 +59,11 @@ def test_create_scale(project_container):
                               (316, 675)]],
               "rect_list": [[316, 675, 1236, 1549]],
               "entry": "10"}
-    pp.preprocessing.create_scale(project_container, 
-                                  template=True, 
+    pp.preprocessing.create_reference(project_container, 
+                                  template=False, 
                                   overwrite=flag_overwrite,
                                   test_params=test_params)
-    project_container.scale_current_px_mm_ratio = None
-    assert project_container.scale_template_px_mm_ratio == 35.35434909597403
+    assert project_container.reference_manually_measured_px_mm_ratio == 35.35434909597403
 
-def test_find_scale(project_container):
-    pp.preprocessing.find_scale(project_container, 
-                                overwrite=flag_overwrite,
-                                equalize=True)
-    assert project_container.scale_current_px_mm_ratio == 35.4
+
 

@@ -1,5 +1,5 @@
-info:
-steps:
+config_info:
+processing_steps:
 - segmentation:
     - threshold:
         method: adaptive

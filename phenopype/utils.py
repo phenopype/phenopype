@@ -130,12 +130,14 @@ class container(object):
             return
 
         ## load attributes
-        attr_path = os.path.join(dirpath, "attributes.yaml")
-        if os.path.isfile(attr_path):
+        attr_local_path = os.path.join(dirpath, "attributes.yaml")
+        if os.path.isfile(attr_local_path):
 
+            attr_local = _load_yaml(attr_local_path)
+                
             ## other data
             if not hasattr(self, "df_other_data"):
-                attr = _load_yaml(attr_path)
+                attr = _load_yaml(attr_local_path)
                 if "other" in attr:
                     self.df_other_data = pd.DataFrame(attr["other"], index=[0])
                     loaded.append(
@@ -143,36 +145,33 @@ class container(object):
                         + ", ".join(list(self.df_other_data))
                         + " from attributes.yaml"
                     )
-
-            ## reference
-            if not any([hasattr(self, "reference_template_px_mm_ratio"),
-                        hasattr(self, "reference_template_px_mm_ratio")]):
+            
+            if "reference" in attr_local:
                 
-                ## load local (image specific) and global (project level) attributes 
-                attr_local = _load_yaml(attr_path)
-                attr_proj_path =  os.path.abspath(os.path.join(attr_path ,r"../../../","attributes.yaml"))
-                attr_proj = _load_yaml(attr_proj_path)
-
-                if "reference" in attr_local:
+                ## manually measured px-mm-ratio
+                if "manually_measured_px_mm_ratio" in attr_local["reference"]:
+                    self.reference_manually_measured_px_mm_ratio = attr_local["reference"]["manually_measured_px_mm_ratio"]
+                    loaded.append("manually measured local reference information loaded")
                     
-                    ## manually measured px-mm-ratio
-                    if "manually_measured_px_mm_ratio" in attr_local["reference"]:
-                        self.reference_manually_measured_px_mm_ratio = attr_local["reference"]["manually_measured_px_mm_ratio"]
-                        loaded.append("manually measured local reference information loaded")
-                        
+                ## project level template px-mm-ratio
+                if "project_level" in attr_local["reference"]:
+                    
+                    ## load local (image specific) and global (project level) attributes 
+                    attr_proj_path =  os.path.abspath(os.path.join(attr_local_path ,r"../../../","attributes.yaml"))
+                    attr_proj = _load_yaml(attr_proj_path)
+                                        
                     ## find active project level references
-                    if "project_level" in attr_local["reference"]:
-                        n_active = 0
-                        for key, value in attr_local["reference"]["project_level"].items():
-                            if attr_local["reference"]["project_level"][key]["active"] == True:
-                                active_ref = key
-                                n_active += 1
-                        if n_active > 1:
-                            print("WARNING: multiple active reference detected - fix with running add_reference again.")                            
-                        self.reference_active = active_ref
-                        self.reference_template_px_mm_ratio = attr_proj["reference"][active_ref]["template_px_mm_ratio"]
-                        loaded.append("project level reference information loaded for " + active_ref)
-                    
+                    n_active = 0
+                    for key, value in attr_local["reference"]["project_level"].items():
+                        if attr_local["reference"]["project_level"][key]["active"] == True:
+                            active_ref = key
+                            n_active += 1
+                    if n_active > 1:
+                        print("WARNING: multiple active reference detected - fix with running add_reference again.")                            
+                    self.reference_active = active_ref
+                    self.reference_template_px_mm_ratio = attr_proj["reference"][active_ref]["template_px_mm_ratio"]
+                    loaded.append("project level reference information loaded for " + active_ref)
+                
                     ## load previously detect px-mm-ratio
                     if "detected_px_mm_ratio" in attr_local["reference"]["project_level"]:
                         self.reference_detected_px_mm_ratio = attr_local["reference"]["project_level"]["detected_px_mm_ratio"]
@@ -180,9 +179,8 @@ class container(object):
                         
                     ## load tempate image from project level attributes
                     if "template_image" in attr_proj["reference"][active_ref]:
-                        self.reference_template_image = cv2.imread(os.path.join(attr_path ,r"../../..", attr_proj["reference"][active_ref]["template_image"]))
+                        self.reference_template_image = cv2.imread(os.path.join(attr_local_path ,r"../../..", attr_proj["reference"][active_ref]["template_image"]))
                         loaded.append("reference template image loaded from root directory")
-
 
         ## canvas
         if self.canvas.__class__.__name__ == "NoneType" and canvas == True:
@@ -345,10 +343,10 @@ class container(object):
             print("save_drawings")
             save_drawings(self, dirpath=dirpath, overwrite=True)
 
-        ## scale
-        if hasattr(self, "reference_detected_px_mm_ratio") and not "save_scale" in export_list:
-            print("save_scale")
-            save_scale(self, dirpath=dirpath, overwrite=True, active_ref=self.reference_active)
+        ## reference
+        if hasattr(self, "reference_detected_px_mm_ratio") and not "save_reference" in export_list:
+            print("save_reference")
+            save_reference(self, dirpath=dirpath, overwrite=True, active_ref=self.reference_active)
             
         ## shapes
         if hasattr(self, "df_shapes") and not "save_shapes" in export_list:
