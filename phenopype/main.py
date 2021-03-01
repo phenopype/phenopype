@@ -1067,6 +1067,10 @@ class pype:
                 template.__class__.__name__ == "NoneType"]):
              self.config = _load_pype_config(config=config, template=None, name=name)
              self.config_path = config       
+             if self.config.__class__.__name__ == "NoneType":
+                 self.config_path = os.path.join(self.container.dirpath, config)
+                 self.config = _load_pype_config(config=self.config_path, template=None, name=name)
+
              
         ## 2) create new from template or, if already exists, load from file
         if all([config.__class__.__name__ == "NoneType",
@@ -1083,7 +1087,12 @@ class pype:
                     self.config["config_info"]["config_path"] = self.config_path
                     _save_yaml(self.config, self.config_path)
                 else: 
-                    self.config = _load_pype_config(config=self.config_path, template=None)     
+                    self.config = _load_pype_config(config=self.config_path, template=None)
+            else:
+                self.config = _load_pype_config(config=None, template=template, name=name)
+                self.config["config_info"]["config_path"] = self.config_path
+                _save_yaml(self.config, self.config_path)
+
                     
         ## 3) check if config file exists in directory (for project directory)
         if all([config.__class__.__name__ == "NoneType",
