@@ -120,6 +120,7 @@ def draw(
     df_drawings = None
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
+        image_bin = copy.deepcopy(obj_input)
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":

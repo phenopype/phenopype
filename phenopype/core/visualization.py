@@ -512,7 +512,7 @@ def draw_masks(
         coords = eval(row["coords"])
         if coords[0].__class__.__name__ == "list":
             coords = coords[0]
-        if row["mask"] == "reference":
+        if row["include"] == 0 or row["include"] == False:
             line_colour = colours["red"]
         else:
             line_colour = line_colour_sel
