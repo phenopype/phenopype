@@ -14,7 +14,7 @@ from phenopype.utils_lowlevel import _auto_text_size, _auto_text_width
 #%% functions
 
 
-def create_mask(
+def create_mask_old(
     obj_input,
     df_image_data=None,
     include=True,
@@ -167,6 +167,140 @@ def create_mask(
     )
     df_masks = df_masks.append(df_masks_sub_new)
     
+    ## drop index before saving
+    df_masks.reset_index(drop=True, inplace=True)
+
+
+    ## return
+    if obj_input.__class__.__name__ == "ndarray":
+        return df_masks
+    elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
+        obj_input.df_masks = df_masks
+        
+        
+        
+def create_mask(
+    obj_input,
+    df_masks=None,
+    df_image_data=None,
+    include=True,
+    overwrite=False,
+    edit=False,
+    canvas="image",
+    label="mask1",
+    tool="rectangle",
+    max_dim=None,
+    **kwargs
+):
+    """
+    Draw rectangle or polygon mask onto image by clicking and dragging the 
+    cursor over the image. One mask can contain multiple sets of coordinates, 
+    i.e. multiple and not overallping masks. For rectangle mask, finish with 
+    ENTER. For polygons, finish current polygon with CTRL, and then with ENTER.
+    
+    Parameters
+    ----------
+    obj_input : array or container
+        input object
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata, will be added to mask
+        output DataFrame
+    include: bool, optional
+        determine whether resulting mask is to include or exclude objects within
+    label: str, optinal
+        assigns a label to the mask
+    overwrite: bool, optional
+        if working using a container, or from a phenopype project directory, 
+        should existing masks with the same label be overwritten
+    tool: {"rectangle", "polygon"} str, optional
+        select tool by which mask is drawn
+
+    Returns
+    -------
+    df_masks: DataFrame or container
+        contains mask coordiantes
+    """
+
+    ## kwargs
+    flag_overwrite = overwrite
+    flag_edit = edit
+    flag_canvas = canvas
+    test_params = kwargs.get("test_params", None)
+
+    ## load image
+    if obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+    elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
+        if flag_canvas == "image":
+            image = copy.deepcopy(obj_input.image)
+        elif flag_canvas == "canvas":
+            image = copy.deepcopy(obj_input.canvas)
+        if hasattr(obj_input, "df_image_data"):
+            df_image_data = copy.deepcopy(obj_input.df_image_data)
+        if hasattr(obj_input, "df_masks"):
+            df_masks = copy.deepcopy(obj_input.df_masks)
+            if "index" in df_masks:
+                df_masks.drop(columns = ["index"], inplace=True)
+            df_masks.reset_index(drop=True, inplace=True)
+    else:
+        print("wrong input format.")
+        return
+    
+    
+
+    # =============================================================================
+    # METHOD START
+    # =============================================================================
+
+    while True:
+        ## basic df checks
+        if df_masks.__class__.__name__ == "NoneType":
+            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
+            print("- creating mask")
+        else: 
+            if label in df_masks["mask"].values:
+                if flag_overwrite == False and flag_edit == False:
+                    print("- mask with label " + label + " already created (edit/overwrite=False)")
+                    break
+                elif flag_overwrite == True and flag_edit == False:
+                    df_masks = df_masks.drop(df_masks[df_masks["mask"]==label].index)
+                    print("- creating mask (overwriting)")
+                elif flag_edit == True:
+                    prev_masks = df_masks[df_masks["mask"]==label].to_dict("records")[0]
+                    print("- creating mask (editing)")
+                
+        ## supply params to image_viewer
+        previous = {}
+        if flag_edit==True:
+            previous=prev_masks
+        if not test_params.__class__.__name__ == "NoneType":
+            previous=test_params
+            
+        ## draw masks
+        out = _image_viewer(image, mode="interactive", tool=tool, previous=previous, max_dim=max_dim)
+        
+        ## abort if unsuccessful
+        if not out.done:
+            if obj_input.__class__.__name__ == "ndarray":
+                print("terminated mask creation")
+                return
+            elif obj_input.__class__.__name__ == "container":
+                print("- terminated mask creation")
+                return True
+        else:
+            coords = out.point_list
+
+        ## create df
+        if len(coords) > 0:
+            df_masks = df_masks.append(
+                {"mask": label, "include": include, "coords": str(coords)},
+                ignore_index=True,
+                sort=False,
+            )
+        else:
+            print("zero coordinates - redo mask!")
+        break
+   
     ## drop index before saving
     df_masks.reset_index(drop=True, inplace=True)
 
