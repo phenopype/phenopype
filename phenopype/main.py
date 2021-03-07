@@ -1263,6 +1263,12 @@ class pype:
             if not flag_presetting:
                 if flag_autosave:
                     self.container.save(export_list=export_list, overwrite=flag_overwrite)
+                    
+            ## end iteration
+            print(
+                "\n\n------------+++ finished pype iteration +++--------------\n" 
+                + "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
+            )
 
             ## visualize output
             if flag_feedback:
