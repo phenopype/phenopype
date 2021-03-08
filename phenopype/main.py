@@ -739,6 +739,9 @@ class project:
                     search_strings.append(file)
         else:
             search_strings = name
+            
+        ## append name
+        print(search_strings)
 
         ## search
         found, duplicates = _file_walker(
