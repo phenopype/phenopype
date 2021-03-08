@@ -8,18 +8,17 @@ from .settings import flag_overwrite
 
 def test_create_mask(project_container):
     test_params = {"flag_test_mode": True,
-              "flag_tool": "polygon",
-              "point_list":[[(1376, 272),
-                             (1378, 435),
-                             (1814, 422),
-                             (1816, 379),
-                             (1757, 377),
-                             (1627, 336),
-                             (1504, 295),
-                             (1389, 275),
-                             (1376, 272)]] }
+                   "flag_tool": "polygon",
+                   "point_list":[[(1376, 272),
+                                  (1378, 435),
+                                  (1814, 422),
+                                  (1816, 379),
+                                  (1757, 377),
+                                  (1627, 336),
+                                  (1504, 295),
+                                  (1389, 275),
+                                  (1376, 272)]]}
     pp.preprocessing.create_mask(project_container, 
-                                 tool="rect", 
                                  overwrite=flag_overwrite,
                                  test_params=test_params)
     assert len(project_container.df_masks) > 0
@@ -34,7 +33,7 @@ def test_resize_image(project_container):
 
 def test_enter_data(project_container):
     test_params = {"flag_test_mode": True,
-              "entry": "142501"}
+                   "entry": "142501"}
     pp.preprocessing.enter_data(project_container, 
                                 columns="ID", 
                                 overwrite=flag_overwrite,

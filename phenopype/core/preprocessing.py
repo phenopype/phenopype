@@ -8,7 +8,7 @@ import numpy.ma as ma
 
 from phenopype.settings import colours
 from phenopype.utils import load_image_data
-from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, _equalize_histogram
+from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, _df_overwrite_checker, _equalize_histogram
 from phenopype.utils_lowlevel import _auto_text_size, _auto_text_width
 
 #%% functions
@@ -182,10 +182,9 @@ def create_mask_old(
 def create_mask(
     obj_input,
     df_masks=None,
-    df_image_data=None,
-    include=True,
     overwrite=False,
     edit=False,
+    include=True,
     canvas="image",
     label="mask1",
     tool="rectangle",
@@ -235,8 +234,6 @@ def create_mask(
             image = copy.deepcopy(obj_input.image)
         elif flag_canvas == "canvas":
             image = copy.deepcopy(obj_input.canvas)
-        if hasattr(obj_input, "df_image_data"):
-            df_image_data = copy.deepcopy(obj_input.df_image_data)
         if hasattr(obj_input, "df_masks"):
             df_masks = copy.deepcopy(obj_input.df_masks)
             if "index" in df_masks:
@@ -246,65 +243,54 @@ def create_mask(
         print("wrong input format.")
         return
     
-    
-
-    # =============================================================================
-    # METHOD START
-    # =============================================================================
+    ## overwrite checks
+    df = copy.deepcopy(df_masks)
+    df, edit_params = _df_overwrite_checker(df, "mask", label, 
+                                            flag_overwrite, flag_edit)
 
     while True:
-        ## basic df checks
-        if df_masks.__class__.__name__ == "NoneType":
-            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
-            print("- creating mask")
-        else: 
-            if label in df_masks["mask"].values:
-                if flag_overwrite == False and flag_edit == False:
-                    print("- mask with label " + label + " already created (edit/overwrite=False)")
-                    break
-                elif flag_overwrite == True and flag_edit == False:
-                    df_masks = df_masks.drop(df_masks[df_masks["mask"]==label].index)
-                    print("- creating mask (overwriting)")
-                elif flag_edit == True:
-                    prev_masks = df_masks[df_masks["mask"]==label].to_dict("records")[0]
-                    print("- creating mask (editing)")
+        
+        ## abort if overwrite false
+        if df.__class__.__name__ == "NoneType":
+            break
                 
-        ## supply params to image_viewer
-        previous = {}
-        if flag_edit==True:
-            previous=prev_masks
+        ## inject test parameters
         if not test_params.__class__.__name__ == "NoneType":
-            previous=test_params
+            edit_params = test_params
             
         ## draw masks
-        out = _image_viewer(image, mode="interactive", tool=tool, previous=previous, max_dim=max_dim)
+        out = _image_viewer(image, 
+                            mode="interactive", 
+                            tool=tool, 
+                            previous=edit_params, 
+                            max_dim=max_dim)
         
         ## abort if unsuccessful
         if not out.done:
-            if obj_input.__class__.__name__ == "ndarray":
-                print("terminated mask creation")
-                return
-            elif obj_input.__class__.__name__ == "container":
-                print("- terminated mask creation")
-                return True
+            print("- aborted mask creation")
+            break
         else:
             coords = out.point_list
-
-        ## create df
+            
+        ## create new df row and append
         if len(coords) > 0:
-            df_masks = df_masks.append(
-                {"mask": label, "include": include, "coords": str(coords)},
-                ignore_index=True,
-                sort=False,
-            )
+            new_row = {"mask": label, 
+                       "include": include, 
+                       "coords": str(coords),
+                       "tool": tool}
+            df_new_row = pd.DataFrame(new_row,
+                                      columns=new_row.keys(),
+                                      index=[0])
+            df = df.append(df_new_row,
+                           ignore_index=True,
+                           sort=False)
+            df_masks = df
+            df_masks.reset_index(drop=True, inplace=True)
         else:
-            print("zero coordinates - redo mask!")
+            print("- zero coordinates: redo mask")
+        
         break
    
-    ## drop index before saving
-    df_masks.reset_index(drop=True, inplace=True)
-
-
     ## return
     if obj_input.__class__.__name__ == "ndarray":
         return df_masks

@@ -2,6 +2,7 @@
 
 import cv2, copy, os, sys, warnings
 import numpy as np
+import pandas as pd
 
 import time
 from datetime import datetime
@@ -115,13 +116,9 @@ class _image_viewer:
             self.points, self.point_list = [], []
             self.line_width = kwargs.get("line_width", _auto_line_width(image))
             self.line_colour = colours[kwargs.get("line_colour", "green")]
-            if (
-                self.flag_tool == "rectangle"
-                or self.flag_tool == "rect"
-                or self.flag_tool == "template"
-            ):
+            if self.flag_tool in ["rectangle","rect","template"]:
                 self.rect_list, self.rect_start = [], None
-            elif self.flag_tool == "landmarks" or self.flag_tool == "landmark":
+            elif self.flag_tool in ["landmarks", "landmark"]:
                 self.point_size = kwargs.get("point_size", _auto_point_size(image))
                 self.point_colour = colours[kwargs.get("point_colour", "red")]
                 self.text_size = kwargs.get("label_size", _auto_text_size(image))
@@ -135,50 +132,68 @@ class _image_viewer:
         ## (points, not rectangle separately). relevant parameters for the 
         ## polylines should be forwarded from the functions themselves
 
+        # =============================================================================
+        # update from previous call
+        # =============================================================================
 
-        ## update from previous call
-        if kwargs.get("previous"):
+        ## load supplied dict
+        if "previous" in kwargs:
             prev_attr = kwargs.get("previous")
-            prev_attr = {
-                i: prev_attr[i]
-                for i in prev_attr
-                if i not in ["canvas_copy", "canvas", "image_copy", "image"]
-            }
-            self.__dict__.update(copy.deepcopy(prev_attr))
-            if hasattr(self, "point_list"):
-                if (
-                    self.flag_tool == "rectangle"
-                    or self.flag_tool == "rect"
-                    or self.flag_tool == "template"
-                ) and not self.flag_test_mode == True:
-                    for point in self.point_list:
-                        cv2.polylines(
-                            self.image_copy,
-                            np.array([point]),
-                            False,
-                            colours["green"],
-                            self.line_width,
-                        )
-                    self.point_list = []
-                elif self.flag_tool == "line" or self.flag_tool == "polyline" or self.flag_tool == "polygon" or self.flag_test_mode == True:
-                    for point in self.point_list:
-                        cv2.polylines(
-                            self.image_copy,
-                            np.array([point]),
-                            False,
-                            self.line_colour,
-                            self.line_width,
-                        ) 
-            self.canvas = self.image_copy[
-                self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2,
-            ]
-            self.canvas = cv2.resize(
-                self.canvas,
-                (self.canvas_width, self.canvas_height),
-                interpolation=cv2.INTER_LINEAR,
-            )
-            self.canvas_copy = copy.deepcopy(self.canvas)
-
+            if not prev_attr.__class__.__name__ == "NoneType":
+                prev_attr = {
+                    i: prev_attr[i]
+                    for i in prev_attr
+                    if i not in ["canvas_copy", "canvas", "image_copy", "image"]
+                }
+                self.__dict__.update(copy.deepcopy(prev_attr))
+                
+                ## convert coords to point list
+                if hasattr(self, "coords"):
+                    if self.coords.__class__.__name__ == "str":
+                        self.coords = eval(self.coords)                
+                    self.point_list = self.coords
+                    
+                if hasattr(self, "point_list"):
+                    
+                    ## convert point list to rect list
+                    if self.flag_tool in ["rectangle", "rect","template"] and not self.flag_test_mode == True:
+                        for point in self.point_list:
+                            cv2.polylines(
+                                self.image_copy,
+                                np.array([point]),
+                                False,
+                                colours["green"],
+                                self.line_width,
+                            )
+                            self.rect_list.append([point[0][0], point[0][1], point[2][0], point[2][1]])
+                        self.point_list = []
+                        
+                    ## draw previous drawings
+                    elif self.flag_tool in ["line", "polyline", "polygon"] or self.flag_test_mode == True:
+                        for point in self.point_list:
+                            cv2.polylines(
+                                self.image_copy,
+                                np.array([point]),
+                                False,
+                                self.line_colour,
+                                self.line_width,
+                            ) 
+                            
+                ## set up canvas with previous parameters
+                self.canvas = self.image_copy[
+                    self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2,
+                ]
+                self.canvas = cv2.resize(
+                    self.canvas,
+                    (self.canvas_width, self.canvas_height),
+                    interpolation=cv2.INTER_LINEAR,
+                )
+                self.canvas_copy = copy.deepcopy(self.canvas)
+            
+        # =============================================================================
+        # open canvas
+        # =============================================================================
+        
         ## show canvas
         self.done = False
         self.finished = False
@@ -188,7 +203,10 @@ class _image_viewer:
         cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
         cv2.imshow(self.window_name, self.canvas)
 
-        ## window control
+        # =============================================================================
+        # window control
+        # =============================================================================
+        
         if window_control == "internal":
             if self.flag_test_mode == True:
                 self.done = True
@@ -199,39 +217,21 @@ class _image_viewer:
                 if cv2.waitKey() == 13:
                     self.done = True
                     cv2.destroyAllWindows()
-                    # for i in range(10):
-                    #     cv2.waitKey(1)
                 elif cv2.waitKey() == 10:
                     self.done = True
                     self.finished = True
                     cv2.destroyAllWindows()
-                    # for i in range(10):
-                    #     cv2.waitKey(1)
                 elif cv2.waitKey() == 27:
                     cv2.destroyAllWindows()
-                    # for i in range(10):
-                    #     cv2.waitKey(1)
                     sys.exit("\n\nTERMINATE (by user)")
-            if (
-                self.flag_tool == "polygon"
-                or self.flag_tool == "poly"
-                or self.flag_tool == "free"
-            ):
+            if self.flag_tool in ["polygon", "poly"]:
                 if len(self.points) > 2:
                     self.points.append(self.points[0])
                     self.point_list.append(self.points)
-            elif (
-                self.flag_tool == "polyline"
-                or self.flag_tool == "polylines"
-                or self.flag_tool == "lines"
-            ):
+            elif self.flag_tool in ["polyline","polylines","lines"]:
                 if len(self.points) > 0:
                     self.point_list.append(self.points)
-            elif (
-                self.flag_tool == "rectangle"
-                or self.flag_tool == "rect"
-                or self.flag_tool == "template"
-            ):
+            elif self.flag_tool in ["rectangle", "rect","template"]:
                 if len(self.rect_list) > 0:
                     for rect in self.rect_list:
                         xmin, ymin, xmax, ymax = rect
@@ -244,7 +244,7 @@ class _image_viewer:
                                 (xmin, ymin),
                             ]
                         )
-            elif self.flag_tool == "landmarks" or self.flag_tool == "landmark":
+            elif self.flag_tool in ["landmarks", "landmark"]:
                 self.point_list.append(self.points)
         else:
             if self.flag_test_mode == True:
@@ -767,6 +767,38 @@ def _del_rw(action, name, exc):
     os.chmod(name, S_IWRITE)
     os.remove(name)
     
+    
+def _df_overwrite_checker(df, 
+                          annotation, 
+                          label,
+                          flag_overwrite, 
+                          flag_edit):
+
+    if df.__class__.__name__ == "NoneType":
+        df = pd.DataFrame()
+        print("- creating new {}".format(annotation))
+        return df, None
+    elif df.__class__.__name__ == "DataFrame":
+        if label in df["mask"].values:
+            if flag_overwrite == False and flag_edit == False:
+                print("- {} with label \"{}\" already created (edit/overwrite=False)".format(annotation,label))
+                return None, None
+            elif flag_overwrite == True and flag_edit == False:
+                df = df.drop(df[df["mask"]==label].index)
+                print("- creating {} (overwriting)".format(annotation))
+                return df, None
+            elif flag_edit == True:
+                edit_params = df[df["mask"]==label].to_dict("records")[0]
+                df = df.drop(df[df["mask"]==label].index)
+                print("- creating {} (editing)".format(annotation))
+                return df, edit_params  
+        else:
+            print("- creating another {}".format(annotation))
+            return df, None    
+    else:
+        print("- wrong df supplied to edit {}".format(annotation))
+
+        
     
     
 def _equalize_histogram(image, detected_rect_mask, template):

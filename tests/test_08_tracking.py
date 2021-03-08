@@ -12,8 +12,6 @@ from .settings import video_path, video_out_dir
 
 
 
-
-
 #%% tests
 
 def test_motion_tracker(motion_tracker):
@@ -30,8 +28,8 @@ def test_video_output(motion_tracker):
 
 def test_create_mask_mt(motion_tracker):
     test_params = {"flag_test_mode": True,
-                      "flag_tool": "rectangle",
-                      "point_list":[[(189, 52),
+                   "flag_tool": "rectangle",
+                   "point_list":[[(189, 52),
                                      (838, 52),
                                      (838, 479),
                                      (189, 479),
