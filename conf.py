@@ -40,9 +40,10 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
     'sphinx.ext.githubpages',
+    'sphinx.ext.autosectionlabel',
     'nbsphinx',
-#    'numpydoc',
-    'sphinx.ext.autosectionlabel'
+    'm2r2'
+
 ]
 
 autodoc_member_order = 'bysource'
@@ -51,11 +52,8 @@ autodoc_member_order = 'bysource'
 templates_path = ['_templates']
 
 # The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
-
+source_suffix = ['.rst', '.md']
+m2r_parse_relative_links = True
 # The master toctree document.
 master_doc = 'index'
 

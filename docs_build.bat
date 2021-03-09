@@ -1,6 +1,9 @@
 @echo off
 
-sphinx-multibuild -c . -i source -i tutorials -s _temp/docs -o docs -a 
+m2r2 readme.md
+move /Y readme.rst source/readme.rst
+
+sphinx-multibuild -c . -i source -i tutorials  -s _temp/docs -o docs -a 
 
 if "%~1"=="-o" (
 	cd docs 
@@ -13,3 +16,5 @@ if "%~1"=="-o" (
 	git push --force origin master:gh-pages 
 	cd ..
 ) 
+
+
