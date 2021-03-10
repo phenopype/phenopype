@@ -1,5 +1,5 @@
 - preprocessing: 
-    - find_reference
+    - detect_reference
     - enter_data
 - measurement:
     - landmarks:

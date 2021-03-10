@@ -820,3 +820,4 @@ def watershed(
         return image_watershed
     elif obj_input.__class__.__name__ == "container":
         obj_input.image = image_watershed
+        obj_input.image_bin = image_watershed

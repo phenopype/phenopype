@@ -1,7 +1,6 @@
 @echo off
 
-m2r2 readme.md
-move /Y readme.rst source/readme.rst
+pandoc README.md -o source/readme.rst
 
 sphinx-multibuild -c . -i source -i tutorials  -s _temp/docs -o docs -a 
 
