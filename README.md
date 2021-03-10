@@ -1,4 +1,4 @@
-![](source/images/phenopype_logo.png)
+![](https://github.com/mluerig/phenopype/raw/r2v2/source/phenopype_logo.png)
 
 | Project status | Windows build | Linux build | OSX build | Coverage | Style |
 |:---:|:---:|:---:|:---:|:---:|:---:|
@@ -27,7 +27,7 @@ phenopype is aiming to augment, rather than replace the utility of existing CV l
 - project management tools to organize images and data (automatic creation of project directory tree)
 - customizable analysis-templates that allow anyone to reproduce all collected data with only a few lines of code (suitable for repositories like DRYAD or OSF).
 
-![](source/images/phenopype_demo.gif)
+![](https://github.com/mluerig/phenopype/raw/r2v2/source/phenopype_demo.gif)
 
 ---
 
