@@ -41,8 +41,8 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.githubpages',
     'sphinx.ext.autosectionlabel',
-    'nbsphinx',
-    'm2r2'
+    'recommonmark',
+    'nbsphinx'
 
 ]
 
@@ -51,9 +51,6 @@ autodoc_member_order = 'bysource'
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-# The suffix(es) of source filenames.
-source_suffix = ['.rst', '.md']
-m2r_parse_relative_links = True
 # The master toctree document.
 master_doc = 'index'
 
