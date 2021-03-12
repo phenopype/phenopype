@@ -35,11 +35,10 @@ setup(
     package_data={'phenopype': ['core/*.py', 'settings/*.py']},
     install_requires = [
 		"numpy==1.18.5",
-        'pyradiomics',
+        "pyradiomics==3.0.1",
 		"opencv-contrib-python==3.4.9.33",
         "pandas",
 		"Pillow",
-        "pyradiomics",
         "tqdm",
         "ruamel.yaml",
         "watchdog"
