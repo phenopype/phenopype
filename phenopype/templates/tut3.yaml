@@ -7,11 +7,6 @@
         blocksize: 199
         constant: 5
         channel: red
-    - morphology:
-        operation: close
-        shape: ellipse
-        kernel_size: 3
-        iterations: 3
     - find_contours:
         retrieval: ext
         min_diameter: 0

@@ -794,15 +794,7 @@ class project:
         """
         Add or edit functions in all configuration files of a project. Finds and
         replaces single or multiline string-patterns. Ideally this is done via 
-        python docstrings that represent the parts of the yaml file to be replaced, 
-        for example (with ' as "):
-        
-        target = \
-        '''- threshold:
-                method: adaptive'''
-        replacement = 
-        '''- threshold:
-                method: otsu'''
+        python docstrings that represent the parts of the yaml file to be replaced.
                 
         Parameters
         ----------

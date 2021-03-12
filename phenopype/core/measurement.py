@@ -33,6 +33,7 @@ def colour_intensity(
     Measures pixel values within the provided contours, either across all 
     channels ("gray") or for each channel separately ("rgb"). Measures mean 
     and standard deviation
+    
     Parameters
     ----------
     obj_input : array or container
