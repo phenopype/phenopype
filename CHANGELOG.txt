@@ -1,19 +1,18 @@
 Known bugs
 ==========
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
-- on macOS, the high throughput workflow crashes when watchdog and opencv interact - no fix yet
+- on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
 1.0.9 
 -----
-("glee" project release) 
-
 bugfix:
     - last scroll while zoom out scrambles the shown canvas
 	- draw/mask in edit mode: indexing issues that would remove previously created drawings or masks
 	- remove duplicate mask coordinate feedback 
-- reworked yaml-parser: now also duplicate "steps" (segmentation, visualization, etc.) possible - POTENTIALLY BREAKING
+- reworked yaml-parser: now also duplicate "steps" (segmentation, visualization, etc.) possible 
 - pype: finish now with CTRL+ENTER, otherwise the pype-operation starts over
-- drawing: draw all drawings in the same function, for previewing
+- create_mask and draw have new mode (edit): allows to pick up on previous work and add or remove masks and drawings
+- draw: print all drawings in the same function, for previewing
 - draw/mask: "canvas" option to draw directly onto current canvas (and on underlying binary mask)
 
 1.0.8

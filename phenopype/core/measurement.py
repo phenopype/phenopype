@@ -188,7 +188,8 @@ def landmarks(
     **kwargs
 ):
     """
-    Place landmarks.
+    Placing landmarks. It is possible to modify the appearance of points while 
+    while doing so. 
     
     Parameters
     ----------
@@ -706,9 +707,20 @@ def texture_features(
     min_diameter=5,
 ):
     """
-    Measures pixel values within the provided contours, either across all 
-    channels ("gray") or for each channel separately ("rgb"). Measures mean 
-    and standard deviation
+    Collects 120 texture features using the pyradiomics feature extractor
+    (https://pyradiomics.readthedocs.io/en/latest/features.html): 
+    
+    - First Order Statistics (19 features)
+    - Shape-based (3D) (16 features)
+    - Shape-based (2D) (10 features)
+    - Gray Level Cooccurence Matrix (24 features)
+    - Gray Level Run Length Matrix (16 features)
+    - Gray Level Size Zone Matrix (16 features)
+    - Neighbouring Gray Tone Difference Matrix (5 features)
+    - Gray Level Dependence Matrix (14 features)
+    
+    Features are collected from EVERY contour that is supplied along with the raw
+    image. Not that this may result in very large dataframes. 
 
     Parameters
     ----------
