@@ -14,7 +14,7 @@ from .settings import root_dir1, image_dir, pype_name, preset
 def new_project():
     with mock.patch('builtins.input', return_value='y'):
         project = pp.project(root_dir=root_dir1, overwrite=True)
-    # new_project = project
+    new_project = project
     return project
 
 def test_project(new_project):

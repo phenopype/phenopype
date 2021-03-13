@@ -127,7 +127,6 @@ def draw(
             image = copy.deepcopy(obj_input.image)
         elif flag_canvas == "canvas":
             image = copy.deepcopy(obj_input.canvas)
-        image = copy.deepcopy(obj_input.canvas)
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_drawings"):
             df_drawings = obj_input.df_drawings
@@ -164,9 +163,6 @@ def draw(
             if label in df_drawings_sub["label"].values:
                 print("- drawing with label " + label + " already created (overwrite=False)")
                 break
-        elif mode == "silent":
-            print("Silent mode - using existing coordinates")
-            break
         elif not df_drawings.__class__.__name__ == "NoneType" and flag_edit == True:
             ## extract previous drawing and convert to dict
             if label in df_drawings_sub["label"].values:
@@ -195,6 +191,9 @@ def draw(
             prev_drawings = {}
             print("- drawing")
             pass
+        elif mode == "silent":
+            print("Silent mode - using existing coordinates")
+            break
 
         ## add other labels for reference
         if len(df_drawings) > 0:

@@ -203,6 +203,7 @@ class _image_viewer:
         if window_control == "internal":
             if self.flag_test_mode == True:
                 self.done = True
+                self.finished = True
                 cv2.waitKey(self.wait_time)
                 cv2.destroyAllWindows()
             elif self.flag_test_mode == False:
@@ -755,17 +756,22 @@ def _contours_tup_array(list_tup_list):
 
 
 def _create_generic_pype_config(preset, config_name):
+    
+    if preset.__class__.__name__ == "str":
+        if hasattr(presets, preset):
+            pype_preset = _load_yaml(preset, typ="safe")
+            print("pype config generated from " + preset + ".")
+    else:
+        pype_preset = preset
+        preset = "custom"
 
-    pype_preset = _load_yaml(eval("presets." + preset))
-    pype_config = {
-        "pype": {
-            "name": config_name,
-            "preset": preset,
-            "date_created": datetime.today().strftime("%Y%m%d_%H%M%S"),
-        }
-    }
-    pype_config.update(pype_preset)
-    print("pype config generated from " + preset + ".")
+    pype_config = ('pype', 
+             [('name', config_name), 
+              ('preset', preset), 
+              ('date_created', datetime.today().strftime("%Y%m%d_%H%M%S"))])
+    
+    pype_config = [pype_config] + pype_preset
+    
     return pype_config
 
 
@@ -935,27 +941,6 @@ def _equalize_histogram(image, detected_rect_mask, template):
     return interp_template_values[image]
 
 
-def _load_yaml(string, typ="regular"):
-    
-    ## has to be "safe" for pype
-    flag_type = typ
-    
-    if flag_type == "regular":
-        yaml =  YAML()
-    elif flag_type == "safe":
-        yaml = YAML(typ="safe")
-        
-    if string.__class__.__name__ == "str":
-        if os.path.isfile(string):
-            with open(string, "r") as file:
-                file = yaml.load(file)
-        else:
-            file = yaml.load(string)
-        return file
-    else:
-        warnings.warn("Not a valid path - couldn't load yaml.")
-        return
-
 
 def _load_pype_config(obj_input, **kwargs):
 
@@ -988,16 +973,17 @@ def _load_pype_config(obj_input, **kwargs):
             + "\n"
         )
         if create == "y" or create == "yes":
-            pype_preset = _create_generic_pype_config(preset, config_name)
-            config = {"image": copy.deepcopy(obj_input.image_data)}
-            config.update(pype_preset)
+            pype_preset = _create_generic_pype_config(preset, config_name)           
+            image_data = [(k,v) for k, v in copy.deepcopy(obj_input.image_data).items()]            
+            config = [("image", image_data)]
+            config = config + pype_preset
             print(
                 'Created and saved new pype config "'
                 + os.path.basename(config_location)
                 + '" in folder '
                 + os.path.dirname(config_location)
             )
-            _save_yaml(config, config_location)
+            _save_yaml(config, config_location, typ="safe")
             return pype_preset, config_location
         else:
             sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
@@ -1005,51 +991,64 @@ def _load_pype_config(obj_input, **kwargs):
         sys.exit('Did not find "pype_config_' + config_name + '.yaml" - abort.')
 
 
-def _show_yaml(odict, ret=False, typ="regular"):
+def _show_yaml(config, ret=False, typ="rt"):
     
     ## has to be "safe" for pype
     flag_type = typ
     
-    if flag_type == "regular":
-        yaml =  YAML()
+    if flag_type == "safe":
+        print("Cannot print yaml in safe-mode")
+    
+    else:
+        yaml = YAML(typ=typ)
         if ret:
             with io.StringIO() as buf, redirect_stdout(buf):
-                yaml.dump(odict, sys.stdout)
+                yaml.dump(config, sys.stdout)
                 return buf.getvalue()
         else:
-            yaml.dump(odict, sys.stdout)
-        
-    elif flag_type == "safe":
-        print("Cannot print yaml in safe-mode")
-
-
+            yaml.dump(config, sys.stdout)
         
 
-def _save_yaml(odict, filepath, typ="regular"):
+
+def _load_yaml(string, typ="rt"):
     
+    ## has to be "safe" for pype      
+    yaml = YAML(typ=typ)
     
+    if string.__class__.__name__ == "str":
+        if os.path.isfile(string):
+            with open(string, "r") as file:
+                config = yaml.load(file)
+            return config
+        elif hasattr(presets, string):
+            config = yaml.load(eval("presets." + string))
+            return config
+        else:
+            print("Not a valid filepath - couldn't load yaml.")
+            return
+    else:
+        print("Wrong input - couldn't load yaml.")
+        return
+
+
+
+def _save_yaml(config, filepath, typ="rt"):
+
     ## has to be "safe" for pype
-    flag_type = typ
-    
-    if flag_type == "regular":
-        yaml =  YAML()
-    elif flag_type == "safe":
-        yaml = YAML(typ="safe")
+    yaml =  YAML(typ=typ)
         
-        
-    if flag_type == "regular":
+    ## save
+    if typ=="safe":
         with open(filepath, "w") as config_file:
-            yaml.dump(odict, config_file)
-        
-    elif flag_type == "safe":
-        with open(filepath, "w") as config_file:
-        
-            for step in odict:
-                                    
+
+            ## go throgh steps (top-level; including "image" / "pype")
+            for step in config:           
                 step_name = step[0]
                 step_method_list = step[1]
+                # print(step_name)
                 config_file.write(step_name + ":\n")
                 
+                ## go through methods (second-level)
                 if not step_method_list.__class__.__name__ == "NoneType":
                     for method in step_method_list:
                                             
@@ -1057,6 +1056,7 @@ def _save_yaml(odict, filepath, typ="regular"):
                         if method.__class__.__name__ == "str":
                             method_name = method
                             config_file.write("- " + str(method_name) + "\n")
+                            
                         ## methods with arguments
                         elif method.__class__.__name__ == "list":
                             method_name = method[0][0]
@@ -1067,7 +1067,8 @@ def _save_yaml(odict, filepath, typ="regular"):
                             config_file.write("- " + method_name + ":\n")
                             for key, value in method_arguments.items():
                                 config_file.write("    " + key + ": " + str(value) + "\n")
-                        ## meta-data
+                                
+                        ## meta-data ("image" / "pype")
                         elif method.__class__.__name__ == "tuple":
                             method_name = method[0]
                             method_arguments = method[1]         
@@ -1075,6 +1076,10 @@ def _save_yaml(odict, filepath, typ="regular"):
                                 method_arguments = str(method_arguments)
                                 method_arguments = method_arguments[0:8] + "_" + method_arguments[8:16]
                             config_file.write("  " + str(method_name) + ": " + str(method_arguments) + "\n")  
+
+    else:
+        with open(filepath, "w") as config_file:
+            yaml.dump(config, config_file)
 
 
 def _timestamp():

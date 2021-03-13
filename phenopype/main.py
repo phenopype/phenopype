@@ -416,21 +416,21 @@ class project:
         elif not config_preset.__class__.__name__ == "NoneType" and os.path.isfile(
             config_preset
         ):
-            config = {
-                "pype": {
-                    "name": name,
-                    "preset": config_preset,
-                    "date_created": datetime.today().strftime("%Y%m%d_%H%M%S"),
-                }
-            }
-            
-            ## dict > yaml-format > string buffer > list 
-            config = _load_yaml(_show_yaml(config, ret=True), typ="safe")
-            
+                                
             ## load preset and append to config-list
             preset_loaded = _load_yaml(config_preset, typ="safe")
-            config = config + preset_loaded
             
+            ## remove existing image or pype sections
+            preset_loaded_clean = []
+            for step in preset_loaded:
+                step_name = step[0]
+                if step_name in ["pype", "image", "project"]:
+                    continue
+                preset_loaded_clean.append(step)
+
+            ## merge with existing pype config
+            config = _create_generic_pype_config(preset_loaded_clean, name)
+
         elif not config_preset.__class__.__name__ == "NoneType" and not hasattr(
             presets, config_preset
         ):
@@ -438,7 +438,7 @@ class project:
             return
         elif config_preset.__class__.__name__ == "NoneType":
             print("No preset provided - defaulting to preset " + default_pype_config)
-            config = _load_yaml(eval("presets." + default_pype_config), typ="safe")
+            config = _create_generic_pype_config(default_pype_config, name)
 
         ## modify
         if flag_interactive:
@@ -467,19 +467,17 @@ class project:
 
         ## go through project directories
         for directory in self.dirpaths:
-            attr = _load_yaml(os.path.join(self.root_dir, directory, "attributes.yaml"))
-            
-            ## dict > yaml-format > string buffer > list 
-            image_attr = _load_yaml(_show_yaml( {"image": attr["image"]}, ret=True), typ="safe")
+            attr = _load_yaml(os.path.join(self.root_dir, directory, "attributes.yaml"), 
+                              typ="safe")
             
             ## construct preset
-            pype_preset = image_attr + config
+            pype_preset = attr + config
 
             ## save config
             preset_path = os.path.join(
                 self.root_dir, directory, "pype_config_" + name + ".yaml"
             )
-            dirname = attr["project"]["dirname"]
+            dirname = os.path.basename(directory)
             if os.path.isfile(preset_path) and flag_overwrite == False:
                 print(
                     "pype_"
@@ -490,11 +488,10 @@ class project:
                 )
                 continue
             elif os.path.isfile(preset_path) and flag_overwrite == True:
-                print("pype_" + name + ".yaml created for " + dirname + " (overwritten)")
-                _save_yaml(pype_preset, preset_path, typ="safe")
+                print("pype_" + name + ".yaml created for " + dirname + " (overwritten)")               
             else:
                 print("pype_" + name + ".yaml created for " + dirname)
-                _save_yaml(pype_preset, preset_path, typ="safe")
+            _save_yaml(pype_preset, preset_path, typ="safe")
 
     def add_scale(self, reference_image, overwrite=False, **kwargs):
         """
@@ -1028,7 +1025,7 @@ class pype:
                 step_method_list = step[1]
                       
                 ## skip cases: meta-steps, none, or presetting mode
-                if step_name in ["image", "meta", "pype"]:
+                if step_name in ["image", "meta", "pype", "project"]:
                     continue
                 if step_method_list.__class__.__name__=="NoneType":
                     continue

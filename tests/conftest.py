@@ -27,7 +27,7 @@ def project_container():
 def project_directory():
     proj = pp.project.load(root_dir2)
     image = proj.dirpaths[0]
-    # project_directory = image 
+    project_directory = image 
     return image
 
 @pytest.fixture(scope="session")
