@@ -743,6 +743,10 @@ def _contours_tup_array(list_tup_list):
     return coords_arr_list
 
 
+
+
+
+
 def _create_mask_bin(image, masks):
     mask_bin = np.zeros(image.shape[0:2], np.uint8)
     if masks.__class__.__name__ == "DataFrame":

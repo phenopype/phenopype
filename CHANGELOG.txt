@@ -16,11 +16,13 @@ bugfix:
     - last scroll while zoom out scrambles the shown canvas
 	- draw/mask in edit mode: indexing issues that would remove previously created drawings or masks
 	- remove duplicate mask coordinate feedback 
+- added docstrings for texture features
 - reworked yaml-parser: now also duplicate "steps" (segmentation, visualization, etc.) possible 
 - pype: finish now with CTRL+ENTER, otherwise the pype-operation starts over
 - create_mask and draw have new mode (edit): allows to pick up on previous work and add or remove masks and drawings
 - draw: print all drawings in the same function, for previewing
 - draw/mask: "canvas" option to draw directly onto current canvas (and on underlying binary mask)
+
 
 1.0.8
 -----

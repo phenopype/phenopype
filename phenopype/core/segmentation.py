@@ -128,7 +128,7 @@ def draw(
             image = copy.deepcopy(obj_input.image)
         elif flag_canvas == "canvas":
             image = copy.deepcopy(obj_input.canvas)
-        # image = copy.deepcopy(obj_input.canvas) ???
+
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_drawings"):
             df_drawings = obj_input.df_drawings

@@ -83,3 +83,20 @@ def test_save_reference(project_container):
     pp.export.save_reference(project_container, overwrite=False)  
     attr = pp.utils_lowlevel._load_yaml(os.path.join(project_container.dirpath, "attributes.yaml"))
     assert "reference" in attr
+
+def test_save_shapes(project_container):
+    pp.export.save_shapes(project_container.df_shapes)
+    with mock.patch('builtins.input', return_value='n'):
+        pp.export.save_shapes(project_container, dirpath="new")        
+    pp.export.save_shapes(project_container, overwrite=True)
+    pp.export.save_shapes(project_container, overwrite=False)    
+    assert os.path.isfile(os.path.join(project_container.dirpath, "shapes_" + pype_name + ".csv"))
+
+def test_save_textures(project_container):
+    pp.export.save_textures(project_container.df_textures)
+    with mock.patch('builtins.input', return_value='n'):
+        pp.export.save_textures(project_container, dirpath="new")        
+    pp.export.save_textures(project_container, overwrite=True)
+    pp.export.save_textures(project_container, overwrite=False)    
+    assert os.path.isfile(os.path.join(project_container.dirpath, "textures_" + pype_name + ".csv"))
+

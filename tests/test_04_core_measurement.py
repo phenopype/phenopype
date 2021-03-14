@@ -40,6 +40,10 @@ def test_colour_intensity(project_container):
 def test_shape_features(project_container):
     pp.measurement.shape_features(project_container)
     assert "perimeter_length" in project_container.df_shapes
+    
+def test_texture_features(project_container):
+    pp.measurement.texture_features(project_container)
+    assert "ngtdm_Strength" in project_container.df_textures
 
 def test_polylines(project_container):
     test_params = {"flag_test_mode": True,
