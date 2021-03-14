@@ -25,6 +25,11 @@ def test_create_mask(project_container):
                                  tool="rect", 
                                  overwrite=flag_overwrite,
                                  test_params=test_params)
+    pp.preprocessing.create_mask(project_container, 
+                                 tool="rect", 
+                                 overwrite=flag_overwrite,
+                                 test_params=test_params,
+                                 edit=True)
     assert len(project_container.df_masks) > 0
     
 def test_invert_image(project_container):
