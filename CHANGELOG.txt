@@ -3,6 +3,13 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+
+2.0.0
+changes that are INCOMPATIBLE with past versions:
+	- configuration templates (previously "presets") are now stores as YAML in their own folder "template"
+	- yaml syntax for config has changed: modules are denoted as list items for greater flexibility when using a single step multiple times
+
+
 1.0.9 
 -----
 bugfix:
