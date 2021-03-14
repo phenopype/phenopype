@@ -2,9 +2,13 @@
 
 pandoc README.md -o source/readme.inc --to rst
 
+if "%~1"=="-d" (
+	rmdir /Q /S _temp
+)
+
 sphinx-multibuild -c . -i source -i tutorials  -s _temp/docs -o docs -a
 
-if "%~1"=="-o" (
+if "%~2"=="-o" (
 	cd docs
 	rmdir ".git" /S /Q
 	git init

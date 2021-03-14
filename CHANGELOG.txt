@@ -5,9 +5,14 @@ Known bugs
 
 
 2.0.0
+-----
 changes that are INCOMPATIBLE with past versions:
 	- configuration templates (previously "presets") are now stores as YAML in their own folder "template"
 	- yaml syntax for config has changed: modules are denoted as list items for greater flexibility when using a single step multiple times
+	- "scale"-functions is called "reference" (to reflect both a reference to size and colour)
+	- reference information is now stored centrally in the project attributes file, image attributes file now contain pointers that can be "activated" (to use multiple references)
+- phenopype readme and tutorials have been reorganized
+- project.edit_config now takes triple-quote docstring to find and replace text in all configuration files belonging to a project
 
 
 1.0.9 
