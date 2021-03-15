@@ -58,15 +58,18 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
 
     ## method
     ## for container
-    if flag_container and canvas in ["image_bin", "bin", "binary"]:
+    if canvas in ["image_raw", "raw"]:
+        if flag_container:
+            canvas = copy.deepcopy(obj_input.image_copy)
+        else: 
+            canvas = copy.deepcopy(image)
+        print("- raw image")
+    elif flag_container and canvas in ["image_bin", "bin", "binary"]:
         canvas = copy.deepcopy(obj_input.image_bin)
         print("- binary image")
     elif flag_container and canvas in ["image_mod", "mod", "modified"]:
         canvas = copy.deepcopy(obj_input.image)
         print("- modifed image")
-    elif flag_container and canvas in ["image_raw", "raw"]:
-        canvas = copy.deepcopy(obj_input.image_copy)
-        print("- raw image")
     ## for array and container
     elif canvas in ["gray", "grey", "image_gray"]:
         canvas = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

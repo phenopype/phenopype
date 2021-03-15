@@ -6,7 +6,8 @@ Known bugs
 2.0.1
 -----
 bugfix:
-	- save masks as df would take ndarray instead of DataFrame
+	- save_masks as df would take ndarray instead of DataFrame
+	- select_canvas with ndarray would not allow to select raw
 
 2.0.0
 -----
