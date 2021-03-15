@@ -1,4 +1,3 @@
-processing_steps:
 - preprocessing:
   - create_mask:
       tool: polygon
