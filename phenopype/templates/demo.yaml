@@ -11,23 +11,20 @@
       constant: 5
       channel: red
       df_masks: mask1
-  - morphology:
-      operation: close
-      shape: ellipse
-      kernel_size: 3
-      iterations: 3
   - find_contours:
       retrieval: ext
       min_area: 150
+- measurement:
+  - shape_features:
+      return_moments: true
 - visualization:
   - select_canvas:
       canvas: raw
-  - draw_contours:
-      line_width: 2
-      fill: 0.3
+  - draw_contours
   - draw_masks
 - export:
   - save_canvas:
       overwrite: true
   - save_contours
-  - save_contours     
+  - save_masks
+  - save_shapes
