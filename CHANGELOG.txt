@@ -3,6 +3,12 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+2.0.1
+-----
+bugfix:
+	- save_masks as df would take ndarray instead of DataFrame
+	- select_canvas with ndarray would not allow to select raw
+- draw_landmarks now takes label=False/True and offset argument
 
 2.0.0
 -----

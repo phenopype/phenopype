@@ -58,15 +58,18 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
 
     ## method
     ## for container
-    if flag_container and canvas in ["image_bin", "bin", "binary"]:
+    if canvas in ["image_raw", "raw"]:
+        if flag_container:
+            canvas = copy.deepcopy(obj_input.image_copy)
+        else: 
+            canvas = copy.deepcopy(image)
+        print("- raw image")
+    elif flag_container and canvas in ["image_bin", "bin", "binary"]:
         canvas = copy.deepcopy(obj_input.image_bin)
         print("- binary image")
     elif flag_container and canvas in ["image_mod", "mod", "modified"]:
         canvas = copy.deepcopy(obj_input.image)
         print("- modifed image")
-    elif flag_container and canvas in ["image_raw", "raw"]:
-        canvas = copy.deepcopy(obj_input.image_copy)
-        print("- raw image")
     ## for array and container
     elif canvas in ["gray", "grey", "image_gray"]:
         canvas = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -353,11 +356,13 @@ def draw_contours(
 def draw_landmarks(
     obj_input,
     df_landmarks=None,
-    point_colour="green",
-    point_size="auto",
+    label=True,
     label_colour="black",
     label_size="auto",
     label_width="auto",
+    offset=0,
+    point_colour="green",
+    point_size="auto",
 ):
     """
     Draw landmarks into an image.
@@ -368,16 +373,20 @@ def draw_landmarks(
         input object
     df_landmarks: DataFrame, optional
         should contain landmark coordinates as an array in a df cell
-    point_colour: {"green", "red", "blue", "black", "white"} str, optional
-        landmark point colour
-    point_size: int, optional
-        landmark point size in pixels
+    label : bool, optional
+        draw landmark label
     label_colour : {"black", "white", "green", "red", "blue"} str, optional
         landmark label colour.
     label_size: int, optional
         landmark label font size (scaled to image)
     label_width: int, optional
         landmark label font width  (scaled to image)
+    offset: int, optional
+        add offset (in pixels) to text location (to bottom-left corner of the text string)
+    point_colour: {"green", "red", "blue", "black", "white"} str, optional
+        landmark point colour
+    point_size: int, optional
+        landmark point size in pixels
 
     Returns
     -------
@@ -389,6 +398,7 @@ def draw_landmarks(
     ## kwargs
     point_colour = colours[point_colour]
     label_col = colours[label_colour]
+    flag_label = label
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
@@ -414,16 +424,18 @@ def draw_landmarks(
     ## visualize
     for label, x, y in zip(df_landmarks.landmark, df_landmarks.x, df_landmarks.y):
         cv2.circle(image, (x, y), point_size, point_colour, -1)
-        cv2.putText(
-            image,
-            str(label),
-            (x, y),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            label_size,
-            label_col,
-            label_width,
-            cv2.LINE_AA,
-        )
+        if flag_label:
+            x,y = x+offset, y+offset
+            cv2.putText(
+                image,
+                str(label),
+                (x, y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                label_size,
+                label_col,
+                label_width,
+                cv2.LINE_AA,
+            )
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

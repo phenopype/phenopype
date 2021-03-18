@@ -602,7 +602,7 @@ def save_masks(obj_input, overwrite=True, dirpath=None, save_suffix=None):
     flag_overwrite = overwrite
 
     ## load df
-    if obj_input.__class__.__name__ == "ndarray":
+    if obj_input.__class__.__name__ == "DataFrame":
         df = obj_input
     elif obj_input.__class__.__name__ == "container":
         df = obj_input.df_masks
