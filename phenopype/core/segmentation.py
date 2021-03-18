@@ -120,6 +120,7 @@ def draw(
     df_drawings = None
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
+        image_bin = copy.deepcopy(obj_input)
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
     elif obj_input.__class__.__name__ == "container":
@@ -127,7 +128,7 @@ def draw(
             image = copy.deepcopy(obj_input.image)
         elif flag_canvas == "canvas":
             image = copy.deepcopy(obj_input.canvas)
-        # image = copy.deepcopy(obj_input.canvas) ???
+
         df_image_data = obj_input.df_image_data
         if hasattr(obj_input, "df_drawings"):
             df_drawings = obj_input.df_drawings
@@ -819,3 +820,4 @@ def watershed(
         return image_watershed
     elif obj_input.__class__.__name__ == "container":
         obj_input.image = image_watershed
+        obj_input.image_bin = image_watershed

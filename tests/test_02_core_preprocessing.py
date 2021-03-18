@@ -19,6 +19,7 @@ def test_create_mask(project_container):
                                   (1389, 275),
                                   (1376, 272)]]}
     pp.preprocessing.create_mask(project_container, 
+
                                  overwrite=flag_overwrite,
                                  test_params=test_params)
     assert len(project_container.df_masks) > 0

@@ -1,0 +1,45 @@
+- preprocessing:
+  - detect_reference
+- visualization:
+  - select_canvas:
+      canvas: raw
+  - draw_masks:
+      line_width: 3
+- preprocessing:
+  - create_mask:
+      tool: polygon
+      canvas: canvas
+      overwrite: true
+- segmentation:
+  - blur:
+      kernel_size: 9
+  - threshold:
+      method: adaptive
+      blocksize: 99
+      constant: 3
+      channel: red
+  - morphology:
+      operation: close
+      shape: ellipse
+      kernel_size: 3
+      iterations: 3
+  - watershed:
+      distance_cutoff: 0.8
+  - draw:
+      line_colour: white
+      line_width: 4
+  - find_contours:
+      retrieval: ext
+- visualization:
+  - select_canvas:
+      canvas: raw
+  - draw_contours:
+      line_width: 2
+      label_width: 0
+      label_size: 1
+      fill: 0.3
+  - draw_masks:
+      line_width: 3
+- export:
+  - save_contours:
+      overwrite: true

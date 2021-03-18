@@ -16,6 +16,7 @@ from phenopype.utils_lowlevel import _auto_text_size, _auto_text_width
 
 def create_mask_old(
     obj_input,
+    df_masks=None,
     df_image_data=None,
     include=True,
     overwrite=False,
@@ -64,13 +65,12 @@ def create_mask_old(
     prev_masks = {}
 
     ## load image
-    df_masks = None
     if obj_input.__class__.__name__ == "ndarray":
         image = obj_input
         if df_image_data.__class__.__name__ == "NoneType":
             df_image_data = pd.DataFrame(
                 {"filename": "unknown"}, index=[0]
-            )  ## that may not be necessary
+            )  
     elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
         if flag_canvas == "image":
             image = copy.deepcopy(obj_input.image)
@@ -89,11 +89,8 @@ def create_mask_old(
 
     ## check if exists
     while True:
-        
         if not df_masks.__class__.__name__ == "NoneType":
-            ## select df_drawing that matches label
             df_masks_sub = df_masks.loc[df_masks["mask"] == label]
-            ## remove meta-columns
             df_masks_sub = df_masks_sub[
                 df_masks_sub.columns.intersection(["mask", "include","coords"])
             ]  
@@ -155,21 +152,23 @@ def create_mask_old(
                 )
         else:
             print("zero coordinates - redo mask!")
+            break
+
+        ## merge with existing image_data frame
+        df_masks_sub_new = pd.concat(
+            [
+                pd.concat([df_image_data] * len(df_masks_sub_new)).reset_index(drop=True),
+                df_masks_sub_new.reset_index(drop=True),
+            ],
+            sort=False,
+            axis=1,
+        )
+        df_masks = df_masks.append(df_masks_sub_new, sort=False)
+        df_masks = df_masks.reindex(df_masks_sub_new.columns, axis=1)
+
+        ## drop index before saving
+        df_masks.reset_index(drop=True, inplace=True)
         break
-
-    ## merge with existing image_data frame
-    df_masks_sub_new = pd.concat(
-        [
-            pd.concat([df_image_data] * len(df_masks_sub_new)).reset_index(drop=True),
-            df_masks_sub_new.reset_index(drop=True),
-        ],
-        axis=1,
-    )
-    df_masks = df_masks.append(df_masks_sub_new)
-    
-    ## drop index before saving
-    df_masks.reset_index(drop=True, inplace=True)
-
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

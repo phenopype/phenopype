@@ -1,7 +1,7 @@
 - preprocessing:
     - create_mask:
         tool: polygon
-    - find_reference
+    - detect_reference
     - enter_data:
         columns: ID
 - segmentation:

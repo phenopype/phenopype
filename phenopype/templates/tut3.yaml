@@ -1,0 +1,28 @@
+- preprocessing:
+    - create_mask: 
+        tool: polygon
+- segmentation:
+    - threshold:
+        method: adaptive 
+        blocksize: 199
+        constant: 5
+        channel: red
+    - find_contours:
+        retrieval: ext
+        min_diameter: 0
+        min_area: 150
+- visualization:
+    - select_canvas:
+        canvas: image
+    - draw_contours:
+        line_width: 2
+        label_width: 1
+        label_size: 1
+        fill: 0.3
+    - draw_masks
+- export:
+    - save_contours:
+        overwrite: true
+    - save_canvas:
+        resize: 0.5
+        overwrite: true

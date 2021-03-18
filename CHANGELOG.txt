@@ -1,20 +1,33 @@
 Known bugs
 ==========
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
-- on macOS, the high throughput workflow crashes when watchdog and opencv interact - no fix yet
+- on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
+
+
+2.0.0
+-----
+changes that are INCOMPATIBLE with past versions:
+	- configuration templates (previously "presets") are now stores as YAML in their own folder "template"
+	- yaml syntax for config has changed: modules are denoted as list items for greater flexibility when using a single step multiple times
+	- "scale"-functions is called "reference" (to reflect both a reference to size and colour)
+	- reference information is now stored centrally in the project attributes file, image attributes file now contain pointers that can be "activated" (to use multiple references)
+- phenopype readme and tutorials have been reorganized
+- project.edit_config now takes triple-quote docstring to find and replace text in all configuration files belonging to a project
+
 
 1.0.9 
 -----
-("glee" project release) 
-
 bugfix:
     - last scroll while zoom out scrambles the shown canvas
 	- draw/mask in edit mode: indexing issues that would remove previously created drawings or masks
 	- remove duplicate mask coordinate feedback 
-- reworked yaml-parser: now also duplicate "steps" (segmentation, visualization, etc.) possible - POTENTIALLY BREAKING
+- added docstrings for texture features
+- reworked yaml-parser: now also duplicate "steps" (segmentation, visualization, etc.) possible 
 - pype: finish now with CTRL+ENTER, otherwise the pype-operation starts over
-- drawing: draw all drawings in the same function, for previewing
+- create_mask and draw have new mode (edit): allows to pick up on previous work and add or remove masks and drawings
+- draw: print all drawings in the same function, for previewing
 - draw/mask: "canvas" option to draw directly onto current canvas (and on underlying binary mask)
+
 
 1.0.8
 -----
