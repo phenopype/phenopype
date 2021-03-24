@@ -428,6 +428,23 @@ class container(object):
 #%% functions
 
 def image_channel(image, channel="gray"):
+    """
+    Extract single channel from multi-channel array.
+
+    Parameters
+    ----------
+    image : TYPE
+        DESCRIPTION.
+    channel : TYPE, optional
+        DESCRIPTION. The default is "gray".
+
+    Returns
+    -------
+    image : TYPE
+        DESCRIPTION.
+
+    """
+    
     
     if channel in ["grayscale","gray"]:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

@@ -5,7 +5,7 @@ import pandas as pd
 
 from math import inf
 
-from phenopype.settings import colours
+from phenopype.settings import colours, opencv_contour_flags
 from phenopype.utils import image_channel, image_invert
 from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_line_width
 from phenopype.core.visualization import draw_contours
@@ -13,56 +13,7 @@ from phenopype.core.visualization import draw_contours
 #%% functions
 
 
-def blur(obj_input, kernel_size=5, method="averaging", sigma_color=75, sigma_space=75):
-    """
-    Apply a blurring algorithm to the image.
 
-    Parameters
-    ----------
-    obj_input : array or container
-        input object
-    kernel_size: int, optional
-        size of the blurring kernel (has to be odd - even numbers will be ceiled)
-    method: {averaging, gaussian, median, bilateral} str, optional
-        blurring algorithm
-    sigma_colour: int, optional
-        for 'bilateral'
-    sigma_space: int, optional
-        for 'bilateral'
-
-    Returns
-    -------
-    image : array or container
-        blurred image
-
-    """
-    ## kwargs
-    if kernel_size % 2 == 0:
-        kernel_size = kernel_size + 1
-
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
-
-    ## method
-    if method == "averaging":
-        image = cv2.blur(image, (kernel_size, kernel_size))
-    elif method == "gaussian":
-        image = cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
-    elif method == "median":
-        image = cv2.medianBlur(image, kernel_size)
-    elif method == "bilateral":
-        image = cv2.bilateralFilter(image, kernel_size, sigma_color, sigma_space)
-    else:
-        image = image
-
-    ## return
-    if obj_input.__class__.__name__ == "container":
-        obj_input.image = image
-    else:
-        return image
 
 
 
@@ -293,6 +244,74 @@ def draw(
 
 # pp.show_image(image)
 
+def contours_detect(
+    image,
+    label_id=None,
+    approximation="simple",
+    retrieval="ext",
+    offset_coords=(0, 0),       
+    **kwargs,
+    ):
+        
+    ## check
+    if len(image.shape) > 2:
+        print("Multi-channel array supplied - need binary array.")
+        return 
+    
+    ## settings
+    settings = locals()
+    for rm in ["image"]:
+        settings.pop(rm, None)
+
+    ## method
+    image, contours, hierarchies = cv2.findContours(
+        image=image,
+        mode=opencv_contour_flags["retrieval"][retrieval],
+        method=opencv_contour_flags["approximation"][approximation],
+        offset=offset_coords,
+    )
+    
+   
+    ## conversion
+    if contours is not None:
+        coords = contours
+        coords_support = []
+        for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
+            
+            ## get center coords
+            center, radius = cv2.minEnclosingCircle(contour)
+
+            ## contour hierarchy
+            if hierarchy[3] == -1:
+                hierarchy_level = "parent"
+            else:
+                hierarchy_level = "child"
+
+            ## supporting info
+            coords_support.append(
+                {
+                    "center": center,
+                    "hierarchy": hierarchy_level,
+                    "hierarchy_idx_child": hierarchy[2],
+                    "hierarchy_idx_parent": hierarchy[3],
+                    }
+                )
+
+    ## return
+    ret = {
+    "info":{
+        "function": "contours_detect",
+        "settings": settings
+        },
+    "coords": contours,
+    "coords_support": coords_support
+    }
+
+    return ret
+
+
+    
+
 def find_contours(
     image,
     approximation="simple",
@@ -521,8 +540,7 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close", iterat
 
 
 def threshold(
-    obj_input,
-    df_masks=None,
+    image,
     method="otsu",
     constant=1,
     blocksize=99,
@@ -568,36 +586,36 @@ def threshold(
 
     """
 
-    ##kwargs
-    if blocksize % 2 == 0:
-        blocksize = blocksize + 1
-    if value > 255:
-        value = 255
-    elif value < 0:
-        value = 0
 
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = copy.deepcopy(obj_input)
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
-        if hasattr(obj_input, "df_masks"):
-            df_masks = copy.deepcopy(obj_input.df_masks)
-
-    ## channel
-    
-    
+    ## checks
     if len(image.shape) == 3:
         image = image_channel(image)
-        
+        print("multi-channel supplied - defaulting to gray channel")
+    if blocksize % 2 == 0:
+        blocksize = blocksize + 1
+        print("warning - need odd blocksize")
+    if value > 255:
+        value = 255
+        print("warning - \"value\" has to be < 255")
+    elif value < 0:
+        value = 0
+        print("warning - \"value\" has to be > 0")
+
+    ## modifications
     if invert:
         image = image_invert(image)
+        print("multi-channel supplied - defaulting to gray channel")
 
     ## method
     if method == "otsu":
-        ret, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        ret, thresh = cv2.threshold(
+            image, 
+            0, 
+            255, 
+            cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+            )
     elif method == "adaptive":
-        image = cv2.adaptiveThreshold(
+        thresh = cv2.adaptiveThreshold(
             image,
             255,
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -606,38 +624,39 @@ def threshold(
             constant,
         )
     elif method == "binary":
-        ret, image = cv2.threshold(image, value, 255, cv2.THRESH_BINARY_INV)
+        ret, thresh = cv2.threshold(
+            image, 
+            value, 
+            255, 
+            cv2.THRESH_BINARY_INV
+            )
 
-    ## apply masks
-    if not df_masks.__class__.__name__ == "NoneType":
-        ## include == True
-        mask_bool, include_idx, exclude_idx = np.zeros(image.shape, dtype=bool), 0,0
-        for index, row in df_masks.iterrows():
-            if row["include"] == True:
-                if not row["mask"] == "":
-                    coords = eval(row["coords"])
-                    mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
-                    include_idx += 1
-        if include_idx > 0:
-            image[mask_bool == False] = 0
-        for index, row in df_masks.iterrows():
-            if row["include"] == False:
-                if not row["mask"] == "":
-                    coords = eval(row["coords"])
-                    image[_create_mask_bool(image, coords)] = 0
-                    exclude_idx += 1
-        if exclude_idx>0:
-            print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
-        if include_idx>0:
-            print("- including pixels from " + str(include_idx) + " drawn masks ")
+    # ## apply masks
+    # if not df_masks.__class__.__name__ == "NoneType":
+    #     ## include == True
+    #     mask_bool, include_idx, exclude_idx = np.zeros(image.shape, dtype=bool), 0,0
+    #     for index, row in df_masks.iterrows():
+    #         if row["include"] == True:
+    #             if not row["mask"] == "":
+    #                 coords = eval(row["coords"])
+    #                 mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
+    #                 include_idx += 1
+    #     if include_idx > 0:
+    #         image[mask_bool == False] = 0
+    #     for index, row in df_masks.iterrows():
+    #         if row["include"] == False:
+    #             if not row["mask"] == "":
+    #                 coords = eval(row["coords"])
+    #                 image[_create_mask_bool(image, coords)] = 0
+    #                 exclude_idx += 1
+    #     if exclude_idx>0:
+    #         print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
+    #     if include_idx>0:
+    #         print("- including pixels from " + str(include_idx) + " drawn masks ")
 
-        
     ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return image
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.image = image
-        obj_input.image_bin = image
+    return thresh
+
 
 
 def watershed(

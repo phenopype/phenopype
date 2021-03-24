@@ -57,6 +57,23 @@ with path(__package__, 'templates') as template_dir:
 
 flag_verbose = False
 
+
+opencv_contour_flags = {
+    "retrieval" : {
+        "ext": cv2.RETR_EXTERNAL,  ## only external
+        "list": cv2.RETR_LIST,  ## all contours
+        "tree": cv2.RETR_TREE,  ## fully hierarchy
+        "ccomp": cv2.RETR_CCOMP,  ## outer perimeter and holes
+        "flood": cv2.RETR_FLOODFILL, ## not sure what this does
+        },
+    "approximation" : {
+        "none": cv2.CHAIN_APPROX_NONE,  ## all points (no approx)
+        "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
+        "L1": cv2.CHAIN_APPROX_TC89_L1,  
+        "KCOS": cv2.CHAIN_APPROX_TC89_KCOS, 
+        }
+    }
+
 opencv_window_flags={
     "normal": cv2.WINDOW_NORMAL,
     "auto": cv2.WINDOW_AUTOSIZE,

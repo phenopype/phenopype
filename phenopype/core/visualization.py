@@ -213,16 +213,16 @@ def draw_contours(
     idx = 0
     colour_mask = copy.deepcopy(image)
     for key, value in contours.items():
-        if flag_mark_holes:
-            if value["order"] == "child":
-                if flag_watershed:
-                    line_colour = line_colour_sel
-                else:
-                    line_colour = colours["red"]
-            elif value["order"] == "parent":
-                line_colour = line_colour_sel
-        else:
-            line_colour = line_colour_sel
+        # if flag_mark_holes:
+        #     if value["order"] == "child":
+        #         if flag_watershed:
+        #             line_colour = line_colour_sel
+        #         else:
+        #             line_colour = colours["red"]
+        #     elif value["order"] == "parent":
+        #         line_colour = line_colour_sel
+        # else:
+        #     line_colour = line_colour_sel
         if flag_fill > 0:
             cv2.drawContours(
                 image=colour_mask,

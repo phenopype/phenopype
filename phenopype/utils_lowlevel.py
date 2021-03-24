@@ -129,12 +129,10 @@ class _image_viewer:
 
         ## interactive window
         if self.flag_tool:
-            self.points, self.point_list = [], []
+            self.points, self.polygons, self.rect_start = [], [], None
             self.line_width = kwargs.get("line_width", _auto_line_width(image))
             self.line_colour = colours[kwargs.get("line_colour", "green")]
-            if self.flag_tool in ["rectangle","rect","template"]:
-                self.rect_list, self.rect_start = [], None
-            elif self.flag_tool in ["landmarks", "landmark"]:
+            if self.flag_tool in ["landmarks", "landmark"]:
                 self.point_size = kwargs.get("point_size", _auto_point_size(image))
                 self.point_colour = colours[kwargs.get("point_colour", "red")]
                 self.text_size = kwargs.get("label_size", _auto_text_size(image))
@@ -167,13 +165,13 @@ class _image_viewer:
                 if hasattr(self, "coords"):
                     if self.coords.__class__.__name__ == "str":
                         self.coords = eval(self.coords)                
-                    self.point_list = self.coords
+                    self.polygons = self.coords
                     
                 if hasattr(self, "point_list"):
                     
                     ## convert point list to rect list
                     if self.flag_tool in ["rectangle", "rect","template"] and not self.flag_test_mode == True:
-                        for point in self.point_list:
+                        for point in self.polygons:
                             cv2.polylines(
                                 self.image_copy,
                                 np.array([point]),
@@ -182,11 +180,11 @@ class _image_viewer:
                                 self.line_width,
                             )
                             self.rect_list.append([point[0][0], point[0][1], point[2][0], point[2][1]])
-                        self.point_list = []
+                        self.polygons = []
                         
                     ## draw previous drawings
                     elif self.flag_tool in ["line", "polyline", "polygon"] or self.flag_test_mode == True:
-                        for point in self.point_list:
+                        for point in self.polygons:
                             cv2.polylines(
                                 self.image_copy,
                                 np.array([point]),
@@ -243,25 +241,25 @@ class _image_viewer:
             if self.flag_tool in ["polygon", "poly"]:
                 if len(self.points) > 2:
                     self.points.append(self.points[0])
-                    self.point_list.append(self.points)
+                    self.polygons.append(self.points)
             elif self.flag_tool in ["polyline","polylines","lines"]:
                 if len(self.points) > 0:
-                    self.point_list.append(self.points)
-            elif self.flag_tool in ["rectangle", "rect","template"]:
-                if len(self.rect_list) > 0:
-                    for rect in self.rect_list:
-                        xmin, ymin, xmax, ymax = rect
-                        self.point_list.append(
-                            [
-                                (xmin, ymin),
-                                (xmax, ymin),
-                                (xmax, ymax),
-                                (xmin, ymax),
-                                (xmin, ymin),
-                            ]
-                        )
+                    self.polygons.append(self.points)
+            # elif self.flag_tool in ["rectangle", "rect","template"]:
+            #     if len(self.rect_list) > 0:
+            #         for rect in self.rect_list:
+            #             xmin, ymin, xmax, ymax = rect
+            #             self.polygons.append(
+            #                 [
+            #                     (xmin, ymin),
+            #                     (xmax, ymin),
+            #                     (xmax, ymax),
+            #                     (xmin, ymax),
+            #                     (xmin, ymin),
+            #                 ]
+            #             )
             elif self.flag_tool in ["landmarks", "landmark"]:
-                self.point_list.append(self.points)
+                self.polygons.append(self.points)
         else:
             if self.flag_test_mode == True:
                 self.done = True
@@ -386,10 +384,14 @@ class _image_viewer:
         if event == cv2.EVENT_MOUSEMOVE:
             if (reference or flag_draw) and self.flag_tool == "line" and len(self.points) == 2:
                 return
+            
+            ## convert cursor coords from zoomed canvas to original coordinate space
             self.coords_original = (
                 int(self.zoom_x1 + (x * self.global_fx)),
                 int(self.zoom_y1 + (y * self.global_fy)),
             )
+            
+            ## draw line between current cursor coords and last polygon node
             if len(self.points) > 0:
                 self.coords_prev = (
                     int((self.points[-1][0] - self.zoom_x1) / self.global_fx),
@@ -403,191 +405,125 @@ class _image_viewer:
                     self.line_colour,
                     self.line_width,
                 )
+                
+            ## if in reference mode, don't connect
             elif (reference or flag_draw) and self.flag_tool == "line" and len(self.points) > 2:
                 pass
+            
+            ## pump updates
             cv2.imshow(self.window_name, self.canvas)
+            
+            
         if event == cv2.EVENT_LBUTTONDOWN:  ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
+        
+            ## skip if in reference mode
             if reference and len(self.points) == 2:
                 print("already two points selected")
                 return
+            
+            ## convert cursor coords from zoomed canvas to original coordinate space
             self.coords_original = (
                 int(self.zoom_x1 + (x * self.global_fx)),
                 int(self.zoom_y1 + (y * self.global_fy)),
             )
+            
+            ## append points to point list
             self.points.append(self.coords_original)
-            cv2.polylines(
-                self.image_copy,
-                np.array([self.points]),
-                False,
-                self.line_colour,
-                self.line_width,
-            )
-            if len(self.point_list) > 0:
-                for poly in self.point_list:
-                    cv2.polylines(
-                        self.image_copy,
-                        np.array([poly]),
-                        False,
-                        self.line_colour,
-                        self.line_width,
-                    )
-            self.canvas = self.image_copy[
-                self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
-            ]
-            self.canvas = cv2.resize(
-                self.canvas,
-                (self.canvas_width, self.canvas_height),
-                interpolation=cv2.INTER_LINEAR,
-            )
-            self.canvas_copy = copy.deepcopy(self.canvas)
-            cv2.imshow(self.window_name, self.canvas)
+            
+            ## update canvas
+            self._draw_lines()
+            
+            ## if in reference mode, append to ref coords
             if reference and len(self.points) == 2:
                 print("Reference set")
                 self.reference_coords = self.points
             if flag_draw and self.flag_tool == "line" and len(self.points) == 2:
-                self.point_list.append(self.points)
+                self.polygons.append(self.points)
                 self.points = []
-
+                
         if event == cv2.EVENT_RBUTTONDOWN:
+            
+            ## remove points and update canvas
             if len(self.points) > 0:
                 self.points = self.points[:-1]
-                self.image_copy = copy.deepcopy(self.image)
-                cv2.polylines(
-                    self.image_copy,
-                    np.array([self.points]),
-                    False,
-                    self.line_colour,
-                    self.line_width,
-                )
-                for poly in self.point_list:
-                    cv2.polylines(
-                        self.image_copy,
-                        np.array([poly]),
-                        False,
-                        self.line_colour,
-                        self.line_width,
-                    )
-                self.canvas = self.image_copy[
-                    self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
-                ]
-                self.canvas = cv2.resize(
-                    self.canvas,
-                    (self.canvas_width, self.canvas_height),
-                    interpolation=cv2.INTER_LINEAR,
-                )
-                self.canvas_copy = copy.deepcopy(self.canvas)
-                cv2.imshow(self.window_name, self.canvas)
-            elif len(self.points) == 0 and len(self.point_list) > 0:
-                self.point_list = self.point_list[:-1]
-                self.image_copy = copy.deepcopy(self.image)
-                for poly in self.point_list:
-                    cv2.polylines(
-                        self.image_copy,
-                        np.array([poly]),
-                        False,
-                        self.line_colour,
-                        self.line_width,
-                    )
-                self.canvas = self.image_copy[
-                    self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
-                ]
-                self.canvas = cv2.resize(
-                    self.canvas,
-                    (self.canvas_width, self.canvas_height),
-                    interpolation=cv2.INTER_LINEAR,
-                )
-                self.canvas_copy = copy.deepcopy(self.canvas)
-                cv2.imshow(self.window_name, self.canvas)
+                self._draw_lines()
+            
+            ## remove polygons and update canvas
+            elif len(self.points) == 0 and len(self.polygons) > 0:
+                self.polygons = self.polygons[:-1]
+                self._draw_lines(current=False)
 
         if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.points) > 2:
+            
+            ## close polygon
             if not polyline:
                 self.points.append(self.points[0])
-            self.point_list.append(self.points)
+                
+            ## add current points to polygon and empyt point list
+            self.polygons.append(self.points)
             self.points = []
-            self.image_copy = copy.deepcopy(self.image)
-            if len(self.point_list) > 0:
-                for poly in self.point_list:
-                    cv2.polylines(
-                        self.image_copy,
-                        np.array([poly]),
-                        False,
-                        self.line_colour,
-                        self.line_width,
-                    )
-            self.canvas = self.image_copy[
-                self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
-            ]
-            self.canvas = cv2.resize(
-                self.canvas,
-                (self.canvas_width, self.canvas_height),
-                interpolation=cv2.INTER_LINEAR,
-            )
-            self.canvas_copy = copy.deepcopy(self.canvas)
+
+            ## update canvas
+            if len(self.polygons) > 0:                
+                self._draw_lines(current=False, show=False)
+
 
     def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
+        
         ## kwargs
         template = kwargs.get("template", False)
-        if event == cv2.EVENT_LBUTTONDOWN:  ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
-            if template == True and len(self.rect_list) == 1:
+        
+        if event == cv2.EVENT_LBUTTONDOWN:  
+            
+            ## end after one set of points if creating a template
+            if template == True and len(self.polygons) == 1:
                 return
+            
+            ## start drawing temporary rectangle 
             self.rect_start = x, y
             self.canvas_copy = copy.deepcopy(self.canvas)
-        if event == cv2.EVENT_LBUTTONUP:  ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
-            if template == True and len(self.rect_list) == 1:
-                return
-            self.rect_start = None
-            self.rect_list.append(
-                [
-                    int(self.zoom_x1 + (self.global_fx * self.rect_minpos[0])),
-                    int(self.zoom_y1 + (self.global_fy * self.rect_minpos[1])),
-                    int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])),
-                    int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1])),
-                ]
-            )
-            for (rx1, ry1, rx2, ry2) in self.rect_list:
-                cv2.rectangle(
-                    self.image_copy,
-                    (rx1, ry1),
-                    (rx2, ry2),
-                    self.line_colour,
-                    self.line_width,
-                )
-            self.canvas = self.image_copy[
-                self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
-            ]
-            self.canvas = cv2.resize(
-                self.canvas,
-                (self.canvas_width, self.canvas_height),
-                interpolation=cv2.INTER_LINEAR,
-            )
-            self.canvas_copy = copy.deepcopy(self.canvas)
-            cv2.imshow(self.window_name, self.canvas)
-            if template == True and len(self.rect_list) == 1:
+            
+        if event == cv2.EVENT_LBUTTONUP:
+            
+            ## end after one set of points if creating a template
+            if template == True and len(self.polygons) == 1:
                 print("Template selected")
-        if event == cv2.EVENT_RBUTTONDOWN:
-            if len(self.rect_list) > 0:
-                self.rect_list = self.rect_list[:-1]
-                self.image_copy = copy.deepcopy(self.image)
-                for (rx1, ry1, rx2, ry2) in self.rect_list:
-                    cv2.rectangle(
-                        self.image_copy,
-                        (rx1, ry1),
-                        (rx2, ry2),
-                        self.line_colour,
-                        self.line_width,
-                    )
-                self.canvas = self.image_copy[
-                    self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
+                return
+            
+            ## end drawing temporary rectangle
+            self.rect_start = None
+
+            ## convert rectangle to polygon coords
+            self.rect = [
+                int(self.zoom_x1 + (self.global_fx * self.rect_minpos[0])),
+                int(self.zoom_y1 + (self.global_fy * self.rect_minpos[1])),
+                int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])),
+                int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1])),
                 ]
-                self.canvas = cv2.resize(
-                    self.canvas,
-                    (self.canvas_width, self.canvas_height),
-                    interpolation=cv2.INTER_LINEAR,
-                )
-                self.canvas_copy = copy.deepcopy(self.canvas)
-                cv2.imshow(self.window_name, self.canvas)
+            self.polygons.append(
+                [
+                    (self.rect[0], self.rect[1]), 
+                    (self.rect[2], self.rect[1]),
+                    (self.rect[2], self.rect[3]),
+                    (self.rect[0], self.rect[3]),
+                    (self.rect[0], self.rect[1]),
+                    ]
+            )           
+            
+            ## draw polygons (no current points for rectangles)
+            self._draw_lines(current=False)
+                
+        if event == cv2.EVENT_RBUTTONDOWN:
+            
+            ## remove polygons and update canvas
+            if len(self.polygons) > 0:
+                self.polygons = self.polygons[:-1]
+                self._draw_lines(current=False)
+
+                
+        ## draw temporary rectangle
         elif self.rect_start:
-            if flags & cv2.EVENT_FLAG_LBUTTON:  ##  and (flags & cv2.EVENT_FLAG_CTRLKEY)
+            if flags & cv2.EVENT_FLAG_LBUTTON:        
                 self.canvas = copy.deepcopy(self.canvas_copy)
                 self.rect_minpos = min(self.rect_start[0], x), min(self.rect_start[1], y)
                 self.rect_maxpos = max(self.rect_start[0], x), max(self.rect_start[1], y)
@@ -598,10 +534,52 @@ class _image_viewer:
                     self.line_colour,
                     self.line_width,
                 )
-                # else:
-                #     cv2.rectangle(self.canvas, self.rect_minpos, self.rect_maxpos,
-                #                   colours["red"], max(2,_auto_line_width(self.canvas)))
                 cv2.imshow(self.window_name, self.canvas)
+                
+                
+    def _draw_lines(self,current=True,previous=True, show=True):
+    
+        ## pull copy from original image
+        self.image_copy = copy.deepcopy(self.image)
+        
+        ## draw lines from current points
+        if current==True:
+            cv2.polylines(
+                self.image_copy,
+                np.array([self.points]),
+                False,
+                self.line_colour,
+                self.line_width,
+            )
+        
+        ## draw lines from all polygons
+        if previous==True:
+            for poly in self.polygons:
+                cv2.polylines(
+                    self.image_copy,
+                    np.array([poly]),
+                    False,
+                    self.line_colour,
+                    self.line_width,
+                )
+        
+        ## pass zoomed part of original imgae to canvas
+        self.canvas = self.image_copy[
+            self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
+        ]
+        
+        ## resize canvas to fit window
+        self.canvas = cv2.resize(
+            self.canvas,
+            (self.canvas_width, self.canvas_height),
+            interpolation=cv2.INTER_LINEAR,
+        )
+        self.canvas_copy = copy.deepcopy(self.canvas)
+        
+        ## pump updates
+        if show==True:
+            cv2.imshow(self.window_name, self.canvas)
+                
 
     def _zoom_fun(self, x, y):
         """Helper function for image_viewer. Takes current xy coordinates and 
@@ -668,7 +646,6 @@ class _image_viewer:
             interpolation=cv2.INTER_LINEAR,
         )
         self.canvas_copy = copy.deepcopy(self.canvas)
-
 
 class _yaml_file_monitor:
     def __init__(self, filepath, delay=100):

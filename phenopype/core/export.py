@@ -1,10 +1,60 @@
 #%% modules
-import cv2, copy, os
+import cv2, copy, json, os
+import numpy as np
 import pandas as pd
 
 from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
 
+#%% settings
+
+class customJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return str(obj.tolist())
+        return json.JSONEncoder.default(self, obj)
+
 #%% functions
+def annotation_load(path, 
+                    overwrite=False):
+    
+    if os.path.isfile(path):
+        with open('data.json') as file:
+            data = json.load(file)
+            
+    for key, value in data.items():
+        if "coords" in value:
+            coords_new = []
+            for coords in value["coords"]:
+                coords_new.append(np.asarray(eval(coords), dtype=np.int32))
+            value["coords"] = coords_new
+            data[key] = value
+    
+    return data
+
+def annotation_save(annotation, 
+                    annotation_type, 
+                    path, 
+                    indent=4,
+                    overwrite=False):
+    
+    data = {annotation_type: annotation}
+    
+    if os.path.isfile(path):
+        with open('data.json') as file:
+            data = json.load(file)
+    
+    if annotation_type in data:
+        if overwrite==True:
+            data
+            
+    with open(path, 'w') as file:
+        json.dump(data, file, indent=indent, cls=customJsonEncoder)
+
+
+
+            
+
+
 
 
 def save_canvas(

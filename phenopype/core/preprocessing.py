@@ -6,7 +6,7 @@ import pandas as pd
 from math import sqrt as _sqrt
 import numpy.ma as ma
 
-from phenopype.core.segmentation import find_contours
+from phenopype.core.segmentation import find_contours, contours_detect
 from phenopype.settings import default_image_viewer_settings, colours
 from phenopype.utils import image_channel, image_resize
 from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, \
@@ -16,9 +16,52 @@ from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, \
 #%% functions
 
 
+def blur(image, 
+         kernel_size=5, 
+         method="averaging", 
+         sigma_color=75, 
+         sigma_space=75):
+    """
+    Apply a blurring algorithm to the image.
+
+    Parameters
+    ----------
+    obj_input : array 
+        input image to be blurred
+    kernel_size: int, optional
+        size of the blurring kernel (has to be odd - even numbers will be ceiled)
+    method: {averaging, gaussian, median, bilateral} str, optional
+        blurring algorithm
+    sigma_colour: int, optional
+        for 'bilateral'
+    sigma_space: int, optional
+        for 'bilateral'
+
+    Returns
+    -------
+    image : array 
+
+    """
+    ## checks
+    if kernel_size % 2 == 0:
+        kernel_size = kernel_size + 1
+
+    ## method
+    if method == "averaging":
+        blurred = cv2.blur(image, (kernel_size, kernel_size))
+    elif method == "gaussian":
+        blurred = cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
+    elif method == "median":
+        blurred = cv2.medianBlur(image, kernel_size)
+    elif method == "bilateral":
+        blurred = cv2.bilateralFilter(image, kernel_size, sigma_color, sigma_space)
+
+    ## return
+    return blurred
+
+
 def circles_detect(image,
-                   label,
-                   annotation_type="mask",
+                   label_id,
                    resize=1,
                    dp=1,
                    min_dist=50,
@@ -42,11 +85,16 @@ def circles_detect(image,
     
     """
 
-    ## image check
+    ## checks
     if len(image.shape) == 3:
         image = image_channel(image)
     resized = image_resize(image, resize)
             
+    ## settings
+    settings = locals()
+    for rm in ["image","resized"]:
+        settings.pop(rm, None)
+        
     ## method
     circles = cv2.HoughCircles(resized, 
                                cv2.HOUGH_GRADIENT, 
@@ -59,16 +107,13 @@ def circles_detect(image,
 
     ## output conversion
     if circles is not None:
-        mask_coords = []
-        contours = {}
+        coords = []
         for idx, circle in enumerate(circles[0]):
             x,y,radius = circle/resize
             mask = np.zeros(image.shape[:2], dtype=np.uint8)
             mask = cv2.circle(mask, (x,y), radius, 255, -1)
-            mask_contour = find_contours(mask, retrieval="ext", verbose=False)
-            mask_coords.append(mask_contour[1]["coords"])
-            mask_contour[1].update({"contour":idx})
-            contours[idx] = mask_contour[1]
+            mask_contours = contours_detect(mask, label_id, retrieval="ext", verbose=False)
+            coords.append(mask_contours["coords"][0])
             
         if verbose:
             print("Found {} circles".format(len(circles[0])))
@@ -78,54 +123,96 @@ def circles_detect(image,
         return None
     
     ## return results
-    if annotation_type == "mask":
-        ret = {"label": label, 
-               "coords": mask_coords}
-    else:
-        ret = contours
+    ret = {
+        "info": {
+            "label_id" : label_id,
+            "settings": settings,
+            },
+        "coords":coords,
+        }
         
+        
+    # else:
+    #     ret = {
+    #         "info": {
+    #             "label_id" : label_id,
+    #             "label_type" : label_type,
+    #             "settings": config,
+    #             },
+    #         "coords": contours,
+    #         }        
     return ret
+
+
+    
+    
+# annotations = {
+#     "info":{
+#         },
+#     "masks":{
+#         "info":{
+#             "label":"mask1",
+#             "tool":"rect",
+#             "settings": {}
+#             },
+#         "coords":
+#             []}}
+
 
 
 def mask_create(
     image,
-    label,
+    label_id,
     tool="rectangle",
     **kwargs
 ):
 
     ## retrieve settings for image viewer
-    iv_settings = {}
+    window_settings = {}
     for key, value in kwargs.items():
         if key in default_image_viewer_settings:
-            iv_settings[key] = value
+            window_settings[key] = value
+
+    ## settings
+    settings = locals()
+    for rm in ["image","label_id","include",
+               "kwargs","key","value"]:
+        settings.pop(rm, None)
 
     ## draw masks
     out = _image_viewer(image=image, 
                         tool=tool, 
-                        function_level_settings=iv_settings)
-    
-    ## abort if unsuccessful
+                        function_level_settings=window_settings)
     if not out.done:
         print("- didn't finish: redo mask")
         return None
     else:
-        coords = out.point_list
+        polygons = out.polygons
         
-    ## create new df row and append
+    # conversion
+    if polygons is not None:
+        polygon_list = []
+        for points in polygons:
+            point_list = []
+            for point in points:
+                point_list.append([list(point)])
+            polygon_list.append(np.asarray(point_list, dtype="int32"))
+        coords = polygon_list
+             
+    ## return
     if len(coords) > 0:
-        masks = {"mask": label, 
-                  "coords": str(coords),
-                  "tool": tool}
-        return masks
-    
+        ret = {
+            "info": {
+                "label_id" : label_id,
+                "settings": settings,
+                },
+            "coords":coords,
+            }
+        return ret
     else:
         print("- zero coordinates: redo mask")
         return None
     
-    
-
-
 
 def create_reference(
     obj_input,
