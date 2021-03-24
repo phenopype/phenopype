@@ -3,17 +3,23 @@ import ast, cv2, copy, os, sys, warnings
 import numpy as np
 import glob
 import pandas as pd
+import pkgutil
 from pathlib import Path
 
+import inspect
 
 from pprint import PrettyPrinter
 from PIL import Image, ExifTags
 
-from phenopype.utils_lowlevel import _image_viewer, _contours_tup_array, _load_yaml, _show_yaml
 
+
+import phenopype.core as core_modules
 from phenopype.core.export import *
-from phenopype.settings import colours, default_meta_data_fields, default_filetypes, flag_verbose, pype_config_templates, confirm_options
-
+from phenopype.settings import colours, default_meta_data_fields, \
+    default_filetypes, flag_verbose, pype_config_templates, confirm_options, \
+    opencv_interpolation_flags
+from phenopype.utils_lowlevel import _image_viewer, _contours_tup_array, \
+    _load_yaml, _show_yaml
 
 #%% settings
 
@@ -70,7 +76,22 @@ class container(object):
         self.dirpath = dirpath
         self.save_suffix = save_suffix
         self.reference_manual_mode = False
+        
+        class run(object):
+            def __init__ (self):
+                        
+                ## make functions class methods
+                for module_name, module in inspect.getmembers(core_modules, inspect.ismodule):
+                    for key, value in module.__dict__.items(): # iterate through every module's attributes
+                        if callable(value) and not key.startswith('_'):    
+                            setattr(self, key, value)                         
+            
+            
+            
+        self.run = run()     
+ 
 
+                    
     def load(self, dirpath=None, save_suffix=None, contours=False, canvas=False, **kwargs):
         """
         Autoload function for container: loads results files with given save_suffix
@@ -406,7 +427,80 @@ class container(object):
 
 #%% functions
 
+def image_channel(image, channel="gray"):
+    
+    if channel in ["grayscale","gray"]:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    elif channel in ["green","g",1]:
+        image = image[:, :, 0]
+    elif channel in ["red", "r",2]:
+        image = image[:, :, 1]
+    elif channel in ["blue","b",3]:
+        image = image[:, :, 2]
+        
+    if flag_verbose:
+        print("converted image to {} channel".format(str(channel)))
+        
+    return image
 
+
+def image_invert(image):
+    """
+    Invert all pixel intensities in image (e.g. 0 to 255 or 100 to 155)
+
+    Parameters
+    ----------
+    image: array 
+
+    Returns
+    -------
+    image : array 
+    
+    """
+
+    ## method
+    image = cv2.bitwise_not(image)
+
+    ## return results
+    return image
+
+
+def image_resize(image, factor=1, interpolation="cubic"):
+    """
+    Resize image by resize factor 
+
+    Parameters
+    ----------
+    obj_input: array 
+        image to be resized
+    resize: float, optional
+        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
+        original size).
+    interpolation: str, optional
+        interpolation algorithm to use. check pp.settings.opencv_interpolation_flags
+        and refer to https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
+
+    Returns
+    -------
+    image : array or container
+        resized image
+
+    """
+    
+    ## method
+    if factor == 1:
+        pass
+    else:
+        image = cv2.resize(
+            image, 
+            (0, 0), 
+            fx=1 * factor, 
+            fy=1 * factor, 
+            interpolation=opencv_interpolation_flags[interpolation]
+        )
+
+    ## return results
+    return image
 
 
 
@@ -790,7 +884,7 @@ def show_image(
     max_dim=1200,
     position_reset=True,
     position_offset=25,
-    window_aspect="free",
+    window_aspect="normal",
     check=True,
     **kwargs
 ):
@@ -836,12 +930,6 @@ def show_image(
         print("wrong input format.")
         return
 
-    ## select window type
-    if window_aspect == "free":
-        window_aspect = cv2.WINDOW_NORMAL
-    elif window_aspect == "fixed":
-        window_aspect = cv2.WINDOW_AUTOSIZE
-
     ## open images list or single images
     while True:
         if isinstance(image, list):
@@ -884,13 +972,13 @@ def show_image(
             break
         else:
             _image_viewer(
-                image,
+                image=image,
                 mode="",
                 window_aspect=window_aspect,
                 window_name="phenopype",
                 window_control="internal",
-                max_dim=max_dim,
-                previous=test_params,
+                # max_dim=max_dim,
+                # previous=test_params,
             )
             cv2.waitKey(0)
             cv2.destroyAllWindows()

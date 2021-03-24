@@ -3,298 +3,128 @@ import cv2, copy
 import numpy as np
 import pandas as pd
 
-from math import sqrt
+from math import sqrt as _sqrt
 import numpy.ma as ma
 
-from phenopype.settings import colours
-from phenopype.utils import load_image_data
-from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, _df_overwrite_checker, _equalize_histogram
-from phenopype.utils_lowlevel import _auto_text_size, _auto_text_width
+from phenopype.core.segmentation import find_contours
+from phenopype.settings import default_image_viewer_settings, colours
+from phenopype.utils import image_channel, image_resize
+from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, \
+    _df_overwrite_checker, _equalize_histogram, _auto_text_size, \
+        _auto_text_width, _get_circle_perimeter
 
 #%% functions
 
 
-def create_mask_old(
-    obj_input,
-    df_masks=None,
-    df_image_data=None,
-    include=True,
-    overwrite=False,
-    edit=False,
-    canvas="image",
-    label="mask1",
-    tool="rectangle",
-    max_dim=None,
-    **kwargs
-):
+def circles_detect(image,
+                   label,
+                   annotation_type="mask",
+                   resize=1,
+                   dp=1,
+                   min_dist=50,
+                   param1=200,
+                   param2=100,
+                   min_radius=0,
+                   max_radius=0,
+                   verbose=True,
+                   ):
+    
     """
-    Draw rectangle or polygon mask onto image by clicking and dragging the 
-    cursor over the image. One mask can contain multiple sets of coordinates, 
-    i.e. multiple and not overallping masks. For rectangle mask, finish with 
-    ENTER. For polygons, finish current polygon with CTRL, and then with ENTER.
+    Detect circles in grayscale image using Hough-Transform. Results can be 
+    returned either as mask or contour
     
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to mask
-        output DataFrame
-    include: bool, optional
-        determine whether resulting mask is to include or exclude objects within
-    label: str, optinal
-        assigns a label to the mask
-    overwrite: bool, optional
-        if working using a container, or from a phenopype project directory, 
-        should existing masks with the same label be overwritten
-    tool: {"rectangle", "polygon"} str, optional
-        select tool by which mask is drawn
+
 
     Returns
     -------
-    df_masks: DataFrame or container
-        contains mask coordiantes
+    
     """
 
-    ## kwargs
-    flag_overwrite = overwrite
-    flag_edit = edit
-    flag_canvas = canvas
-    test_params = kwargs.get("test_params", None)
-
-    prev_masks = {}
-
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame(
-                {"filename": "unknown"}, index=[0]
-            )  
-    elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
-        if flag_canvas == "image":
-            image = copy.deepcopy(obj_input.image)
-        elif flag_canvas == "canvas":
-            image = copy.deepcopy(obj_input.canvas)
-        if hasattr(obj_input, "df_image_data"):
-            df_image_data = copy.deepcopy(obj_input.df_image_data)
-        if hasattr(obj_input, "df_masks"):
-            df_masks = copy.deepcopy(obj_input.df_masks)
-            if "index" in df_masks:
-                df_masks.drop(columns = ["index"], inplace=True)
-            df_masks.reset_index(drop=True, inplace=True)
-    else:
-        print("wrong input format.")
-        return
-
-    ## check if exists
-    while True:
-        if not df_masks.__class__.__name__ == "NoneType":
-            df_masks_sub = df_masks.loc[df_masks["mask"] == label]
-            df_masks_sub = df_masks_sub[
-                df_masks_sub.columns.intersection(["mask", "include","coords"])
-            ]  
-        if not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == False and flag_edit == False:
-            if label in df_masks_sub["mask"].values:
-                print("- mask with label " + label + " already created (edit/overwrite=False)")
-                break
-        elif not df_masks.__class__.__name__ == "NoneType" and flag_edit == True:
-            if label in df_masks_sub["mask"].values:
-                prev_point_list = []
-                prev_rect_list = []
-                for index, row in df_masks_sub.iterrows():
-                    coords = eval(row["coords"])
-                    prev_point_list.append(coords)
-                    if tool == "rect" or tool == "rectangle":
-                        prev_rect_list.append([coords[0][0], coords[0][1], coords[2][0], coords[2][1]])
-                prev_masks = {"point_list": prev_point_list,
-                              "rect_list": prev_rect_list}
-                df_masks = df_masks.drop(df_masks[df_masks["mask"] == label].index)
-                print("- creating mask (editing)")
-        elif not df_masks.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            if label in df_masks["mask"].values:
-                ## remove rows from original drawing df
-                df_masks = df_masks.drop(df_masks[df_masks["mask"] == label].index)
-                print("- creating mask (overwriting)")
-                pass
-        elif df_masks.__class__.__name__ == "NoneType":
-            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
-            print("- creating mask")
-            pass
-
-        ## method
-        if not test_params.__class__.__name__ == "NoneType":
-            out = _image_viewer(image, mode="interactive", tool=tool, previous=test_params, max_dim=max_dim)
-        elif not df_masks.__class__.__name__ == "NoneType" and flag_edit == True:
-            out = _image_viewer(image, mode="interactive", tool=tool, previous=prev_masks, max_dim=max_dim)
-        else:
-            out = _image_viewer(image, mode="interactive", tool=tool, max_dim=max_dim)
+    ## image check
+    if len(image.shape) == 3:
+        image = image_channel(image)
+    resized = image_resize(image, resize)
             
-        ## abort
-        if not out.done:
-            if obj_input.__class__.__name__ == "ndarray":
-                print("terminated mask creation")
-                return
-            elif obj_input.__class__.__name__ == "container":
-                print("- terminated mask creation")
-                return True
-        else:
-            coords = out.point_list
+    ## method
+    circles = cv2.HoughCircles(resized, 
+                               cv2.HOUGH_GRADIENT, 
+                               dp=max(int(dp*resize),1), 
+                               minDist=int(min_dist*resize),
+                               param1=int(param1*resize), 
+                               param2=int(param2*resize),
+                               minRadius=int(min_radius*resize), 
+                               maxRadius=int(max_radius*resize))
 
-        ## create df
-        df_masks_sub_new = pd.DataFrame()
-        if len(coords) > 0:
-            for points in coords:
-                df_masks_sub_new = df_masks_sub_new.append(
-                    {"mask": label, "include": include, "coords": str(points)},
-                    ignore_index=True,
-                    sort=False,
-                )
-        else:
-            print("zero coordinates - redo mask!")
-            break
-
-        ## merge with existing image_data frame
-        df_masks_sub_new = pd.concat(
-            [
-                pd.concat([df_image_data] * len(df_masks_sub_new)).reset_index(drop=True),
-                df_masks_sub_new.reset_index(drop=True),
-            ],
-            sort=False,
-            axis=1,
-        )
-        df_masks = df_masks.append(df_masks_sub_new, sort=False)
-        df_masks = df_masks.reindex(df_masks_sub_new.columns, axis=1)
-
-        ## drop index before saving
-        df_masks.reset_index(drop=True, inplace=True)
-        break
-
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_masks
-    elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
-        obj_input.df_masks = df_masks
+    ## output conversion
+    if circles is not None:
+        mask_coords = []
+        contours = {}
+        for idx, circle in enumerate(circles[0]):
+            x,y,radius = circle/resize
+            mask = np.zeros(image.shape[:2], dtype=np.uint8)
+            mask = cv2.circle(mask, (x,y), radius, 255, -1)
+            mask_contour = find_contours(mask, retrieval="ext", verbose=False)
+            mask_coords.append(mask_contour[1]["coords"])
+            mask_contour[1].update({"contour":idx})
+            contours[idx] = mask_contour[1]
+            
+        if verbose:
+            print("Found {} circles".format(len(circles[0])))
+    else:
+        if verbose:
+            print("No circles detected")
+        return None
+    
+    ## return results
+    if annotation_type == "mask":
+        ret = {"label": label, 
+               "coords": mask_coords}
+    else:
+        ret = contours
         
-        
-        
-def create_mask(
-    obj_input,
-    df_masks=None,
-    overwrite=False,
-    edit=False,
-    include=True,
-    canvas="image",
-    label="mask1",
+    return ret
+
+
+def mask_create(
+    image,
+    label,
     tool="rectangle",
-    max_dim=None,
     **kwargs
 ):
-    """
-    Draw rectangle or polygon mask onto image by clicking and dragging the 
-    cursor over the image. One mask can contain multiple sets of coordinates, 
-    i.e. multiple and not overallping masks. For rectangle mask, finish with 
-    ENTER. For polygons, finish current polygon with CTRL, and then with ENTER.
+
+    ## retrieve settings for image viewer
+    iv_settings = {}
+    for key, value in kwargs.items():
+        if key in default_image_viewer_settings:
+            iv_settings[key] = value
+
+    ## draw masks
+    out = _image_viewer(image=image, 
+                        tool=tool, 
+                        function_level_settings=iv_settings)
     
-    Parameters
-    ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to mask
-        output DataFrame
-    include: bool, optional
-        determine whether resulting mask is to include or exclude objects within
-    label: str, optinal
-        assigns a label to the mask
-    overwrite: bool, optional
-        if working using a container, or from a phenopype project directory, 
-        should existing masks with the same label be overwritten
-    tool: {"rectangle", "polygon"} str, optional
-        select tool by which mask is drawn
-
-    Returns
-    -------
-    df_masks: DataFrame or container
-        contains mask coordiantes
-    """
-
-    ## kwargs
-    flag_overwrite = overwrite
-    flag_edit = edit
-    flag_canvas = canvas
-    test_params = kwargs.get("test_params", None)
-
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-    elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
-        if flag_canvas == "image":
-            image = copy.deepcopy(obj_input.image)
-        elif flag_canvas == "canvas":
-            image = copy.deepcopy(obj_input.canvas)
-        if hasattr(obj_input, "df_masks"):
-            df_masks = copy.deepcopy(obj_input.df_masks)
-            if "index" in df_masks:
-                df_masks.drop(columns = ["index"], inplace=True)
-            df_masks.reset_index(drop=True, inplace=True)
+    ## abort if unsuccessful
+    if not out.done:
+        print("- didn't finish: redo mask")
+        return None
     else:
-        print("wrong input format.")
-        return
+        coords = out.point_list
+        
+    ## create new df row and append
+    if len(coords) > 0:
+        masks = {"mask": label, 
+                  "coords": str(coords),
+                  "tool": tool}
+        return masks
     
-    ## overwrite checks
-    df = copy.deepcopy(df_masks)
-    df, edit_params = _df_overwrite_checker(df, "mask", label, 
-                                            flag_overwrite, flag_edit)
+    else:
+        print("- zero coordinates: redo mask")
+        return None
+    
+    
 
-    while True:
-        
-        ## abort if overwrite false
-        if df.__class__.__name__ == "NoneType":
-            break
-                
-        ## inject test parameters
-        if not test_params.__class__.__name__ == "NoneType":
-            edit_params = test_params
-            
-        ## draw masks
-        out = _image_viewer(image, 
-                            mode="interactive", 
-                            tool=tool, 
-                            previous=edit_params, 
-                            max_dim=max_dim)
-        
-        ## abort if unsuccessful
-        if not out.done:
-            print("- aborted mask creation")
-            break
-        else:
-            coords = out.point_list
-            
-        ## create new df row and append
-        if len(coords) > 0:
-            new_row = {"mask": label, 
-                       "include": include, 
-                       "coords": str(coords),
-                       "tool": tool}
-            df_new_row = pd.DataFrame(new_row,
-                                      columns=new_row.keys(),
-                                      index=[0])
-            df = df.append(df_new_row,
-                           ignore_index=True,
-                           sort=False)
-            df_masks = df
-            df_masks.reset_index(drop=True, inplace=True)
-        else:
-            print("- zero coordinates: redo mask")
-        
-        break
-   
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_masks
-    elif obj_input.__class__.__name__ in ["container", "motion_tracker"]:
-        obj_input.df_masks = df_masks
 
 
 def create_reference(
@@ -398,7 +228,7 @@ def create_reference(
         out = _image_viewer(image, tool="reference", previous=test_params)
 
         points = out.reference_coords
-        distance_px = sqrt(
+        distance_px = _sqrt(
                 ((points[0][0] - points[1][0]) ** 2)
                 + ((points[0][1] - points[1][1]) ** 2)
             )
@@ -483,6 +313,8 @@ def create_reference(
         obj_input.df_masks = df_masks
         obj_input.reference_template_image = template
 
+
+         
 
 
 def detect_reference(
@@ -876,73 +708,4 @@ def enter_data(
 
 
 
-def invert_image(obj_input):
-    """
-    Invert all pixel intensities in image (e.g. 0 to 255 or 100 to 155)
 
-    Parameters
-    ----------
-    obj_input: array or container
-        input for processing
-
-    Returns
-    -------
-    image : array or container
-        inverted image
-    """
-
-    ## load image and check if pp-project
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
-
-    ## method
-    image = cv2.bitwise_not(image)
-
-    ## return
-    if obj_input.__class__.__name__ == "container":
-        obj_input.image = image
-    else:
-        return image
-
-
-def resize_image(obj_input, factor=1):
-    """
-    Resize image by resize factor 
-
-    Parameters
-    ----------
-    obj_input: array or container
-        input for processing
-    resize: float, optional
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
-        original size).
-
-    Returns
-    -------
-    image : array or container
-        resized image
-
-    """
-
-    ## load image and check if pp-project
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
-        df_image_data = obj_input.df_image_data
-
-    ## method
-    image = cv2.resize(
-        image, (0, 0), fx=1 * factor, fy=1 * factor, interpolation=cv2.INTER_AREA
-    )
-
-    ## return
-    if obj_input.__class__.__name__ == "container":
-        df_image_data["resized"] = factor
-        obj_input.image = image
-        obj_input.image_copy = image
-        obj_input.df_image_data = df_image_data
-    else:
-        return image

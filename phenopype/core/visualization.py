@@ -100,10 +100,10 @@ def select_canvas(obj_input, canvas="image_mod", multi=True):
 
 
 def draw_contours(
-    obj_input,
-    df_contours=None,
+    image,
+    contours=None,
     offset_coords=None,
-    compare=None,
+    contours_compare=None,
     compare_line_width=1,
     label=True,
     fill=0.3,
@@ -199,19 +199,6 @@ def draw_contours(
     else:
         fill_colour = colours[fill_colour]
         
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = copy.deepcopy(obj_input)
-        if df_contours.__class__.__name__ == "NoneType":
-            print("No df provided - cannot draw contours.")
-            return
-    elif obj_input.__class__.__name__ == "container":
-        image = obj_input.canvas
-        df_contours = obj_input.df_contours
-    else:
-        print("wrong input format.")
-        return
-    
     ## more kwargs
     if line_width == "auto":
         line_width = _auto_line_width(image)
@@ -225,21 +212,21 @@ def draw_contours(
     ## method
     idx = 0
     colour_mask = copy.deepcopy(image)
-    for index, row in df_contours.iterrows():
+    for key, value in contours.items():
         if flag_mark_holes:
-            if row["order"] == "child":
+            if value["order"] == "child":
                 if flag_watershed:
                     line_colour = line_colour_sel
                 else:
                     line_colour = colours["red"]
-            elif row["order"] == "parent":
+            elif value["order"] == "parent":
                 line_colour = line_colour_sel
         else:
             line_colour = line_colour_sel
         if flag_fill > 0:
             cv2.drawContours(
                 image=colour_mask,
-                contours=[row["coords"]],
+                contours=[value["coords"]],
                 contourIdx=idx,
                 thickness=-1,
                 color=fill_colour,
@@ -249,17 +236,17 @@ def draw_contours(
         if line_width > 0:
             cv2.drawContours(
                 image=image,
-                contours=[row["coords"]],
+                contours=[value["coords"]],
                 contourIdx=idx,
                 thickness=line_width,
                 color=line_colour,
                 maxLevel=level,
                 offset=offset_coords,
             )
-        if flag_skeleton and "skeleton_coords" in df_contours:
+        if flag_skeleton and "skeleton_coords" in contours:
             cv2.drawContours(
                 image=image,
-                contours=[row["skeleton_coords"]],
+                contours=[value["skeleton_coords"]],
                 contourIdx=idx,
                 thickness=line_width,
                 color=colours["red"],
@@ -269,8 +256,8 @@ def draw_contours(
         if flag_label:
             cv2.putText(
                 image,
-                str(row["contour"]),
-                (row["center"]),
+                str(value["contour"]),
+                (value["center"]),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 label_size,
                 label_colour,
@@ -279,8 +266,8 @@ def draw_contours(
             )
             cv2.putText(
                 colour_mask,
-                str(row["contour"]),
-                (row["center"]),
+                str(value["contour"]),
+                (value["center"]),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 label_size,
                 label_colour,
@@ -290,9 +277,9 @@ def draw_contours(
 
     image = cv2.addWeighted(image, 1 - flag_fill, colour_mask, flag_fill, 0)
     
-    for index, row in df_contours.iterrows():
+    for key, value in contours.items():
         if flag_bounding_box:
-            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
+            rx, ry, rw, rh = cv2.boundingRect(value["coords"])
             cv2.rectangle(
                 image,
                 (rx - q, ry - q),
@@ -301,56 +288,53 @@ def draw_contours(
                 bounding_box_line_width,
             )
 
-    ## load previous contours
-    if obj_input.__class__.__name__ == "container" and not compare.__class__.__name__ == "NoneType":
-        while True:
-            if compare.__class__.__name__ == "str":
-                compare = [compare]
-            elif compare.__class__.__name__ == "list" and len(compare) > 3:
-                print("compare supports a maximum of three contour files")
-                break
-            col_idx = 0
-            cols = ["green","blue","red","black","white"]
-            for comp in compare:
-                if line_colour == cols[col_idx]:
-                    col_idx +=1
-                comp_line_colour = colours[cols[col_idx]]
-                comp_path = os.path.join(obj_input.dirpath, "contours_" + comp + ".csv")
-                col_idx +=1
-                if os.path.isfile(comp_path):
-                    compare_df = pd.read_csv(comp_path, converters={"center": ast.literal_eval})
-                    if "x" in compare_df:
-                        compare_df["coords"] = list(zip(compare_df.x, compare_df.y))
-                        coords = compare_df.groupby("contour")["coords"].apply(list)
-                        coords_arr = _contours_tup_array(coords)
-                        compare_df.drop(columns=["coords", "x", "y"], inplace=True)
-                        compare_df = compare_df.drop_duplicates().reset_index()
-                        compare_df["coords"] = pd.Series(coords_arr, index=compare_df.index)
-                    else:
-                        print("no coords found, cannot draw contours for comparison")
-                        continue
-                    print("- " + comp + " contours loaded")           
-                    for index, row in compare_df.iterrows():
-                        cv2.drawContours(
-                            image=image,
-                            contours=[row["coords"]],
-                            contourIdx=0,
-                            thickness=compare_line_width,
-                            color=comp_line_colour,
-                            maxLevel=level,
-                            offset=None,
-                        )
-                else:
-                    print("wrong compare suffix")
-            break
+    # ## load previous contours
+    # if obj_input.__class__.__name__ == "container" and not compare.__class__.__name__ == "NoneType":
+    #     while True:
+    #         if compare.__class__.__name__ == "str":
+    #             compare = [compare]
+    #         elif compare.__class__.__name__ == "list" and len(compare) > 3:
+    #             print("compare supports a maximum of three contour files")
+    #             break
+    #         col_idx = 0
+    #         cols = ["green","blue","red","black","white"]
+    #         for comp in compare:
+    #             if line_colour == cols[col_idx]:
+    #                 col_idx +=1
+    #             comp_line_colour = colours[cols[col_idx]]
+    #             comp_path = os.path.join(obj_input.dirpath, "contours_" + comp + ".csv")
+    #             col_idx +=1
+    #             if os.path.isfile(comp_path):
+    #                 compare_df = pd.read_csv(comp_path, converters={"center": ast.literal_eval})
+    #                 if "x" in compare_df:
+    #                     compare_df["coords"] = list(zip(compare_df.x, compare_df.y))
+    #                     coords = compare_df.groupby("contour")["coords"].apply(list)
+    #                     coords_arr = _contours_tup_array(coords)
+    #                     compare_df.drop(columns=["coords", "x", "y"], inplace=True)
+    #                     compare_df = compare_df.drop_duplicates().reset_index()
+    #                     compare_df["coords"] = pd.Series(coords_arr, index=compare_df.index)
+    #                 else:
+    #                     print("no coords found, cannot draw contours for comparison")
+    #                     continue
+    #                 print("- " + comp + " contours loaded")           
+    #                 for key, value in contours_compare.items():
+    #                     cv2.drawContours(
+    #                         image=image,
+    #                         contours=[value["coords"]],
+    #                         contourIdx=0,
+    #                         thickness=compare_line_width,
+    #                         color=comp_line_colour,
+    #                         maxLevel=level,
+    #                         offset=None,
+    #                     )
+    #             else:
+    #                 print("wrong compare suffix")
+    #         break
 
     # df_contours= df_contours.drop("skeleton_coords", axis=1)
 
     ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return image
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.canvas = image
+    return image
 
 
 def draw_landmarks(
@@ -446,8 +430,7 @@ def draw_landmarks(
 
 def draw_masks(
     obj_input,
-    select=None,
-    df_masks=None,
+    masks,
     line_colour="blue",
     line_width="auto",
     label=False,
@@ -485,21 +468,16 @@ def draw_masks(
     """
     ## kwargs
     flag_label = label
-    line_colour_sel = colours[line_colour]
+    line_colour = colours[line_colour]
     label_colour = colours[label_colour]
-    if not select.__class__.__name__ == "NoneType":
-        if not select.__class__.__name__ == "list":
-            select = [select]
+
+    coords = masks["coords"]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":
         image = copy.deepcopy(obj_input)
-        if df_masks.__class__.__name__ == "NoneType":
-            print("No df provided - cannot draw masks.")
-            return
     elif obj_input.__class__.__name__ == "container":
         image = obj_input.canvas
-        df_masks = obj_input.df_masks
     else:
         print("wrong input format.")
         return
@@ -513,26 +491,14 @@ def draw_masks(
         label_width = _auto_text_width(image)
 
     ## draw masks from mask obect
-    for index, row in df_masks.iterrows():
-        if not select.__class__.__name__ == "NoneType":
-            if row["mask"] in select:
-                pass
-            else:
-                continue
-        else:
-            pass
-        coords = eval(row["coords"])
-        if coords[0].__class__.__name__ == "list":
-            coords = coords[0]
-        if row["include"] == 0 or row["include"] == False:
-            line_colour = colours["red"]
-        else:
-            line_colour = line_colour_sel
-        cv2.polylines(image, np.array([coords]), False, line_colour, line_width)
+    for coord in coords:
+        if coord[0].__class__.__name__ == "list":
+            coord = coord[0]
+        cv2.polylines(image, np.array([coord]), False, line_colour, line_width)
         if flag_label:
             cv2.putText(
                 image,
-                row["mask"],
+                label,
                 coords[0],
                 cv2.FONT_HERSHEY_SIMPLEX,
                 label_size,
@@ -541,8 +507,6 @@ def draw_masks(
                 cv2.LINE_AA,
             )
 
-    for mask in df_masks["mask"].unique():
-        print("drawing mask: " + str(mask)) 
 
     ## return
     if obj_input.__class__.__name__ == "ndarray":

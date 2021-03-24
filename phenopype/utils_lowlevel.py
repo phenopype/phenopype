@@ -6,13 +6,15 @@ import pandas as pd
 
 import time
 from datetime import datetime
+from math import cos
 from stat import S_IWRITE
 from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
 from phenopype.settings import colours, confirm_options, pype_config_templates
-from phenopype.settings import flag_verbose
+from phenopype.settings import flag_verbose, opencv_window_flags
+from phenopype.settings import _image_viewer_settings
 
 ## capture yaml output - temp
 from contextlib import redirect_stdout
@@ -21,11 +23,17 @@ import io
 #%% settings
 
 
+
+
 #%% classes
 
-
+@_image_viewer_settings
 class _image_viewer:
-    def __init__(self, image, **kwargs):
+    def __init__(self, 
+                 image, 
+                 tool=None,
+                 **kwargs):
+        
         """
         Low level interactive image function.
         
@@ -35,24 +43,32 @@ class _image_viewer:
         Parameters
         ----------
 
-
         """
-        ## kwargs
-        self.flag_tool = kwargs.get("tool", None)
-        self.flag_draw = kwargs.get("draw", False)
-        self.flag_zoom_mode = kwargs.get("zoom", "continuous")
-        self.zoom_mag = kwargs.get("mag", 0.7)
-        self.zoom_n_steps = kwargs.get("steps", 20)
-        self.wait_time = 100
-        self.window_name = kwargs.get("window_name", "phenopype")
-        window_aspect = kwargs.get("window_aspect", cv2.WINDOW_AUTOSIZE)
-        window_control = kwargs.get("window_control", "internal")
-        max_dim = kwargs.get("max_dim", None)
-        if max_dim.__class__.__name__ == "NoneType":
-            max_dim = 1000
-        window_max_dimension = max_dim
+        ## retrieve default-, function-level, and directly suppied arguments
+        default_settings = kwargs.get("default_image_viewer_settings")
+        function_level_settings = kwargs.get("function_level_settings", {})
+        settings = copy.deepcopy(default_settings)
+        settings.update(function_level_settings)
+        for key, value in kwargs.items():
+            if not key in ["default_image_viewer_settings", 
+                           "function_level_settings"]:
+                settings[key] = value
 
-        ## new kwargs
+        ## set class arguments
+        self.flag_tool = tool
+        self.flag_zoom_mode = settings["zoom_mode"]       
+        self.zoom_magnification = settings["zoom_magnification"]
+        self.zoom_n_steps = settings["zoom_steps"]
+        self.wait_time = 100        
+        self.window_name = "phenopype"
+        
+        ## set method arguments
+        window_aspect = settings["window_aspect"]
+        window_control = settings["window_control"]
+        window_max_dimension = settings["window_max_dimension"]
+        
+        ## needs cleaning
+        self.flag_draw = kwargs.get("draw", False)
         self.flag_test_mode = kwargs.get("test_mode", False)
 
         ## resize image canvas
@@ -78,7 +94,7 @@ class _image_viewer:
                 )
         else:
             canvas = copy.deepcopy(image)
-
+            
         ## initialize
         self.image = copy.deepcopy(image)
         self.image_copy = copy.deepcopy(image)
@@ -105,7 +121,7 @@ class _image_viewer:
             int(image_height / self.zoom_n_steps),
         )
         if self.flag_zoom_mode == "fixed":
-            mag = int(self.zoom_mag * self.zoom_n_steps)
+            mag = int(self.zoom_magnification * self.zoom_n_steps)
             self.zoom_step_x, self.zoom_step_y = (
                 mag * self.zoom_step_x,
                 mag * self.zoom_step_y,
@@ -197,7 +213,7 @@ class _image_viewer:
         ## show canvas
         self.done = False
         self.finished = False
-        cv2.namedWindow(self.window_name, window_aspect)
+        cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
         cv2.startWindowThread()  ## needed for Mac OS ??
         cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
         cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
@@ -948,6 +964,15 @@ def _file_walker(
 
     return unique, duplicate
 
+
+def _get_circle_perimeter(center_x, center_y, radius):
+    coordinate_list=[]
+    for i in range(360):
+        y = center_x + radius * cos(i)
+        x = center_y + radius * cos(i)
+        coordinate_list.append((int(x),int(y)))
+    return coordinate_list
+        
 
 def _load_pype_config(config=None, 
                       template=None,

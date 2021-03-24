@@ -6,7 +6,7 @@ import pandas as pd
 from math import inf
 
 from phenopype.settings import colours
-from phenopype.core.preprocessing import invert_image
+from phenopype.utils import image_channel, image_invert
 from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_line_width
 from phenopype.core.visualization import draw_contours
 
@@ -294,8 +294,7 @@ def draw(
 # pp.show_image(image)
 
 def find_contours(
-    obj_input,
-    df_image_data=None,
+    image,
     approximation="simple",
     retrieval="ext",
     offset_coords=(0, 0),
@@ -306,6 +305,7 @@ def find_contours(
     min_diameter=0,
     max_diameter=inf,
     subset=None,
+    verbose=True,
 ):
     """
     Find objects in binarized image. The input image needs to be a binarized image
@@ -376,18 +376,6 @@ def find_contours(
     }  ## algorithm 2
     flag_subset = subset
 
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-    elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image_bin
-        df_image_data = obj_input.df_image_data
-    else:
-        print("wrong input format.")
-        return
-
     ## check
     if len(image.shape) > 2:
         print("Multi-channel array supplied - need binary array.")
@@ -436,7 +424,7 @@ def find_contours(
                     ]
                 ):
                     idx += 1
-                    contour_label = str(idx)
+                    contour_label = idx
                     contour_dict[contour_label] = {
                         "contour": contour_label,
                         "center": center,
@@ -447,25 +435,14 @@ def find_contours(
                         "idx_parent": hier[3],
                         "coords": contour,
                     }
-        print("- found " + str(len(contour_dict)) + " contours that match criteria")
+        if verbose:
+            print("- found " + str(len(contour_dict)) + " contours that match criteria")
     else:
-        print("- no contours found")
+        if verbose:
+            print("- no contours found")
 
-    ## output
-    df_contours = pd.DataFrame(contour_dict).T
-    df_contours.reset_index(drop=True, inplace=True)
-    df_contours = pd.concat(
-        [
-            pd.concat([df_image_data] * len(df_contours)).reset_index(drop=True),
-            df_contours.reset_index(drop=True),
-        ],
-        axis=1,
-    )
+    return contour_dict
 
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_contours
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_contours = df_contours
 
 
 def morphology(obj_input, kernel_size=5, shape="rect", operation="close", iterations=1):
@@ -608,18 +585,13 @@ def threshold(
             df_masks = copy.deepcopy(obj_input.df_masks)
 
     ## channel
+    
+    
     if len(image.shape) == 3:
-        if channel == "gray" or channel == "grayscale":
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        elif channel == "g" or channel == "green":
-            image = image[:, :, 0]
-        elif channel == "r" or channel == "red":
-            image = image[:, :, 1]
-        elif channel == "blue" or channel == "b":
-            image = image[:, :, 2]
-
+        image = image_channel(image)
+        
     if invert:
-        image = invert_image(image)
+        image = image_invert(image)
 
     ## method
     if method == "otsu":

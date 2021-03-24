@@ -1,5 +1,6 @@
 #%% load modules
 
+import cv2
 import os
 from importlib.resources import path
 
@@ -55,3 +56,51 @@ with path(__package__, 'templates') as template_dir:
 #%% flags
 
 flag_verbose = False
+
+opencv_window_flags={
+    "normal": cv2.WINDOW_NORMAL,
+    "auto": cv2.WINDOW_AUTOSIZE,
+    "openGL": cv2.WINDOW_OPENGL,
+    "full": cv2.WINDOW_FULLSCREEN, 
+    "free": cv2.WINDOW_FREERATIO,
+    "keep": cv2.WINDOW_KEEPRATIO,
+    "GUIexp": cv2.WINDOW_GUI_EXPANDED, 
+    "GUInorm": cv2.WINDOW_GUI_NORMAL,
+    } 
+
+opencv_interpolation_flags = {
+    "nearest": cv2.INTER_NEAREST,
+    "linear": cv2.INTER_LINEAR,
+    "cubic": cv2.INTER_CUBIC,
+    "area": cv2.INTER_AREA,
+    "lanczos": cv2.INTER_LANCZOS4, 
+    "lin_exact": cv2.INTER_LINEAR_EXACT, 
+    "inter": cv2.INTER_MAX,
+    "warp_fill": cv2.WARP_FILL_OUTLIERS,
+    "warp_inverse": cv2.WARP_INVERSE_MAP, 
+    }
+
+
+#%% default arguments
+
+default_image_viewer_settings={
+    'window_aspect': 'normal', 
+    'window_control': 'internal', 
+    'window_max_dimension': 1000, 
+    'zoom_mode': 'continuous', 
+    'zoom_magnification': 0.5, 
+    'zoom_steps': 20
+}
+
+def _image_viewer_settings(function):   
+    
+    new_kwargs = {"default_image_viewer_settings" : default_image_viewer_settings}
+    
+    def inner_function(**kwargs):
+        kwargs = {**new_kwargs, **kwargs}
+        return function(**kwargs)
+    return inner_function
+
+
+
+

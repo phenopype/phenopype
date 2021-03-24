@@ -29,8 +29,8 @@ from phenopype.settings import (
 )
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
-from phenopype.core.preprocessing import resize_image
-from phenopype.utils import load_image, load_directory, load_image_data, load_meta_data
+from phenopype.utils import load_image, load_directory, load_image_data, \
+    load_meta_data, image_resize
 from phenopype.utils_lowlevel import (
     _image_viewer,
     _del_rw,
@@ -330,7 +330,7 @@ class project:
                 image_data_phenopype.update(load_image_data(image_phenopype_path, path_and_type=False))
             elif flag_mode == "mod":
                 if resize_factor < 1:
-                    image = resize_image(image, resize_factor)
+                    image = image_resize(image, resize_factor)
                 if not "." in extension:
                     extension = "." + extension
                 image_phenopype_path = os.path.join(

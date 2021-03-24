@@ -8,7 +8,7 @@ import pandas as pd
 import logging
 from radiomics import featureextractor
 import SimpleITK as sitk
-from tqdm import tqdm
+from tqdm import tqdm as _tqdm
 
 from phenopype.utils_lowlevel import (
     _image_viewer,
@@ -807,7 +807,7 @@ def texture_features(
         elif channel in ["b","blue"]:
             channel = "blue"
             image_data = image[:,:,2]
-        for index, row in tqdm(df_contours.iterrows(), 
+        for index, row in _tqdm(df_contours.iterrows(), 
                                desc="Processing " + channel + " texture features", 
                                total=df_contours.shape[0]):
             if row["diameter"] > min_diameter:
