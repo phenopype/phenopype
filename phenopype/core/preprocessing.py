@@ -61,7 +61,6 @@ def blur(image,
 
 
 def circles_detect(image,
-                   label_id,
                    resize=1,
                    dp=1,
                    min_dist=50,
@@ -112,7 +111,7 @@ def circles_detect(image,
             x,y,radius = circle/resize
             mask = np.zeros(image.shape[:2], dtype=np.uint8)
             mask = cv2.circle(mask, (x,y), radius, 255, -1)
-            mask_contours = contours_detect(mask, label_id, retrieval="ext", verbose=False)
+            mask_contours = contours_detect(mask, retrieval="ext", verbose=False)
             coords.append(mask_contours["coords"][0])
             
         if verbose:
@@ -125,39 +124,13 @@ def circles_detect(image,
     ## return results
     ret = {
         "info": {
-            "label_id" : label_id,
+            "function": "circles_detect",
             "settings": settings,
             },
         "coords":coords,
         }
-        
-        
-    # else:
-    #     ret = {
-    #         "info": {
-    #             "label_id" : label_id,
-    #             "label_type" : label_type,
-    #             "settings": config,
-    #             },
-    #         "coords": contours,
-    #         }        
+            
     return ret
-
-
-    
-    
-# annotations = {
-#     "info":{
-#         },
-#     "masks":{
-#         "info":{
-#             "label":"mask1",
-#             "tool":"rect",
-#             "settings": {}
-#             },
-#         "coords":
-#             []}}
-
 
 
 def mask_create(
@@ -185,7 +158,7 @@ def mask_create(
                         function_level_settings=window_settings)
     if not out.done:
         print("- didn't finish: redo mask")
-        return None
+        return 
     else:
         polygons = out.polygons
         
@@ -211,7 +184,8 @@ def mask_create(
         return ret
     else:
         print("- zero coordinates: redo mask")
-        return None
+        return 
+    
     
 
 def create_reference(

@@ -1,9 +1,3 @@
-from __future__ import (
-    division,
-    unicode_literals,
-    print_function,
-)  # for compatibility with Python 2 and 3
-
 import copy
 import numpy as np
 import numpy.ma as ma
@@ -16,7 +10,7 @@ from math import inf
 
 from phenopype.utils import load_image_data
 from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool
-from phenopype.core.segmentation import blur, threshold, find_contours
+from phenopype.core.segmentation import blur, threshold, contours_detect
 from phenopype.settings import colours
 
 #%% classes

@@ -57,7 +57,6 @@ with path(__package__, 'templates') as template_dir:
 
 flag_verbose = False
 
-
 opencv_contour_flags = {
     "retrieval" : {
         "ext": cv2.RETR_EXTERNAL,  ## only external

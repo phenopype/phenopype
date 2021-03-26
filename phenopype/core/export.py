@@ -2,8 +2,10 @@
 import cv2, copy, json, os
 import numpy as np
 import pandas as pd
+from collections import defaultdict
 
 from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
+from phenopype.settings import confirm_options
 
 #%% settings
 
@@ -14,45 +16,99 @@ class customJsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 #%% functions
-def annotation_load(path, 
+def annotation_load(filepath, 
+                    annotation_id=None,
                     overwrite=False):
     
-    if os.path.isfile(path):
+    if os.path.isfile(filepath):
         with open('data.json') as file:
             data = json.load(file)
-            
-    for key, value in data.items():
-        if "coords" in value:
-            coords_new = []
-            for coords in value["coords"]:
-                coords_new.append(np.asarray(eval(coords), dtype=np.int32))
-            value["coords"] = coords_new
-            data[key] = value
+    else:
+        print("file not found")
+        return
+                   
+    for key1, value1 in data.items():
+        for key2, value2 in value1.items():
+            if "coords" in value2:
+                coords_new = []
+                for coords in value2["coords"]:
+                    coords_new.append(np.asarray(eval(coords), dtype=np.int32))
+                value2["coords"] = coords_new
+                data[key1][key2] = value2
     
     return data
 
-def annotation_save(annotation, 
+def annotation_save(annotations, 
                     annotation_type, 
-                    path, 
+                    annotation_id,
+                    filepath, 
                     indent=4,
-                    overwrite=False):
-    
-    data = {annotation_type: annotation}
-    
-    if os.path.isfile(path):
+                    overwrite=None):
+        
+    if os.path.isfile(filepath) and overwrite in [None,"entry"]:
         with open('data.json') as file:
             data = json.load(file)
+    elif os.path.isfile(filepath) and overwrite =="file":
+        data = defaultdict(dict)
+    else:
+        data = defaultdict(dict)
     
     if annotation_type in data:
-        if overwrite==True:
-            data
-            
-    with open(path, 'w') as file:
+        if annotation_id in data[annotation_type]:
+            if overwrite=="entry":
+                data[annotation_type][annotation_id] = annotations
+            else:
+                print("already exists - overwrite=False")
+        else:
+            data[annotation_type][annotation_id] = annotations
+    else:
+        data[annotation_type][annotation_id] = annotations
+
+
+    with open(filepath, 'w') as file:
         json.dump(data, file, indent=indent, cls=customJsonEncoder)
 
 
-
+def ROI_save(image,
+             annotations,
+             annotation_type,
+             annotation_id,
+             dirpath): 
+    
+    if not os.path.isdir(dirpath):
+        q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if q in confirm_options:
+            os.makedirs(dirpath)
+        else:
+            print("Directory not created - aborting")
+            return
+        
+    coords = annotations[annotation_type][annotation_id]["coords"]
+    
+    for idx, roi_coords in enumerate(coords[0:2]):
+        rx, ry, rw, rh = cv2.boundingRect(roi_coords)
+        roi_rect=image[ry : ry + rh, rx : rx + rw]
+        save_path = os.path.join(dirpath, "roi" + str(idx) + ".tif")
+        cv2.imwrite(save_path, roi_rect)
+        roi_new_coords = []
+        for coord in roi_coords:
+            new_coord = coord[0][0] - rx, coord[0][1] - ry, 
+            roi_new_coords.append([new_coord])
+        roi_new_coords = np.asarray(roi_new_coords, np.int32)
             
+        roi_rect
+        
+        canvas = cv2.drawContours(
+                image=roi_rect,
+                contours=roi_coords,
+                contourIdx=0,
+                thickness=-1,
+                color=colours["green"],
+                maxLevel=3,
+                offset=(-rx,-ry),
+            )
+        
+        pp.show_image(canvas)
 
 
 

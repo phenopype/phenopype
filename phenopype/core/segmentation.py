@@ -12,12 +12,7 @@ from phenopype.core.visualization import draw_contours
 
 #%% functions
 
-
-
-
-
-
-def draw(
+def modify_contours(
     obj_input,
     df_image_data=None,
     mode="silent",
