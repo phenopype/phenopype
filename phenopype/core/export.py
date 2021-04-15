@@ -17,61 +17,67 @@ class customJsonEncoder(json.JSONEncoder):
 
 #%% functions
 def annotation_load(filepath, 
-                    annotation_id=None,
+                    annotation_type,
+                    annotation_id,
                     overwrite=False):
     
     if os.path.isfile(filepath):
-        with open('data.json') as file:
+        with open(filepath) as file:
             data = json.load(file)
     else:
         print("file not found")
         return
                    
-    for key1, value1 in data.items():
-        for key2, value2 in value1.items():
-            if "coords" in value2:
-                coords_new = []
-                for coords in value2["coords"]:
-                    coords_new.append(np.asarray(eval(coords), dtype=np.int32))
-                value2["coords"] = coords_new
-                data[key1][key2] = value2
+    annotation = data[annotation_type][annotation_id]
     
-    return data
+    if "coords" in annotation:
+        coords_new = []
+        for coords in annotation["coords"]:
+            coords_new.append(np.asarray(eval(coords), dtype=np.int32))
+        annotation["coords"] = coords_new
+    
+    return annotation
 
-def annotation_save(annotations, 
-                    annotation_type, 
+def annotation_save(annotation, 
                     annotation_id,
-                    filepath, 
-                    indent=4,
-                    overwrite=None):
-        
+                    filepath="annotations.json", 
+                    overwrite=None, 
+                    **kwargs):
+    
+    ## kwargs
+    indent = kwargs.get("indent", 4)
+            
+    ## open existing json or create new
     if os.path.isfile(filepath) and overwrite in [None,"entry"]:
-        with open('data.json') as file:
+        with open(filepath) as file:
             data = json.load(file)
     elif os.path.isfile(filepath) and overwrite =="file":
         data = defaultdict(dict)
     else:
         data = defaultdict(dict)
     
-    if annotation_type in data:
-        if annotation_id in data[annotation_type]:
+    ## extract info from annotation
+    annotation_class = annotation["info"]["class"]
+    
+    ## integrate into json tree 
+    if annotation_class in data:
+        if annotation_id in data[annotation_class]:
             if overwrite=="entry":
-                data[annotation_type][annotation_id] = annotations
+                data[annotation_class][annotation_id] = annotation
             else:
                 print("already exists - overwrite=False")
         else:
-            data[annotation_type][annotation_id] = annotations
+            data[annotation_class][annotation_id] = annotation
     else:
-        data[annotation_type][annotation_id] = annotations
+        data[annotation_class][annotation_id] = annotation
 
-
+    ## save
     with open(filepath, 'w') as file:
         json.dump(data, file, indent=indent, cls=customJsonEncoder)
 
 
 def ROI_save(image,
-             annotations,
-             annotation_type,
+             annotation,
              annotation_id,
              dirpath): 
     
@@ -83,32 +89,26 @@ def ROI_save(image,
             print("Directory not created - aborting")
             return
         
-    coords = annotations[annotation_type][annotation_id]["coords"]
+    coords = annotation["info"][annotation_id]["coords"]
     
-    for idx, roi_coords in enumerate(coords[0:2]):
+    for idx, roi_coords in enumerate(coords):
+        
         rx, ry, rw, rh = cv2.boundingRect(roi_coords)
         roi_rect=image[ry : ry + rh, rx : rx + rw]
+        
         save_path = os.path.join(dirpath, "roi" + str(idx) + ".tif")
         cv2.imwrite(save_path, roi_rect)
+        
         roi_new_coords = []
         for coord in roi_coords:
-            new_coord = coord[0][0] - rx, coord[0][1] - ry, 
+            new_coord = [coord[0][0] - rx, coord[0][1] - ry]
+            print(new_coord)
             roi_new_coords.append([new_coord])
         roi_new_coords = np.asarray(roi_new_coords, np.int32)
-            
-        roi_rect
         
-        canvas = cv2.drawContours(
-                image=roi_rect,
-                contours=roi_coords,
-                contourIdx=0,
-                thickness=-1,
-                color=colours["green"],
-                maxLevel=3,
-                offset=(-rx,-ry),
-            )
         
-        pp.show_image(canvas)
+                    
+
 
 
 

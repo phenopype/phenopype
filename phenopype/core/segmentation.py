@@ -12,7 +12,77 @@ from phenopype.core.visualization import draw_contours
 
 #%% functions
 
-def modify_contours(
+
+
+# pp.show_image(image)
+
+def contours_detect(
+    image,
+    label_id=None,
+    approximation="simple",
+    retrieval="ext",
+    offset_coords=(0, 0),       
+    **kwargs,
+    ):
+        
+    ## check
+    if len(image.shape) > 2:
+        print("Multi-channel array supplied - need binary array.")
+        return 
+    
+    ## settings
+    settings = locals()
+    for rm in ["image"]:
+        settings.pop(rm, None)
+
+    ## method
+    image, contours, hierarchies = cv2.findContours(
+        image=image,
+        mode=opencv_contour_flags["retrieval"][retrieval],
+        method=opencv_contour_flags["approximation"][approximation],
+        offset=offset_coords,
+    )
+    
+   
+    ## conversion
+    if contours is not None:
+        coords = contours
+        coords_support = []
+        for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
+            
+            ## get center coords
+            center, radius = cv2.minEnclosingCircle(contour)
+
+            ## contour hierarchy
+            if hierarchy[3] == -1:
+                hierarchy_level = "parent"
+            else:
+                hierarchy_level = "child"
+
+            ## supporting info
+            coords_support.append(
+                {
+                    "center": center,
+                    "hierarchy": hierarchy_level,
+                    "hierarchy_idx_child": hierarchy[2],
+                    "hierarchy_idx_parent": hierarchy[3],
+                    }
+                )
+
+    ## return
+    ret = {
+    "info":{
+        "function": "contours_detect",
+        "settings": settings
+        },
+    "coords": contours,
+    "coords_support": coords_support
+    }
+
+    return ret
+
+
+def contours_modify(
     obj_input,
     df_image_data=None,
     mode="silent",
@@ -236,75 +306,6 @@ def modify_contours(
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_drawings = df_drawings
         obj_input.image = image_bin
-
-# pp.show_image(image)
-
-def contours_detect(
-    image,
-    label_id=None,
-    approximation="simple",
-    retrieval="ext",
-    offset_coords=(0, 0),       
-    **kwargs,
-    ):
-        
-    ## check
-    if len(image.shape) > 2:
-        print("Multi-channel array supplied - need binary array.")
-        return 
-    
-    ## settings
-    settings = locals()
-    for rm in ["image"]:
-        settings.pop(rm, None)
-
-    ## method
-    image, contours, hierarchies = cv2.findContours(
-        image=image,
-        mode=opencv_contour_flags["retrieval"][retrieval],
-        method=opencv_contour_flags["approximation"][approximation],
-        offset=offset_coords,
-    )
-    
-   
-    ## conversion
-    if contours is not None:
-        coords = contours
-        coords_support = []
-        for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
-            
-            ## get center coords
-            center, radius = cv2.minEnclosingCircle(contour)
-
-            ## contour hierarchy
-            if hierarchy[3] == -1:
-                hierarchy_level = "parent"
-            else:
-                hierarchy_level = "child"
-
-            ## supporting info
-            coords_support.append(
-                {
-                    "center": center,
-                    "hierarchy": hierarchy_level,
-                    "hierarchy_idx_child": hierarchy[2],
-                    "hierarchy_idx_parent": hierarchy[3],
-                    }
-                )
-
-    ## return
-    ret = {
-    "info":{
-        "function": "contours_detect",
-        "settings": settings
-        },
-    "coords": contours,
-    "coords_support": coords_support
-    }
-
-    return ret
-
-
     
 
 def find_contours(

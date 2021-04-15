@@ -111,9 +111,11 @@ def circles_detect(image,
             x,y,radius = circle/resize
             mask = np.zeros(image.shape[:2], dtype=np.uint8)
             mask = cv2.circle(mask, (x,y), radius, 255, -1)
-            mask_contours = contours_detect(mask, retrieval="ext", verbose=False)
+            mask_contours = contours_detect(mask,
+                                            retrieval="ext", 
+                                            approximation="KCOS", 
+                                            verbose=False)
             coords.append(mask_contours["coords"][0])
-            
         if verbose:
             print("Found {} circles".format(len(circles[0])))
     else:
@@ -124,6 +126,8 @@ def circles_detect(image,
     ## return results
     ret = {
         "info": {
+            "class": "mask", 
+            "type" : "circle",
             "function": "circles_detect",
             "settings": settings,
             },
@@ -135,7 +139,6 @@ def circles_detect(image,
 
 def mask_create(
     image,
-    label_id,
     tool="rectangle",
     **kwargs
 ):
@@ -148,7 +151,7 @@ def mask_create(
 
     ## settings
     settings = locals()
-    for rm in ["image","label_id","include",
+    for rm in ["image","include",
                "kwargs","key","value"]:
         settings.pop(rm, None)
 
@@ -176,7 +179,9 @@ def mask_create(
     if len(coords) > 0:
         ret = {
             "info": {
-                "label_id" : label_id,
+                "class": "mask", 
+                "type" : "circle",
+                "function": "circles_detect",
                 "settings": settings,
                 },
             "coords":coords,
@@ -185,7 +190,7 @@ def mask_create(
     else:
         print("- zero coordinates: redo mask")
         return 
-    
+
     
 
 def create_reference(
