@@ -1,11 +1,16 @@
 #%% modules
-import cv2, copy, json, os
-import numpy as np
-import pandas as pd
+import copy
+import json
+import os
+import uuid
 from collections import defaultdict
 
-from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
+import cv2
+import numpy as np
+import pandas as pd
+
 from phenopype.settings import confirm_options
+from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
 
 #%% settings
 
@@ -14,72 +19,101 @@ class customJsonEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray):
             return str(obj.tolist())
         return json.JSONEncoder.default(self, obj)
-
+    
 #%% functions
+
 def annotation_load(filepath, 
                     annotation_type,
-                    annotation_id,
-                    overwrite=False):
+                    annotation_id):
     
+    ## load annotation file
     if os.path.isfile(filepath):
         with open(filepath) as file:
-            data = json.load(file)
+            annotation_file = json.load(file)
+            annotation_file = defaultdict(dict, annotation_file)
+            annotation_file["annotation_info"] = defaultdict(dict, annotation_file["annotation_info"])
+            annotation_file["annotation_data"] = defaultdict(dict, annotation_file["annotation_data"])
     else:
         print("file not found")
         return
                    
-    annotation = data[annotation_type][annotation_id]
+    ## reassemble info + data structure
+    annotation = copy.deepcopy(annotation_file["annotation_info"][annotation_type][str(annotation_id)])
+    data = copy.deepcopy(annotation_file["annotation_data"][annotation_type][str(annotation_id)])
     
-    if "coords" in annotation:
-        coords_new = []
-        for coords in annotation["coords"]:
-            coords_new.append(np.asarray(eval(coords), dtype=np.int32))
-        annotation["coords"] = coords_new
+    ## parse serialized array
+    data_new = {}
+    for data_obj_name in data:
+        data_list = []
+        for data_list_item in data[data_obj_name]:
+            data_list.append(np.asarray(eval(data_list_item), dtype=np.int32)) 
+        data_new[data_obj_name] = data_list
+    annotation["data"] = data_new
     
+    ## return
     return annotation
 
+
+
 def annotation_save(annotation, 
-                    annotation_id,
+                    annotation_id=1,
                     filepath="annotations.json", 
-                    overwrite=None, 
+                    overwrite=False, 
                     **kwargs):
     
     ## kwargs
     indent = kwargs.get("indent", 4)
             
     ## open existing json or create new
-    if os.path.isfile(filepath) and overwrite in [None,"entry"]:
+    if os.path.isfile(filepath) and overwrite in [False,"entry"]:
         with open(filepath) as file:
-            data = json.load(file)
-    elif os.path.isfile(filepath) and overwrite =="file":
-        data = defaultdict(dict)
+            annotation_file = json.load(file)
+            annotation_file = defaultdict(dict, annotation_file)
+            annotation_file["annotation_info"] = defaultdict(dict, annotation_file["annotation_info"])
+            annotation_file["annotation_data"] = defaultdict(dict, annotation_file["annotation_data"])
     else:
-        data = defaultdict(dict)
+        if os.path.isfile(filepath) and overwrite=="file":
+            print("overwriting annotation file (overwrite=\"file\")")
+        annotation_file = defaultdict(dict)
+        annotation_file["annotation_info"] = defaultdict(dict)
+        annotation_file["annotation_data"] = defaultdict(dict)
     
-    ## extract info from annotation
-    annotation_class = annotation["info"]["class"]
+    ## extract type from annotation info
+    annotation_type = annotation["info"]["type"]
+    
+    ## separate "info" and "data" part for legibility
+    info = copy.deepcopy(annotation["info"])
+    if "data" in annotation.keys():
+        data = copy.deepcopy(annotation["data"])
     
     ## integrate into json tree 
-    if annotation_class in data:
-        if annotation_id in data[annotation_class]:
-            if overwrite=="entry":
-                data[annotation_class][annotation_id] = annotation
+    if annotation_type in annotation_file["annotation_info"].keys():
+        if str(annotation_id) in annotation_file["annotation_info"][annotation_type].keys():
+            if overwrite in [True,"entry"]:
+                annotation_file["annotation_info"][annotation_type][annotation_id] = info
             else:
-                print("already exists - overwrite=False")
+                print("entry for annotation_id \"{}\" already exists - overwrite=False".format(annotation_id))
         else:
-            data[annotation_class][annotation_id] = annotation
+            annotation_file["annotation_info"][annotation_type][annotation_id] = info
+            annotation_file["annotation_data"][annotation_type][annotation_id] = data
     else:
-        data[annotation_class][annotation_id] = annotation
+        annotation_file["annotation_info"][annotation_type][annotation_id] = info
+        annotation_file["annotation_data"][annotation_type][annotation_id] = data
 
     ## save
     with open(filepath, 'w') as file:
-        json.dump(data, file, indent=indent, cls=customJsonEncoder)
+        json.dump(annotation_file, 
+                  file, 
+                  indent=indent, 
+                  cls=customJsonEncoder), 
 
 
 def ROI_save(image,
              annotation,
-             annotation_id,
-             dirpath): 
+             dirpath,
+             name,
+             prefix=None,
+             suffix="roi"): 
     
     if not os.path.isdir(dirpath):
         q = input("Save folder {} does not exist - create?.".format(dirpath))
@@ -89,22 +123,32 @@ def ROI_save(image,
             print("Directory not created - aborting")
             return
         
-    coords = annotation["info"][annotation_id]["coords"]
-    
+    if prefix is None:
+        prefix=""
+    else:
+        prefix=prefix + "_"
+    if suffix is None:
+        suffix=""
+    else:
+        suffix= "_" + suffix
+        
+    coords = annotation["data"]["coords"]
+        
     for idx, roi_coords in enumerate(coords):
         
         rx, ry, rw, rh = cv2.boundingRect(roi_coords)
         roi_rect=image[ry : ry + rh, rx : rx + rw]
+                
+        roi_name = prefix + name + suffix + "_" + str(idx).zfill(2) + ".tif"
         
-        save_path = os.path.join(dirpath, "roi" + str(idx) + ".tif")
+        save_path = os.path.join(dirpath, roi_name)
         cv2.imwrite(save_path, roi_rect)
         
-        roi_new_coords = []
-        for coord in roi_coords:
-            new_coord = [coord[0][0] - rx, coord[0][1] - ry]
-            print(new_coord)
-            roi_new_coords.append([new_coord])
-        roi_new_coords = np.asarray(roi_new_coords, np.int32)
+        # roi_new_coords = []
+        # for coord in roi_coords:
+        #     new_coord = [coord[0][0] - rx, coord[0][1] - ry]
+        #     roi_new_coords.append([new_coord])
+        # roi_new_coords = np.asarray(roi_new_coords, np.int32)
         
         
                     

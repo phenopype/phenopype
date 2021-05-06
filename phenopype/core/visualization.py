@@ -471,7 +471,7 @@ def draw_masks(
     line_colour = colours[line_colour]
     label_colour = colours[label_colour]
 
-    coords = masks["coords"]
+    coords = masks["data"]["coords"]
 
     ## load image
     if obj_input.__class__.__name__ == "ndarray":

@@ -99,24 +99,33 @@ opencv_interpolation_flags = {
 
 #%% default arguments
 
-default_image_viewer_settings={
-    'window_aspect': 'normal', 
-    'window_control': 'internal', 
-    'window_max_dimension': 1000, 
-    'zoom_mode': 'continuous', 
-    'zoom_magnification': 0.5, 
-    'zoom_steps': 20
-}
 
-def _image_viewer_settings(function):   
-    
-    new_kwargs = {"default_image_viewer_settings" : default_image_viewer_settings}
-    
-    def inner_function(**kwargs):
-        kwargs = {**new_kwargs, **kwargs}
-        return function(**kwargs)
-    return inner_function
 
+_image_viewer_arg_list = [
+    "window_aspect", 
+    "window_control", 
+    "window_max_dimension", 
+    "zoom_magnification", 
+    "zoom_mode", 
+    "zoom_steps"]
+
+# def _image_viewer_settings(function):   
+    
+#     new_kwargs = {"default_image_viewer_settings" : default_image_viewer_settings}
+    
+#     def inner_function(**kwargs):
+#         kwargs = {**new_kwargs, **kwargs}
+#         return function(**kwargs)
+#     return inner_function
+
+# default_image_viewer_settings={
+#     'window_aspect': 'normal', 
+#     'window_control': 'internal', 
+#     'window_max_dimension': 1000, 
+#     'zoom_magnification': 0.5, 
+#     'zoom_mode': 'continuous', 
+#     'zoom_steps': 20
+# }
 
 
 

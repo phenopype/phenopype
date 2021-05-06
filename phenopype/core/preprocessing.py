@@ -6,12 +6,13 @@ import pandas as pd
 from math import sqrt as _sqrt
 import numpy.ma as ma
 
-from phenopype.core.segmentation import find_contours, contours_detect
-from phenopype.settings import default_image_viewer_settings, colours
-from phenopype.utils import image_channel, image_resize
+from phenopype.settings import colours, _image_viewer_arg_list
+from phenopype.utils import image_select_channel, image_resize
 from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, \
     _df_overwrite_checker, _equalize_histogram, _auto_text_size, \
         _auto_text_width, _get_circle_perimeter
+        
+import phenopype.core.segmentation as segmentation
 
 #%% functions
 
@@ -60,83 +61,6 @@ def blur(image,
     return blurred
 
 
-def circles_detect(image,
-                   resize=1,
-                   dp=1,
-                   min_dist=50,
-                   param1=200,
-                   param2=100,
-                   min_radius=0,
-                   max_radius=0,
-                   verbose=True,
-                   ):
-    
-    """
-    Detect circles in grayscale image using Hough-Transform. Results can be 
-    returned either as mask or contour
-    
-    Parameters
-    ----------
-
-
-    Returns
-    -------
-    
-    """
-
-    ## checks
-    if len(image.shape) == 3:
-        image = image_channel(image)
-    resized = image_resize(image, resize)
-            
-    ## settings
-    settings = locals()
-    for rm in ["image","resized"]:
-        settings.pop(rm, None)
-        
-    ## method
-    circles = cv2.HoughCircles(resized, 
-                               cv2.HOUGH_GRADIENT, 
-                               dp=max(int(dp*resize),1), 
-                               minDist=int(min_dist*resize),
-                               param1=int(param1*resize), 
-                               param2=int(param2*resize),
-                               minRadius=int(min_radius*resize), 
-                               maxRadius=int(max_radius*resize))
-
-    ## output conversion
-    if circles is not None:
-        coords = []
-        for idx, circle in enumerate(circles[0]):
-            x,y,radius = circle/resize
-            mask = np.zeros(image.shape[:2], dtype=np.uint8)
-            mask = cv2.circle(mask, (x,y), radius, 255, -1)
-            mask_contours = contours_detect(mask,
-                                            retrieval="ext", 
-                                            approximation="KCOS", 
-                                            verbose=False)
-            coords.append(mask_contours["coords"][0])
-        if verbose:
-            print("Found {} circles".format(len(circles[0])))
-    else:
-        if verbose:
-            print("No circles detected")
-        return None
-    
-    ## return results
-    ret = {
-        "info": {
-            "class": "mask", 
-            "type" : "circle",
-            "function": "circles_detect",
-            "settings": settings,
-            },
-        "coords":coords,
-        }
-            
-    return ret
-
-
 def mask_create(
     image,
     tool="rectangle",
@@ -144,21 +68,22 @@ def mask_create(
 ):
 
     ## retrieve settings for image viewer
-    window_settings = {}
+    _image_viewer_settings = {}
     for key, value in kwargs.items():
-        if key in default_image_viewer_settings:
-            window_settings[key] = value
+        if key in _image_viewer_arg_list:
+            _image_viewer_settings[key] = value
 
     ## settings
     settings = locals()
     for rm in ["image","include",
-               "kwargs","key","value"]:
+               "kwargs","key","value",
+               "_image_viewer_settings"]:
         settings.pop(rm, None)
 
     ## draw masks
     out = _image_viewer(image=image, 
                         tool=tool, 
-                        function_level_settings=window_settings)
+                        **_image_viewer_settings)
     if not out.done:
         print("- didn't finish: redo mask")
         return 
@@ -179,18 +104,108 @@ def mask_create(
     if len(coords) > 0:
         ret = {
             "info": {
-                "class": "mask", 
-                "type" : "circle",
-                "function": "circles_detect",
+                "type": "mask", 
+                "function": "mask_create",
                 "settings": settings,
+                "n_coords": len(coords),
                 },
-            "coords":coords,
+            "data":{
+                "coords":coords,
+                }
             }
         return ret
     else:
         print("- zero coordinates: redo mask")
         return 
+    
+    
+    
+def mask_detect(image,
+                method="circle",
+                resize=1,
+                dp=1,
+                min_dist=50,
+                param1=200,
+                param2=100,
+                min_radius=0,
+                max_radius=0,
+                verbose=True,
+                ):
+    
+    """
+    Detect circles in grayscale image using Hough-Transform. Results can be 
+    returned either as mask or contour
+    
+    Parameters
+    ----------
 
+
+    Returns
+    -------
+    
+    """
+
+    ## checks
+    if len(image.shape) == 3:
+        image = image_select_channel(image)
+    resized = image_resize(image, resize)
+            
+    ## settings
+    settings = locals()
+    for rm in ["image","resized"]:
+        settings.pop(rm, None)
+        
+    ## method
+    if method=="circle":
+        circles = cv2.HoughCircles(resized, 
+                                   cv2.HOUGH_GRADIENT, 
+                                   dp=max(int(dp*resize),1), 
+                                   minDist=int(min_dist*resize),
+                                   param1=int(param1*resize), 
+                                   param2=int(param2*resize),
+                                   minRadius=int(min_radius*resize), 
+                                   maxRadius=int(max_radius*resize))
+    
+        ## output conversion
+        if circles is not None:
+            coords = []
+            for idx, circle in enumerate(circles[0]):
+                x,y,radius = circle/resize
+                mask = np.zeros(image.shape[:2], dtype=np.uint8)
+                mask = cv2.circle(mask, (x,y), radius, 255, -1)
+                mask_contours = segmentation.contour_detect(
+                    mask,
+                    retrieval="ext", 
+                    approximation="KCOS", 
+                    verbose=False,
+                    )
+                coords.append(
+                    np.append(
+                        mask_contours["data"]["coords"][0],
+                        [mask_contours["data"]["coords"][0][0]],
+                        axis=0
+                        )
+                    )
+            if verbose:
+                print("Found {} circles".format(len(circles[0])))
+        else:
+            if verbose:
+                print("No circles detected")
+            return None
+        
+    ## return results
+    ret = {
+        "info": {
+            "type": "mask", 
+            "function": "mask_detect",
+            "settings": settings,
+            },
+        "data":{
+            "coords":coords,
+            }
+        }
+            
+    return ret
     
 
 def create_reference(

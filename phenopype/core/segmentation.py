@@ -6,9 +6,12 @@ import pandas as pd
 from math import inf
 
 from phenopype.settings import colours, opencv_contour_flags
-from phenopype.utils import image_channel, image_invert
+from phenopype.utils import image_select_channel, image_invert
 from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_line_width
-from phenopype.core.visualization import draw_contours
+
+import phenopype.core.preprocessing as preprocessing
+import phenopype.core.visualization as visualization
+
 
 #%% functions
 
@@ -16,12 +19,12 @@ from phenopype.core.visualization import draw_contours
 
 # pp.show_image(image)
 
-def contours_detect(
+def contour_detect(
     image,
     label_id=None,
     approximation="simple",
     retrieval="ext",
-    offset_coords=(0, 0),       
+    offset_coords=(0,0),       
     **kwargs,
     ):
         
@@ -47,42 +50,46 @@ def contours_detect(
     ## conversion
     if contours is not None:
         coords = contours
-        coords_support = []
-        for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
+        support = hierarchies
+        # for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
             
-            ## get center coords
-            center, radius = cv2.minEnclosingCircle(contour)
+            # M = cv2.moments(contour)
+            # cx = int(M["m10"] / M["m00"])
+            # cy = int(M["m01"] / M["m00"])
 
-            ## contour hierarchy
-            if hierarchy[3] == -1:
-                hierarchy_level = "parent"
-            else:
-                hierarchy_level = "child"
+            # ## contour hierarchy
+            # if hierarchy[3] == -1:
+            #     hierarchy_level = "parent"
+            # else:
+            #     hierarchy_level = "child"
 
-            ## supporting info
-            coords_support.append(
-                {
-                    "center": center,
-                    "hierarchy": hierarchy_level,
-                    "hierarchy_idx_child": hierarchy[2],
-                    "hierarchy_idx_parent": hierarchy[3],
-                    }
-                )
+            # ## supporting info
+            # support.append(
+            #     {
+            #         # "center": (cx, cy),
+            #         "hierarchy": hierarchy_level,
+            #         "hierarchy_idx_child": hierarchy[2],
+            #         "hierarchy_idx_parent": hierarchy[3],
+            #         }
+            #     )
 
     ## return
     ret = {
     "info":{
-        "function": "contours_detect",
+        "type": "contour", 
+        "function": "contour_detect",
         "settings": settings
         },
-    "coords": contours,
-    "coords_support": coords_support
+    "data":{
+        "coords": contours,
+        "support": support,
+        }
     }
 
     return ret
 
 
-def contours_modify(
+def contour_modify(
     obj_input,
     df_image_data=None,
     mode="silent",
@@ -585,7 +592,7 @@ def threshold(
 
     ## checks
     if len(image.shape) == 3:
-        image = image_channel(image)
+        image = image_select_channel(image)
         print("multi-channel supplied - defaulting to gray channel")
     if blocksize % 2 == 0:
         blocksize = blocksize + 1
@@ -751,7 +758,7 @@ def watershed(
         dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX
     )
     
-    dist_transform = blur(dist_transform, kernel_size=int(2*kernel_size))
+    dist_transform = preprocessing.blur(dist_transform, kernel_size=int(2*kernel_size))
     dist_transform = abs(255 * (1-dist_transform)) 
     dist_transform = dist_transform.astype(np.uint8)
 
@@ -768,7 +775,7 @@ def watershed(
     markers[unknown == 255] = 0
 
     ## watershed
-    markers = cv2.watershed(blur(image, int(2*kernel_size)), markers)
+    markers = cv2.watershed(preprocessing.blur(image, int(2*kernel_size)), markers)
 
     ## convert to contours
     watershed_mask = np.zeros(image.shape[:2], np.uint8)

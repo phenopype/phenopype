@@ -427,7 +427,7 @@ class container(object):
 
 #%% functions
 
-def image_channel(image, channel="gray"):
+def image_select_channel(image, channel="gray"):
     """
     Extract single channel from multi-channel array.
 
@@ -848,7 +848,7 @@ def load_directory(
         return
     
     ## check if attributes file and load otherwise
-    if not os.path.join(directory_path, "attributes.yaml"):
+    if not os.path.isfile(os.path.join(directory_path, "attributes.yaml")):
         print("Attributes file missing - cannot load files.")
         return
     else:
@@ -861,38 +861,44 @@ def load_directory(
     else:
         image_original = dict(attributes["image_original"])
         image_phenopype = dict(attributes["image_phenopype"])
-        image_path = os.path.join(directory_path, image_phenopype["filename"])
-        image = load_image(image_path, dirpath=directory_path)
     
+    ## load image
+    if image_phenopype["mode"] == "link":
+        image_path = image_original["filepath"]
+    else:
+        image_path = image_phenopype["filepath"]
+    image = load_image(image_path, dirpath=directory_path)
     
-    ## create image df
-    df_image_dict = {
-        "filename_original": image_original["filename"],
-        "filename_phenopype": image_phenopype["filename"],
-        "width": image_phenopype["width"],
-        "height": image_phenopype["height"],            
-        }
+    # ## create image df
+    # df_image_dict = {
+    #     "filename_original": image_original["filename"],
+    #     "filename_phenopype": image_phenopype["filename"],
+    #     "width": image_phenopype["width"],
+    #     "height": image_phenopype["height"],            
+    #     }
     
-    if "resize" in image_phenopype:
-        if image_phenopype["resize"] == True:
-            df_image_dict.update({
-                "resize": image_phenopype["resize"], 
-                "resite_factor": image_phenopype["resize_factor"] })
-    df_image_data = pd.DataFrame(df_image_dict, index=[0])
+    # if "resize" in image_phenopype:
+    #     if image_phenopype["resize"] == True:
+    #         df_image_dict.update({
+    #             "resize": image_phenopype["resize"], 
+    #             "resite_factor": image_phenopype["resize_factor"] })
+    # df_image_data = pd.DataFrame(df_image_dict, index=[0])
     
     ## return
-    if flag_container == True:
-        ct = container(image, df_image_data)
-        ct.dirpath = directory_path
-        ct.save_suffix = save_suffix
+    # if flag_container == True:
+    #     ct = container(image, df_image_data)
+    #     ct.dirpath = directory_path
+    #     ct.save_suffix = save_suffix
 
-    if flag_container == True:
-        return ct
-    elif flag_container == False:
-        if flag_df:
-            return image, df_image_data
-        else:
-            return image
+    # if flag_container == True:
+    #     return ct
+    # elif flag_container == False:
+    #     if flag_df:
+    #         return image, df_image_data
+    #     else:
+    #         return image
+    return image
+    
 
 
 

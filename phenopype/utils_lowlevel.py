@@ -14,7 +14,6 @@ from watchdog.events import PatternMatchingEventHandler
 
 from phenopype.settings import colours, confirm_options, pype_config_templates
 from phenopype.settings import flag_verbose, opencv_window_flags
-from phenopype.settings import _image_viewer_settings
 
 ## capture yaml output - temp
 from contextlib import redirect_stdout
@@ -27,11 +26,17 @@ import io
 
 #%% classes
 
-@_image_viewer_settings
+# @_image_viewer_settings
 class _image_viewer:
     def __init__(self, 
                  image, 
                  tool=None,
+                 window_aspect='normal', 
+                 window_control='internal', 
+                 window_max_dimension=1000, 
+                 zoom_magnification=0.5, 
+                 zoom_mode='continuous', 
+                 zoom_steps=20,
                  **kwargs):
         
         """
@@ -44,29 +49,15 @@ class _image_viewer:
         ----------
 
         """
-        ## retrieve default-, function-level, and directly suppied arguments
-        default_settings = kwargs.get("default_image_viewer_settings")
-        function_level_settings = kwargs.get("function_level_settings", {})
-        settings = copy.deepcopy(default_settings)
-        settings.update(function_level_settings)
-        for key, value in kwargs.items():
-            if not key in ["default_image_viewer_settings", 
-                           "function_level_settings"]:
-                settings[key] = value
 
         ## set class arguments
         self.flag_tool = tool
-        self.flag_zoom_mode = settings["zoom_mode"]       
-        self.zoom_magnification = settings["zoom_magnification"]
-        self.zoom_n_steps = settings["zoom_steps"]
+        self.flag_zoom_mode = zoom_mode       
+        self.zoom_magnification = zoom_magnification
+        self.zoom_n_steps = zoom_steps
         self.wait_time = 100        
         self.window_name = "phenopype"
-        
-        ## set method arguments
-        window_aspect = settings["window_aspect"]
-        window_control = settings["window_control"]
-        window_max_dimension = settings["window_max_dimension"]
-        
+                
         ## needs cleaning
         self.flag_draw = kwargs.get("draw", False)
         self.flag_test_mode = kwargs.get("test_mode", False)
