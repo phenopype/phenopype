@@ -5,7 +5,7 @@ import pandas as pd
 
 from math import inf
 
-from phenopype.settings import colours, opencv_contour_flags
+from phenopype.settings import colours, flag_verbose
 from phenopype.utils import image_select_channel, image_invert
 from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_line_width
 
@@ -21,13 +21,70 @@ import phenopype.core.visualization as visualization
 
 def contour_detect(
     image,
-    label_id=None,
     approximation="simple",
     retrieval="ext",
-    offset_coords=(0,0),       
+    offset_coords=[0,0],       
+    min_nodes=3,
+    max_nodes=inf,
+    min_area=0,
+    max_area=inf,
+    min_diameter=0,
+    max_diameter=inf,
     **kwargs,
     ):
         
+    """
+    Find objects in binarized image. The input image needs to be a binarized image
+    or a container on which a binarizing segmentation algorithm (e.g. threshold or 
+    watershed) has been performed. A flavor of different approximation algorithms 
+    and retrieval intstructions can be applied. The contours can also be filtered
+    for minimum area, diameter or nodes (= number of corners). 
+
+    Parameters
+    ----------
+    image : array type
+        input image (binary)
+    approximation : {"none", "simple", "L1", "KCOS"] str, optional
+        contour approximation algorithm:
+            - none: no approximation, all contour coordinates are returned
+            - simple: only the minimum coordinates required are returned
+            - L1: Teh-Chin chain approximation algorithm 
+            - KCOS: Teh-Chin chain approximation algorithm 
+    retrieval : {"ext", "list", "tree", "ccomp", "flood"} str, optional
+        contour retrieval procedure:
+            - ext: retrieves only the extreme outer contours
+            - list: retrieves all of the contours without establishing any 
+              hierarchical relationships
+            - tree: retrieves all of the contours and reconstructs a full 
+              hierarchy of nested contours
+            - ccomp: retrieves all of the contours and organizes them into a 
+              two-level hierarchy (parent and child)
+            - flood: flood-fill algorithm
+    offset_coords : tuple, optional
+        offset by which every contour point is shifted.
+    subset: {"parent", "child"} str, optional
+        retain only a subset of the parent-child order structure
+    min_nodes : int, optional
+        minimum number of coordinates
+    max_nodes : int, optional
+        maximum number of coordinates 
+    min_area : int, optional
+        minimum contour area in pixels
+    max_area : int, optional
+        maximum contour area in pixels
+    min_diameter : int, optional
+        minimum diameter of boundary circle
+    max_diameter : int, optional
+        maximum diameter of boundary circle
+
+    Returns
+    -------
+    df_contours : DataFrame or container
+        contains contours
+
+    """    
+    
+    
     ## check
     if len(image.shape) > 2:
         print("Multi-channel array supplied - need binary array.")
@@ -37,41 +94,73 @@ def contour_detect(
     settings = locals()
     for rm in ["image"]:
         settings.pop(rm, None)
+        
+    ## definitions
+    opencv_contour_flags = {
+        "retrieval" : {
+            "ext": cv2.RETR_EXTERNAL,  ## only external
+            "list": cv2.RETR_LIST,  ## all contours
+            "tree": cv2.RETR_TREE,  ## fully hierarchy
+            "ccomp": cv2.RETR_CCOMP,  ## outer perimeter and holes
+            "flood": cv2.RETR_FLOODFILL, ## not sure what this does
+            },
+        "approximation" : {
+            "none": cv2.CHAIN_APPROX_NONE,  ## all points (no approx)
+            "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
+            "L1": cv2.CHAIN_APPROX_TC89_L1,  
+            "KCOS": cv2.CHAIN_APPROX_TC89_KCOS, 
+            }
+        }
 
     ## method
     image, contours, hierarchies = cv2.findContours(
         image=image,
         mode=opencv_contour_flags["retrieval"][retrieval],
         method=opencv_contour_flags["approximation"][approximation],
-        offset=offset_coords,
+        offset=tuple(offset_coords),
     )
     
    
-    ## conversion
+    ## output conversion
     if contours is not None:
-        coords = contours
-        support = hierarchies
-        # for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
+        coords, support = [], []
+        for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
             
-            # M = cv2.moments(contour)
-            # cx = int(M["m10"] / M["m00"])
-            # cy = int(M["m01"] / M["m00"])
-
-            # ## contour hierarchy
-            # if hierarchy[3] == -1:
-            #     hierarchy_level = "parent"
-            # else:
-            #     hierarchy_level = "child"
-
-            # ## supporting info
-            # support.append(
-            #     {
-            #         # "center": (cx, cy),
-            #         "hierarchy": hierarchy_level,
-            #         "hierarchy_idx_child": hierarchy[2],
-            #         "hierarchy_idx_parent": hierarchy[3],
-            #         }
-            #     )
+            ## number of contour nodes
+            if len(contour) > min_nodes and len(contour) < max_nodes:
+            
+                ## measure basic shape features
+                center, radius = cv2.minEnclosingCircle(contour)
+                center = [int(center[0]), int(center[1])]
+                diameter = int(radius * 2)
+                area = int(cv2.contourArea(contour))
+    
+                ## contour hierarchy
+                if hierarchy[3] == -1:
+                    hierarchy_level = "parent"
+                else:
+                    hierarchy_level = "child"
+                    
+                ## contour filter
+                if all(
+                        [
+                            diameter > min_diameter and diameter < max_diameter,
+                            area > min_area and area < max_area,
+                            ]
+                        ):
+                
+                    ## populate data lists
+                    coords.append(contour)
+                    support.append(
+                        {
+                            "center": center,
+                            "area": area,
+                            "diameter": diameter,
+                            "hierarchy_level": hierarchy_level,
+                            "hierarchy_idx_child": hierarchy[2],
+                            "hierarchy_idx_parent": hierarchy[3],
+                            }
+                        )
 
     ## return
     ret = {
@@ -81,7 +170,7 @@ def contour_detect(
         "settings": settings
         },
     "data":{
-        "coords": contours,
+        "coords": coords,
         "support": support,
         }
     }
@@ -593,21 +682,24 @@ def threshold(
     ## checks
     if len(image.shape) == 3:
         image = image_select_channel(image)
-        print("multi-channel supplied - defaulting to gray channel")
+        if flag_verbose:
+            print("multi-channel supplied - defaulting to gray channel")
     if blocksize % 2 == 0:
         blocksize = blocksize + 1
-        print("warning - need odd blocksize")
+        if flag_verbose:
+            print("even blocksize supplied - need odd blocksize")
     if value > 255:
         value = 255
-        print("warning - \"value\" has to be < 255")
+        if flag_verbose:
+            print("warning - \"value\" has to be < 255")
     elif value < 0:
         value = 0
-        print("warning - \"value\" has to be > 0")
+        if flag_verbose:
+            print("warning - \"value\" has to be > 0")
 
     ## modifications
     if invert:
         image = image_invert(image)
-        print("multi-channel supplied - defaulting to gray channel")
 
     ## method
     if method == "otsu":

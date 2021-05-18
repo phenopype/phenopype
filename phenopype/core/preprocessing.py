@@ -6,7 +6,7 @@ import pandas as pd
 from math import sqrt as _sqrt
 import numpy.ma as ma
 
-from phenopype.settings import colours, _image_viewer_arg_list
+from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
 from phenopype.utils import image_select_channel, image_resize
 from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, \
     _df_overwrite_checker, _equalize_histogram, _auto_text_size, \
@@ -46,7 +46,9 @@ def blur(image,
     ## checks
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
-
+        if flag_verbose:
+            print("even kernel_size supplied - need odd kernel_size")
+            
     ## method
     if method == "averaging":
         blurred = cv2.blur(image, (kernel_size, kernel_size))

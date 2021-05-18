@@ -2,7 +2,6 @@
 import copy
 import json
 import os
-import uuid
 from collections import defaultdict
 
 import cv2
@@ -16,8 +15,13 @@ from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
 
 class customJsonEncoder(json.JSONEncoder):
     def default(self, obj):
+        if isinstance(obj, list):
+            print(obj)
+            return str(obj)
         if isinstance(obj, np.ndarray):
             return str(obj.tolist())
+        if isinstance(obj, np.intc):
+            return int(obj)
         return json.JSONEncoder.default(self, obj)
     
 #%% functions
@@ -25,6 +29,10 @@ class customJsonEncoder(json.JSONEncoder):
 def annotation_load(filepath, 
                     annotation_type,
                     annotation_id):
+    
+    ## type check
+    if not type(annotation_id) is str:
+        annotation_id = str(annotation_id)
     
     ## load annotation file
     if os.path.isfile(filepath):
@@ -38,17 +46,26 @@ def annotation_load(filepath,
         return
                    
     ## reassemble info + data structure
-    annotation = copy.deepcopy(annotation_file["annotation_info"][annotation_type][str(annotation_id)])
-    data = copy.deepcopy(annotation_file["annotation_data"][annotation_type][str(annotation_id)])
+    annotation_info = copy.deepcopy(annotation_file["annotation_info"][annotation_type][annotation_id])
+    annotation_data = copy.deepcopy(annotation_file["annotation_data"][annotation_type][annotation_id])
+    
     
     ## parse serialized array
-    data_new = {}
-    for data_obj_name in data:
-        data_list = []
-        for data_list_item in data[data_obj_name]:
-            data_list.append(np.asarray(eval(data_list_item), dtype=np.int32)) 
-        data_new[data_obj_name] = data_list
-    annotation["data"] = data_new
+    annotation_data_new = {}
+    for data_key, data_values in annotation_data.items():
+        data_parsed = []
+        for data_item in data_values:
+            if type(data_item) is str:
+                data_item = eval(data_item)
+            if type(data_item) is list:
+                data_item = np.asarray(data_item, dtype=np.int32)
+            data_parsed.append(data_item) 
+        annotation_data_new[data_key] = data_parsed
+        
+    ## reassemble
+    annotation = {}
+    annotation["info"] = annotation_info
+    annotation["data"] = annotation_data_new
     
     ## return
     return annotation

@@ -810,12 +810,12 @@ def load_meta_data(image_path, show_fields=False, fields=default_meta_data_field
 
 
 def load_directory(
-    directory_path, cont=True, df=True, save_suffix=None, **kwargs
+    dirpath, cont=True, df=True, save_suffix=None, **kwargs
 ):
     """
     Parameters
     ----------
-    directory_path: str or ndarray
+    dirpath: str or ndarray
         path to a phenopype project directory containing raw image, attributes 
         file, masks files, results df, etc.
     cont: bool, optional
@@ -838,21 +838,17 @@ def load_directory(
         the analysis. 
 
     """
-    ## kwargs
-    flag_df = df
-    flag_container = cont
-
     ## check if directory
-    if not os.path.isdir(directory_path):
+    if not os.path.isdir(dirpath):
         print("Not a valid phenoype directory - cannot load files.")
         return
     
     ## check if attributes file and load otherwise
-    if not os.path.isfile(os.path.join(directory_path, "attributes.yaml")):
+    if not os.path.isfile(os.path.join(dirpath, "attributes.yaml")):
         print("Attributes file missing - cannot load files.")
         return
     else:
-        attributes = _load_yaml(os.path.join(directory_path, "attributes.yaml"))
+        attributes = _load_yaml(os.path.join(dirpath, "attributes.yaml"))
     
     ## check if requires info is contained in attributes and load image
     if not "image_phenopype" in attributes or not "image_original" in attributes:
@@ -866,8 +862,9 @@ def load_directory(
     if image_phenopype["mode"] == "link":
         image_path = image_original["filepath"]
     else:
-        image_path = image_phenopype["filepath"]
-    image = load_image(image_path, dirpath=directory_path)
+        image_name = image_phenopype["filename"]
+        image_path = os.path.join(dirpath, image_name)
+    image = load_image(image_path, dirpath=dirpath)
     
     # ## create image df
     # df_image_dict = {

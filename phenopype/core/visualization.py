@@ -20,6 +20,206 @@ inf = math.inf
 #%% functions
 
 
+def contours_draw(
+    image,
+    contours,
+    offset_coords=None,
+    line_colour="green",
+    line_width="auto",
+    fill=0.3,
+    fill_colour=None,
+    label=True,
+    label_colour="black",
+    label_font_size="auto",
+    label_font_width="auto",
+    bounding_box=False,
+    bounding_box_ext=20,
+    bounding_box_colour="black",
+    bounding_box_line_width="auto",
+    **kwargs,
+):
+    """
+    Draw contours and their labels onto a canvas. Can be filled or empty, offset
+    coordinates can be supplied. This will also draw the skeleton, if the argument
+    "skeleton=True" and the supplied "df_contour" contains a "skeleton_coords"
+    column.
+
+    Parameters
+    ----------
+    obj_input : array or container
+        input object
+    df_contours : DataFrame, optional
+        contains the contours
+    offset_coords : tuple, optional
+        offset coordinates, will be added to all contours
+    compare: str or list, optional
+        draw previously detected contours as well (e.g. from other pype-run). 
+        string or list of strings with file-suffixes, has to be in the same 
+        directory.
+    label : bool, optional
+        draw contour label
+    fill : float, optional
+        background transparency for contour fill (0=no fill).
+    fill_colour : {"green", "red", "blue", "black", "white"} str, optional
+        contour fill colour - if not specified, defaults to line colour
+    mark_holes : bool, optional
+        contours located inside other contours (i.e. their holes) will be 
+        highlighted in red
+    level : int, optional
+        the default is 3.
+    line_colour: {"green", "red", "blue", "black", "white"} str, optional
+        contour line colour
+    line_width: int, optional
+        contour line width
+    label_colour : {"black", "white", "green", "red", "blue"} str, optional
+        contour label colour.
+    label_size: int, optional
+        contour label font size (scaled to image)
+    label_width: int, optional
+        contour label font thickness 
+    watershed: bool, optional
+        indicates if a watershed-procedure has been performed. formats the
+        coordinate colours accordingly (excludes "mark_holes option")
+    bounding_box: bool, optional
+        draw bounding box around the contour
+    bounding_box_ext: in, optional
+        value in pixels by which the bounding box should be extended
+    bounding_box_colour: {"green", "red", "blue", "black", "white"} str, optional
+        bounding box line colour
+    bounding_box_line_width: int, optional
+        bounding box line width
+        
+    Returns
+    -------
+    image: array or container
+        image with contours
+
+    """
+    ## kwargs
+    level = kwargs.get("level",3)
+    flag_bounding_box = bounding_box
+    if flag_bounding_box:
+        q = bounding_box_ext
+    flag_label = label
+    flag_fill = fill
+
+    line_colour_sel = colours[line_colour]
+    label_colour = colours[label_colour]
+    bounding_box_colour_sel = colours[bounding_box_colour]
+    
+    if fill_colour.__class__.__name__ == "NoneType":
+        fill_colour = line_colour_sel
+    else:
+        fill_colour = colours[fill_colour]
+        
+    ## more kwargs
+    if line_width == "auto":
+        line_width = _auto_line_width(image)
+    if bounding_box_line_width == "auto":
+        bounding_box_line_width = _auto_line_width(image)
+    if label_font_size == "auto":
+        label_size = _auto_text_size(image)
+    if label_font_width == "auto":
+        label_width = _auto_text_width(image)
+        
+    ## method
+    idx = 0
+    colour_mask = copy.deepcopy(image)
+    for contour in contours:
+        cv2.drawContours(
+            image=colour_mask,
+            contours=[contour],
+            contourIdx=idx,
+            thickness=-1,
+            color=line_colour_sel,
+            maxLevel=level,
+            offset=offset_coords,
+            )
+
+        # if line_width > 0:
+        #     cv2.drawContours(
+        #         image=image,
+        #         contours=[value["coords"]],
+        #         contourIdx=idx,
+        #         thickness=line_width,
+        #         color=line_colour,
+        #         maxLevel=level,
+        #         offset=offset_coords,
+        #     )
+
+
+    image = cv2.addWeighted(image, 1 - flag_fill, colour_mask, flag_fill, 0)
+    
+    cv2.drawContours(
+     image=image,
+     contours=[contour],
+     contourIdx=idx,
+     thickness=line_width,
+     color=fill_colour,
+     maxLevel=level,
+     offset=offset_coords,
+     ) 
+    
+    # for key, value in contours.items():
+    #     if flag_bounding_box:
+    #         rx, ry, rw, rh = cv2.boundingRect(value["coords"])
+    #         cv2.rectangle(
+    #             image,
+    #             (rx - q, ry - q),
+    #             (rx + rw + q, ry + rh + q),
+    #             bounding_box_colour_sel,
+    #             bounding_box_line_width,
+    #         )
+
+    # ## load previous contours
+    # if obj_input.__class__.__name__ == "container" and not compare.__class__.__name__ == "NoneType":
+    #     while True:
+    #         if compare.__class__.__name__ == "str":
+    #             compare = [compare]
+    #         elif compare.__class__.__name__ == "list" and len(compare) > 3:
+    #             print("compare supports a maximum of three contour files")
+    #             break
+    #         col_idx = 0
+    #         cols = ["green","blue","red","black","white"]
+    #         for comp in compare:
+    #             if line_colour == cols[col_idx]:
+    #                 col_idx +=1
+    #             comp_line_colour = colours[cols[col_idx]]
+    #             comp_path = os.path.join(obj_input.dirpath, "contours_" + comp + ".csv")
+    #             col_idx +=1
+    #             if os.path.isfile(comp_path):
+    #                 compare_df = pd.read_csv(comp_path, converters={"center": ast.literal_eval})
+    #                 if "x" in compare_df:
+    #                     compare_df["coords"] = list(zip(compare_df.x, compare_df.y))
+    #                     coords = compare_df.groupby("contour")["coords"].apply(list)
+    #                     coords_arr = _contours_tup_array(coords)
+    #                     compare_df.drop(columns=["coords", "x", "y"], inplace=True)
+    #                     compare_df = compare_df.drop_duplicates().reset_index()
+    #                     compare_df["coords"] = pd.Series(coords_arr, index=compare_df.index)
+    #                 else:
+    #                     print("no coords found, cannot draw contours for comparison")
+    #                     continue
+    #                 print("- " + comp + " contours loaded")           
+    #                 for key, value in contours_compare.items():
+    #                     cv2.drawContours(
+    #                         image=image,
+    #                         contours=[value["coords"]],
+    #                         contourIdx=0,
+    #                         thickness=compare_line_width,
+    #                         color=comp_line_colour,
+    #                         maxLevel=level,
+    #                         offset=None,
+    #                     )
+    #             else:
+    #                 print("wrong compare suffix")
+    #         break
+
+    # df_contours= df_contours.drop("skeleton_coords", axis=1)
+
+    ## return
+    return image
+
+
 def select_canvas(obj_input, canvas="image_mod", multi=True):
     """
     Isolate a colour channel from an image or select canvas for the pype method.
