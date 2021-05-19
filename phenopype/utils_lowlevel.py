@@ -63,7 +63,6 @@ class _image_viewer:
         self.window_name = "phenopype"
                 
         ## needs cleaning
-        self.flag_draw = kwargs.get("draw", False)
         self.flag_test_mode = kwargs.get("test_mode", False)
         
         # =============================================================================
@@ -120,9 +119,10 @@ class _image_viewer:
 
         ## configure tools
         if self.flag_tool:
-            self.points, self.polygons, self.rect_start = [], [], None
+            self.points, self.point_list, self.polygons, self.rect_start, self.drawing = [], [], [], None, False
             self.line_width = kwargs.get("line_width", _auto_line_width(image))
             self.line_colour = colours[kwargs.get("line_colour", "green")]
+            self.line_width_orig = copy.deepcopy(self.line_width)
             if self.flag_tool in ["landmarks", "landmark"]:
                 self.point_size = kwargs.get("point_size", _auto_point_size(image))
                 self.point_colour = colours[kwargs.get("point_colour", "red")]
@@ -141,8 +141,10 @@ class _image_viewer:
         ## show canvas
         self.done = False
         self.finished = False
+        
+        
         cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
-        cv2.startWindowThread()  ## needed for Mac OS ??
+        cv2.startWindowThread() 
         cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
         cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
         cv2.imshow(self.window_name, self.canvas)
@@ -151,45 +153,47 @@ class _image_viewer:
         # window control
         # =============================================================================
         
+        self.keypress = None
         if window_control == "internal":
-            if self.flag_test_mode == True:
-                self.done = True
-                self.finished = True
-                cv2.waitKey(self.wait_time)
-                cv2.destroyAllWindows()
-            elif self.flag_test_mode == False:
-                if cv2.waitKey() == 13:
-                    self.done = True
-                    cv2.destroyAllWindows()
-                elif cv2.waitKey() == 10:
+            while not any([self.finished, self.done]):
+                cv2.imshow(self.window_name, self.canvas)
+                self.keypress = cv2.waitKey(500)     
+                print(self.keypress)
+            
+                if self.flag_test_mode == True:
                     self.done = True
                     self.finished = True
+                    cv2.waitKey(self.wait_time)
                     cv2.destroyAllWindows()
-                elif cv2.waitKey() == 27:
-                    cv2.destroyAllWindows()
-                    sys.exit("\n\nTERMINATE (by user)")
-            if self.flag_tool in ["polygon", "poly"]:
-                if len(self.points) > 2:
-                    self.points.append(self.points[0])
+                elif self.flag_test_mode == False:
+                    
+                    ## keypress
+                    
+                    ## Enter
+                    if cv2.waitKey() == 13:
+                        self.done = True
+                        cv2.destroyAllWindows()
+                    ## Ctrl + Enter
+                    elif cv2.waitKey() == 10:
+                        self.done = True
+                        self.finished = True
+                        cv2.destroyAllWindows()
+                    ## Esc
+                    elif cv2.waitKey() == 27:
+                        cv2.destroyAllWindows()
+                        sys.exit("\n\nTERMINATE (by user)")
+                    ## Ctrl + z
+                    
+                        
+                if self.flag_tool in ["polygon", "poly"]:
+                    if len(self.points) > 2:
+                        self.points.append(self.points[0])
+                        self.polygons.append(self.points)
+                elif self.flag_tool in ["polyline","polylines","lines"]:
+                    if len(self.points) > 0:
+                        self.polygons.append(self.points)
+                elif self.flag_tool in ["landmarks", "landmark"]:
                     self.polygons.append(self.points)
-            elif self.flag_tool in ["polyline","polylines","lines"]:
-                if len(self.points) > 0:
-                    self.polygons.append(self.points)
-            # elif self.flag_tool in ["rectangle", "rect","template"]:
-            #     if len(self.rect_list) > 0:
-            #         for rect in self.rect_list:
-            #             xmin, ymin, xmax, ymax = rect
-            #             self.polygons.append(
-            #                 [
-            #                     (xmin, ymin),
-            #                     (xmax, ymin),
-            #                     (xmax, ymax),
-            #                     (xmin, ymax),
-            #                     (xmin, ymin),
-            #                 ]
-            #             )
-            elif self.flag_tool in ["landmarks", "landmark"]:
-                self.polygons.append(self.points)
         else:
             if self.flag_test_mode == True:
                 self.done = True
@@ -197,28 +201,28 @@ class _image_viewer:
                 cv2.destroyAllWindows()
 
     def _on_mouse_plain(self, event, x, y, flags, params):
-        if event == cv2.EVENT_MOUSEWHEEL and flags > 0:
-            if self.zoom_idx < self.zoom_n_steps:
-                self.flag_zoom = 1
-                self.zoom_idx += 1
-                if self.flag_zoom_mode == "continuous" or (
-                    self.flag_zoom_mode == "fixed" and self.zoom_idx == 2
-                ):
-                    self._zoom_fun(x, y)
-                self.x, self.y = x, y
-                cv2.imshow(self.window_name, self.canvas)
-        if event == cv2.EVENT_MOUSEWHEEL and flags < 0:
-            if self.zoom_idx > 1:
-                self.flag_zoom = -1
-                self.zoom_idx -= 1
-                if self.flag_zoom_mode == "continuous" or (
-                    self.flag_zoom_mode == "fixed" and self.zoom_idx == 1
-                ):
-                    self._zoom_fun(x, y)
-                self.x, self.y = x, y
-                cv2.imshow(self.window_name, self.canvas)
+        if event == cv2.EVENT_MOUSEWHEEL and not self.keypress == 9:
+            self.keypress = None
+            if flags > 0:
+                if self.zoom_idx < self.zoom_n_steps:
+                    self.flag_zoom = 1
+                    self.zoom_idx += 1
+                    if self.flag_zoom_mode == "continuous" or (
+                        self.flag_zoom_mode == "fixed" and self.zoom_idx == 2
+                    ):
+                        self._zoom_fun(x, y)
+            if flags < 0:
+                if self.zoom_idx > 1:
+                    self.flag_zoom = -1
+                    self.zoom_idx -= 1
+                    if self.flag_zoom_mode == "continuous" or (
+                        self.flag_zoom_mode == "fixed" and self.zoom_idx == 1
+                    ):
+                        self._zoom_fun(x, y)
+            self.x, self.y = x, y
+            cv2.imshow(self.window_name, self.canvas)
 
-        if self.flag_tool and not self.flag_draw:
+        if self.flag_tool:
             if self.flag_tool == "landmark" or self.flag_tool == "landmarks":
                 self._on_mouse_point(event, x, y)
             elif self.flag_tool == "rectangle" or self.flag_tool == "rect":
@@ -231,15 +235,9 @@ class _image_viewer:
                 self._on_mouse_polygon(event, x, y, flags, reference=True)
             elif self.flag_tool == "template":
                 self._on_mouse_rectangle(event, x, y, flags, template=True)
-        elif self.flag_tool and self.flag_draw:
-            if self.flag_tool == "rectangle" or self.flag_tool == "rect":
-                self._on_mouse_rectangle(event, x, y, flags, draw=True)
-            elif self.flag_tool == "polygon" or self.flag_tool == "poly":
-                self._on_mouse_polygon(event, x, y, flags, draw=True)
-            elif self.flag_tool == "line" or self.flag_tool == "lines":
-                self._on_mouse_polygon(event, x, y, flags, draw=True)
-            elif self.flag_tool == "polyline" or self.flag_tool == "polylines":
-                self._on_mouse_polygon(event, x, y, flags, polyline=True)
+            elif self.flag_tool == "draw":
+                self._on_mouse_draw(event, x, y, flags)
+
                 
     def _on_mouse_point(self, event, x, y):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -435,7 +433,68 @@ class _image_viewer:
                     self.line_width,
                 )
                 cv2.imshow(self.window_name, self.canvas)
-   
+                
+                
+    def _on_mouse_draw(self, event, x, y, flags):     
+        
+        ## set colour - left/right mouse button use different colours
+        if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
+            if event == cv2.EVENT_LBUTTONDOWN:
+                self.colour_current = colours["white"]
+            elif event == cv2.EVENT_RBUTTONDOWN:
+                self.colour_current = colours["black"]
+            
+            ## start drawing and use current coords as start point
+            self.canvas = copy.deepcopy(self.canvas_copy)
+            
+            ## convert cursor coords from zoomed canvas to original coordinate space
+            self._get_coords_original(x,y)
+            self.ix,self.iy = self.coords_original
+            
+            self.points.append(self.coords_original)
+            self.drawing=True
+
+        ## finish drawing and update image_copy
+        if event==cv2.EVENT_LBUTTONUP or event==cv2.EVENT_RBUTTONUP:
+            self.drawing=False
+            self.canvas = copy.deepcopy(self.canvas_copy)
+            self.point_list.append([
+                self.points,
+                self.colour_current, 
+                int(self.line_width*self.global_fx),
+                ])
+            self.points = []
+            
+            ## draw all segments
+            self._canvas_renew()
+            self._canvas_draw(
+                tool="edit_bin", coord_list=self.point_list)
+            self._canvas_mount()
+                
+        ## drawing mode
+        elif self.drawing:
+            
+            ## convert cursor coords from zoomed canvas to original coordinate space
+            self._get_coords_original(x,y)
+            
+            self.points.append(self.coords_original)
+            
+            cv2.line(self.canvas,(self.ix,self.iy),(x,y), 
+                     self.colour_current, self.line_width) 
+            self.ix,self.iy = x,y
+            cv2.imshow(self.window_name, self.canvas)  
+                        
+        if self.keypress == 9 and event == cv2.EVENT_MOUSEWHEEL:
+            if flags > 1:
+                self.line_width_orig += 1
+            if flags < 1 and self.line_width > 1:
+                self.line_width_orig -= 1
+            self.canvas = copy.deepcopy(self.canvas_copy)
+            self.line_width = int(self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
+            cv2.line(self.canvas,(x,y),(x,y),colours["black"],self.line_width) 
+            cv2.line(self.canvas,(x,y),(x,y),colours["white"],max(self.line_width-5,1)) 
+            cv2.imshow(self.window_name, self.canvas)
+            
                 
     def _canvas_renew(self):
 
@@ -445,6 +504,7 @@ class _image_viewer:
         ## if provided, mix in binary image
         if hasattr(self, "image_bin"):
             image_bin_copy = copy.deepcopy(self.image_bin)
+            self.image_bin_copy = copy.deepcopy(image_bin_copy)
             self.image_copy = cv2.addWeighted(image_copy,
                                               1 - self.canvas_blend_factor,
                                               image_bin_copy,
@@ -464,6 +524,8 @@ class _image_viewer:
                 self._draw_line(coords)
             elif tool == "point":
                 self._draw_point(coords)
+            elif tool == "edit_bin":
+                self._edit_binary(coords[0], coords[1], coords[2])
                 
     def _canvas_mount(self, refresh=True):
         
@@ -493,16 +555,7 @@ class _image_viewer:
                 int(self.zoom_x1 + (x * self.global_fx)),
                 int(self.zoom_y1 + (y * self.global_fy)),
             )
-        
-    def _draw_line(self, coord_list):
-        cv2.polylines(
-            self.image_copy,
-            np.array([coord_list]),
-            False,
-            self.line_colour,
-            self.line_width,
-        )
-                   
+                          
     def _draw_point(self, coords):
         cv2.circle(
             self.image_copy,
@@ -522,6 +575,26 @@ class _image_viewer:
                 self.text_width,
                 cv2.LINE_AA,
             )
+            
+    def _draw_line(self, coord_list):
+        cv2.polylines(
+            self.image_copy,
+            np.array([coord_list]),
+            False,
+            self.line_colour,
+            self.line_width,
+        )
+            
+    def _edit_binary(self, coord_list, line_colour, line_width):
+        cv2.polylines(
+            self.image_bin_copy,
+            np.array([coord_list]),
+            False,
+            line_colour,
+            line_width,
+            )
+                       
+            
 
     def _zoom_fun(self, x, y):
         """
