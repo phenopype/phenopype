@@ -49,7 +49,11 @@ class _image_viewer:
         ----------
 
         """
-
+        
+        ## kwargs
+        self.flag_text_label = kwargs.get("flag_text_label", False)
+        self.canvas_blend_factor = kwargs.get("blend", 0.5)
+        
         ## set class arguments
         self.flag_tool = tool
         self.flag_zoom_mode = zoom_mode       
@@ -61,38 +65,34 @@ class _image_viewer:
         ## needs cleaning
         self.flag_draw = kwargs.get("draw", False)
         self.flag_test_mode = kwargs.get("test_mode", False)
+        
+        # =============================================================================
+        # initialize variables
+        # =============================================================================
 
-        ## resize image canvas
-        image_width, image_height = image.shape[1], image.shape[0]
-        if image_height > window_max_dimension or image_width > window_max_dimension:
-            if image_width > image_height:
-                canvas = cv2.resize(
-                    image,
-                    (
-                        window_max_dimension,
-                        int((window_max_dimension / image_width) * image_height),
-                    ),
-                    cv2.INTER_AREA,
-                )
-            else:
-                canvas = cv2.resize(
-                    image,
-                    (
-                        int((window_max_dimension / image_height) * image_width),
-                        window_max_dimension,
-                    ),
-                    cv2.INTER_AREA,
-                )
-        else:
-            canvas = copy.deepcopy(image)
-            
-        ## initialize
+        ## image
         self.image = copy.deepcopy(image)
-        self.image_copy = copy.deepcopy(image)
-        self.canvas = copy.deepcopy(canvas)
-        self.canvas_copy = copy.deepcopy(canvas)
-        self.canvas_width, self.canvas_height = self.canvas.shape[1], self.canvas.shape[0]
         self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
+        
+        ## binary image (for blending)
+        if "image_bin" in kwargs:
+            image_bin = kwargs.get("image_bin")
+            if len(image_bin.shape) == 2:
+                self.image_bin = cv2.cvtColor(copy.deepcopy(image_bin), cv2.COLOR_GRAY2BGR)
+            if not self.image.shape == self.image_bin.shape:
+                print("binary image has different dimensions than input image")
+                return
+        
+        ## get canvas dimensions
+        if self.image_height > window_max_dimension or self.image_width > window_max_dimension:
+            if self.image_width >= self.image_height:
+                self.canvas_width, self.canvas_height = window_max_dimension, int(
+                    (window_max_dimension / self.image_width) * self.image_height)
+            elif self.image_height > self.image_width:
+                self.canvas_width, self.canvas_height = int(
+                    (window_max_dimension / self.image_height) * self.image_width), window_max_dimension
+            
+        ## canvas resize factor
         self.canvas_fx, self.canvas_fy = (
             self.image_width / self.canvas_width,
             self.image_height / self.canvas_height,
@@ -108,8 +108,8 @@ class _image_viewer:
         )
         self.flag_zoom, self.zoom_idx = -1, 1
         self.zoom_step_x, self.zoom_step_y = (
-            int(image_width / self.zoom_n_steps),
-            int(image_height / self.zoom_n_steps),
+            int(self.image_width / self.zoom_n_steps),
+            int(self.image_height / self.zoom_n_steps),
         )
         if self.flag_zoom_mode == "fixed":
             mag = int(self.zoom_magnification * self.zoom_n_steps)
@@ -118,7 +118,7 @@ class _image_viewer:
                 mag * self.zoom_step_y,
             )
 
-        ## interactive window
+        ## configure tools
         if self.flag_tool:
             self.points, self.polygons, self.rect_start = [], [], None
             self.line_width = kwargs.get("line_width", _auto_line_width(image))
@@ -129,75 +129,14 @@ class _image_viewer:
                 self.text_size = kwargs.get("label_size", _auto_text_size(image))
                 self.text_width = kwargs.get("label_size", _auto_text_width(image))
                 self.label_colour = colours[kwargs.get("label_colour", "black")]
-        if self.flag_draw:
-            self.line_colour = colours[kwargs.get("line_colour", "black")]
 
-
-        ## this needs to be decluttered. there should only be one type of list 
-        ## (points, not rectangle separately). relevant parameters for the 
-        ## polylines should be forwarded from the functions themselves
-
-        # =============================================================================
-        # update from previous call
-        # =============================================================================
-
-        ## load supplied dict
-        if "previous" in kwargs:
-            prev_attr = kwargs.get("previous")
-            if not prev_attr.__class__.__name__ == "NoneType":
-                prev_attr = {
-                    i: prev_attr[i]
-                    for i in prev_attr
-                    if i not in ["canvas_copy", "canvas", "image_copy", "image"]
-                }
-                self.__dict__.update(copy.deepcopy(prev_attr))
-                
-                ## convert coords to point list
-                if hasattr(self, "coords"):
-                    if self.coords.__class__.__name__ == "str":
-                        self.coords = eval(self.coords)                
-                    self.polygons = self.coords
-                    
-                if hasattr(self, "point_list"):
-                    
-                    ## convert point list to rect list
-                    if self.flag_tool in ["rectangle", "rect","template"] and not self.flag_test_mode == True:
-                        for point in self.polygons:
-                            cv2.polylines(
-                                self.image_copy,
-                                np.array([point]),
-                                False,
-                                colours["green"],
-                                self.line_width,
-                            )
-                            self.rect_list.append([point[0][0], point[0][1], point[2][0], point[2][1]])
-                        self.polygons = []
-                        
-                    ## draw previous drawings
-                    elif self.flag_tool in ["line", "polyline", "polygon"] or self.flag_test_mode == True:
-                        for point in self.polygons:
-                            cv2.polylines(
-                                self.image_copy,
-                                np.array([point]),
-                                False,
-                                self.line_colour,
-                                self.line_width,
-                            ) 
-                            
-                ## set up canvas with previous parameters
-                self.canvas = self.image_copy[
-                    self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2,
-                ]
-                self.canvas = cv2.resize(
-                    self.canvas,
-                    (self.canvas_width, self.canvas_height),
-                    interpolation=cv2.INTER_LINEAR,
-                )
-                self.canvas_copy = copy.deepcopy(self.canvas)
-            
         # =============================================================================
         # open canvas
         # =============================================================================
+        
+        ## initialize canvas
+        self._canvas_renew()
+        self._canvas_mount()
         
         ## show canvas
         self.done = False
@@ -303,67 +242,30 @@ class _image_viewer:
                 self._on_mouse_polygon(event, x, y, flags, polyline=True)
                 
     def _on_mouse_point(self, event, x, y):
-        if event == cv2.EVENT_LBUTTONDOWN:  ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
-            self.coords_original = (
-                int(self.zoom_x1 + (x * self.global_fx)),
-                int(self.zoom_y1 + (y * self.global_fy)),
-            )
+        if event == cv2.EVENT_LBUTTONDOWN:
+        
+            ## convert cursor coords from zoomed canvas to original coordinate space
+            self._get_coords_original(x,y)
+            
+            ## append points to point list
             self.points.append(self.coords_original)
-            cv2.circle(
-                self.image_copy,
-                self.coords_original,
-                self.point_size,
-                self.point_colour,
-                -1,
-            )
-            cv2.putText(
-                self.image_copy,
-                str(len(self.points)),
-                self.coords_original,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                self.text_size,
-                self.label_colour,
-                self.text_width,
-                cv2.LINE_AA,
-            )
-            self.canvas = self.image_copy[
-                self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
-            ]
-            self.canvas = cv2.resize(
-                self.canvas,
-                (self.canvas_width, self.canvas_height),
-                interpolation=cv2.INTER_LINEAR,
-            )
-            self.canvas_copy = copy.deepcopy(self.canvas)
-            cv2.imshow(self.window_name, self.canvas)
+            
+            ## apply tool and refresh canvas
+            self._canvas_renew()
+            self._canvas_draw(tool="point", coord_list=self.points)
+            self._canvas_mount()
+            
         if event == cv2.EVENT_RBUTTONDOWN:
+            
+            ## remove points from list, if any are left
             if len(self.points) > 0:
                 self.points = self.points[:-1]
-                self.image_copy = copy.deepcopy(self.image)
-                for point, idx in zip(self.points, range(len(self.points))):
-                    cv2.circle(
-                        self.image_copy, point, self.point_size, self.point_colour, -1
-                    )
-                    cv2.putText(
-                        self.image_copy,
-                        str(idx + 1),
-                        point,
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        self.text_size,
-                        self.label_colour,
-                        self.text_width,
-                        cv2.LINE_AA,
-                    )
-                self.canvas = self.image_copy[
-                    self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
-                ]
-                self.canvas = cv2.resize(
-                    self.canvas,
-                    (self.canvas_width, self.canvas_height),
-                    interpolation=cv2.INTER_LINEAR,
-                )
-                self.canvas_copy = copy.deepcopy(self.canvas)
-                cv2.imshow(self.window_name, self.canvas)
+                
+            ## apply tool and refresh canvas
+            self._canvas_renew()
+            self._canvas_draw(tool="point", coord_list=self.points)
+            self._canvas_mount()
+                
 
     def _on_mouse_polygon(self, event, x, y, flags, **kwargs):
 
@@ -375,12 +277,6 @@ class _image_viewer:
         if event == cv2.EVENT_MOUSEMOVE:
             if (reference or flag_draw) and self.flag_tool == "line" and len(self.points) == 2:
                 return
-            
-            ## convert cursor coords from zoomed canvas to original coordinate space
-            self.coords_original = (
-                int(self.zoom_x1 + (x * self.global_fx)),
-                int(self.zoom_y1 + (y * self.global_fy)),
-            )
             
             ## draw line between current cursor coords and last polygon node
             if len(self.points) > 0:
@@ -413,16 +309,16 @@ class _image_viewer:
                 return
             
             ## convert cursor coords from zoomed canvas to original coordinate space
-            self.coords_original = (
-                int(self.zoom_x1 + (x * self.global_fx)),
-                int(self.zoom_y1 + (y * self.global_fy)),
-            )
+            self._get_coords_original(x,y)
             
             ## append points to point list
             self.points.append(self.coords_original)
             
-            ## update canvas
-            self._draw_lines()
+            ## apply tool and refresh canvas
+            self._canvas_renew()
+            self._canvas_draw(
+                tool="line", coord_list=self.polygons + [self.points])
+            self._canvas_mount()
             
             ## if in reference mode, append to ref coords
             if reference and len(self.points) == 2:
@@ -437,12 +333,14 @@ class _image_viewer:
             ## remove points and update canvas
             if len(self.points) > 0:
                 self.points = self.points[:-1]
-                self._draw_lines()
-            
-            ## remove polygons and update canvas
-            elif len(self.points) == 0 and len(self.polygons) > 0:
+            else:
                 self.polygons = self.polygons[:-1]
-                self._draw_lines(current=False)
+                
+            ## apply tool and refresh canvas
+            self._canvas_renew()
+            self._canvas_draw(
+                tool="line", coord_list=self.polygons + [self.points])
+            self._canvas_mount()
 
         if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.points) > 2:
             
@@ -454,9 +352,12 @@ class _image_viewer:
             self.polygons.append(self.points)
             self.points = []
 
-            ## update canvas
-            if len(self.polygons) > 0:                
-                self._draw_lines(current=False, show=False)
+            ## apply tool and refresh canvas
+            self._canvas_renew()
+            self._canvas_draw(
+                tool="line", coord_list=self.polygons + [self.points])
+            self._canvas_mount()
+
 
 
     def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
@@ -501,15 +402,23 @@ class _image_viewer:
                     ]
             )           
             
-            ## draw polygons (no current points for rectangles)
-            self._draw_lines(current=False)
-                
+            ## apply tool and refresh canvas
+            self._canvas_renew()
+            self._canvas_draw(
+                tool="line", coord_list=self.polygons)
+            self._canvas_mount(refresh=False)
+            
         if event == cv2.EVENT_RBUTTONDOWN:
             
             ## remove polygons and update canvas
             if len(self.polygons) > 0:
                 self.polygons = self.polygons[:-1]
-                self._draw_lines(current=False)
+                
+                ## apply tool and refresh canvas
+                self._canvas_renew()
+                self._canvas_draw(
+                    tool="line", coord_list=self.polygons)
+                self._canvas_mount()
 
                 
         ## draw temporary rectangle
@@ -526,35 +435,39 @@ class _image_viewer:
                     self.line_width,
                 )
                 cv2.imshow(self.window_name, self.canvas)
+   
                 
-                
-    def _draw_lines(self,current=True,previous=True, show=True):
-    
+    def _canvas_renew(self):
+
         ## pull copy from original image
-        self.image_copy = copy.deepcopy(self.image)
+        image_copy = copy.deepcopy(self.image)
+
+        ## if provided, mix in binary image
+        if hasattr(self, "image_bin"):
+            image_bin_copy = copy.deepcopy(self.image_bin)
+            self.image_copy = cv2.addWeighted(image_copy,
+                                              1 - self.canvas_blend_factor,
+                                              image_bin_copy,
+                                              self.canvas_blend_factor,
+                                              0)
+        else:
+            self.image_copy = image_copy
+
         
-        ## draw lines from current points
-        if current==True:
-            cv2.polylines(
-                self.image_copy,
-                np.array([self.points]),
-                False,
-                self.line_colour,
-                self.line_width,
-            )
+    def _canvas_draw(self, tool, coord_list):
+               
+        ## apply coords to tool and draw on canvas
+        for coords in coord_list:
+            if len(coords)==0:
+                continue
+            if tool == "line":
+                self._draw_line(coords)
+            elif tool == "point":
+                self._draw_point(coords)
+                
+    def _canvas_mount(self, refresh=True):
         
-        ## draw lines from all polygons
-        if previous==True:
-            for poly in self.polygons:
-                cv2.polylines(
-                    self.image_copy,
-                    np.array([poly]),
-                    False,
-                    self.line_colour,
-                    self.line_width,
-                )
-        
-        ## pass zoomed part of original imgae to canvas
+        ## pass zoomed part of original image to canvas
         self.canvas = self.image_copy[
             self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
         ]
@@ -565,17 +478,57 @@ class _image_viewer:
             (self.canvas_width, self.canvas_height),
             interpolation=cv2.INTER_LINEAR,
         )
+        
+        ## copy canvas for mousedrag refresh
         self.canvas_copy = copy.deepcopy(self.canvas)
         
-        ## pump updates
-        if show==True:
+        ## refresh canvas
+        if refresh:
             cv2.imshow(self.window_name, self.canvas)
-                
+
+
+            
+    def _get_coords_original(self, x, y):
+        self.coords_original = (
+                int(self.zoom_x1 + (x * self.global_fx)),
+                int(self.zoom_y1 + (y * self.global_fy)),
+            )
+        
+    def _draw_line(self, coord_list):
+        cv2.polylines(
+            self.image_copy,
+            np.array([coord_list]),
+            False,
+            self.line_colour,
+            self.line_width,
+        )
+                   
+    def _draw_point(self, coords):
+        cv2.circle(
+            self.image_copy,
+            coords,
+            self.point_size,
+            self.point_colour,
+            -1,
+        )
+        if self.flag_text_label:
+            cv2.putText(
+                self.image_copy,
+                str(len(self.points)),
+                coords,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.text_size,
+                self.label_colour,
+                self.text_width,
+                cv2.LINE_AA,
+            )
 
     def _zoom_fun(self, x, y):
-        """Helper function for image_viewer. Takes current xy coordinates and 
+        """
+        Helper function for image_viewer. Takes current xy coordinates and 
         zooms in within a rectangle around mouse coordinates while transforming 
         current cursor coordinates back to original coordinate space
+        
         """
         if y <= 0:
             y = 1
@@ -629,14 +582,10 @@ class _image_viewer:
             (self.zoom_y2 - self.zoom_y1) / self.image_height
         )
 
-        ## create convas from image
-        self.canvas = self.image_copy[y1:y2, x1:x2]
-        self.canvas = cv2.resize(
-            self.canvas,
-            (self.canvas_width, self.canvas_height),
-            interpolation=cv2.INTER_LINEAR,
-        )
-        self.canvas_copy = copy.deepcopy(self.canvas)
+        ## update canvas
+        self._canvas_mount(refresh=False)
+        
+        
 
 class _yaml_file_monitor:
     def __init__(self, filepath, delay=100):
