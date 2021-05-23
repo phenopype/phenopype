@@ -77,7 +77,8 @@ class _image_viewer:
         if "image_bin" in kwargs:
             image_bin = kwargs.get("image_bin")
             if len(image_bin.shape) == 2:
-                self.image_bin = cv2.cvtColor(copy.deepcopy(image_bin), cv2.COLOR_GRAY2BGR)
+                image_bin = cv2.cvtColor(image_bin, cv2.COLOR_GRAY2BGR)
+            self.image_bin = copy.deepcopy(image_bin)
             if not self.image.shape == self.image_bin.shape:
                 print("binary image has different dimensions than input image")
                 return
@@ -136,6 +137,8 @@ class _image_viewer:
         
         ## initialize canvas
         self._canvas_renew()
+        if hasattr(self, "image_bin"):
+            self._canvas_blend()
         self._canvas_mount()
         
         ## show canvas
@@ -157,9 +160,7 @@ class _image_viewer:
         if window_control == "internal":
             while not any([self.finished, self.done]):
                 cv2.imshow(self.window_name, self.canvas)
-                self.keypress = cv2.waitKey(500)     
-                print(self.keypress)
-            
+                self.keypress = cv2.waitKey(500)                 
                 if self.flag_test_mode == True:
                     self.done = True
                     self.finished = True
@@ -170,30 +171,38 @@ class _image_viewer:
                     ## keypress
                     
                     ## Enter
-                    if cv2.waitKey() == 13:
+                    if self.keypress == 13:
                         self.done = True
                         cv2.destroyAllWindows()
                     ## Ctrl + Enter
-                    elif cv2.waitKey() == 10:
+                    elif self.keypress == 10:
                         self.done = True
                         self.finished = True
                         cv2.destroyAllWindows()
                     ## Esc
-                    elif cv2.waitKey() == 27:
+                    elif self.keypress == 27:
                         cv2.destroyAllWindows()
                         sys.exit("\n\nTERMINATE (by user)")
                     ## Ctrl + z
-                    
-                        
-                if self.flag_tool in ["polygon", "poly"]:
-                    if len(self.points) > 2:
-                        self.points.append(self.points[0])
-                        self.polygons.append(self.points)
-                elif self.flag_tool in ["polyline","polylines","lines"]:
-                    if len(self.points) > 0:
-                        self.polygons.append(self.points)
-                elif self.flag_tool in ["landmarks", "landmark"]:
-                    self.polygons.append(self.points)
+                    elif self.keypress == 26 and self.flag_tool == "draw":
+                        self.point_list = self.point_list[:-1]
+                        self._canvas_renew()
+                        self._canvas_draw(
+                            tool="line_bin", coord_list=self.point_list)
+                        self._canvas_blend()
+                        self._canvas_mount()
+
+                ## complete unfinished objects
+                # if self.done:
+                #     if self.flag_tool in ["polygon", "poly"]:
+                #         if len(self.points) > 2:
+                #             self.points.append(self.points[0])
+                #             self.polygons.append(self.points)
+                #     elif self.flag_tool in ["polyline","polylines","lines"]:
+                #         if len(self.points) > 0:
+                #             self.polygons.append(self.points)
+                #     elif self.flag_tool in ["landmarks", "landmark"]:
+                #         self.polygons.append(self.points)
         else:
             if self.flag_test_mode == True:
                 self.done = True
@@ -243,7 +252,7 @@ class _image_viewer:
         if event == cv2.EVENT_LBUTTONDOWN:
         
             ## convert cursor coords from zoomed canvas to original coordinate space
-            self._get_coords_original(x,y)
+            self._zoom_coords_orig(x,y)
             
             ## append points to point list
             self.points.append(self.coords_original)
@@ -307,13 +316,17 @@ class _image_viewer:
                 return
             
             ## convert cursor coords from zoomed canvas to original coordinate space
-            self._get_coords_original(x,y)
+            self._zoom_coords_orig(x,y)
             
             ## append points to point list
+            print("append")
+            # print(self.points)
             self.points.append(self.coords_original)
             
             ## apply tool and refresh canvas
-            self._canvas_renew()
+            # self._canvas_renew()
+            print(self.polygons)
+            # print(self.polygons + [self.points])
             self._canvas_draw(
                 tool="line", coord_list=self.polygons + [self.points])
             self._canvas_mount()
@@ -322,9 +335,6 @@ class _image_viewer:
             if reference and len(self.points) == 2:
                 print("Reference set")
                 self.reference_coords = self.points
-            if flag_draw and self.flag_tool == "line" and len(self.points) == 2:
-                self.polygons.append(self.points)
-                self.points = []
                 
         if event == cv2.EVENT_RBUTTONDOWN:
             
@@ -335,6 +345,7 @@ class _image_viewer:
                 self.polygons = self.polygons[:-1]
                 
             ## apply tool and refresh canvas
+            print("remove")
             self._canvas_renew()
             self._canvas_draw(
                 tool="line", coord_list=self.polygons + [self.points])
@@ -347,6 +358,7 @@ class _image_viewer:
                 self.points.append(self.points[0])
                 
             ## add current points to polygon and empyt point list
+            print("poly")
             self.polygons.append(self.points)
             self.points = []
 
@@ -436,7 +448,7 @@ class _image_viewer:
                 
                 
     def _on_mouse_draw(self, event, x, y, flags):     
-        
+
         ## set colour - left/right mouse button use different colours
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
@@ -448,10 +460,12 @@ class _image_viewer:
             self.canvas = copy.deepcopy(self.canvas_copy)
             
             ## convert cursor coords from zoomed canvas to original coordinate space
-            self._get_coords_original(x,y)
-            self.ix,self.iy = self.coords_original
-            
-            self.points.append(self.coords_original)
+            self.ix,self.iy=x,y
+            self.coords_original_i = (
+                int(self.zoom_x1 + (self.ix * self.global_fx)),
+                int(self.zoom_y1 + (self.iy * self.global_fy)),
+            )
+            self.points.append(self.coords_original_i)
             self.drawing=True
 
         ## finish drawing and update image_copy
@@ -468,14 +482,15 @@ class _image_viewer:
             ## draw all segments
             self._canvas_renew()
             self._canvas_draw(
-                tool="edit_bin", coord_list=self.point_list)
+                tool="line_bin", coord_list=self.point_list)
+            self._canvas_blend()
             self._canvas_mount()
                 
         ## drawing mode
         elif self.drawing:
             
             ## convert cursor coords from zoomed canvas to original coordinate space
-            self._get_coords_original(x,y)
+            self._zoom_coords_orig(x,y)
             
             self.points.append(self.coords_original)
             
@@ -487,48 +502,75 @@ class _image_viewer:
         if self.keypress == 9 and event == cv2.EVENT_MOUSEWHEEL:
             if flags > 1:
                 self.line_width_orig += 1
-            if flags < 1 and self.line_width > 1:
+            if flags < 1 and self.line_width_orig > 1:
                 self.line_width_orig -= 1
+
             self.canvas = copy.deepcopy(self.canvas_copy)
-            self.line_width = int(self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
-            cv2.line(self.canvas,(x,y),(x,y),colours["black"],self.line_width) 
-            cv2.line(self.canvas,(x,y),(x,y),colours["white"],max(self.line_width-5,1)) 
+            self.line_width = int(
+                self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
+            cv2.line(self.canvas, (x, y), (x, y),
+                     colours["black"], self.line_width)
+            cv2.line(self.canvas, (x, y), (x, y),
+                     colours["white"], max(self.line_width-5, 1))
             cv2.imshow(self.window_name, self.canvas)
             
                 
-    def _canvas_renew(self):
-
-        ## pull copy from original image
-        image_copy = copy.deepcopy(self.image)
-
-        ## if provided, mix in binary image
-        if hasattr(self, "image_bin"):
-            image_bin_copy = copy.deepcopy(self.image_bin)
-            self.image_bin_copy = copy.deepcopy(image_bin_copy)
-            self.image_copy = cv2.addWeighted(image_copy,
-                                              1 - self.canvas_blend_factor,
-                                              image_bin_copy,
-                                              self.canvas_blend_factor,
-                                              0)
-        else:
-            self.image_copy = image_copy
-
+    def _canvas_blend(self):
+        
+        ## blend two canvas layers
+        self.image_copy = cv2.addWeighted(self.image_copy,
+                                          1 - self.canvas_blend_factor,
+                                          self.image_bin_copy,
+                                          self.canvas_blend_factor,
+                                          0)                
+                
         
     def _canvas_draw(self, tool, coord_list):
-               
+                              
         ## apply coords to tool and draw on canvas
         for coords in coord_list:
             if len(coords)==0:
                 continue
             if tool == "line":
-                self._draw_line(coords)
+                # print(coords)
+                cv2.polylines(
+                    self.image_copy,
+                    np.array([coords]),
+                    False,
+                    self.line_colour,
+                    self.line_width,
+                )
+            elif tool == "line_bin":
+                cv2.polylines(
+                    self.image_bin_copy,
+                    np.array([coords[0]]),
+                    False,
+                    coords[1],
+                    coords[2],
+                )
             elif tool == "point":
-                self._draw_point(coords)
-            elif tool == "edit_bin":
-                self._edit_binary(coords[0], coords[1], coords[2])
-                
-    def _canvas_mount(self, refresh=True):
+                cv2.circle(
+                    self.image_copy,
+                    coords,
+                    self.point_size,
+                    self.point_colour,
+                    -1,
+                )
+                if self.flag_text_label:
+                    cv2.putText(
+                        self.image_copy,
+                        str(len(self.points)),
+                        coords,
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        self.text_size,
+                        self.label_colour,
+                        self.text_width,
+                        cv2.LINE_AA,
+                    )
         
+        
+    def _canvas_mount(self, refresh=True):
+              
         ## pass zoomed part of original image to canvas
         self.canvas = self.image_copy[
             self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
@@ -549,51 +591,12 @@ class _image_viewer:
             cv2.imshow(self.window_name, self.canvas)
 
 
-            
-    def _get_coords_original(self, x, y):
-        self.coords_original = (
-                int(self.zoom_x1 + (x * self.global_fx)),
-                int(self.zoom_y1 + (y * self.global_fy)),
-            )
-                          
-    def _draw_point(self, coords):
-        cv2.circle(
-            self.image_copy,
-            coords,
-            self.point_size,
-            self.point_colour,
-            -1,
-        )
-        if self.flag_text_label:
-            cv2.putText(
-                self.image_copy,
-                str(len(self.points)),
-                coords,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                self.text_size,
-                self.label_colour,
-                self.text_width,
-                cv2.LINE_AA,
-            )
-            
-    def _draw_line(self, coord_list):
-        cv2.polylines(
-            self.image_copy,
-            np.array([coord_list]),
-            False,
-            self.line_colour,
-            self.line_width,
-        )
-            
-    def _edit_binary(self, coord_list, line_colour, line_width):
-        cv2.polylines(
-            self.image_bin_copy,
-            np.array([coord_list]),
-            False,
-            line_colour,
-            line_width,
-            )
-                       
+    def _canvas_renew(self):
+
+        ## pull copy from original image
+        self.image_copy = copy.deepcopy(self.image)
+        if hasattr(self, "image_bin"):
+            self.image_bin_copy = copy.deepcopy(self.image_bin)
             
 
     def _zoom_fun(self, x, y):
@@ -657,6 +660,17 @@ class _image_viewer:
 
         ## update canvas
         self._canvas_mount(refresh=False)
+        
+        ## adjust brush size
+        if self.flag_tool == "draw":
+            self.line_width = int(self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
+
+
+    def _zoom_coords_orig(self, x, y):
+        self.coords_original = (
+                int(self.zoom_x1 + (x * self.global_fx)),
+                int(self.zoom_y1 + (y * self.global_fy)),
+            )
         
         
 
