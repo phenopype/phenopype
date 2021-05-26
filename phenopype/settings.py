@@ -55,7 +55,7 @@ with path(__package__, 'templates') as template_dir:
             
 #%% flags
 
-flag_verbose = False
+flag_verbose = True
 
 
 opencv_window_flags={

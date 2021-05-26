@@ -119,7 +119,6 @@ def contour_detect(
         method=opencv_contour_flags["approximation"][approximation],
         offset=tuple(offset_coords),
     )
-    
    
     ## output conversion
     if contours is not None:
@@ -162,14 +161,20 @@ def contour_detect(
                             }
                         )
 
+        if flag_verbose:
+            print("- found " + str(len(coords)) + " contours that match criteria")
+    else:
+        if flag_verbose:
+            print("- no contours found")
+
     ## return
     ret = {
-    "info":{
+    "annotation_info":{
         "type": "contour", 
         "function": "contour_detect",
         "settings": settings
         },
-    "data":{
+    "annotation_data":{
         "coords": coords,
         "support": support,
         }
@@ -209,8 +214,7 @@ def contour_modify(
 
     ## settings
     settings = locals()
-    for rm in ["image","include",
-               "kwargs","key","value",
+    for rm in ["image","contours","key","value",
                "_image_viewer_settings"]:
         settings.pop(rm, None)
 
@@ -233,249 +237,37 @@ def contour_modify(
                         tool="draw", 
                         **_image_viewer_settings)
     if not out.done:
-        print("- didn't finish: redo mask")
+        print("- didn't finish: redo drawing")
         return 
     else:
-        polygons = out.polygons
-        
-    # conversion
-    if polygons is not None:
-        polygon_list = []
-        for points in polygons:
-            point_list = []
-            for point in points:
-                point_list.append([list(point)])
-            polygon_list.append(np.asarray(point_list, dtype="int32"))
-        coords = polygon_list
-        
-
-        ## method
-        if not test_params.__class__.__name__ == "NoneType":
-            out = _image_viewer(image,tool=tool, draw=True, 
-                    line_width=line_width,line_colour=line_colour,
-                    previous=test_params,max_dim = max_dim)
-        elif not df_drawings.__class__.__name__ == "NoneType" and flag_edit == True:
-            out = _image_viewer(image,tool=tool, draw=True, 
-                                line_width=line_width,line_colour=line_colour,
-                                previous=prev_drawings,max_dim = max_dim)
-        else:
-            out = _image_viewer(image,tool=tool, draw=True, 
-                                line_width=line_width,line_colour=line_colour,
-                                max_dim = max_dim)
-        coords = out.point_list
-        
-        ## abort
-        if not out.done:
-            if obj_input.__class__.__name__ == "ndarray":
-                print("terminated drawing")
-                return
-            elif obj_input.__class__.__name__ == "container":
-                print("- terminated drawing")
-                return True
-
-        ## create df
-        df_drawings_sub_new = pd.DataFrame()
-        if len(coords) > 0:
-            for points in coords:
-                df_drawings_sub_new = df_drawings_sub_new.append(
-                    {"label": label, 
-                     "tool": tool, 
-                     "line_colour": line_colour, 
-                     "line_width": line_width,
-                     "coords": str(points)},
-                    ignore_index=True,
-                    sort=True,
-                )
-            df_drawings_sub_new.line_width = df_drawings_sub_new.line_width.astype(int)
-        else:
-            print("zero coordinates - redo drawing!")
-            
-        ## merge with existing image_data frame
-        df_drawings_sub_new = pd.concat(
-            [
-                pd.concat([df_image_data] * len(df_drawings_sub_new)).reset_index(drop=True),
-                df_drawings_sub_new.reset_index(drop=True),
-            ],
-            axis=1,
-        )
-        df_drawings = df_drawings.append(df_drawings_sub_new)
-        break
-    
+        point_list = out.point_list
+               
     ## draw
-    for idx, row in df_drawings.loc[df_drawings['label'] == label].iterrows():
-        coords = eval(row["coords"])
-        if row["tool"] in ["line", "lines","polyline","polylines"]:
-            cv2.polylines(
-                image_bin,
-                np.array([coords]),
-                False,
-                colours[row["line_colour"]],
-                row["line_width"],
+    for segment in point_list:
+        cv2.polylines(
+            image_bin,
+            np.array([segment[0]]),
+            False,
+            segment[1],
+            segment[2],
             )
-        elif row["tool"] in ["rect", "rectangle", "poly", "polygon"]:
-            cv2.fillPoly(image_bin, np.array([coords]), colours[row["colour"]])
-
-
-    ## drop index before saving
-    df_drawings.reset_index(drop=True, inplace=True)
 
     ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return image_bin, df_drawings
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_drawings = df_drawings
-        obj_input.image = image_bin
-    
-
-def find_contours(
-    image,
-    approximation="simple",
-    retrieval="ext",
-    offset_coords=(0, 0),
-    min_nodes=3,
-    max_nodes=inf,
-    min_area=0,
-    max_area=inf,
-    min_diameter=0,
-    max_diameter=inf,
-    subset=None,
-    verbose=True,
-):
-    """
-    Find objects in binarized image. The input image needs to be a binarized image
-    or a container on which a binarizing segmentation algorithm (e.g. threshold or 
-    watershed) has been performed. A flavor of different approximation algorithms 
-    and retrieval intstructions can be applied. The contours can also be filtered
-    for minimum area, diameter or nodes (= number of corners). 
-
-    Parameters
-    ----------
-    obj_input : array or container
-        input object (binary)
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata 
-    approximation : {"none", "simple", "L1", "KCOS"] str, optional
-        contour approximation algorithm:
-            - none: no approximation, all contour coordinates are returned
-            - simple: only the minimum coordinates required are returned
-            - L1: Teh-Chin chain approximation algorithm 
-            - KCOS: Teh-Chin chain approximation algorithm 
-    retrieval : {"ext", "list", "tree", "ccomp", "flood"} str, optional
-        contour retrieval procedure:
-            - ext: retrieves only the extreme outer contours
-            - list: retrieves all of the contours without establishing any 
-              hierarchical relationships
-            - tree: retrieves all of the contours and reconstructs a full 
-              hierarchy of nested contours
-            - ccomp: retrieves all of the contours and organizes them into a 
-              two-level hierarchy (parent and child)
-            - flood: flood-fill algorithm
-    offset_coords : tuple, optional
-        offset by which every contour point is shifted.
-    subset: {"parent", "child"} str, optional
-        retain only a subset of the parent-child order structure
-    min_nodes : int, optional
-        minimum number of coordinates
-    max_nodes : int, optional
-        maximum number of coordinates 
-    min_area : int, optional
-        minimum contour area in pixels
-    max_area : int, optional
-        maximum contour area in pixels
-    min_diameter : int, optional
-        minimum diameter of boundary circle
-    max_diameter : int, optional
-        maximum diameter of boundary circle
-
-    Returns
-    -------
-    df_contours : DataFrame or container
-        contains contours
-
-    """
-
-    ## kwargs
-    retr_alg = {
-        "ext": cv2.RETR_EXTERNAL,  ## only external
-        "list": cv2.RETR_LIST,  ## all contours
-        "tree": cv2.RETR_TREE,  ## fully hierarchy
-        "ccomp": cv2.RETR_CCOMP,  ## outer perimeter and holes
-        "flood": cv2.RETR_FLOODFILL,
-    }  ## not sure what this does
-    approx_alg = {
-        "none": cv2.CHAIN_APPROX_NONE,  ## no approximation of the contours, all points
-        "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
-        "L1": cv2.CHAIN_APPROX_TC89_L1,  ## algorithm 1
-        "KCOS": cv2.CHAIN_APPROX_TC89_KCOS,
-    }  ## algorithm 2
-    flag_subset = subset
-
-    ## check
-    if len(image.shape) > 2:
-        print("Multi-channel array supplied - need binary array.")
-
-    ## method
-    image, contour_list, hierarchy = cv2.findContours(
-        image=image,
-        mode=retr_alg[retrieval],
-        method=approx_alg[approximation],
-        offset=offset_coords,
-    )
-
-    ## filtering
-    if not contour_list.__class__.__name__ == "NoneType" and len(contour_list) > 0:
-        contour_dict = {}
-        idx = 0
-        for contour, hier in zip(contour_list, hierarchy[0]):
-
-            ## number of contour nodes
-            if len(contour) > min_nodes and len(contour) < max_nodes:
-
-                ## measure basic shape features
-                center, radius = cv2.minEnclosingCircle(contour)
-                center = int(center[0]), int(center[1])
-                diameter = int(radius * 2)
-                area = int(cv2.contourArea(contour))
-
-                ## contour hierarchy
-                if hier[3] == -1:
-                    cont_order = "parent"
-                else:
-                    cont_order = "child"
-
-                ## retain only a subset
-                if not flag_subset.__class__.__name__ == "NoneType":
-                    if flag_subset == cont_order:
-                        pass
-                    else:
-                        continue
-
-                ## feature filter
-                if all(
-                    [
-                        diameter > min_diameter and diameter < max_diameter,
-                        area > min_area and area < max_area,
-                    ]
-                ):
-                    idx += 1
-                    contour_label = idx
-                    contour_dict[contour_label] = {
-                        "contour": contour_label,
-                        "center": center,
-                        "diameter": diameter,
-                        "area": area,
-                        "order": cont_order,
-                        "idx_child": hier[2],
-                        "idx_parent": hier[3],
-                        "coords": contour,
-                    }
-        if verbose:
-            print("- found " + str(len(contour_dict)) + " contours that match criteria")
+    if len(point_list) > 0:
+        ret = {
+            "annotation_info": {
+                "type": "drawing", 
+                "function": "contour_modify",
+                "settings": settings,
+                },
+            "annotation_data":{
+                "point_list": point_list,
+                }
+            }
+        return ret
     else:
-        if verbose:
-            print("- no contours found")
-
-    return contour_dict
+        print("- zero coordinates: redo drawing")
+        return 
 
 
 
@@ -552,6 +344,7 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close", iterat
         obj_input.image_bin = image
     else:
         return image
+
 
 
 def threshold(

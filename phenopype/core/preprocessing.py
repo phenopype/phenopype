@@ -105,13 +105,13 @@ def mask_create(
     ## return
     if len(coords) > 0:
         ret = {
-            "info": {
+            "annotation_info": {
                 "type": "mask", 
                 "function": "mask_create",
                 "settings": settings,
                 "n_coords": len(coords),
                 },
-            "data":{
+            "annotation_data":{
                 "coords":coords,
                 }
             }
@@ -197,12 +197,12 @@ def mask_detect(image,
         
     ## return results
     ret = {
-        "info": {
+        "annotation_info": {
             "type": "mask", 
             "function": "mask_detect",
             "settings": settings,
             },
-        "data":{
+        "annotation_data":{
             "coords":coords,
             }
         }

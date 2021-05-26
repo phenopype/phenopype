@@ -13,17 +13,74 @@ from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
 
 #%% settings
 
+import re
+from _ctypes import PyObj_FromPtr
+
 class customJsonEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, list):
-            print(obj)
-            return str(obj)
         if isinstance(obj, np.ndarray):
             return str(obj.tolist())
-        if isinstance(obj, np.intc):
+        elif isinstance(obj, np.intc):
             return int(obj)
+        elif isinstance(obj, list):
+            return str(obj)
         return json.JSONEncoder.default(self, obj)
     
+    
+class NoIndent(object):
+    """ Value wrapper. """
+    def __init__(self, value):
+        if not isinstance(value, (list, tuple)):
+            raise TypeError('Only lists and tuples can be wrapped')
+        self.value = value
+
+
+class MyEncoder(json.JSONEncoder):
+    FORMAT_SPEC = '@@{}@@'  # Unique string pattern of NoIndent object ids.
+    regex = re.compile(FORMAT_SPEC.format(r'(\d+)'))  # compile(r'@@(\d+)@@')
+
+    def __init__(self, **kwargs):
+        # Keyword arguments to ignore when encoding NoIndent wrapped values.
+        ignore = {'cls', 'indent'}
+
+        # Save copy of any keyword argument values needed for use here.
+        self._kwargs = {k: v for k, v in kwargs.items() if k not in ignore}
+        super(MyEncoder, self).__init__(**kwargs)
+
+    def default(self, obj):
+        return (self.FORMAT_SPEC.format(id(obj)) if isinstance(obj, NoIndent)
+                    else super(MyEncoder, self).default(obj))
+
+    def iterencode(self, obj, **kwargs):
+        format_spec = self.FORMAT_SPEC  # Local var to expedite access.
+
+        # Replace any marked-up NoIndent wrapped values in the JSON repr
+        # with the json.dumps() of the corresponding wrapped Python object.
+        for encoded in super(MyEncoder, self).iterencode(obj, **kwargs):
+            match = self.regex.search(encoded)
+            if match:
+                id = int(match.group(1))
+                no_indent = PyObj_FromPtr(id)
+                json_repr = json.dumps(no_indent.value, **self._kwargs)
+                # Replace the matched id string with json formatted representation
+                # of the corresponding Python object.
+                encoded = encoded.replace(
+                            '"{}"'.format(format_spec.format(id)), json_repr)
+
+            yield encoded
+    
+    
+    
+alfa = [('a','b','c'), ('d','e','f'), ('g','h','i')]
+data = [(1,2,3), (2,3,4), (4,5,6)]
+
+data_struct = {
+    'data': [NoIndent(elem) for elem in data],
+    'alfa': [NoIndent(elem) for elem in alfa],
+}
+    
+    print(json.dumps(data_struct, cls=MyEncoder, sort_keys=True, indent=4))
+
 #%% functions
 
 def annotation_load(filepath, 
@@ -96,33 +153,39 @@ def annotation_save(annotation,
         annotation_file["annotation_data"] = defaultdict(dict)
     
     ## extract type from annotation info
-    annotation_type = annotation["info"]["type"]
+    annotation_type = annotation["annotation_info"]["type"]
     
     ## separate "info" and "data" part for legibility
-    info = copy.deepcopy(annotation["info"])
-    if "data" in annotation.keys():
-        data = copy.deepcopy(annotation["data"])
+    annotation_info = copy.deepcopy(annotation["annotation_info"])
+    if "annotation_data" in annotation.keys():
+        annotation_data = copy.deepcopy(annotation["annotation_data"])
     
     ## integrate into json tree 
     if annotation_type in annotation_file["annotation_info"].keys():
         if str(annotation_id) in annotation_file["annotation_info"][annotation_type].keys():
             if overwrite in [True,"entry"]:
-                annotation_file["annotation_info"][annotation_type][annotation_id] = info
+                annotation_file["annotation_info"][annotation_type][annotation_id] = annotation_info
             else:
                 print("entry for annotation_id \"{}\" already exists - overwrite=False".format(annotation_id))
         else:
-            annotation_file["annotation_info"][annotation_type][annotation_id] = info
-            annotation_file["annotation_data"][annotation_type][annotation_id] = data
+            annotation_file["annotation_info"][annotation_type][annotation_id] = annotation_info
+            annotation_file["annotation_data"][annotation_type][annotation_id] = annotation_data
     else:
-        annotation_file["annotation_info"][annotation_type][annotation_id] = info
-        annotation_file["annotation_data"][annotation_type][annotation_id] = data
+        annotation_file["annotation_info"][annotation_type][annotation_id] = annotation_info
+        annotation_file["annotation_data"][annotation_type][annotation_id] = annotation_data
 
     ## save
     with open(filepath, 'w') as file:
         json.dump(annotation_file, 
-                  file, 
-                  indent=indent, 
-                  cls=customJsonEncoder), 
+                   file, 
+                   indent=indent, 
+                   cls=customJsonEncoder)
+        
+    dmp = json.dumps(annotation_file, 
+               indent=indent, 
+               cls=MyEncoder)
+    print(dmp)
+    
 
 
 def ROI_save(image,
@@ -149,7 +212,7 @@ def ROI_save(image,
     else:
         suffix= "_" + suffix
         
-    coords = annotation["data"]["coords"]
+    coords = annotation["annotation_data"]["coords"]
         
     for idx, roi_coords in enumerate(coords):
         
