@@ -7,30 +7,18 @@ from collections import defaultdict
 import cv2
 import numpy as np
 import pandas as pd
+import re
+from _ctypes import PyObj_FromPtr
 
 from phenopype.settings import confirm_options
 from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
 
 #%% settings
-
-import re
-from _ctypes import PyObj_FromPtr
-
-class customJsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return str(obj.tolist())
-        elif isinstance(obj, np.intc):
-            return int(obj)
-        elif isinstance(obj, list):
-            return str(obj)
-        return json.JSONEncoder.default(self, obj)
-    
     
 class NoIndent(object):
     """ Value wrapper. """
     def __init__(self, value):
-        if not isinstance(value, (list, tuple)):
+        if not isinstance(value, (list, tuple, dict)):
             raise TypeError('Only lists and tuples can be wrapped')
         self.value = value
 
@@ -52,6 +40,10 @@ class MyEncoder(json.JSONEncoder):
                     else super(MyEncoder, self).default(obj))
 
     def iterencode(self, obj, **kwargs):
+        
+        if isinstance(obj, np.intc):
+            return int(obj)
+        
         format_spec = self.FORMAT_SPEC  # Local var to expedite access.
 
         # Replace any marked-up NoIndent wrapped values in the JSON repr
@@ -68,18 +60,7 @@ class MyEncoder(json.JSONEncoder):
                             '"{}"'.format(format_spec.format(id)), json_repr)
 
             yield encoded
-    
-    
-    
-alfa = [('a','b','c'), ('d','e','f'), ('g','h','i')]
-data = [(1,2,3), (2,3,4), (4,5,6)]
-
-data_struct = {
-    'data': [NoIndent(elem) for elem in data],
-    'alfa': [NoIndent(elem) for elem in alfa],
-}
-    
-    print(json.dumps(data_struct, cls=MyEncoder, sort_keys=True, indent=4))
+            
 
 #%% functions
 
@@ -96,16 +77,15 @@ def annotation_load(filepath,
         with open(filepath) as file:
             annotation_file = json.load(file)
             annotation_file = defaultdict(dict, annotation_file)
-            annotation_file["annotation_info"] = defaultdict(dict, annotation_file["annotation_info"])
-            annotation_file["annotation_data"] = defaultdict(dict, annotation_file["annotation_data"])
+            annotation_file["info"] = defaultdict(dict, annotation_file["info"])
+            annotation_file["data"] = defaultdict(dict, annotation_file["data"])
     else:
         print("file not found")
         return
                    
     ## reassemble info + data structure
-    annotation_info = copy.deepcopy(annotation_file["annotation_info"][annotation_type][annotation_id])
-    annotation_data = copy.deepcopy(annotation_file["annotation_data"][annotation_type][annotation_id])
-    
+    annotation_info = copy.deepcopy(annotation_file["info"][annotation_type][annotation_id])
+    annotation_data = copy.deepcopy(annotation_file["data"][annotation_type][annotation_id])
     
     ## parse serialized array
     annotation_data_new = {}
@@ -114,7 +94,7 @@ def annotation_load(filepath,
         for data_item in data_values:
             if type(data_item) is str:
                 data_item = eval(data_item)
-            if type(data_item) is list:
+            if type(data_item) is list and data_key in ["coords"]:
                 data_item = np.asarray(data_item, dtype=np.int32)
             data_parsed.append(data_item) 
         annotation_data_new[data_key] = data_parsed
@@ -142,49 +122,61 @@ def annotation_save(annotation,
     if os.path.isfile(filepath) and overwrite in [False,"entry"]:
         with open(filepath) as file:
             annotation_file = json.load(file)
-            annotation_file = defaultdict(dict, annotation_file)
-            annotation_file["annotation_info"] = defaultdict(dict, annotation_file["annotation_info"])
-            annotation_file["annotation_data"] = defaultdict(dict, annotation_file["annotation_data"])
+            # annotation_file = defaultdict(dict, annotation_file)
+            annotation_file["info"] = defaultdict(dict, annotation_file["info"])
+            annotation_file["data"] = defaultdict(dict, annotation_file["data"])
     else:
         if os.path.isfile(filepath) and overwrite=="file":
             print("overwriting annotation file (overwrite=\"file\")")
         annotation_file = defaultdict(dict)
-        annotation_file["annotation_info"] = defaultdict(dict)
-        annotation_file["annotation_data"] = defaultdict(dict)
+        annotation_file["info"] = defaultdict(dict)
+        annotation_file["data"] = defaultdict(dict)
     
     ## extract type from annotation info
-    annotation_type = annotation["annotation_info"]["type"]
+    annotation_type = annotation["info"]["type"]
     
     ## separate "info" and "data" part for legibility
-    annotation_info = copy.deepcopy(annotation["annotation_info"])
-    if "annotation_data" in annotation.keys():
-        annotation_data = copy.deepcopy(annotation["annotation_data"])
-    
+    annotation_info = copy.deepcopy(annotation["info"])
+    if "data" in annotation.keys():
+        annotation_data = copy.deepcopy(annotation["data"])
+        
+    ## NoIndent annotation data
+    for key, val in annotation_data.items():
+        if key in ["coords"]:
+            new_annotation_data = []
+            for coord_list in annotation_data[key]:
+                new_coord_list = []
+                for coord in coord_list:
+                    new_coord_list.append(coord.tolist())
+                new_annotation_data.append(new_coord_list)
+            annotation_data[key] = new_annotation_data
+        annotation_data[key] = [NoIndent(elem) for elem in annotation_data[key]]
+
     ## integrate into json tree 
-    if annotation_type in annotation_file["annotation_info"].keys():
-        if str(annotation_id) in annotation_file["annotation_info"][annotation_type].keys():
+    if annotation_type in annotation_file["info"].keys():
+        if str(annotation_id) in annotation_file["info"][annotation_type].keys():
             if overwrite in [True,"entry"]:
-                annotation_file["annotation_info"][annotation_type][annotation_id] = annotation_info
+                annotation_file["info"][annotation_type][annotation_id] = annotation_info
             else:
                 print("entry for annotation_id \"{}\" already exists - overwrite=False".format(annotation_id))
         else:
-            annotation_file["annotation_info"][annotation_type][annotation_id] = annotation_info
-            annotation_file["annotation_data"][annotation_type][annotation_id] = annotation_data
+            annotation_file["info"][annotation_type][annotation_id] = annotation_info
+            annotation_file["data"][annotation_type][annotation_id] = annotation_data
     else:
-        annotation_file["annotation_info"][annotation_type][annotation_id] = annotation_info
-        annotation_file["annotation_data"][annotation_type][annotation_id] = annotation_data
+        annotation_file["info"][annotation_type][annotation_id] = annotation_info
+        annotation_file["data"][annotation_type][annotation_id] = annotation_data
 
     ## save
     with open(filepath, 'w') as file:
         json.dump(annotation_file, 
-                   file, 
-                   indent=indent, 
-                   cls=customJsonEncoder)
+                    file, 
+                    indent=indent, 
+                    cls=MyEncoder)
         
-    dmp = json.dumps(annotation_file, 
-               indent=indent, 
-               cls=MyEncoder)
-    print(dmp)
+    # dmp = json.dumps(annotation_file, 
+    #            indent=indent, 
+    #            cls=MyEncoder)
+    # print(dmp)
     
 
 
@@ -212,7 +204,7 @@ def ROI_save(image,
     else:
         suffix= "_" + suffix
         
-    coords = annotation["annotation_data"]["coords"]
+    coords = annotation["data"]["coords"]
         
     for idx, roi_coords in enumerate(coords):
         

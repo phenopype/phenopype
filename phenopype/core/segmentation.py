@@ -156,8 +156,8 @@ def contour_detect(
                             "area": area,
                             "diameter": diameter,
                             "hierarchy_level": hierarchy_level,
-                            "hierarchy_idx_child": hierarchy[2],
-                            "hierarchy_idx_parent": hierarchy[3],
+                            "hierarchy_idx_child": int(hierarchy[2]),
+                            "hierarchy_idx_parent": int(hierarchy[3]),
                             }
                         )
 
@@ -169,12 +169,12 @@ def contour_detect(
 
     ## return
     ret = {
-    "annotation_info":{
+    "info":{
         "type": "contour", 
         "function": "contour_detect",
         "settings": settings
         },
-    "annotation_data":{
+    "data":{
         "coords": coords,
         "support": support,
         }
@@ -255,12 +255,12 @@ def contour_modify(
     ## return
     if len(point_list) > 0:
         ret = {
-            "annotation_info": {
+            "info": {
                 "type": "drawing", 
                 "function": "contour_modify",
                 "settings": settings,
                 },
-            "annotation_data":{
+            "data":{
                 "point_list": point_list,
                 }
             }
