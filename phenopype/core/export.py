@@ -14,53 +14,159 @@ from phenopype.settings import confirm_options
 from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
 
 #%% settings
+
+# import re            
     
-class NoIndent(object):
-    """ Value wrapper. """
-    def __init__(self, value):
-        if not isinstance(value, (list, tuple, dict)):
-            raise TypeError('Only lists and tuples can be wrapped')
-        self.value = value
+# class NoIndent(object):
+#     """ Value wrapper. """
+#     def __init__(self, value):
+#         if not isinstance(value, (list, tuple, dict)):
+#             raise TypeError('Only lists and tuples can be wrapped')
+#         self.value = value
 
 
-class MyEncoder(json.JSONEncoder):
-    FORMAT_SPEC = '@@{}@@'  # Unique string pattern of NoIndent object ids.
-    regex = re.compile(FORMAT_SPEC.format(r'(\d+)'))  # compile(r'@@(\d+)@@')
+# class MyEncoder(json.JSONEncoder):
+#     FORMAT_SPEC = '@@{}@@'  # Unique string pattern of NoIndent object ids.
+#     regex = re.compile(FORMAT_SPEC.format(r'(\d+)'))  # compile(r'@@(\d+)@@')
 
-    def __init__(self, **kwargs):
-        # Keyword arguments to ignore when encoding NoIndent wrapped values.
-        ignore = {'cls', 'indent'}
+#     def __init__(self, **kwargs):
+#         # Keyword arguments to ignore when encoding NoIndent wrapped values.
+#         ignore = {'cls', 'indent'}
 
-        # Save copy of any keyword argument values needed for use here.
-        self._kwargs = {k: v for k, v in kwargs.items() if k not in ignore}
-        super(MyEncoder, self).__init__(**kwargs)
+#         # Save copy of any keyword argument values needed for use here.
+#         self._kwargs = {k: v for k, v in kwargs.items() if k not in ignore}
+#         super(MyEncoder, self).__init__(**kwargs)
+
+#     def default(self, obj):
+#         return (self.FORMAT_SPEC.format(id(obj)) if isinstance(obj, NoIndent)
+#                     else super(MyEncoder, self).default(obj))
+
+#     def iterencode(self, obj, **kwargs):
+        
+#         if isinstance(obj, np.intc):
+#             return int(obj)
+        
+#         format_spec = self.FORMAT_SPEC  # Local var to expedite access.
+
+#         # Replace any marked-up NoIndent wrapped values in the JSON repr
+#         # with the json.dumps() of the corresponding wrapped Python object.
+#         for encoded in super(MyEncoder, self).iterencode(obj, **kwargs):
+#             match = self.regex.search(encoded)
+#             if match:
+#                 id = int(match.group(1))
+#                 no_indent = PyObj_FromPtr(id)
+#                 json_repr = json.dumps(no_indent.value, **self._kwargs)
+#                 # Replace the matched id string with json formatted representation
+#                 # of the corresponding Python object.
+#                 encoded = encoded.replace(
+#                             '"{}"'.format(format_spec.format(id)), json_repr)
+
+#             yield encoded
+        
+# from json import encoder
+FLOAT_REPR = lambda o: format(o, '.2f')
+            
+# customencoder.py
+from json.encoder import (_make_iterencode, JSONEncoder,
+                          encode_basestring_ascii, INFINITY,
+                          c_make_encoder, encode_basestring)
+
+
+class CustomObjectEncoder(JSONEncoder):
+
+    def iterencode(self, o, _one_shot=False):
+        """
+        Most of the original method has been left untouched.
+
+        _one_shot is forced to False to prevent c_make_encoder from
+        being used. c_make_encoder is a funcion defined in C, so it's easier
+        to avoid using it than overriding/redefining it.
+
+        The keyword argument isinstance for _make_iterencode has been set
+        to self.isinstance. This allows for a custom isinstance function
+        to be defined, which can be used to defer the serialization of custom
+        objects to the default method.
+        """
+        # Force the use of _make_iterencode instead of c_make_encoder
+        _one_shot = False
+
+        if self.check_circular:
+            markers = {}
+        else:
+            markers = None
+        if self.ensure_ascii:
+            _encoder = encode_basestring_ascii
+        else:
+            _encoder = encode_basestring
+        if self.encoding != 'utf-8':
+            def _encoder(o, _orig_encoder=_encoder, _encoding=self.encoding):
+                if isinstance(o, str):
+                    o = o.decode(_encoding)
+                return _orig_encoder(o)
+
+        def floatstr(o, allow_nan=self.allow_nan,
+                     _repr=FLOAT_REPR, _inf=INFINITY, _neginf=-INFINITY):
+            if o != o:
+                text = 'NaN'
+            elif o == _inf:
+                text = 'Infinity'
+            elif o == _neginf:
+                text = '-Infinity'
+            else:
+                return _repr(o)
+
+            if not allow_nan:
+                raise ValueError(
+                    "Out of range float values are not JSON compliant: " +
+                    repr(o))
+
+            return text
+
+        # Instead of forcing _one_shot to False, you can also just
+        # remove the first part of this conditional statement and only
+        # call _make_iterencode
+        if (_one_shot and c_make_encoder is not None
+                and self.indent is None and not self.sort_keys):
+            _iterencode = c_make_encoder(
+                markers, self.default, _encoder, self.indent,
+                self.key_separator, self.item_separator, self.sort_keys,
+                self.skipkeys, self.allow_nan)
+        else:
+            _iterencode = _make_iterencode(
+                markers, self.default, _encoder, self.indent, floatstr,
+                self.key_separator, self.item_separator, self.sort_keys,
+                self.skipkeys, _one_shot, isinstance=self.isinstance)
+        return _iterencode(o, 0)
+    
+from customencoder import CustomObjectEncoder
+
+class MyEncoder(CustomObjectEncoder):
+
+    def isinstance(self, obj, cls):
+        if isinstance(obj, (mList, mDict)):
+            return False
+        return isinstance(obj, cls)
 
     def default(self, obj):
-        return (self.FORMAT_SPEC.format(id(obj)) if isinstance(obj, NoIndent)
-                    else super(MyEncoder, self).default(obj))
+        """
+        Defines custom serialization.
 
-    def iterencode(self, obj, **kwargs):
-        
-        if isinstance(obj, np.intc):
-            return int(obj)
-        
-        format_spec = self.FORMAT_SPEC  # Local var to expedite access.
+        To avoid circular references, any object that will always fail
+        self.isinstance must be converted to something that is
+        deserializable here.
+        """
+        if isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+        elif isinstance(obj, mDict):
+            return {"orig": dict(obj), "attrs": vars(obj)}
+        elif isinstance(obj, mList):
+            return {"orig": list(obj), "attrs": vars(obj)}
+        else:
+            return None
 
-        # Replace any marked-up NoIndent wrapped values in the JSON repr
-        # with the json.dumps() of the corresponding wrapped Python object.
-        for encoded in super(MyEncoder, self).iterencode(obj, **kwargs):
-            match = self.regex.search(encoded)
-            if match:
-                id = int(match.group(1))
-                no_indent = PyObj_FromPtr(id)
-                json_repr = json.dumps(no_indent.value, **self._kwargs)
-                # Replace the matched id string with json formatted representation
-                # of the corresponding Python object.
-                encoded = encoded.replace(
-                            '"{}"'.format(format_spec.format(id)), json_repr)
 
-            yield encoded
-            
+class mList(list):
+    pass
 
 #%% functions
 
