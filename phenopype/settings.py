@@ -87,6 +87,7 @@ opencv_interpolation_flags = {
 
 
 _image_viewer_arg_list = [
+    "line_colour",
     "window_aspect", 
     "window_control", 
     "window_max_dimension", 

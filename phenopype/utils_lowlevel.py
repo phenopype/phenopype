@@ -130,7 +130,7 @@ class _image_viewer:
                 self.text_size = kwargs.get("label_size", _auto_text_size(image))
                 self.text_width = kwargs.get("label_size", _auto_text_width(image))
                 self.label_colour = colours[kwargs.get("label_colour", "black")]
-
+                
         # =============================================================================
         # open canvas
         # =============================================================================
@@ -144,7 +144,6 @@ class _image_viewer:
         ## show canvas
         self.done = False
         self.finished = False
-        
         
         cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
         cv2.startWindowThread() 
@@ -452,7 +451,7 @@ class _image_viewer:
         ## set colour - left/right mouse button use different colours
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
-                self.colour_current = colours["white"]
+                self.colour_current = self.line_colour
             elif event == cv2.EVENT_RBUTTONDOWN:
                 self.colour_current = colours["black"]
             
@@ -482,7 +481,7 @@ class _image_viewer:
             ## draw all segments
             self._canvas_renew()
             self._canvas_draw(
-                tool="line_bin", coord_list=self.point_list)
+                tool="line_bin_cont", coord_list=self.point_list)
             self._canvas_blend()
             self._canvas_mount()
                 
@@ -492,8 +491,10 @@ class _image_viewer:
             ## convert cursor coords from zoomed canvas to original coordinate space
             self._zoom_coords_orig(x,y)
             
+            ## add points, colour, and line width to point list
             self.points.append(self.coords_original)
             
+            ## draw onto canvas for immediate feedback
             cv2.line(self.canvas,(self.ix,self.iy),(x,y), 
                      self.colour_current, self.line_width) 
             self.ix,self.iy = x,y
@@ -532,7 +533,6 @@ class _image_viewer:
             if len(coords)==0:
                 continue
             if tool == "line":
-                # print(coords)
                 cv2.polylines(
                     self.image_copy,
                     np.array([coords]),
@@ -548,6 +548,38 @@ class _image_viewer:
                     coords[1],
                     coords[2],
                 )
+                
+            elif tool == "line_bin_cont":
+                
+                ## draw lines
+                cv2.polylines(
+                    self.image_bin_copy,
+                    np.array([coords[0]]),
+                    False,
+                    coords[1],
+                    coords[2],
+                )
+                ## find contours 
+                image_bin = cv2.cvtColor(self.image_bin_copy, cv2.COLOR_BGR2GRAY)
+                _ , self.contours, _ = cv2.findContours(
+                    image=image_bin,
+                    mode=cv2.RETR_EXTERNAL,
+                    method=cv2.CHAIN_APPROX_SIMPLE,
+                )
+                self.image_bin_copy = cv2.cvtColor(np.zeros_like(image_bin), cv2.COLOR_GRAY2BGR)
+                
+                ## draw found contours
+                for contour in self.contours:
+                    cv2.drawContours(
+                        image=self.image_bin_copy,
+                        contours=[contour],
+                        contourIdx=0,
+                        thickness=-1,
+                        color=self.line_colour,
+                        maxLevel=3,
+                        offset=None,
+                    )
+                                            
             elif tool == "point":
                 cv2.circle(
                     self.image_copy,

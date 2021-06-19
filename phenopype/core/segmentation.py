@@ -6,7 +6,7 @@ import pandas as pd
 from math import inf
 
 from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
-from phenopype.utils import image_select_channel, image_invert
+from phenopype.utils import image_select_channel, image_invert, show_image
 from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_line_width
 
 import phenopype.core.preprocessing as preprocessing
@@ -205,7 +205,9 @@ def contour_modify(
         contains the drawn polylines
 
     """
-        
+    ## kwargs
+    line_colour_str = kwargs.get("line_colour", "green")    
+    
     ## retrieve settings for image viewer
     _image_viewer_settings = {}
     for key, value in kwargs.items():
@@ -226,7 +228,7 @@ def contour_modify(
             contours=[contour],
             contourIdx=0,
             thickness=-1,
-            color=colours["white"],
+            color=colours[line_colour_str],
             maxLevel=3,
             offset=(0,0),
             )
