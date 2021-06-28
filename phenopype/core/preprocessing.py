@@ -23,7 +23,7 @@ def blur(image,
          sigma_color=75, 
          sigma_space=75):
     """
-    Apply a blurring algorithm to the image.
+    Apply a blurring algorithm to an image.
 
     Parameters
     ----------
@@ -63,7 +63,7 @@ def blur(image,
     return blurred
 
 
-def mask_create(
+def create_mask(
     image,
     tool="rectangle",
     **kwargs
@@ -122,7 +122,7 @@ def mask_create(
     
     
     
-def mask_detect(image,
+def detect_mask(image,
                 method="circle",
                 resize=1,
                 dp=1,

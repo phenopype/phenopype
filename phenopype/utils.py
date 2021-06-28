@@ -11,9 +11,8 @@ import inspect
 from pprint import PrettyPrinter
 from PIL import Image, ExifTags
 
-
-
-import phenopype.core as core_modules
+from phenopype.core import preprocessing, segmentation, measurement, visualization, \
+    export
 from phenopype.core.export import *
 from phenopype.settings import colours, default_meta_data_fields, \
     default_filetypes, flag_verbose, pype_config_templates, confirm_options, \
@@ -77,19 +76,28 @@ class container(object):
         self.save_suffix = save_suffix
         self.reference_manual_mode = False
         
-        class run(object):
-            def __init__ (self):
+        ## annotations
+        self.annotations = []
+        
+        # class run(object):
+        #     def __init__ (self):
                         
-                ## make functions class methods
-                for module_name, module in inspect.getmembers(core_modules, inspect.ismodule):
-                    for key, value in module.__dict__.items(): # iterate through every module's attributes
-                        if callable(value) and not key.startswith('_'):    
-                            setattr(self, key, value)                         
+        #         ## make functions class methods
+        #         for module_name, module in inspect.getmembers(core_modules, inspect.ismodule):
+        #             for key, value in module.__dict__.items(): # iterate through every module's attributes
+        #                 if callable(value) and not key.startswith('_'):    
+        #                     setattr(self, key, value)                         
             
-            
-            
-        self.run = run()     
- 
+    def run_fun(self, fun, kwargs={}):
+        
+        ## preprocessing
+        if fun == "blur":
+            self.image = preprocessing.blur(self.image, **kwargs)
+        if fun == "create_mask":
+            self.annotations.append(preprocessing.create_mask(self.image, **kwargs))
+        if fun == "detect_mask":
+            self.annotations.append(preprocessing.detect_mask(self.image, **kwargs))
+
 
                     
     def load(self, dirpath=None, save_suffix=None, contours=False, canvas=False, **kwargs):

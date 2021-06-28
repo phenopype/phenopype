@@ -1233,8 +1233,10 @@ class pype:
                     try:
                         ## run method
                         print(method_name)
-                        method_loaded = eval(step_name + "." + method_name)
-                        restart = method_loaded(self.container, **method_arguments)
+                        self.container.run_fun(method_name, **method_arguments)
+                        
+                        # method_loaded = eval(step_name + "." + method_name)
+                        # restart = method_loaded(self.container, **method_arguments)
     
                         ## control
                         if restart:
