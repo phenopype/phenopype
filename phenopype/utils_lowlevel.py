@@ -55,7 +55,7 @@ class _image_viewer:
         self.canvas_blend_factor = kwargs.get("blend", 0.5)
         
         ## set class arguments
-        self.flag_tool = tool
+        self.tool = tool
         self.flag_zoom_mode = zoom_mode       
         self.zoom_magnification = zoom_magnification
         self.zoom_n_steps = zoom_steps
@@ -118,13 +118,24 @@ class _image_viewer:
                 mag * self.zoom_step_y,
             )
 
-        ## configure tools
-        if self.flag_tool:
-            self.points, self.point_list, self.polygons, self.rect_start, self.drawing = [], [], [], None, False
-            self.line_width = kwargs.get("line_width", _auto_line_width(image))
-            self.line_colour = colours[kwargs.get("line_colour", "green")]
-            self.line_width_orig = copy.deepcopy(self.line_width)
-            if self.flag_tool in ["landmarks", "landmark"]:
+        # =============================================================================
+        # configure tools
+        # =============================================================================
+        
+        if self.tool:
+            
+            ## collect interactions and set flags
+            self.points, self.point_list, self.polygons = [], [], []
+            self.rect_start, self.drawing = None, False
+            
+            ## line properties
+            if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
+                self.line_colour = colours[kwargs.get("line_colour", "green")]
+                self.line_width = kwargs.get("line_width", _auto_line_width(image))
+                self.line_width_orig = copy.deepcopy(self.line_width)
+            
+            ## point properties
+            if self.tool in ["landmarks", "landmark"]:
                 self.point_size = kwargs.get("point_size", _auto_point_size(image))
                 self.point_colour = colours[kwargs.get("point_colour", "red")]
                 self.text_size = kwargs.get("label_size", _auto_text_size(image))
@@ -132,15 +143,34 @@ class _image_viewer:
                 self.label_colour = colours[kwargs.get("label_colour", "black")]
                 
         # =============================================================================
+        # previous parameters
+        # =============================================================================              
+        
+        ## update from previous call
+        if kwargs.get("previous"):
+            prev_attr = kwargs.get("previous").__dict__
+            prev_attr = {
+                i: prev_attr[i]
+                for i in prev_attr
+                if i not in ["canvas_copy", "canvas", "image_copy", "image", "image_bin"]
+            }
+            self.__dict__.update(copy.deepcopy(prev_attr))
+
+
+        # =============================================================================
         # open canvas
         # =============================================================================
         
         ## initialize canvas
         self._canvas_renew()
+        if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
+            self._canvas_draw(tool="line", coord_list=self.polygons)
+        if self.tool in ["landmark"]:
+            self._canvas_draw(tool="line", coord_list=self.points)
         if hasattr(self, "image_bin"):
             self._canvas_blend()
         self._canvas_mount()
-        
+
         ## show canvas
         self.done = False
         self.finished = False
@@ -150,6 +180,7 @@ class _image_viewer:
         cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
         cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
         cv2.imshow(self.window_name, self.canvas)
+
 
         # =============================================================================
         # window control
@@ -173,17 +204,21 @@ class _image_viewer:
                     if self.keypress == 13:
                         self.done = True
                         cv2.destroyAllWindows()
+                        
                     ## Ctrl + Enter
                     elif self.keypress == 10:
                         self.done = True
                         self.finished = True
                         cv2.destroyAllWindows()
+                        print("finish")
+                        
                     ## Esc
                     elif self.keypress == 27:
                         cv2.destroyAllWindows()
                         sys.exit("\n\nTERMINATE (by user)")
+                        
                     ## Ctrl + z
-                    elif self.keypress == 26 and self.flag_tool == "draw":
+                    elif self.keypress == 26 and self.tool == "draw":
                         self.point_list = self.point_list[:-1]
                         self._canvas_renew()
                         self._canvas_draw(
@@ -193,14 +228,14 @@ class _image_viewer:
 
                 ## complete unfinished objects
                 # if self.done:
-                #     if self.flag_tool in ["polygon", "poly"]:
+                #     if self.tool in ["polygon", "poly"]:
                 #         if len(self.points) > 2:
                 #             self.points.append(self.points[0])
                 #             self.polygons.append(self.points)
-                #     elif self.flag_tool in ["polyline","polylines","lines"]:
+                #     elif self.tool in ["polyline","polylines","lines"]:
                 #         if len(self.points) > 0:
                 #             self.polygons.append(self.points)
-                #     elif self.flag_tool in ["landmarks", "landmark"]:
+                #     elif self.tool in ["landmarks", "landmark"]:
                 #         self.polygons.append(self.points)
         else:
             if self.flag_test_mode == True:
@@ -230,20 +265,20 @@ class _image_viewer:
             self.x, self.y = x, y
             cv2.imshow(self.window_name, self.canvas)
 
-        if self.flag_tool:
-            if self.flag_tool == "landmark" or self.flag_tool == "landmarks":
+        if self.tool:
+            if self.tool == "landmark" or self.tool == "landmarks":
                 self._on_mouse_point(event, x, y)
-            elif self.flag_tool == "rectangle" or self.flag_tool == "rect":
+            elif self.tool == "rectangle" or self.tool == "rect":
                 self._on_mouse_rectangle(event, x, y, flags)
-            elif self.flag_tool == "polygon" or self.flag_tool == "poly":
+            elif self.tool == "polygon" or self.tool == "poly":
                 self._on_mouse_polygon(event, x, y, flags)
-            elif self.flag_tool == "polyline" or self.flag_tool == "polylines":
+            elif self.tool == "polyline" or self.tool == "polylines":
                 self._on_mouse_polygon(event, x, y, flags, polyline=True)
-            elif self.flag_tool == "reference":
+            elif self.tool == "reference":
                 self._on_mouse_polygon(event, x, y, flags, reference=True)
-            elif self.flag_tool == "template":
+            elif self.tool == "template":
                 self._on_mouse_rectangle(event, x, y, flags, template=True)
-            elif self.flag_tool == "draw":
+            elif self.tool == "draw":
                 self._on_mouse_draw(event, x, y, flags)
 
                 
@@ -281,7 +316,7 @@ class _image_viewer:
         flag_draw = kwargs.get("draw", False)
 
         if event == cv2.EVENT_MOUSEMOVE:
-            if (reference or flag_draw) and self.flag_tool == "line" and len(self.points) == 2:
+            if (reference or flag_draw) and self.tool == "line" and len(self.points) == 2:
                 return
             
             ## draw line between current cursor coords and last polygon node
@@ -300,7 +335,7 @@ class _image_viewer:
                 )
                 
             ## if in reference mode, don't connect
-            elif (reference or flag_draw) and self.flag_tool == "line" and len(self.points) > 2:
+            elif (reference or flag_draw) and self.tool == "line" and len(self.points) > 2:
                 pass
             
             ## pump updates
@@ -694,7 +729,7 @@ class _image_viewer:
         self._canvas_mount(refresh=False)
         
         ## adjust brush size
-        if self.flag_tool == "draw":
+        if self.tool == "draw":
             self.line_width = int(self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
 
 
@@ -717,7 +752,7 @@ class _yaml_file_monitor:
         self.event_handler.on_any_event = self.on_update
 
         ## intitialize
-        self.content = _load_yaml(self.filepath, typ="safe")
+        self.content = _load_yaml(self.filepath)
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
         self.observer.start()
@@ -725,7 +760,7 @@ class _yaml_file_monitor:
         self.delay = delay
 
     def on_update(self, event):
-        self.content = _load_yaml(self.filepath, typ="safe")
+        self.content = _load_yaml(self.filepath)
         cv2.destroyWindow("phenopype")
         for i in range(self.delay):
             cv2.waitKey(1)
@@ -774,29 +809,24 @@ def _auto_text_size(image, **kwargs):
     return text_size
 
 
-def _contours_arr_tup(array):
-    coords_arr = array
-    coords_tup = []
-    for coord in coords_arr:
-        coords_tup.append((coord[0][0], coord[0][1]))
-    return coords_tup
+def _convert_arr_tup_list(arr_list):
+    tup_list = []
+    for array in arr_list:
+        point_list = []
+        for point in array:
+            point_list.append(tuple(point[0]))
+        tup_list.append(point_list)
+    return tup_list
 
 
-def _contours_tup_array(list_tup_list):
-    coords_arr_list = []
-    for tup_list in list_tup_list:
-        arr_list = []
-        for tup in tup_list:
-            arr = []
-            arr.append(tup[0])
-            arr.append(tup[1])
-            arr_list.append([arr])
-        coords_arr_list.append(np.array(arr_list, dtype=np.int32))
-    return coords_arr_list
-
-
-
-
+def _convert_tup_list_arr(tup_list):
+    array_list = []
+    for points in tup_list:
+        point_list = []
+        for point in points:
+            point_list.append([list(point)])
+        array_list.append(np.asarray(point_list, dtype="int32"))
+    return array_list
 
 
 def _create_mask_bin(image, masks):
@@ -1103,12 +1133,12 @@ def _load_yaml(string, typ="rt"):
     if string.__class__.__name__ == "str":
         if os.path.isfile(string):
             with open(string, "r") as file:
-                file = yaml.load(file)
+                return yaml.load(file)
+            
         else:
-            file = yaml.load(string)
-        return file
+            print("Cannot load config from string")
     else:
-        warnings.warn("Not a valid path - couldn't load yaml.")
+        print("Not a valid path - couldn't load yaml.")
         return
 
 

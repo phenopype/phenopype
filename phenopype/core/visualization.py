@@ -10,7 +10,6 @@ from phenopype.utils_lowlevel import (
     _auto_point_size,
     _auto_text_width,
     _auto_text_size,
-    _contours_tup_array,
 )
 
 #%% settings
@@ -220,83 +219,8 @@ def contours_draw(
     return image
 
 
-def select_canvas(obj_input, canvas="image_mod", multi=True):
-    """
-    Isolate a colour channel from an image or select canvas for the pype method.
 
-    Parameters
-    ----------
-    obj_input : array or container
-        input object
-    canvas : {"mod", "bin", "gray", "raw", "red", "green", "blue"} str, optional
-        the type of canvas to be used for visual feedback. some types require a
-        function to be run first, e.g. "bin" needs a segmentation algorithm to be
-        run first. black/white images don't have colour channels. coerced to 3D
-        array by default
-    multi: bool, optional
-        coerce returned array to multilevel (3-level)
 
-    Returns
-    -------
-    obj_input : container
-        canvas can be called with "obj_input.canvas".
-
-    """
-    ## kwargs
-    flag_multi = multi
-
-    ## load image
-    flag_container = False
-    if obj_input.__class__.__name__ == "ndarray":
-        image = copy.deepcopy(obj_input)
-    elif obj_input.__class__.__name__ == "container":
-        flag_container = True
-        image = copy.deepcopy(obj_input.image_copy)
-    else:
-        print("wrong input format.")
-        return
-
-    ## method
-    ## for container
-    if canvas in ["image_raw", "raw"]:
-        if flag_container:
-            canvas = copy.deepcopy(obj_input.image_copy)
-        else: 
-            canvas = copy.deepcopy(image)
-        print("- raw image")
-    elif flag_container and canvas in ["image_bin", "bin", "binary"]:
-        canvas = copy.deepcopy(obj_input.image_bin)
-        print("- binary image")
-    elif flag_container and canvas in ["image_mod", "mod", "modified"]:
-        canvas = copy.deepcopy(obj_input.image)
-        print("- modifed image")
-    ## for array and container
-    elif canvas in ["gray", "grey", "image_gray"]:
-        canvas = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        print("- grayscale image")
-    elif canvas in ["g", "green"]:
-        canvas = image[:, :, 0]
-        print("- green channel")
-    elif canvas in ["r", "red"]:
-        canvas = image[:, :, 1]
-        print("- red channel")
-    elif canvas in ["b", "blue"]:
-        canvas = image[:, :, 2]
-        print("- blue channel")
-    else:
-        print("- invalid selection - defaulting to raw image")
-        canvas = copy.deepcopy(obj_input.image_copy)
-
-    ## check if 3D
-    if flag_multi:
-        if len(canvas.shape) < 3:
-            canvas = cv2.cvtColor(canvas, cv2.COLOR_GRAY2BGR)
-
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return canvas
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.canvas = canvas
 
 
 def draw_contours(

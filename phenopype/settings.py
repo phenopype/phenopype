@@ -84,10 +84,10 @@ opencv_interpolation_flags = {
 
 #%% default arguments
 
-
-
 _image_viewer_arg_list = [
     "line_colour",
+    "line_width",
+    "polygons",
     "window_aspect", 
     "window_control", 
     "window_max_dimension", 
@@ -114,4 +114,11 @@ _image_viewer_arg_list = [
 # }
 
 
+#%% annotation functions
+
+_annotation_functions = [
+    "create_mask",
+    "detect_mask",
+    
+    ]
 

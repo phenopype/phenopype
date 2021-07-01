@@ -11,7 +11,7 @@ import re
 from _ctypes import PyObj_FromPtr
 
 from phenopype.settings import confirm_options
-from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _contours_arr_tup
+from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _convert_arr_tup_list
 
 #%% settings   
     
@@ -168,7 +168,7 @@ def annotation_save(annotation,
                     indent=indent, 
                     cls=MyEncoder)
         
-
+        
 
 def ROI_save(image,
              annotation,
@@ -470,7 +470,7 @@ def save_contours(
     ## convert contour coords to list of tuples
     if flag_convert_coords and flag_save_coords:
         for idx, row in df.iterrows():
-            df.at[idx, "coords"] = _contours_arr_tup(row["coords"])
+            df.at[idx, "coords"] = _convert_arr_tup_list(row["coords"])
         df = df.explode("coords")
         df = pd.concat(
             [

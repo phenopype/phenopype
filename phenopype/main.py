@@ -44,6 +44,8 @@ from phenopype.utils_lowlevel import (
     _yaml_file_monitor,
 )
 
+from ruamel.yaml.comments import TaggedScalar
+
 #%% settings
 
 pd.options.display.max_rows = pandas_max_rows  # how many rows of pd-dataframe to show
@@ -1167,7 +1169,7 @@ class pype:
             self.container.reset()
             if flag_autoload and not flag_presetting:
                 self.container.load()
-            restart = None
+
             export_list, show_list = [], []
 
             ## apply pype: loop through steps and contained methods
@@ -1194,14 +1196,26 @@ class pype:
 
                 ## iterate through step list
                 for method in method_list:
-
+                    
                     ## format method name and arguments       
                     if method.__class__.__name__ in ["dict", 'CommentedMap']:
-                        method = dict(method)
+                        method = dict(method)          
+                        
+                        ## method name as string
                         method_name = list(method.keys())[0]
-                        method_arguments = dict(list(method.values())[0])
+                        
+                        ## method id from tag, if applicable
+                        if list(method.values())[0].__class__.__name__ == "TaggedScalar":
+                            method_id = list(method.values())[0]
+                        elif list(method.values())[0].__class__.__name__ == "NoneType":
+                            method_id = 1
+                        
+                        ## get method arguments
+                        method_arguments = dict(list(method.items())[1:])
+                        
                     elif method.__class__.__name__ == "str":
                         method_name = method
+                        method_id = 1
                         method_arguments = {}
                         
                     ## activate silent mode for interactive functions 
@@ -1233,26 +1247,15 @@ class pype:
                     try:
                         ## run method
                         print(method_name)
-                        self.container.run_fun(method_name, **method_arguments)
+                        method_arguments.update()
+                        self.container.run(method_name, method_id, **method_arguments)
                         
-                        # method_loaded = eval(step_name + "." + method_name)
-                        # restart = method_loaded(self.container, **method_arguments)
-    
-                        ## control
-                        if restart:
-                            print("RESTART")
-                            break
-
                     except Exception as ex:
                         location = (
                             step_name + "." + method_name + ": " + str(ex.__class__.__name__)
                         )
                         print(location + " - " + str(ex))
 
-                if restart:
-                    break
-            if restart:
-                continue
 
             # save container
             if flag_autoshow:
@@ -1271,12 +1274,11 @@ class pype:
             if flag_feedback:
                 try:
                     if self.container.canvas.__class__.__name__ == "NoneType":
-                        visualization.select_canvas(self.container)
+                        self.container.select_canvas(canvas="mod")
                         print("- autoselect canvas")
-                    if flag_test_mode:
-                        update = test_params
-                    self.iv = _image_viewer(self.container.canvas, previous=update, max_dim=max_dim)
-                    update, done, terminate = self.iv.__dict__, self.iv.done, self.iv.finished
+
+                    self.iv = _image_viewer(self.container.canvas, max_dim=max_dim)
+                    terminate = self.iv.finished
                 except Exception as ex:
                     print(
                         "visualisation: " + str(ex.__class__.__name__) + " - " + str(ex)

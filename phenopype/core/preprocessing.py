@@ -7,10 +7,11 @@ from math import sqrt as _sqrt
 import numpy.ma as ma
 
 from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
-from phenopype.utils import image_select_channel, image_resize
-from phenopype.utils_lowlevel import _image_viewer, _contours_arr_tup, \
-    _df_overwrite_checker, _equalize_histogram, _auto_text_size, \
-        _auto_text_width, _get_circle_perimeter
+from phenopype.utils import image_resize
+from phenopype.utils_lowlevel import _auto_text_width, _auto_text_size
+from phenopype.utils_lowlevel import _convert_arr_tup_list,  _convert_tup_list_arr, \
+     _equalize_histogram, _image_viewer 
+        
         
 import phenopype.core.segmentation as segmentation
 
@@ -70,40 +71,30 @@ def create_mask(
 ):
 
     ## retrieve settings for image viewer
-    _image_viewer_settings = {}
+    _image_viewer_params = {}
     for key, value in kwargs.items():
         if key in _image_viewer_arg_list:
-            _image_viewer_settings[key] = value
+            _image_viewer_params[key] = value
 
     ## settings
     settings = locals()
     for rm in ["image","include",
                "kwargs","key","value",
-               "_image_viewer_settings"]:
+               "_image_viewer_params"]:
         settings.pop(rm, None)
 
     ## draw masks
     out = _image_viewer(image=image, 
                         tool=tool, 
-                        **_image_viewer_settings)
+                        **_image_viewer_params)
     if not out.done:
         print("- didn't finish: redo mask")
         return 
-    else:
-        polygons = out.polygons
         
-    # conversion
-    if polygons is not None:
-        polygon_list = []
-        for points in polygons:
-            point_list = []
-            for point in points:
-                point_list.append([list(point)])
-            polygon_list.append(np.asarray(point_list, dtype="int32"))
-        coords = polygon_list
-             
-    ## return
-    if len(coords) > 0:
+    # conversion and return
+    if out.polygons is not None:
+        coords = out.polygons
+
         ret = {
             "info": {
                 "type": "mask", 
@@ -112,7 +103,7 @@ def create_mask(
                 "n_coords": len(coords),
                 },
             "data":{
-                "coords":coords,
+                "coords": coords,
                 }
             }
         return ret
@@ -175,7 +166,7 @@ def detect_mask(image,
                 x,y,radius = circle/resize
                 mask = np.zeros(image.shape[:2], dtype=np.uint8)
                 mask = cv2.circle(mask, (x,y), radius, 255, -1)
-                mask_contours = segmentation.contour_detect(
+                mask_contours = segmentation.detect_contours(
                     mask,
                     retrieval="ext", 
                     approximation="KCOS", 
@@ -575,7 +566,7 @@ def detect_reference(
             print("---------------------------------------------------")
 
             ## create mask from new coordinates
-            coords = _contours_arr_tup(rect_new)
+            coords = _convert_arr_tup_list(rect_new)
             coords.append(coords[0])
             if "reference" in df_masks["mask"].values:
                 df_masks = df_masks[~df_masks["mask"].isin(["reference"])]
@@ -790,5 +781,45 @@ def enter_data(
         obj_input.df_other_data = df_other_data
 
 
+
+
+def select_channel(image, channel="gray", invert=False):
+    """
+    Extract single channel from multi-channel array.
+
+    Parameters
+    ----------
+    image : array
+        input image
+    channel : str, optional
+        select specific image channel
+    invert: false, bool
+        invert all pixel intensities in image (e.g. 0 to 255 or 100 to 155)
+    Returns
+    -------
+    image : TYPE
+        DESCRIPTION.
+
+    """
+    
+    
+    if channel in ["grayscale","gray"]:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    if channel in ["green","g",1]:
+        image = image[:, :, 0]
+    if channel in ["red", "r",2]:
+        image = image[:, :, 1]
+    if channel in ["blue","b",3]:
+        image = image[:, :, 2]
+    if channel == "raw":
+        pass
+    if flag_verbose:
+        print("converted image to {} channel".format(str(channel)))
+        
+    if invert==True:
+        image = cv2.bitwise_not(image)
+        print("iverted image")
+        
+    return image
 
 

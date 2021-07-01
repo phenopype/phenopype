@@ -11,13 +11,16 @@ import inspect
 from pprint import PrettyPrinter
 from PIL import Image, ExifTags
 
-from phenopype.core import preprocessing, segmentation, measurement, visualization, \
-    export
-from phenopype.core.export import *
+import phenopype.core.preprocessing as preprocessing
+import phenopype.core.segmentation as segmentation
+import phenopype.core.measurement as measurement
+import phenopype.core.visualization as visualization
+import phenopype.core.export as export
+
 from phenopype.settings import colours, default_meta_data_fields, \
     default_filetypes, flag_verbose, pype_config_templates, confirm_options, \
     opencv_interpolation_flags
-from phenopype.utils_lowlevel import _image_viewer, _contours_tup_array, \
+from phenopype.utils_lowlevel import _image_viewer, _convert_tup_list_arr, \
     _load_yaml, _show_yaml
 
 #%% settings
@@ -33,6 +36,8 @@ warnings.formatwarning = custom_formatwarning
 warnings.simplefilter("always", UserWarning)
 
 #%% classes
+
+
 
 
 class container(object):
@@ -77,24 +82,81 @@ class container(object):
         self.reference_manual_mode = False
         
         ## annotations
-        self.annotations = []
+        self.annotations = {
+            "masks": {},
+            "contours": {},
+            "drawings": {},
+            }
         
-        # class run(object):
-        #     def __init__ (self):
-                        
-        #         ## make functions class methods
-        #         for module_name, module in inspect.getmembers(core_modules, inspect.ismodule):
-        #             for key, value in module.__dict__.items(): # iterate through every module's attributes
-        #                 if callable(value) and not key.startswith('_'):    
-        #                     setattr(self, key, value)                         
+    # def annotation_save(self, annotation, annotation_type, annotation_id):
+    #     self.annotations[annotation_type][annotation_id] = annotation
+        
+    def select_canvas(self, canvas="mod", multi=True):
+        """
+        Isolate a colour channel from an image or select canvas for the pype method.
+    
+        Parameters
+        ----------
+    
+        canvas : {"mod", "bin", "gray", "raw", "red", "green", "blue"} str, optional
+            the type of canvas to be used for visual feedback. some types require a
+            function to be run first, e.g. "bin" needs a segmentation algorithm to be
+            run first. black/white images don't have colour channels. coerced to 3D
+            array by default
+        multi: bool, optional
+            coerce returned array to multichannel (3-channel)
+    
+        Returns
+        -------
+        obj_input : container
+            canvas can be called with "obj_input.canvas".
+    
+        """
+        ## kwargs
+        flag_multi = multi
+    
+        ## method
+        if canvas == "mod":
+            self.canvas = copy.deepcopy(self.image)
+            print("- modifed image")
+        elif canvas == "raw":
+            self.canvas = copy.deepcopy(self.image_copy)
+            print("- raw image")
+        elif canvas == "bin":
+            self.canvas = copy.deepcopy(self.image_bin)
+            print("- binary image")
+        elif canvas == "gray":
+            self.canvas = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+            print("- grayscale image")
+        elif canvas == "green":
+            self.canvas = self.image[:, :, 0]
+            print("- green channel")
+        elif canvas == "red":
+            self.canvas = self.image[:, :, 1]
+            print("- red channel")
+        elif canvas == "blue":
+            self.canvas = self.image[:, :, 2]
+            print("- blue channel")
+        else:
+            print("- invalid selection - defaulting to raw image")
+            self.canvas = copy.deepcopy(self.image_copy)
+    
+        ## check if colour
+        if flag_multi:
+            if len(self.canvas.shape) < 3:
+                self.canvas = cv2.cvtColor(self.canvas, cv2.COLOR_GRAY2BGR)
             
-    def run_fun(self, fun, kwargs={}):
+    def run(self, fun, tag=None, kwargs={}):
         
         ## preprocessing
         if fun == "blur":
             self.image = preprocessing.blur(self.image, **kwargs)
+
+            
         if fun == "create_mask":
-            self.annotations.append(preprocessing.create_mask(self.image, **kwargs))
+            annotation = preprocessing.create_mask(self.image, **kwargs)
+            self.annotations["masks"][tag] = annotation
+
         if fun == "detect_mask":
             self.annotations.append(preprocessing.detect_mask(self.image, **kwargs))
 
@@ -227,7 +289,7 @@ class container(object):
                     if "x" in df:
                         df["coords"] = list(zip(df.x, df.y))
                         coords = df.groupby("contour")["coords"].apply(list)
-                        coords_arr = _contours_tup_array(coords)
+                        coords_arr = _convert_tup_list_arr(coords)
                         df.drop(columns=["coords", "x", "y"], inplace=True)
                         df = df.drop_duplicates().reset_index()
                         df["coords"] = pd.Series(coords_arr, index=df.index)
@@ -434,60 +496,6 @@ class container(object):
 
 
 #%% functions
-
-def image_select_channel(image, channel="gray"):
-    """
-    Extract single channel from multi-channel array.
-
-    Parameters
-    ----------
-    image : TYPE
-        DESCRIPTION.
-    channel : TYPE, optional
-        DESCRIPTION. The default is "gray".
-
-    Returns
-    -------
-    image : TYPE
-        DESCRIPTION.
-
-    """
-    
-    
-    if channel in ["grayscale","gray"]:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    elif channel in ["green","g",1]:
-        image = image[:, :, 0]
-    elif channel in ["red", "r",2]:
-        image = image[:, :, 1]
-    elif channel in ["blue","b",3]:
-        image = image[:, :, 2]
-        
-    if flag_verbose:
-        print("converted image to {} channel".format(str(channel)))
-        
-    return image
-
-
-def image_invert(image):
-    """
-    Invert all pixel intensities in image (e.g. 0 to 255 or 100 to 155)
-
-    Parameters
-    ----------
-    image: array 
-
-    Returns
-    -------
-    image : array 
-    
-    """
-
-    ## method
-    image = cv2.bitwise_not(image)
-
-    ## return results
-    return image
 
 
 def image_resize(image, factor=1, interpolation="cubic"):

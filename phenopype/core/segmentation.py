@@ -6,11 +6,9 @@ import pandas as pd
 from math import inf
 
 from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
-from phenopype.utils import image_select_channel, image_invert, show_image
 from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_line_width
 
 import phenopype.core.preprocessing as preprocessing
-import phenopype.core.visualization as visualization
 
 
 #%% functions
@@ -19,7 +17,7 @@ import phenopype.core.visualization as visualization
 
 # pp.show_image(image)
 
-def contour_detect(
+def detect_contours(
     image,
     approximation="simple",
     retrieval="ext",
@@ -183,7 +181,7 @@ def contour_detect(
     return ret
 
 
-def contour_modify(
+def edit_contours(
     image,
     contours,
     **kwargs
@@ -356,7 +354,6 @@ def threshold(
     blocksize=99,
     value=127,
     channel="gray",
-    invert=False,
     masks=None,
 ):
     """
@@ -400,9 +397,9 @@ def threshold(
 
     ## checks
     if len(image.shape) == 3:
-        image = image_select_channel(image)
         if flag_verbose:
-            print("multi-channel supplied - defaulting to gray channel")
+            print("multi-channel supplied - need single channel image")
+            return
     if blocksize % 2 == 0:
         blocksize = blocksize + 1
         if flag_verbose:
@@ -415,10 +412,6 @@ def threshold(
         value = 0
         if flag_verbose:
             print("warning - \"value\" has to be > 0")
-
-    ## modifications
-    if invert:
-        image = image_invert(image)
 
     ## method
     if method == "otsu":
