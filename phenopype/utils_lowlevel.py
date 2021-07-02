@@ -33,7 +33,7 @@ class _image_viewer:
                  tool=None,
                  window_aspect='normal', 
                  window_control='internal', 
-                 window_max_dimension=1000, 
+                 win_max_dim=1000, 
                  zoom_magnification=0.5, 
                  zoom_mode='continuous', 
                  zoom_steps=20,
@@ -51,6 +51,9 @@ class _image_viewer:
         """
         
         ## kwargs
+        
+        self.__dict__.update(kwargs)
+
         self.flag_text_label = kwargs.get("flag_text_label", False)
         self.canvas_blend_factor = kwargs.get("blend", 0.5)
         
@@ -84,13 +87,13 @@ class _image_viewer:
                 return
         
         ## get canvas dimensions
-        if self.image_height > window_max_dimension or self.image_width > window_max_dimension:
+        if self.image_height > win_max_dim or self.image_width > win_max_dim:
             if self.image_width >= self.image_height:
-                self.canvas_width, self.canvas_height = window_max_dimension, int(
-                    (window_max_dimension / self.image_width) * self.image_height)
+                self.canvas_width, self.canvas_height = win_max_dim, int(
+                    (win_max_dim / self.image_width) * self.image_height)
             elif self.image_height > self.image_width:
                 self.canvas_width, self.canvas_height = int(
-                    (window_max_dimension / self.image_height) * self.image_width), window_max_dimension
+                    (win_max_dim / self.image_height) * self.image_width), win_max_dim
             
         ## canvas resize factor
         self.canvas_fx, self.canvas_fy = (

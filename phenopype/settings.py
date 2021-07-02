@@ -90,7 +90,7 @@ _image_viewer_arg_list = [
     "polygons",
     "window_aspect", 
     "window_control", 
-    "window_max_dimension", 
+    "win_max_dim", 
     "zoom_magnification", 
     "zoom_mode", 
     "zoom_steps"]
