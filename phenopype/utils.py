@@ -22,6 +22,9 @@ from phenopype.settings import colours, default_meta_data_fields, \
     opencv_interpolation_flags
 from phenopype.utils_lowlevel import _image_viewer, _convert_tup_list_arr, \
     _load_yaml, _show_yaml
+    
+from collections import defaultdict
+
 
 #%% settings
 
@@ -147,6 +150,10 @@ class container(object):
                 self.canvas = cv2.cvtColor(self.canvas, cv2.COLOR_GRAY2BGR)
             
     def run(self, fun, tag=None, kwargs={}):
+        
+        if                     
+            kwargs.update({"previous_annotation":self.annotations["masks"][tag]})
+
         
         ## preprocessing
         if fun == "blur":

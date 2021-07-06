@@ -10,7 +10,7 @@ from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
 from phenopype.utils import image_resize
 from phenopype.utils_lowlevel import _auto_text_width, _auto_text_size
 from phenopype.utils_lowlevel import _convert_arr_tup_list,  _convert_tup_list_arr, \
-     _equalize_histogram, _image_viewer 
+     _equalize_histogram, _image_viewer, _dummy_class
         
         
 import phenopype.core.segmentation as segmentation
@@ -70,13 +70,22 @@ def create_mask(
     **kwargs
 ):
 
+    ## convert previous annotations to 
+    if "previous_annotation" in kwargs:
+        previous_annotation = kwargs.get("previous_annotation")
+        previous = {}            
+        previous.update(previous_annotation["info"]["settings"])
+        previous["polygons"] = previous_annotation["data"]["coords"]
+        previous = _dummy_class(previous)    
+        kwargs.update({"previous": previous})
+        
     ## retrieve settings for image viewer
     _image_viewer_params = {}
     for key, value in kwargs.items():
         if key in _image_viewer_arg_list:
             _image_viewer_params[key] = value
-
-    ## settings
+                        
+    ## retrieve and save settings
     settings = locals()
     for rm in ["image","include",
                "kwargs","key","value",

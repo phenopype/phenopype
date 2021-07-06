@@ -51,12 +51,18 @@ class _image_viewer:
         """
         
         ## kwargs
-        
-        self.__dict__.update(kwargs)
+        self.window_aspect = window_aspect
+        self.window_control = window_control
+        self.win_max_dim = win_max_dim
+        self.zoom_magnification = zoom_magnification
+        self.zoom_mod = zoom_mode
+        self.zoom_steps = zoom_steps
 
         self.flag_text_label = kwargs.get("flag_text_label", False)
         self.canvas_blend_factor = kwargs.get("blend", 0.5)
         
+        self.__dict__.update(kwargs)
+
         ## set class arguments
         self.tool = tool
         self.flag_zoom_mode = zoom_mode       
@@ -158,7 +164,6 @@ class _image_viewer:
                 if i not in ["canvas_copy", "canvas", "image_copy", "image", "image_bin"]
             }
             self.__dict__.update(copy.deepcopy(prev_attr))
-
 
         # =============================================================================
         # open canvas
@@ -772,6 +777,11 @@ class _yaml_file_monitor:
         self.observer.stop()
         self.observer.join()
 
+
+
+class _dummy_class:
+    def __init__(self, kwargs):
+        self.__dict__.update(kwargs)
 
 #%% functions
 

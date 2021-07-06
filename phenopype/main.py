@@ -1248,7 +1248,7 @@ class pype:
                         ## run method
                         print(method_name)
                         method_arguments.update()
-                        self.container.run(method_name, method_id, **method_arguments)
+                        self.container.run(fun=method_name, tag=method_id, kwargs=method_arguments)
                         
                     except Exception as ex:
                         location = (
