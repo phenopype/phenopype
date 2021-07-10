@@ -151,10 +151,9 @@ class container(object):
             
     def run(self, fun, tag=None, kwargs={}):
         
-        if                     
+        if tag in self.annotations["masks"]:
             kwargs.update({"previous_annotation":self.annotations["masks"][tag]})
 
-        
         ## preprocessing
         if fun == "blur":
             self.image = preprocessing.blur(self.image, **kwargs)
@@ -165,8 +164,8 @@ class container(object):
             self.annotations["masks"][tag] = annotation
 
         if fun == "detect_mask":
-            self.annotations.append(preprocessing.detect_mask(self.image, **kwargs))
-
+            annotation = preprocessing.detect_mask(self.image, **kwargs)
+            self.annotations["masks"][tag] = annotation
 
                     
     def load(self, dirpath=None, save_suffix=None, contours=False, canvas=False, **kwargs):

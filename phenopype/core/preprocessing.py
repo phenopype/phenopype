@@ -18,11 +18,14 @@ import phenopype.core.segmentation as segmentation
 #%% functions
 
 
-def blur(image, 
-         kernel_size=5, 
-         method="averaging", 
-         sigma_color=75, 
-         sigma_space=75):
+def blur(
+    image,
+    kernel_size=5,
+    method="averaging",
+    sigma_color=75,
+    sigma_space=75,
+    **kwargs
+):
     """
     Apply a blurring algorithm to an image.
 
@@ -121,19 +124,19 @@ def create_mask(
         return 
     
     
-    
-def detect_mask(image,
-                method="circle",
-                resize=1,
-                dp=1,
-                min_dist=50,
-                param1=200,
-                param2=100,
-                min_radius=0,
-                max_radius=0,
-                verbose=True,
-                ):
-    
+def detect_mask(
+    image,
+    method="circle",
+    resize=1,
+    dp=1,
+    min_dist=50,
+    param1=200,
+    param2=100,
+    min_radius=0,
+    max_radius=0,
+    verbose=True,
+    **kwargs
+):
     """
     Detect circles in grayscale image using Hough-Transform. Results can be 
     returned either as mask or contour
@@ -149,7 +152,7 @@ def detect_mask(image,
 
     ## checks
     if len(image.shape) == 3:
-        image = image_select_channel(image)
+        image = select_channel(image)
     resized = image_resize(image, resize)
             
     ## settings

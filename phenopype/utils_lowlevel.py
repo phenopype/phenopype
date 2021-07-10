@@ -138,7 +138,7 @@ class _image_viewer:
             self.rect_start, self.drawing = None, False
             
             ## line properties
-            if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
+            if self.tool in ["rectangle", "rect", "polygon", "poly", "polyline", "draw"]:
                 self.line_colour = colours[kwargs.get("line_colour", "green")]
                 self.line_width = kwargs.get("line_width", _auto_line_width(image))
                 self.line_width_orig = copy.deepcopy(self.line_width)
@@ -179,10 +179,13 @@ class _image_viewer:
             self._canvas_blend()
         self._canvas_mount()
 
-        ## show canvas
+        ## local and global control vars
         self.done = False
         self.finished = False
+        global global_end_while
+        global_end_while = False
         
+        ## show canvas
         cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
         cv2.startWindowThread() 
         cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
@@ -233,6 +236,10 @@ class _image_viewer:
                             tool="line_bin", coord_list=self.point_list)
                         self._canvas_blend()
                         self._canvas_mount()
+                        
+                    elif global_end_while:
+                        self.done = True
+                        cv2.destroyAllWindows()
 
                 ## complete unfinished objects
                 # if self.done:
@@ -760,7 +767,7 @@ class _yaml_file_monitor:
         self.event_handler.on_any_event = self.on_update
 
         ## intitialize
-        self.content = _load_yaml(self.filepath)
+        self.content = _load_yaml(self.filepath, typ="safe")
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
         self.observer.start()
@@ -768,10 +775,11 @@ class _yaml_file_monitor:
         self.delay = delay
 
     def on_update(self, event):
-        self.content = _load_yaml(self.filepath)
+        self.content = _load_yaml(self.filepath, typ="safe")
+        global global_end_while
+        global_end_while = True
         cv2.destroyWindow("phenopype")
-        for i in range(self.delay):
-            cv2.waitKey(1)
+        cv2.waitKey(self.delay)
 
     def stop(self):
         self.observer.stop()
