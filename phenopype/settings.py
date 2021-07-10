@@ -116,9 +116,8 @@ _image_viewer_arg_list = [
 
 #%% annotation functions
 
-_annotation_functions = [
-    "create_mask",
-    "detect_mask",
-    
-    ]
+_annotation_functions = {
+    "create_mask": "mask",
+    "detect_mask": "mask"
+    }
 

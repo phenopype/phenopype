@@ -50,7 +50,7 @@ class _image_viewer:
 
         """
         
-        ## kwargs
+        ## args
         self.window_aspect = window_aspect
         self.window_control = window_control
         self.win_max_dim = win_max_dim
@@ -100,6 +100,8 @@ class _image_viewer:
             elif self.image_height > self.image_width:
                 self.canvas_width, self.canvas_height = int(
                     (win_max_dim / self.image_height) * self.image_width), win_max_dim
+        else:
+            self.canvas_width, self.canvas_height = self.image_width, self.image_height
             
         ## canvas resize factor
         self.canvas_fx, self.canvas_fy = (
@@ -767,7 +769,7 @@ class _yaml_file_monitor:
         self.event_handler.on_any_event = self.on_update
 
         ## intitialize
-        self.content = _load_yaml(self.filepath, typ="safe")
+        self.content = _load_yaml(self.filepath)
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
         self.observer.start()
@@ -775,7 +777,8 @@ class _yaml_file_monitor:
         self.delay = delay
 
     def on_update(self, event):
-        self.content = _load_yaml(self.filepath, typ="safe")
+        print(event.src_path)
+        self.content = _load_yaml(self.filepath)
         global global_end_while
         global_end_while = True
         cv2.destroyWindow("phenopype")
@@ -1180,7 +1183,7 @@ def _show_yaml(odict, ret=False, typ="rt"):
 def _save_yaml(dictionary, filepath, typ="rt"):
     
     yaml = YAML(typ=typ)      
-    
+
     with open(filepath, "w") as out:
         yaml.dump(dictionary, out)
 

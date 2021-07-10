@@ -149,23 +149,22 @@ class container(object):
             if len(self.canvas.shape) < 3:
                 self.canvas = cv2.cvtColor(self.canvas, cv2.COLOR_GRAY2BGR)
             
-    def run(self, fun, tag=None, kwargs={}):
+    def run(self, fun, annotation_id=None, kwargs={}):
         
-        if tag in self.annotations["masks"]:
-            kwargs.update({"previous_annotation":self.annotations["masks"][tag]})
+        if annotation_id in self.annotations["masks"]:
+            kwargs.update({"previous_annotation":self.annotations["masks"][annotation_id]})
 
         ## preprocessing
         if fun == "blur":
             self.image = preprocessing.blur(self.image, **kwargs)
 
-            
         if fun == "create_mask":
             annotation = preprocessing.create_mask(self.image, **kwargs)
-            self.annotations["masks"][tag] = annotation
+            self.annotations["masks"][annotation_id] = annotation
 
         if fun == "detect_mask":
             annotation = preprocessing.detect_mask(self.image, **kwargs)
-            self.annotations["masks"][tag] = annotation
+            self.annotations["masks"][annotation_id] = annotation
 
                     
     def load(self, dirpath=None, save_suffix=None, contours=False, canvas=False, **kwargs):

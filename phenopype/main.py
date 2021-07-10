@@ -26,6 +26,7 @@ from phenopype.settings import (
     pandas_max_rows,
     pype_config_templates,
     flag_verbose,
+    _annotation_functions,
 )
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
@@ -45,6 +46,13 @@ from phenopype.utils_lowlevel import (
 )
 
 from ruamel.yaml.comments import TaggedScalar
+
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString as dq
+
+def L(l):
+   ret = ruamel.yaml.comments.CommentedMap(l)
+   ret.fa.set_flow_style()
+   return ret   
 
 #%% settings
 
@@ -1171,84 +1179,58 @@ class pype:
                 self.container.load()
 
             export_list, show_list = [], []
+            annotation_counter = {
+                "mask":0
+                }
 
             ## apply pype: loop through steps and contained methods
             step_list = self.config["processing_steps"]
+            self.config_updated = copy.deepcopy(self.config)
             
-            for step in step_list:
+            
+            for step_idx, step in enumerate(step_list[0:1]):
                 
                 if step.__class__.__name__=="str":
                     continue
                 
                 ## get step name 
-                step = dict(step)
-                step_name = list(step.keys())[0]
-                method_list = list(step.values())[0]
-                                      
-                ## skip cases: meta-steps, none, or presetting mode
-                if method_list.__class__.__name__=="NoneType":
-                    continue
-                if step_name == "export" and flag_presetting == True:
-                    continue
-                
+                step_name = list(dict(step).keys())[0]
+                method_list = list(dict(step).values())[0]
+                                                      
                 ## print current step
                 print(step_name.upper())
 
                 ## iterate through step list
-                for method in method_list:
+                for method_idx, method in enumerate(method_list[0:1]):
+                    print(method)
                     
                     ## format method name and arguments       
                     if method.__class__.__name__ in ["dict", 'CommentedMap']:
-                        method = dict(method)          
-                        
-                        ## method name as string
-                        method_name = list(method.keys())[0]
-                        
-                        ## method id from tag, if applicable
-                        if list(method.values())[0].__class__.__name__ == "TaggedScalar":
-                            method_id = list(method.values())[0]
-                        elif list(method.values())[0].__class__.__name__ == "NoneType":
-                            method_id = 1
-                        
-                        ## get method arguments
-                        method_arguments = dict(list(method.items())[1:])
-                        
+                        method_name = list(dict(method).keys())[0]
+                        method_arguments = dict(list(dict(method).items())[1:])
+                        annotation_id_current = dict(method)[method_name]
                     elif method.__class__.__name__ == "str":
                         method_name = method
-                        method_id = 1
                         method_arguments = {}
-                        
-                    ## activate silent mode for interactive functions 
-                    ## if feedback is deactivated
-                    if not flag_feedback or flag_test_mode:
-                        if method_name in ["create_mask"]:
-                            continue
-                        elif method_name == "draw":
-                            method_arguments.update({"mode": "silent"})
-
-                    ## collect save- and visualization calls
-                    if step_name == "export":
-                        export_list.append(method_name)
-                    elif step_name == "visualization":
-                        show_list.append(method_name)
-                        ## check if canvas is selected, and otherwise execute with default values
-                        if (
-                            not "select_canvas" in show_list
-                            and self.container.canvas.__class__.__name__ == "NoneType"
-                        ):
-                            visualization.select_canvas(self.container)
-                            print("- autoselect canvas")
+                        annotation_id_current = None
+                    if method_name in _annotation_functions:
+                        annotation_counter[_annotation_functions[method_name]] += 1
+                        annotation_id = annotation_counter[_annotation_functions[method_name]]
+                        if annotation_id_current.__class__.__name__ == "NoneType":
+                            self.config_updated["processing_steps"][step_idx][step_name][method_idx][method_name] = L({"id":annotation_id})
+                        # elif self.config_updated["processing_steps"][step_idx][step_name][method_idx][method_name]["id"] == annotation_id:
+                        #     print("ID detected")
 
                     ## check if method has max_dim option and otherwise add
                     args = inspect.getfullargspec(eval(step_name + "." + method_name)).args
-                    if "max_dim" in args and not "max_dim" in method_arguments:
-                        method_arguments["max_dim"] = max_dim
+                    if "win_max_dim" in args and not "win_max_dim" in method_arguments:
+                        method_arguments["win_max_dim"] = max_dim
                         
                     try:
                         ## run method
                         print(method_name)
                         method_arguments.update()
-                        self.container.run(fun=method_name, tag=method_id, kwargs=method_arguments)
+                        self.container.run(fun=method_name, annotation_id=annotation_id, kwargs=method_arguments)
                         
                     except Exception as ex:
                         location = (
@@ -1263,6 +1245,8 @@ class pype:
             if not flag_presetting:
                 if flag_autosave:
                     self.container.save(export_list=export_list, overwrite=flag_overwrite)
+                    
+            
                     
             ## end iteration
             print(
@@ -1279,6 +1263,8 @@ class pype:
 
                     self.iv = _image_viewer(self.container.canvas, max_dim=max_dim)
                     terminate = self.iv.finished
+                    _save_yaml(self.config_updated, self.config_path)
+                    
                 except Exception as ex:
                     print(
                         "visualisation: " + str(ex.__class__.__name__) + " - " + str(ex)

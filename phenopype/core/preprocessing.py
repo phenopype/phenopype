@@ -77,23 +77,24 @@ def create_mask(
     if "previous_annotation" in kwargs:
         previous_annotation = kwargs.get("previous_annotation")
         previous = {}            
-        previous.update(previous_annotation["info"]["settings"])
-        previous["polygons"] = previous_annotation["data"]["coords"]
+        previous.update(previous_annotation["settings"])
+        previous["polygons"] = previous_annotation["data"]["coord_list"]
         previous = _dummy_class(previous)    
         kwargs.update({"previous": previous})
-        
-    ## retrieve settings for image viewer
-    _image_viewer_params = {}
-    for key, value in kwargs.items():
-        if key in _image_viewer_arg_list:
-            _image_viewer_params[key] = value
-                        
+                               
     ## retrieve and save settings
     settings = locals()
     for rm in ["image","include",
                "kwargs","key","value",
                "_image_viewer_params"]:
         settings.pop(rm, None)
+        
+    ## retrieve settings for image viewer
+    _image_viewer_params = {}
+    for key, value in kwargs.items():
+        if key in _image_viewer_arg_list:
+            settings[key] = value
+            _image_viewer_params[key] = value
 
     ## draw masks
     out = _image_viewer(image=image, 
@@ -107,18 +108,19 @@ def create_mask(
     if out.polygons is not None:
         coords = out.polygons
 
-        ret = {
+        annotation = {
             "info": {
-                "type": "mask", 
-                "function": "mask_create",
-                "settings": settings,
-                "n_coords": len(coords),
-                },
-            "data":{
-                "coords": coords,
-                }
+                "annotation_type": "mask",
+                "mask_shape": tool,
+                "pp_function": "mask_manual",
+            },
+            "settings": settings,
+            "data": {
+                "n_shapes": len(coords),
+                "coord_list": coords,
             }
-        return ret
+        }
+        return annotation
     else:
         print("- zero coordinates: redo mask")
         return 
@@ -126,7 +128,7 @@ def create_mask(
     
 def detect_mask(
     image,
-    method="circle",
+    shape="circle",
     resize=1,
     dp=1,
     min_dist=50,
@@ -161,7 +163,7 @@ def detect_mask(
         settings.pop(rm, None)
         
     ## method
-    if method=="circle":
+    if shape=="circle":
         circles = cv2.HoughCircles(resized, 
                                    cv2.HOUGH_GRADIENT, 
                                    dp=max(int(dp*resize),1), 
@@ -199,18 +201,20 @@ def detect_mask(
             return None
         
     ## return results
-    ret = {
+    annotation = {
         "info": {
-            "type": "mask", 
-            "function": "mask_detect",
-            "settings": settings,
-            },
-        "data":{
-            "coords":coords,
-            }
+            "annotation_type": "mask",
+            "mask_shape": shape,
+            "pp_function": "mask_detect",
+        },
+        "settings": settings,
+        "data": {
+            "n_shapes": len(coords),
+            "coord_list": coords,
         }
-            
-    return ret
+    }
+    return annotation
+        
     
 
 def create_reference(
