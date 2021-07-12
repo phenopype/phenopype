@@ -1217,7 +1217,8 @@ class pype:
                         annotation_counter[_annotation_functions[method_name]] += 1
                         annotation_id = annotation_counter[_annotation_functions[method_name]]
                         if annotation_id_current.__class__.__name__ == "NoneType":
-                            self.config_updated["processing_steps"][step_idx][step_name][method_idx][method_name] = L({"id":annotation_id})
+                            annotation_params =  L({"id":annotation_id})
+                            self.config_updated["processing_steps"][step_idx][step_name][method_idx][method_name] =
                         # elif self.config_updated["processing_steps"][step_idx][step_name][method_idx][method_name]["id"] == annotation_id:
                         #     print("ID detected")
 
