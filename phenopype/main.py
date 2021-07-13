@@ -9,6 +9,8 @@ import platform
 import pprint
 import subprocess
 import sys
+import time
+
 from shutil import copyfile
 
 import cv2
@@ -37,6 +39,7 @@ from phenopype.utils_lowlevel import (
     _del_rw,
     _file_walker,
     _load_pype_config,
+    _yaml_flow_style,
 )
 from phenopype.utils_lowlevel import (
     _load_yaml,
@@ -45,14 +48,8 @@ from phenopype.utils_lowlevel import (
     _yaml_file_monitor,
 )
 
-from ruamel.yaml.comments import TaggedScalar
 
-from ruamel.yaml.scalarstring import DoubleQuotedScalarString as dq
 
-def L(l):
-   ret = ruamel.yaml.comments.CommentedMap(l)
-   ret.fa.set_flow_style()
-   return ret   
 
 #%% settings
 
@@ -1142,6 +1139,11 @@ class pype:
             return
         
         
+        
+        ## check pype
+        self._iteration(self.config, execute=False, visualize=False, feedback=False)
+        time.sleep(1)
+    
         ## open config file with system viewer
         if flag_feedback and not flag_test_mode:
             if platform.system() == "Darwin":  # macOS
@@ -1161,118 +1163,136 @@ class pype:
 
         while True:
 
-            ## get config file and assemble pype
             self.config = copy.deepcopy(self.FM.content)
             if not self.config:
                 continue
+            
+            self._iteration(self.config, execute=True)
+            
+            ## terminate
+            if self.terminate_pype:
+                self.FM.stop()
+                print("\n\nTERMINATE")
+                break
 
-            ## new iteration
+
+    def _iteration(
+            self, 
+            config,
+            execute=True,
+            visualize=True,
+            feedback=True,
+            ):
+
+        ## new iteration
+        if feedback:
             print(
                 "\n\n------------+++ new pype iteration "
                 + datetime.today().strftime("%Y:%m:%d %H:%M:%S")
                 + " +++--------------\n\n"
             )
 
-            # reset values
-            self.container.reset()
-            if flag_autoload and not flag_presetting:
-                self.container.load()
+        # reset values
+        self.container.reset()
+        annotation_counter = {
+            "mask":0
+            }
 
-            export_list, show_list = [], []
-            annotation_counter = {
-                "mask":0
-                }
+        ## apply pype: loop through steps and contained methods
+        step_list = self.config["processing_steps"]
+        self.config_updated = copy.deepcopy(self.config)
+                    
+        for step_idx, step in enumerate(step_list[0:1]):
+            
+            if step.__class__.__name__=="str":
+                continue
+            
+            ## get step name 
+            step_name = list(dict(step).keys())[0]
+            method_list = list(dict(step).values())[0]
+                                                  
+            ## print current step
+            print(step_name.upper())
 
-            ## apply pype: loop through steps and contained methods
-            step_list = self.config["processing_steps"]
-            self.config_updated = copy.deepcopy(self.config)
-            
-            
-            for step_idx, step in enumerate(step_list[0:1]):
+            ## iterate through step list
+            for method_idx, method in enumerate(method_list[0:1]):
                 
-                if step.__class__.__name__=="str":
-                    continue
-                
-                ## get step name 
-                step_name = list(dict(step).keys())[0]
-                method_list = list(dict(step).values())[0]
-                                                      
-                ## print current step
-                print(step_name.upper())
-
-                ## iterate through step list
-                for method_idx, method in enumerate(method_list[0:1]):
-                    print(method)
+                ## format method name and arguments       
+                if method.__class__.__name__ in ["dict", "ordereddict","CommentedMap"]:
+                    method = dict(method)
+                    method_name = list(method.keys())[0]
+                    if not list(method.values())[0].__class__.__name__ == "NoneType":
+                         method_args = dict(list(method.values())[0])
+                    else:
+                        method_args = {}
+                elif method.__class__.__name__ == "str":
+                    method_name = method
+                    method_args = {}
                     
-                    ## format method name and arguments       
-                    if method.__class__.__name__ in ["dict", 'CommentedMap']:
-                        method_name = list(dict(method).keys())[0]
-                        method_arguments = dict(list(dict(method).items())[1:])
-                        annotation_id_current = dict(method)[method_name]
-                    elif method.__class__.__name__ == "str":
-                        method_name = method
-                        method_arguments = {}
-                        annotation_id_current = None
-                    if method_name in _annotation_functions:
-                        annotation_counter[_annotation_functions[method_name]] += 1
-                        annotation_id = annotation_counter[_annotation_functions[method_name]]
-                        if annotation_id_current.__class__.__name__ == "NoneType":
-                            annotation_params =  L({"id":annotation_id})
-                            self.config_updated["processing_steps"][step_idx][step_name][method_idx][method_name] =
-                        # elif self.config_updated["processing_steps"][step_idx][step_name][method_idx][method_name]["id"] == annotation_id:
-                        #     print("ID detected")
-
-                    ## check if method has max_dim option and otherwise add
-                    args = inspect.getfullargspec(eval(step_name + "." + method_name)).args
-                    if "win_max_dim" in args and not "win_max_dim" in method_arguments:
-                        method_arguments["win_max_dim"] = max_dim
-                        
-                    try:
-                        ## run method
-                        print(method_name)
-                        method_arguments.update()
-                        self.container.run(fun=method_name, annotation_id=annotation_id, kwargs=method_arguments)
-                        
-                    except Exception as ex:
-                        location = (
-                            step_name + "." + method_name + ": " + str(ex.__class__.__name__)
-                        )
-                        print(location + " - " + str(ex))
+                ## annotation params 
+                if "ANNOTATION" in method_args:
+                    annotation_params = dict(method_args["ANNOTATION"])
+                    del method_args["ANNOTATION"]
+                else:
+                    annotation_params = {}
+                    method_args = dict(method_args)
+                if method_name in _annotation_functions:
+                    annotation_counter[_annotation_functions[method_name]] += 1
+                    annotation_id = annotation_counter[_annotation_functions[method_name]]
+                    if not "type" in annotation_params:
+                        annotation_params.update({"type":_annotation_functions[method_name]})
+                    if not "id" in annotation_params:
+                        annotation_params.update({"id":annotation_id})
+                    annotation_params =  _yaml_flow_style(annotation_params)
+                    method_args_updated = {"ANNOTATION":annotation_params}
+                    method_args_updated.update(method_args)
+                    self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
 
 
-            # save container
-            if flag_autoshow:
-                self.container.show(show_list=show_list)
-            if not flag_presetting:
-                if flag_autosave:
-                    self.container.save(export_list=export_list, overwrite=flag_overwrite)
-                    
+            if execute:
             
+                # ## check if method has max_dim option and otherwise add
+                # args = inspect.getfullargspec(eval(step_name + "." + method_name)).args
+                # if "win_max_dim" in args and not "win_max_dim" in method_args:
+                #     method_args["win_max_dim"] = max_dim
                     
-            ## end iteration
-            print(
-                "\n\n------------+++ finished pype iteration +++--------------\n" 
-                + "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
-            )
-
-            ## visualize output
-            if flag_feedback:
                 try:
-                    if self.container.canvas.__class__.__name__ == "NoneType":
-                        self.container.select_canvas(canvas="mod")
-                        print("- autoselect canvas")
-
-                    self.iv = _image_viewer(self.container.canvas, max_dim=max_dim)
-                    terminate = self.iv.finished
-                    _save_yaml(self.config_updated, self.config_path)
+                    ## run method
+                    print(method_name)
+                    method_args.update()
+                    self.container.run(fun=method_name, annotation_id=annotation_id, kwargs=method_args)
                     
                 except Exception as ex:
-                    print(
-                        "visualisation: " + str(ex.__class__.__name__) + " - " + str(ex)
+                    location = (
+                        step_name + "." + method_name + ": " + str(ex.__class__.__name__)
                     )
+                    print(location + " - " + str(ex))
+                    
+            
+            _save_yaml(self.config_updated, self.config_path)
 
-            ## terminate
-            if terminate or not flag_feedback:
-                self.FM.stop()
-                print("\n\nTERMINATE")
-                break
+        
+        if visualize: 
+            
+            if feedback:
+                print(
+                    "\n\n------------+++ finished pype iteration +++--------------\n" 
+                    + "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
+                )
+
+            ## visualize output
+            try:
+                if self.container.canvas.__class__.__name__ == "NoneType":
+                    self.container.select_canvas(canvas="mod")
+                    print("- autoselect canvas")
+
+                self.iv = _image_viewer(self.container.canvas)
+                self.terminate_pype = self.iv.finished
+                
+                
+            except Exception as ex:
+                print(
+                    "visualisation: " + str(ex.__class__.__name__) + " - " + str(ex)
+                )
+
+

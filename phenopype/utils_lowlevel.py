@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 import time
+import ruamel.yaml
 from datetime import datetime
 from math import cos
 from stat import S_IWRITE
@@ -777,7 +778,7 @@ class _yaml_file_monitor:
         self.delay = delay
 
     def on_update(self, event):
-        print(event.src_path)
+        # print(event.src_path)
         self.content = _load_yaml(self.filepath)
         global global_end_while
         global_end_while = True
@@ -1187,7 +1188,11 @@ def _save_yaml(dictionary, filepath, typ="rt"):
     with open(filepath, "w") as out:
         yaml.dump(dictionary, out)
 
-        
+
+def _yaml_flow_style(dictionary):
+   ret = ruamel.yaml.comments.CommentedMap(dictionary)
+   ret.fa.set_flow_style()
+   return ret   
 
 # def _timestamp():
 #     return datetime.today().strftime("%Y:%m:%d %H:%M:%S")
