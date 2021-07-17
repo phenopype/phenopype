@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 import time
+from timeit import default_timer as timer
 import ruamel.yaml
 from datetime import datetime
 from math import cos
@@ -760,7 +761,7 @@ class _image_viewer:
         
 
 class _yaml_file_monitor:
-    def __init__(self, filepath, delay=100):
+    def __init__(self, filepath, delay=500):
 
         ## file, location and event action
         self.dirpath = os.path.dirname(filepath)
@@ -774,17 +775,28 @@ class _yaml_file_monitor:
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
         self.observer.start()
-        self.ref_time = time.time()
         self.delay = delay
-
+        self.time_start = None
+        self.time_diff = 10
+        
     def on_update(self, event):
-        # print(event.src_path)
-        self.content = _load_yaml(self.filepath)
-        global global_end_while
-        global_end_while = True
-        cv2.destroyWindow("phenopype")
-        cv2.waitKey(self.delay)
-
+        print("event")
+        if not self.time_start.__class__.__name__ == "NoneType":
+            self.time_end = timer()
+            self.time_diff = self.time_end - self.time_start
+        
+        if self.time_diff > 1:
+            print("event - PASS")
+            self.content = _load_yaml(self.filepath)
+            global global_end_while
+            global_end_while = True
+            cv2.destroyWindow("phenopype")
+            cv2.waitKey(self.delay)
+        else:
+            pass
+        
+        self.time_start = timer()
+        
     def stop(self):
         self.observer.stop()
         self.observer.join()

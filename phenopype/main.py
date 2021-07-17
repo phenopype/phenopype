@@ -21,6 +21,7 @@ from shutil import copyfile, rmtree
 
 from phenopype import __version__ as pp_version
 from phenopype.settings import (
+    AttrDict,
     confirm_options,
     default_filetypes,
     default_pype_config,
@@ -1000,42 +1001,59 @@ class pype:
         dirpath=None,
         skip=False,
         feedback=True,
-        overwrite=True,
-        delay=100,
-        max_dim=1000,
         **kwargs
     ):
 
-        ## kwargs and setup
-        flag_feedback = feedback
-        flag_skip = skip
-        flag_autoload = kwargs.get("autoload", True)
-        flag_autosave = kwargs.get("autosave", True)
-        flag_autoshow = kwargs.get("autoshow", False)
-        flag_presetting = kwargs.get("presetting", False)
-        flag_overwrite = kwargs.get("overwrite", True) 
-        
-        ## mode for package tests
-        test_params = kwargs.get("test_params", {})
-        if len(test_params)>0:
-            flag_test_mode = True
-        else:
-            flag_test_mode = False
+        ## flags
+        self.flags = AttrDict(
+            {"skip": skip, "feedback": feedback, "terminate": False})
 
-        ## pype name check
-        if "pype_config_" in name:
-            name = name.replace("pype_config_", "")
-        elif ".yaml" in name:
-            name = name.replace(".yaml", "")
-        for char in "[@_!#$%^&*()<>?/|}{~:]\\":
-            if char in name:
-                print("No special characters allowed in pype name - aborting.")
+        ## check name, load container and config
+        self._check_pype_name(name=name)
+        self._load_container(name=name, image=image, dirpath=dirpath)
+        self._load_config(name=name, config=config, template=template)
+
+        ## check whether directory is skipped
+        if self.flags.skip == True:
+            dir_skip = self._check_directory_skip(name=name, dirpath=self.container.dirpath)
+            if dir_skip:
                 return
+
+        ## check pype config for annotations
+        self._iterate(self.config, execute=False, visualize=False, feedback=False)
+        time.sleep(1)
+        
+        ## final check before starting pype
+        self._check_final()
+    
+        # open config file with system viewer
+        if self.flags.feedback:
+            self._start_file_monitor()
+
+        ## run pype
+        while True:
+
+            ## refresh config
+            self.config = copy.deepcopy(self.FM.content)
+            if not self.config:
+                continue
+            
+            ## run pype config in sequence
+            self._iterate(self.config)
+            
+            ## terminate
+            if self.flags.terminate:
+                self.FM.stop()
+                print("\n\nTERMINATE")
+                break
+            
+            
+    def _load_container(self, name, image, dirpath):
 
         ## load image as cointainer from array, file, or directory
         if image.__class__.__name__ == "ndarray":
             self.container = load_image(image, cont=True)
-            self.container.save_suffix = name            
+            self.container.save_suffix = name
         elif image.__class__.__name__ == "str":
             if os.path.isfile(image):
                 self.container = load_image(image, cont=True)
@@ -1062,6 +1080,9 @@ class pype:
                     print("Directory not created - aborting")
                     return
             self.container.dirpath = dirpath
+           
+            
+    def _load_config(self, name, config, template):
 
         ## load pype config (three contexts):
         ## 1) load from existing file
@@ -1104,19 +1125,51 @@ class pype:
             self.config = _load_pype_config(config=config_path, template=None)
             self.config_path = config_path
             
-        ## skip directories that already contain specified files
-        if flag_skip == True:
-            filepaths, duplicates = _file_walker(
-                self.container.dirpath,
-                include=name,
-                exclude=["pype_config"],
-                pype_mode=True,
-            )
-            if len(filepaths) > 0:
-                print(
-                    '\nFound existing result files containing "' + name + '" - skipped\n'
-                )
+            
+    def _start_file_monitor(self):
+        
+        if platform.system() == "Darwin":  # macOS
+            subprocess.call(("open", self.config_path))
+        elif platform.system() == "Windows":  # Windows
+            os.startfile(self.config_path)
+        else:  # linux variants
+            subprocess.call(("xdg-open", self.config_path))
+
+        self.FM = _yaml_file_monitor(self.config_path)
+            
+        
+    def _check_pype_name(self, name):
+        
+        ## pype name check
+        if "pype_config_" in name:
+            name = name.replace("pype_config_", "")
+        elif ".yaml" in name:
+            name = name.replace(".yaml", "")
+        for char in "[@_!#$%^&*()<>?/|}{~:]\\":
+            if char in name:
+                print("No special characters allowed in pype name - aborting.")
                 return
+            
+            
+    def _check_directory_skip(self, name, dirpath):
+        ## skip directories that already contain specified files
+        
+        filepaths, duplicates = _file_walker(
+            dirpath,
+            include=name,
+            exclude=["pype_config"],
+            pype_mode=True,
+        )
+        if len(filepaths) > 0:
+            print(
+                '\nFound existing result files containing "' + name + '" - skipped\n'
+            )
+            return True
+        else: 
+            return False
+        
+        
+    def _check_final(self):
         
         ## check components before starting pype to see if something went wrong
         if (
@@ -1139,44 +1192,7 @@ class pype:
             return
         
         
-        
-        ## check pype
-        self._iteration(self.config, execute=False, visualize=False, feedback=False)
-        time.sleep(1)
-    
-        ## open config file with system viewer
-        if flag_feedback and not flag_test_mode:
-            if platform.system() == "Darwin":  # macOS
-                subprocess.call(("open", self.config_path))
-            elif platform.system() == "Windows":  # Windows
-                os.startfile(self.config_path)
-            else:  # linux variants
-                subprocess.call(("xdg-open", self.config_path))
-
-        ## initialize
-        self.FM = _yaml_file_monitor(self.config_path, delay)
-        update, terminate, self.iv = {}, False, None
-        
-        # =============================================================================
-        # pype
-        # =============================================================================
-
-        while True:
-
-            self.config = copy.deepcopy(self.FM.content)
-            if not self.config:
-                continue
-            
-            self._iteration(self.config, execute=True)
-            
-            ## terminate
-            if self.terminate_pype:
-                self.FM.stop()
-                print("\n\nTERMINATE")
-                break
-
-
-    def _iteration(
+    def _iterate(
             self, 
             config,
             execute=True,
@@ -1195,14 +1211,16 @@ class pype:
         # reset values
         self.container.reset()
         annotation_counter = {
-            "mask":0
+            "mask":0,
+            "contour":0,
+            "drawing":0
             }
 
         ## apply pype: loop through steps and contained methods
         step_list = self.config["processing_steps"]
         self.config_updated = copy.deepcopy(self.config)
                     
-        for step_idx, step in enumerate(step_list[0:1]):
+        for step_idx, step in enumerate(step_list):
             
             if step.__class__.__name__=="str":
                 continue
@@ -1215,8 +1233,8 @@ class pype:
             print(step_name.upper())
 
             ## iterate through step list
-            for method_idx, method in enumerate(method_list[0:1]):
-                
+            for method_idx, method in enumerate(method_list):
+
                 ## format method name and arguments       
                 if method.__class__.__name__ in ["dict", "ordereddict","CommentedMap"]:
                     method = dict(method)
@@ -1228,6 +1246,7 @@ class pype:
                 elif method.__class__.__name__ == "str":
                     method_name = method
                     method_args = {}
+
                     
                 ## annotation params 
                 if "ANNOTATION" in method_args:
@@ -1247,48 +1266,40 @@ class pype:
                     method_args_updated = {"ANNOTATION":annotation_params}
                     method_args_updated.update(method_args)
                     self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
+                else:
+                    annotation_id = "null"
 
-
-            if execute:
-            
-                # ## check if method has max_dim option and otherwise add
-                # args = inspect.getfullargspec(eval(step_name + "." + method_name)).args
-                # if "win_max_dim" in args and not "win_max_dim" in method_args:
-                #     method_args["win_max_dim"] = max_dim
+                if execute:                   
+                    try:
+                        ## run method
+                        print(method_name)
+                        method_args.update()
+                        self.container.run(fun=method_name, annotation_id=annotation_id, kwargs=method_args)
+                        
+                    except Exception as ex:
+                        location = (
+                            step_name + "." + method_name + ": " + str(ex.__class__.__name__)
+                        )
+                        print(location + " - " + str(ex))
                     
-                try:
-                    ## run method
-                    print(method_name)
-                    method_args.update()
-                    self.container.run(fun=method_name, annotation_id=annotation_id, kwargs=method_args)
-                    
-                except Exception as ex:
-                    location = (
-                        step_name + "." + method_name + ": " + str(ex.__class__.__name__)
-                    )
-                    print(location + " - " + str(ex))
-                    
-            
+        if not self.config_updated == self.config:
             _save_yaml(self.config_updated, self.config_path)
+            print("updating pype config file")
 
+        if feedback:
+            print(
+                "\n\n------------+++ finished pype iteration +++--------------\n" 
+                + "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
+            )
         
         if visualize: 
-            
-            if feedback:
-                print(
-                    "\n\n------------+++ finished pype iteration +++--------------\n" 
-                    + "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
-                )
-
-            ## visualize output
             try:
                 if self.container.canvas.__class__.__name__ == "NoneType":
                     self.container.select_canvas(canvas="mod")
                     print("- autoselect canvas")
 
                 self.iv = _image_viewer(self.container.canvas)
-                self.terminate_pype = self.iv.finished
-                
+                self.flags.terminate = self.iv.finished
                 
             except Exception as ex:
                 print(

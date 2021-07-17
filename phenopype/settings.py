@@ -118,6 +118,13 @@ _image_viewer_arg_list = [
 
 _annotation_functions = {
     "create_mask": "mask",
-    "detect_mask": "mask"
+    "detect_mask": "mask",
+    "detect_contours": "contour"
     }
 
+#%% python helper functions
+
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self

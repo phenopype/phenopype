@@ -165,6 +165,21 @@ class container(object):
         if fun == "detect_mask":
             annotation = preprocessing.detect_mask(self.image, **kwargs)
             self.annotations["masks"][annotation_id] = annotation
+            
+        if fun == "select_channel":
+            self.image = preprocessing.select_channel(self.image, **kwargs)
+            
+            
+        ## segmentation
+        if fun == "threshold":
+            self.image = segmentation.threshold(self.image, **kwargs)
+   
+        if fun == "morphology":
+            self.image = segmentation.morphology(self.image, **kwargs)
+            
+        if fun == "detect_contours":
+            self.annotations["contours"][annotation_id] = segmentation.detect_contours(self.image, **kwargs)
+            
 
                     
     def load(self, dirpath=None, save_suffix=None, contours=False, canvas=False, **kwargs):
@@ -657,12 +672,14 @@ def load_image(
                     print("Directory not created - aborting")
                     return
             else:
-                print("Directory to save phenopype-container output set at - " + os.path.abspath(dirpath))
+                if flag_verbose:
+                    print("Directory to save phenopype-container output set at - " + os.path.abspath(dirpath))
         elif dirpath.__class__.__name__ == "NoneType":
             if obj_input.__class__.__name__ == "str":
                 if os.path.isfile(obj_input):
                     dirpath = os.path.dirname(os.path.abspath(obj_input))
-                    print("Directory to save phenopype-container output set to parent folder of image:\n{}".format(dirpath))
+                    if flag_verbose:
+                        print("Directory to save phenopype-container output set to parent folder of image:\n{}".format(dirpath))
             else: 
                 print(
                     "No directory provided to save phenopype-container output" +

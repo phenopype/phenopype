@@ -270,8 +270,7 @@ def edit_contours(
         return 
 
 
-
-def morphology(obj_input, kernel_size=5, shape="rect", operation="close", iterations=1):
+def morphology(image, kernel_size=5, shape="rect", operation="close", iterations=1):
     """
     Performs advanced morphological transformations using erosion and dilation 
     as basic operations. Provides different kernel shapes and a suite of operation
@@ -327,23 +326,13 @@ def morphology(obj_input, kernel_size=5, shape="rect", operation="close", iterat
     }
     kernel = cv2.getStructuringElement(shape_list[shape], (kernel_size, kernel_size))
 
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-    elif obj_input.__class__.__name__ == "container":
-        image = obj_input.image
-
     ## method
     image = cv2.morphologyEx(
         image, op=operation_list[operation], kernel=kernel, iterations=iterations
     )
 
     ## return
-    if obj_input.__class__.__name__ == "container":
-        obj_input.image = image
-        obj_input.image_bin = image
-    else:
-        return image
+    return image
 
 
 
