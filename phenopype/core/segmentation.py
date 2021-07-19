@@ -6,7 +6,7 @@ import pandas as pd
 from math import inf
 
 from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
-from phenopype.utils_lowlevel import _create_mask_bool, _image_viewer, _auto_line_width
+from phenopype.utils_lowlevel import _create_mask_bool, _ImageViewer, _auto_line_width
 
 import phenopype.core.preprocessing as preprocessing
 
@@ -232,7 +232,7 @@ def edit_contours(
             )
 
     ## draw masks
-    out = _image_viewer(image=image, 
+    out = _ImageViewer(image=image, 
                         image_bin=image_bin,
                         tool="draw", 
                         **_image_viewer_settings)

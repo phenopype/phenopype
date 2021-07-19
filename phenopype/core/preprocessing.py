@@ -7,12 +7,9 @@ from math import sqrt as _sqrt
 import numpy.ma as ma
 
 from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
-from phenopype.utils import image_resize
-from phenopype.utils_lowlevel import _auto_text_width, _auto_text_size
-from phenopype.utils_lowlevel import _convert_arr_tup_list,  _convert_tup_list_arr, \
-     _equalize_histogram, _image_viewer, _dummy_class
-        
-        
+from phenopype.utils_lowlevel import _auto_text_width, _auto_text_size, \
+    _convert_arr_tup_list, _equalize_histogram, _resize_image, \
+    _ImageViewer, _DummyClass
 import phenopype.core.segmentation as segmentation
 
 #%% functions
@@ -79,7 +76,7 @@ def create_mask(
         previous = {}            
         previous.update(previous_annotation["settings"])
         previous["polygons"] = previous_annotation["data"]["coord_list"]
-        previous = _dummy_class(previous)    
+        previous = _DummyClass(previous)    
         kwargs.update({"previous": previous})
                                
     ## retrieve and save settings
@@ -97,7 +94,7 @@ def create_mask(
             _image_viewer_params[key] = value
 
     ## draw masks
-    out = _image_viewer(image=image, 
+    out = _ImageViewer(image=image, 
                         tool=tool, 
                         **_image_viewer_params)
     if not out.done:
@@ -155,7 +152,7 @@ def detect_mask(
     ## checks
     if len(image.shape) == 3:
         image = select_channel(image)
-    resized = image_resize(image, resize)
+    image_resized = _resize_image(image, resize)
             
     ## settings
     settings = locals()
@@ -164,7 +161,7 @@ def detect_mask(
         
     ## method
     if shape=="circle":
-        circles = cv2.HoughCircles(resized, 
+        circles = cv2.HoughCircles(image_resized, 
                                    cv2.HOUGH_GRADIENT, 
                                    dp=max(int(dp*resize),1), 
                                    minDist=int(min_dist*resize),
@@ -315,7 +312,7 @@ def create_reference(
             pass
 
         ## method
-        out = _image_viewer(image, tool="reference", previous=test_params)
+        out = _ImageViewer(image, tool="reference", previous=test_params)
 
         points = out.reference_coords
         distance_px = _sqrt(
@@ -329,7 +326,7 @@ def create_reference(
 
         ## create template for image registration
         if flag_template or flag_mask:
-            out = _image_viewer(image, tool="template", previous=test_params)
+            out = _ImageViewer(image, tool="template", previous=test_params)
 
             ## make template and mask
             template = image[

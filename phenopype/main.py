@@ -16,6 +16,7 @@ from shutil import copyfile
 import cv2
 import ruamel.yaml
 from datetime import datetime
+from pathlib import Path
 from ruamel.yaml.comments import CommentedMap as ordereddict
 from shutil import copyfile, rmtree
 
@@ -33,20 +34,18 @@ from phenopype.settings import (
 )
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
-from phenopype.utils import load_image, load_directory, load_image_data, \
-    load_meta_data, image_resize
+from phenopype.utils import load_image, load_pp_directory
 from phenopype.utils_lowlevel import (
-    _image_viewer,
+    _ImageViewer,
+    _YamlFileMonitor,
     _del_rw,
     _file_walker,
+    _load_image_data,
     _load_pype_config,
-    _yaml_flow_style,
-)
-from phenopype.utils_lowlevel import (
     _load_yaml,
-    _show_yaml,
+    _resize_image,
     _save_yaml,
-    _yaml_file_monitor,
+    _yaml_flow_style,
 )
 
 
@@ -64,7 +63,7 @@ ruamel.yaml.Representer.add_representer(
 #%% classes
 
 
-class project:
+class Project:
     """
     Initialize a phenopype project with a root directory path. Phenopype 
     will create the project folder at the provided location. 
@@ -80,48 +79,62 @@ class project:
     Returns
     -------
     project: project
-        phenopype project object
+        phenopype project
     """
 
-    def __init__(self, root_dir, overwrite=False):
+    def __init__(self, root_dir, load=True, overwrite=False):
 
-        ## kwargs
-        flag_overwrite = overwrite
-
+        ## set flags
+        flags = AttrDict({"overwrite":overwrite, "load":load})    
+    
         ## path conversion
         root_dir = root_dir.replace(os.sep, "/")
         root_dir = os.path.abspath(root_dir)
-
-        ## feedback
-        print("--------------------------------------------")
-        print("Phenopype will create a new project at\n" + root_dir + "\n")
-
-        ## decision tree if directory exists
-        while True:
-            create = input("Proceed? (y/n)\n")
-            if create == "y" or create == "yes":
-                if os.path.isdir(root_dir):
-                    if flag_overwrite == True:
-                        rmtree(root_dir, onerror=_del_rw)
-                        print('\n"' + root_dir + '" created (overwritten)')
-                        pass
-                    else:
-                        overwrite = input(
-                            "Warning - project root_dir already exists - overwrite? (y/n)"
-                        )
-                        if overwrite == "y" or overwrite == "yes":
+            
+        
+        if os.path.isdir(root_dir):
+            if "attributes.yaml" and "data" in os.listdir(root_dir):
+                if flags.load and not flags.overwrite:
+                    flags.overwrite_proceed = False
+                elif not flags.load and flags.overwrite:
+                    flags.overwrite_proceed = False
+                elif flags.load and flags.overwrite:
+                    owp = input("Overwrite or load?")
+                    if owp in confirm_options:
+                        flags.overwrite_proceed = True
+                if flags.overwrite_proceed:
+                    rmtree(root_dir, onerror=_del_rw)
+                    print('\n"' + root_dir + '" created (overwritten)')
+                else:
+                    os.listdir
+                    
+        else:
+            print("--------------------------------------------")
+            print("Create a new phenopype project at\n" + root_dir + "\n")
+                create = input("Proceed? (y/n)\n")
+                if create in ["y", "yes"]:
+                    if os.path.isdir(root_dir):
+                        if flags.overwrite == True:
                             rmtree(root_dir, onerror=_del_rw)
                             print('\n"' + root_dir + '" created (overwritten)')
                             pass
                         else:
-                            print('\n"' + root_dir + '" not created!')
-                            print("--------------------------------------------")
-                            break
+                            overwrite = input(
+                                "Warning - project root_dir already exists - overwrite? (y/n)"
+                            )
+                            if overwrite == "y" or overwrite == "yes":
+                                rmtree(root_dir, onerror=_del_rw)
+                                print('\n"' + root_dir + '" created (overwritten)')
+                                pass
+                            else:
+                                print('\n"' + root_dir + '" not created!')
+                                print("--------------------------------------------")
+                                break
+                    else:
+                        pass
                 else:
-                    pass
-            else:
-                print('\n"' + root_dir + '" not created!')
-                break
+                    print('\n"' + root_dir + '" not created!')
+                    break
 
             ## make directories
             self.root_dir = root_dir
@@ -320,7 +333,7 @@ class project:
             image = load_image(filepath)
             image_name = os.path.basename(filepath)
             image_basename = os.path.splitext(image_name)[0]
-            image_data_original = load_image_data(filepath)
+            image_data_original = _load_image_data(filepath)
             image_data_phenopype = {
                 "date_added": datetime.today().strftime("%Y%m%d%H%M%S"),
                 "mode": flag_mode,
@@ -335,10 +348,10 @@ class project:
                     "copy_" + image_name,
                 )
                 copyfile(filepath, image_phenopype_path)
-                image_data_phenopype.update(load_image_data(image_phenopype_path, path_and_type=False))
+                image_data_phenopype.update(_load_image_data(image_phenopype_path, path_and_type=False))
             elif flag_mode == "mod":
                 if resize_factor < 1:
-                    image = image_resize(image, resize_factor)
+                    image = _resize_image(image, resize_factor)
                 if not "." in extension:
                     extension = "." + extension
                 image_phenopype_path = os.path.join(
@@ -352,7 +365,7 @@ class project:
                     "resize": flag_resize,
                     "resize_factor":resize_factor,
                     })
-                image_data_phenopype.update(load_image_data(image_phenopype_path, path_and_type=False))
+                image_data_phenopype.update(_load_image_data(image_phenopype_path, path_and_type=False))
             elif flag_mode == "link":
                 image_phenopype_path = filepath
 
@@ -470,7 +483,7 @@ class project:
                     break
                 
                 if os.path.isdir(image_location):
-                    interactive_container = load_directory(image_location)
+                    interactive_container = load_pp_directory(image_location)
                     interactive_container.dirpath = self.root_dir
                 else: 
                     print_msg = "Could not enter interactive mode - invalid directory."
@@ -482,7 +495,7 @@ class project:
                 _save_yaml(config, config_path)
                 
                 ## run pype 
-                p = pype(
+                p = Pype(
                     interactive_container,
                     name=name,
                     config=config_path,
@@ -570,7 +583,7 @@ class project:
                 reference_image = cv2.imread(reference_image_path)
                 print("Reference image loaded from " + reference_image_path)
             elif os.path.isdir(reference_image_path):
-                reference_image = load_directory(
+                reference_image = load_pp_directory(
                    reference_image_path
                 )
                 reference_image = reference_image.image
@@ -583,7 +596,7 @@ class project:
             pass
         elif reference_image.__class__.__name__ == "int":
             reference_image_path = os.path.join(self.root_dir, "data", self.dirpaths[reference_image])
-            reference_image = load_directory(
+            reference_image = load_pp_directory(
                reference_image_path
             )
             reference_image = reference_image.image
@@ -857,93 +870,8 @@ class project:
                 break 
 
 
-                
-    @staticmethod
-    def save(project, overwrite=False):
-        """
-        Save project to root directory
-    
-        Parameters
-        ----------
-    
-        project: phenopype.main.project
-            save project file to root dir of project (saves ONLY the python object 
-            needed to call file-lists, NOT collected data), which needs to be saved 
-            separately with the appropriate export functions (e.g. 
-            :func:`phenopype.export.save_contours` or :func:`phenopype.export.save_canvas`)
-        overwrite: bool, optional
-            should existing project data be overwritten
-        """
-        ## kwargs
-        flag_overwrite = overwrite
 
-        ## save project
-        output_path = os.path.join(project.root_dir, "project.data")
-        while True:
-            if os.path.isfile(output_path) and flag_overwrite == False:
-                print("Project data not saved - file already exists (overwrite=False).")
-                break
-            elif os.path.isfile(output_path) and flag_overwrite == True:
-                print("Project data saved under " + output_path + " (overwritten).")
-                pass
-            elif not os.path.isfile(output_path):
-                print("Project data saved under " + output_path + ".")
-                pass
-            with open(output_path, "wb") as output:
-                pickle.dump(project, output, pickle.HIGHEST_PROTOCOL)
-            break
-
-    @staticmethod
-    def load(root_dir):
-        """
-        Load phenoype project.data file to Python namespace.
-    
-        Parameters
-        ----------
-        root_dir: str
-            path to project root directory that containes "project.data"
-            and "attributes.yaml"
-
-        Returns
-        -------
-        project: project
-            phenopype project object
-        """
-        
-        ## path conversion
-        root_dir = root_dir.replace(os.sep, "/")
-        root_dir = os.path.abspath(root_dir)
-
-        ## load pickled project object
-        if "attributes.yaml" in os.listdir(root_dir) and \
-            "project.data" in os.listdir(root_dir):
-            project_data_path = os.path.join(root_dir, "project.data")
-            with open(project_data_path, "rb") as output:
-                proj = pickle.load(output)
-            proj.root_dir = root_dir
-                    
-            ## add dirlist to project object (always overwrite)
-            dirnames = os.listdir(os.path.join(proj.root_dir, "data"))
-            dirpaths = []
-            for dirname in dirnames:
-                dirpaths.append(os.path.join(proj.root_dir, "data", dirname))
-            proj.dirnames = dirnames
-            proj.dirpaths = dirpaths
-            
-            print("--------------------------------------------")
-            print("Project loaded from \n" + proj.root_dir)
-            print("\nProject has {} image folders".format(len(proj.dirpaths)))
-            print("--------------------------------------------")
-            
-            return proj
-                
-        else:
-            print("Could not load phenopype project - no \"attributes.yaml\" \
-                  or \"project.data\" found in " + root_dir)
-
-
-
-class pype:
+class Pype:
     """
     The pype is phenopype’s core method that allows running all functions 
     that are available in the program’s library in sequence. Users can execute 
@@ -1052,19 +980,16 @@ class pype:
 
         ## load image as cointainer from array, file, or directory
         if image.__class__.__name__ == "ndarray":
-            self.container = load_image(image, cont=True)
-            self.container.save_suffix = name
+            self.container = load_image(path=image, load_container=True, save_suffix=name)
         elif image.__class__.__name__ == "str":
             if os.path.isfile(image):
-                self.container = load_image(image, cont=True)
-                self.container.save_suffix = name
+                self.container = load_image(path=image, load_container=True, save_suffix=name)
             elif os.path.isdir(image):
-                self.container = load_directory(image, cont=True) 
-                self.container.save_suffix = name
+                self.container = load_pp_directory(path=image, load_container=True, save_suffix=name) 
             else:
                 print("Invalid path - cannot run pype.")
                 return
-        elif image.__class__.__name__ == "container":
+        elif image.__class__.__name__ == "Container":
             self.container = image
         else:
             print("Wrong input path or format - cannot run pype.")
@@ -1135,7 +1060,7 @@ class pype:
         else:  # linux variants
             subprocess.call(("xdg-open", self.config_path))
 
-        self.FM = _yaml_file_monitor(self.config_path)
+        self.fm = _YamlFileMonitor(self.config_path)
             
         
     def _check_pype_name(self, name):
@@ -1298,7 +1223,7 @@ class pype:
                     self.container.select_canvas(canvas="mod")
                     print("- autoselect canvas")
 
-                self.iv = _image_viewer(self.container.canvas)
+                self.iv = _ImageViewer(self.container.canvas)
                 self.flags.terminate = self.iv.finished
                 
             except Exception as ex:

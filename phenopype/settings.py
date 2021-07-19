@@ -3,6 +3,8 @@
 import cv2
 import os
 from importlib.resources import path
+from pprint import PrettyPrinter
+
 
 #%% scalars and definitions
 
@@ -128,3 +130,7 @@ class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
+        
+#%% dependencies
+
+pretty = PrettyPrinter(width=30)

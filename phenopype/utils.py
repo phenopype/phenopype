@@ -4,12 +4,8 @@ import numpy as np
 import glob
 import pandas as pd
 import pkgutil
+
 from pathlib import Path
-
-import inspect
-
-from pprint import PrettyPrinter
-from PIL import Image, ExifTags
 
 import phenopype.core.preprocessing as preprocessing
 import phenopype.core.segmentation as segmentation
@@ -17,33 +13,20 @@ import phenopype.core.measurement as measurement
 import phenopype.core.visualization as visualization
 import phenopype.core.export as export
 
-from phenopype.settings import colours, default_meta_data_fields, \
-    default_filetypes, flag_verbose, pype_config_templates, confirm_options, \
-    opencv_interpolation_flags
-from phenopype.utils_lowlevel import _image_viewer, _convert_tup_list_arr, \
-    _load_yaml, _show_yaml
+from phenopype.settings import AttrDict, default_filetypes, flag_verbose, \
+    pype_config_templates, confirm_options
+from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr, \
+    _load_image_data, _load_yaml, _show_yaml
     
 from collections import defaultdict
 
-
-#%% settings
-
-Image.MAX_IMAGE_PIXELS = 999999999
-pretty = PrettyPrinter(width=30)
-
-def custom_formatwarning(msg, *args, **kwargs):
-    # ignore everything except the message
-    return "WARNING: " + str(msg) + "\n"
-
-warnings.formatwarning = custom_formatwarning
-warnings.simplefilter("always", UserWarning)
 
 #%% classes
 
 
 
 
-class container(object):
+class Container(object):
     """
     A phenopype container is a Python class where loaded images, dataframes, 
     detected contours, intermediate output, etc. are stored so that they are 
@@ -57,7 +40,7 @@ class container(object):
     ----------
     image : ndarray
         single or multi-channel iamge as an array (can be created using load_image 
-        or load_directory).
+        or load_pp_directory).
     df_image_data: DataFrame
         a dataframe that contains meta-data of the provided image to be passed on
         to all results-DataFrames
@@ -66,7 +49,7 @@ class container(object):
 
     """
 
-    def __init__(self, image, df_image_data, dirpath=None, save_suffix=None):
+    def __init__(self, image, dirpath=None, save_suffix=None):
 
         ## images
         self.image = image
@@ -74,10 +57,6 @@ class container(object):
         self.image_bin = None
         self.image_gray = None
         self.canvas = None
-
-        ## data frames
-        self.df_image_data = df_image_data
-        self.df_image_data_copy = copy.deepcopy(self.df_image_data)
 
         ## attributes
         self.dirpath = dirpath
@@ -246,16 +225,6 @@ class container(object):
 
             attr_local = _load_yaml(attr_local_path)
                 
-            ## other data
-            if not hasattr(self, "df_other_data"):
-                attr = _load_yaml(attr_local_path)
-                if "other" in attr:
-                    self.df_other_data = pd.DataFrame(attr["other"], index=[0])
-                    loaded.append(
-                        "columns "
-                        + ", ".join(list(self.df_other_data))
-                        + " from attributes.yaml"
-                    )
             
             if "reference" in attr_local:
                 
@@ -293,13 +262,6 @@ class container(object):
                         self.reference_template_image = cv2.imread(os.path.join(attr_local_path ,r"../../..", attr_proj["reference"][active_ref]["template_image"]))
                         loaded.append("reference template image loaded from root directory")
 
-        ## canvas
-        if self.canvas.__class__.__name__ == "NoneType" and canvas == True:
-            path = os.path.join(dirpath, "canvas" + save_suffix + ".jpg")
-            if os.path.isfile(path):
-                self.canvas = load_image(path)
-                loaded.append("canvas" + save_suffix + ".jpg")
-
         ## contours
         if flag_contours:
             if not hasattr(self, "df_contours") and "contours" in files:
@@ -318,34 +280,6 @@ class container(object):
                     else:
                         print("Could not load contours - df saved without coordinates.")                  
                 
-        ## drawings
-        if not hasattr(self, "df_drawings") and "drawings" in files:
-            path = os.path.join(dirpath, "drawings" + save_suffix + ".csv")
-            if os.path.isfile(path):
-                self.df_drawings = pd.read_csv(path)
-                loaded.append("drawings" + save_suffix + ".csv")
-                        
-        ## landmarks
-        if not hasattr(self, "df_landmarks") and "landmarks" in files:
-            path = os.path.join(dirpath, "landmarks" + save_suffix + ".csv")
-            if os.path.isfile(path):
-                self.df_landmarks = pd.read_csv(path)
-                loaded.append("landmarks" + save_suffix + ".csv")
-
-        ## polylines
-        if not hasattr(self, "df_polylines") and "polylines" in files:
-            path = os.path.join(dirpath, "polylines" + save_suffix + ".csv")
-            if os.path.isfile(path):
-                self.df_polylines = pd.read_csv(path)
-                loaded.append("polylines" + save_suffix + ".csv")
-                
-        ## masks
-        if not hasattr(self, "df_masks") and "masks" in files:
-            path = os.path.join(dirpath, "masks" + save_suffix + ".csv")
-            if os.path.isfile(path):
-                self.df_masks = pd.read_csv(path)
-                loaded.append("masks" + save_suffix + ".csv")
-
         ## feedback
         if len(loaded) > 0:
             print("=== AUTOLOAD ===\n- " + "\n- ".join(loaded))
@@ -376,195 +310,16 @@ class container(object):
         if hasattr(self, "df_contours"):
             del self.df_contours
 
-    def save(self, dirpath=None, export_list=[], overwrite=False, **kwargs):
-        """
-        Autosave function for container. 
-
-        Parameters
-        ----------
-        dirpath: str, optional
-            provide a custom directory where files should be save - overwrites 
-            dirpath provided from container, if applicable
-        export_list: list, optional
-            used in pype rountine to check against already performed saving operations.
-            running container.save() with an empty export_list will assumed that nothing
-            has been saved so far, and will try 
-        overwrite : bool, optional
-            gloabl overwrite flag in case file exists
-
-        """
-
-        ## kwargs
-        flag_overwrite = overwrite
-
-        ## check dirpath
-        if (
-            dirpath.__class__.__name__ == "NoneType"
-            and not self.dirpath.__class__.__name__ == "NoneType"
-        ):
-            print("=== AUTOSAVE ===")
-            dirpath = self.dirpath
-        if dirpath.__class__.__name__ == "NoneType":
-            print('No save directory ("dirpath") specified - cannot save files.')
-            return
-        if not os.path.isdir(dirpath):
-            print("Directory does not exist - cannot save files.")
-
-
-        ## canvas
-        if (
-            not self.canvas.__class__.__name__ == "NoneType"
-            and not "save_canvas" in export_list
-        ):
-            print("save_canvas")
-            save_canvas(self, dirpath=dirpath)
-
-        ## colours
-        if hasattr(self, "df_colours") and not "save_colours" in export_list:
-            print("save_colours")
-            save_colours(self, dirpath=dirpath, overwrite=flag_overwrite)
-
-        ## contours
-        if hasattr(self, "df_contours") and not "save_contours" in export_list:
-            print("save_contours")
-            save_contours(self, dirpath=dirpath, overwrite=flag_overwrite)
-
-        ## entered data
-        if hasattr(self, "df_other_data") and not "save_data_entry" in export_list:
-            print("save_data_entry")
-            save_data_entry(self, dirpath=dirpath, overwrite=flag_overwrite)
-
-        ## landmarks
-        if hasattr(self, "df_landmarks") and not "save_landmarks" in export_list:
-            print("save_landmarks")
-            save_landmarks(self, dirpath=dirpath, overwrite=flag_overwrite)
-
-        ## masks
-        if hasattr(self, "df_masks") and not "save_masks" in export_list:
-            print("save_masks")
-            save_masks(self, dirpath=dirpath, overwrite=flag_overwrite)
-
-        ## polylines
-        if hasattr(self, "df_polylines") and not "save_polylines" in export_list:
-            print("save_polylines")
-            save_polylines(self, dirpath=dirpath, overwrite=flag_overwrite)
-
-        ## drawing
-        if hasattr(self, "df_drawings") and not "save_drawings" in export_list:
-            print("save_drawings")
-            save_drawings(self, dirpath=dirpath, overwrite=True)
-
-        ## reference
-        if hasattr(self, "reference_detected_px_mm_ratio") and not "save_reference" in export_list:
-            print("save_reference")
-            save_reference(self, dirpath=dirpath, overwrite=True, active_ref=self.reference_active)
-            
-        ## shapes
-        if hasattr(self, "df_shapes") and not "save_shapes" in export_list:
-            print("save_shapes")
-            save_shapes(self, dirpath=dirpath, overwrite=True)
-            
-        ## textures
-        if hasattr(self, "df_textures") and not "save_textures" in export_list:
-            print("save_textures")
-            save_textures(self, dirpath=dirpath, overwrite=True)
-
-
-    # def show(self, **kwargs):
-    #     """
-
-    #     Parameters
-    #     ----------
-    #     components : TYPE, optional
-    #         DESCRIPTION. The default is [].
-    #     **kwargs : TYPE
-    #         DESCRIPTION.
-
-    #     Returns
-    #     -------
-    #     None.
-
-    #     cfg = "pype_config_v1.yaml"
-    #     cfg[cfg.rindex('_')+1:cfg.rindex('.')]
-
-    #     """
-    #     ## kwargs
-    #     show_list = kwargs.get("show_list",[])
-
-    #     ## feedback
-    #     print("AUTOSHOW")
-
-    # ## contours
-    # if hasattr(self, "df_contours") and not "show_contours" in show_list:
-    #     print("show_contours")
-    #     show_contours(self)
-
-    # ## landmarks
-    # if hasattr(self, "df_landmarks") and not "show_landmarks" in show_list:
-    #     print("show_landmarks")
-    #     show_landmarks(self)
-
-    # ## masks
-    # if hasattr(self, "df_masks") and not "show_masks" in show_list:
-    #     print("show_masks")
-    #     show_masks(self)
-
-    # ## polylines
-    # if hasattr(self, "df_polylines") and not "show_polylines" in show_list:
-    #     print("show_polylines")
-    #     show_polylines(self)
 
 
 #%% functions
 
 
-def image_resize(image, factor=1, interpolation="cubic"):
-    """
-    Resize image by resize factor 
-
-    Parameters
-    ----------
-    obj_input: array 
-        image to be resized
-    resize: float, optional
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
-        original size).
-    interpolation: str, optional
-        interpolation algorithm to use. check pp.settings.opencv_interpolation_flags
-        and refer to https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
-
-    Returns
-    -------
-    image : array or container
-        resized image
-
-    """
-    
-    ## method
-    if factor == 1:
-        pass
-    else:
-        image = cv2.resize(
-            image, 
-            (0, 0), 
-            fx=1 * factor, 
-            fy=1 * factor, 
-            interpolation=opencv_interpolation_flags[interpolation]
-        )
-
-    ## return results
-    return image
-
-
-
 def load_image(
-    obj_input,
+    path,
     mode="default",
-    cont=False,
-    df=False,
+    load_container=False,
     dirpath=None,
-    meta=False,
-    resize=1,
     save_suffix=None,
     **kwargs
 ):
@@ -573,29 +328,19 @@ def load_image(
 
     Parameters
     ----------
-    obj_input: str or ndarray
-        can be a path to an image stored on the harddrive OR an array already 
-        loaded to Python.
+    path: str
+        path to an image stored on the harddrive
     mode: {"default", "colour","gray"} str, optional
         image conversion on loading:
-            - default: return image as is
-            - colour: convert image to 3channel bgr
-            - gray: convert image to single channel 
-    cont: bool, optional
+            - default: load image as is
+            - colour: convert image to 3-channel (BGR)
+            - gray: convert image to single channel (grayscale)
+    load_container: bool, optional
         should the loaded image (and DataFrame) be returned as a phenopype 
         container
-    df: bool, optional
-        should a DataFrame containing image information (e.g. dimensions) be 
-        returned.
     dirpath: str, optional
         path to an existing directory where all output should be stored. default 
         is the current working directory ("cwd") of the python session.
-    meta: bool, optional
-        should the DataFrame encompass image meta data (e.g. from exif-data). 
-        This works only when obj_input is a path string to the original file.
-    resize: float, optional
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
-        original size).
     save_suffix : str, optional
         suffix to append to filename of results files, if container is created
     kwargs: 
@@ -603,55 +348,44 @@ def load_image(
 
     Returns
     -------
-    ct: container
+    container: container
         A phenopype container is a Python class where loaded images, 
         dataframes, detected contours, intermediate output, etc. are stored 
         so that they are available for inspection or storage at the end of 
         the analysis. 
     image: ndarray
         original image (resized, if selected)
-    df_image_data: DataFrame
-        contains image data (+meta data), if selected
 
     """
-    ## kwargs
-    flag_df = df
-    flag_meta = meta
-    flag_mode = mode
-    flag_container = cont
-    
+    ## set flags
+    flags = AttrDict({"mode":mode,"container":load_container})
+
     ## load image
-    if obj_input.__class__.__name__ == "str":
-        if os.path.isfile(obj_input):
-            ext = os.path.splitext(obj_input)[1]
+    if path.__class__.__name__ == "str":
+        if os.path.isfile(path):
+            ext = os.path.splitext(path)[1]
             if ext.replace(".", "") in default_filetypes:
-                if flag_mode == "default":
-                    image = cv2.imread(obj_input)
-                elif flag_mode == "colour":
-                    image = cv2.imread(obj_input, cv2.IMREAD_COLOR)
-                elif flag_mode == "gray":
-                    image = cv2.imread(obj_input, cv2.IMREAD_GRAYSCALE)     
+                if flags.mode == "default":
+                    image = cv2.imread(path)
+                elif flags.mode == "colour":
+                    image = cv2.imread(path, cv2.IMREAD_COLOR)
+                elif flags.mode == "gray":
+                    image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)     
             else:
                 print("Invalid file extension \"{}\" - could not load image:\n".format(ext) \
-                        + os.path.basename(obj_input))
+                        + os.path.basename(path))
                 return
         else:
             print("Invalid image path - could not load image.")
             return
-    elif obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
+    elif path.__class__.__name__ == "ndarray":
+        image = path
     else:
         print("Invalid input format - could not load image.")
         return
 
-
-    ## load image data
-    image_data = load_image_data(obj_input, path_and_type=False)
-    df_image_data = pd.DataFrame(image_data, index=[0])
-
-
     ## check dirpath
-    if flag_container == True:
+    if flags.container == True:
         if dirpath == "cwd":
             dirpath = os.getcwd()
             if flag_verbose:
@@ -675,9 +409,9 @@ def load_image(
                 if flag_verbose:
                     print("Directory to save phenopype-container output set at - " + os.path.abspath(dirpath))
         elif dirpath.__class__.__name__ == "NoneType":
-            if obj_input.__class__.__name__ == "str":
-                if os.path.isfile(obj_input):
-                    dirpath = os.path.dirname(os.path.abspath(obj_input))
+            if path.__class__.__name__ == "str":
+                if os.path.isfile(path):
+                    dirpath = os.path.dirname(os.path.abspath(path))
                     if flag_verbose:
                         print("Directory to save phenopype-container output set to parent folder of image:\n{}".format(dirpath))
             else: 
@@ -690,165 +424,17 @@ def load_image(
             
             
     ## create container
-    if flag_container == True:
-        ct = container(image, df_image_data)
-        ct.image_data = image_data
-        ct.dirpath = dirpath
-        ct.save_suffix = save_suffix
-            
-
-    ## return
-    if flag_container == True:
-        return ct
-    elif flag_container == False:
-        if flag_df or flag_meta:
-            return image, df_image_data
-        else:
-            return image
-
-
-def load_image_data(obj_input, path_and_type=True, resize=1):
-    """
-    Create a DataFreame with image information (e.g. dimensions).
-
-    Parameters
-    ----------
-    obj_input: str or ndarray
-        can be a path to an image stored on the harddrive OR an array already 
-        loaded to Python.
-    path_and_type: bool, optional
-        return image path and filetype to image_data dictionary
-
-    Returns
-    -------
-    image_data: dict
-        contains image data (+meta data, if selected)
-
-    """
-    if obj_input.__class__.__name__ == "str":
-        if os.path.isfile(obj_input):
-            path = obj_input
-        image = Image.open(path)
-        width, height = image.size
-        image.close()
-        image_data = {
-            "filename": os.path.split(obj_input)[1],
-            "width": width,
-            "height": height,
-        }
-        
-        if path_and_type: 
-            image_data.update({
-                "filepath": obj_input,
-                "filetype": os.path.splitext(obj_input)[1]})
-            
-    elif obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        width, height = image.shape[0:2]
-        image_data = {
-            "filename": "unknown",
-            "filepath": "unknown",
-            "filetype": "ndarray",
-            "width": width,
-            "height": height,
-        }
+    if flags.container:
+        return Container(image, dirpath=dirpath, save_suffix=save_suffix)
     else:
-        warnings.warn("Not a valid image file - cannot read image data.")
-
-    ## issue warnings for large images
-    if width * height > 125000000:
-        warnings.warn(
-            "Large image - expect slow processing and consider \
-                      resizing."
-        )
-    elif width * height > 250000000:
-        warnings.warn(
-            "Extremely large image - expect very slow processing \
-                      and consider resizing."
-        )
-
-    ## return image data
-    return image_data
+        return image
 
 
-def load_meta_data(image_path, show_fields=False, fields=default_meta_data_fields):
-    """
-    Extracts metadata (mostly Exif) from original image
-
-    Parameters
-    ----------
-    image_path : str 
-        path to image on harddrive
-    show_fields: bool, optional
-        show which exif data fields are available from given image
-    fields: list or str
-        which exif data fields should be extracted. default fields can be 
-        modified in settings
-
-    Returns
-    -------
-    exif_data: dict
-        image meta data (exif)
-
-    """
-    ## kwargs
-    flag_show = show_fields
-    exif_fields = fields
-    if not exif_fields.__class__.__name__ == "list":
-        exif_fields = [exif_fields]
-
-    # ## check if basic fields are present
-    # if exif_fields.__class__.__name__ == "list":
-    #     if not len(exif_fields) == 0:
-    #         prepend = list(set(default_fields) - set(exif_fields))
-    #         exif_fields = prepend + exif_fields
-
-    ## read image
-    if image_path.__class__.__name__ == "str":
-        if os.path.isfile(image_path):
-            image = Image.open(image_path)
-        else:
-            print("Not a valid image file - cannot read exif data.")
-            return {}
-    else:
-        print("Not a valid image file - cannot read exif data.")
-        return {}
-
-    ## populate dictionary
-    exif_data_all = {}
-    exif_data = {}
-    try:
-        for k, v in image._getexif().items():
-            if k in ExifTags.TAGS:
-                exif_data_all[ExifTags.TAGS[k]] = v
-        exif_data_all = dict(sorted(exif_data_all.items()))
-    except Exception:
-        print("no meta-data found")
-        return None
-
-    if flag_show:
-        print("--------------------------------------------")
-        print("Available exif-tags:\n")
-        pretty.pprint(exif_data_all)
-        print("\n")
-        print('Default exif-tags (append list using "fields" argument):\n')
-        print(default_meta_data_fields)
-        print("--------------------------------------------")
-
-    ## subset exif_data
-    for field in exif_fields:
-        if field in exif_data_all:
-            exif_data[field] = str(exif_data_all[field])
-    exif_data = dict(sorted(exif_data.items()))
-
-    ## close image and return meta data
-    image.close()
-    return exif_data
-
-
-
-def load_directory(
-    dirpath, cont=True, df=True, save_suffix=None, **kwargs
+def load_pp_directory(
+    dirpath, 
+    load_container=True, 
+    save_suffix=None, 
+    **kwargs
 ):
     """
     Parameters
@@ -859,9 +445,6 @@ def load_directory(
     cont: bool, optional
         should the loaded image (and DataFrame) be returned as a phenopype 
         container
-    df: bool, optional
-        should a DataFrame containing image information (e.g. dimensions) 
-        be returned.
     save_suffix : str, optional
         suffix to append to filename of results files
     kwargs: 
@@ -876,6 +459,9 @@ def load_directory(
         the analysis. 
 
     """
+    ## set flags
+    flags = AttrDict({"container":load_container})    
+    
     ## check if directory
     if not os.path.isdir(dirpath):
         print("Not a valid phenoype directory - cannot load files.")
@@ -892,183 +478,60 @@ def load_directory(
     if not "image_phenopype" in attributes or not "image_original" in attributes:
         print("Attributes doesn't contain required meta-data - cannot load files.")
         return 
-    else:
-        image_original = dict(attributes["image_original"])
-        image_phenopype = dict(attributes["image_phenopype"])
-    
+
     ## load image
-    if image_phenopype["mode"] == "link":
-        image_path = image_original["filepath"]
+    if attributes["image_phenopype"]["mode"] == "link":
+        image_path =  attributes["image_original"]["filepath"]
     else:
-        image_name = image_phenopype["filename"]
-        image_path = os.path.join(dirpath, image_name)
-    image = load_image(image_path, dirpath=dirpath)
-    
-    # ## create image df
-    # df_image_dict = {
-    #     "filename_original": image_original["filename"],
-    #     "filename_phenopype": image_phenopype["filename"],
-    #     "width": image_phenopype["width"],
-    #     "height": image_phenopype["height"],            
-    #     }
-    
-    # if "resize" in image_phenopype:
-    #     if image_phenopype["resize"] == True:
-    #         df_image_dict.update({
-    #             "resize": image_phenopype["resize"], 
-    #             "resite_factor": image_phenopype["resize_factor"] })
-    # df_image_data = pd.DataFrame(df_image_dict, index=[0])
-    
+        image_path =  os.path.join(dirpath,attributes["image_phenopype"]["filename"])
+        
     ## return
-    # if flag_container == True:
-    #     ct = container(image, df_image_data)
-    #     ct.dirpath = directory_path
-    #     ct.save_suffix = save_suffix
-
-    # if flag_container == True:
-    #     return ct
-    # elif flag_container == False:
-    #     if flag_df:
-    #         return image, df_image_data
-    #     else:
-    #         return image
-    return image
+    return load_image(image_path, load_container=flags.container, dirpath=dirpath)
     
 
 
+# def load_pp_project(root_dir):
+#     """
+#     Load phenoype project file to Python namespace.
 
-def show_image(
-    image,
-    max_dim=1200,
-    position_reset=True,
-    position_offset=25,
-    window_aspect="normal",
-    check=True,
-    **kwargs
-):
-    """
-    Show one or multiple images by providing path string or array or list of 
-    either.
+#     Parameters
+#     ----------
+#     root_dir: str
+#         path to project root directory that containes "project.data"
+#         and "attributes.yaml"
+
+#     Returns
+#     -------
+#     project: project
+#         phenopype project object
+#     """
     
-    Parameters
-    ----------
-    image: array, list of arrays
-        the image or list of images to be displayed. can be array-type, 
-        or list or arrays
-    max_dim: int, optional
-        maximum dimension on either acis
-    window_aspect: {"fixed", "free"} str, optional
-        type of opencv window ("free" is resizeable)
-    position_reset: bool, optional
-        flag whether image positions should be reset when reopening list of 
-        images
-    position_offset: int, optional
-        if image is list, the distance in pixels betweeen the positions of 
-        each newly opened window (only works in conjunction with 
-        "position_reset")
-    check: bool, optional
-        user input required when more than 10 images are opened at the same 
-        time
-    """
-    ## kwargs
-    flag_check = check
-    test_params = kwargs.get("test_params", {})
+#     ## path conversion
+#     root_dir = root_dir.replace(os.sep, "/")
+#     root_dir = os.path.abspath(root_dir)
 
-    ## load image
-    if image.__class__.__name__ == "ndarray":
-        pass
-    elif image.__class__.__name__ == "container":
-        if not image.canvas.__class__.__name__ == "NoneType":
-            image = copy.deepcopy(image.canvas)
-        else:
-            image = copy.deepcopy(image.image)
-    elif image.__class__.__name__ == "list":
-        pass
-    else:
-        print("wrong input format.")
-        return
-
-    ## open images list or single images
-    while True:
-        if isinstance(image, list):
-            if len(image) > 10 and flag_check == True:
-                warning_string = (
-                    "WARNING: trying to open "
-                    + str(len(image))
-                    + " images - proceed (y/n)?"
-                )
-                check = input(warning_string)
-                if check in ["y", "Y", "yes", "Yes"]:
-                    print("Proceed - Opening images ...")
-                    pass
-                else:
-                    print("Aborting")
-                    break
-            idx = 0
-            for i in image:
-                idx += 1
-                if i.__class__.__name__ == "ndarray":
-                    _image_viewer(
-                        i,
-                        mode="",
-                        window_aspect=window_aspect,
-                        window_name="phenopype" + " - " + str(idx),
-                        window_control="external",
-                        max_dim=max_dim,
-                        previous=test_params,
-                    )
-                    if position_reset == True:
-                        cv2.moveWindow(
-                            "phenopype" + " - " + str(idx),
-                            idx + idx * position_offset,
-                            idx + idx * position_offset,
-                        )
-                else:
-                    print("skipped showing list item of type " + i.__class__.__name__)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            break
-        else:
-            _image_viewer(
-                image=image,
-                mode="",
-                window_aspect=window_aspect,
-                window_name="phenopype",
-                window_control="internal",
-                # max_dim=max_dim,
-                # previous=test_params,
-            )
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            break
+#     ## load pickled project object
+#     if "attributes.yaml" in os.listdir(root_dir):
+#         project_data_path = os.path.join(root_dir, "project.data")
+#                 Path(root_dir)
+#         ## add dirlist to project object (always overwrite)
+#         dirnames = os.listdir(os.path.join(proj.root_dir, "data"))
+#         dirpaths = []
+#         for dirname in dirnames:
+#             dirpaths.append(os.path.join(proj.root_dir, "data", dirname))
+#         proj.dirnames = dirnames
+#         proj.dirpaths = dirpaths
         
+#         print("--------------------------------------------")
+#         print("Project loaded from \n" + proj.root_dir)
+#         print("\nProject has {} image folders".format(len(proj.dirpaths)))
+#         print("--------------------------------------------")
         
-        
-def show_config_template(template):
-    """
-    
-    Helper function to print phenopype configuration file in formatted yaml.
+#         return proj
+            
+#     else:
+#         print("Could not load phenopype project - no \"attributes.yaml\" found in " + root_dir)
 
-    Parameters
-    ----------
-    template : str
-        name of pype configuration file to print (with or without ".yaml")
-
-    Returns
-    -------
-    None
-
-    """
-    
-    if not template.endswith(".yaml"):
-        template_name = template + ".yaml"
-    else:
-        template_name = template
-    if template_name in pype_config_templates:
-        config_steps = _load_yaml(pype_config_templates[template_name])
-        print("SHOWING BUILTIN PHENOPYPE TEMPLATE " + template_name + "\n\n")
-        _show_yaml(config_steps)
-        
 
 
 def save_image(
@@ -1143,3 +606,138 @@ def save_image(
             pass
         cv2.imwrite(path, image)
         break
+
+
+
+def show_image(
+    image,
+    max_dim=1200,
+    position_reset=True,
+    position_offset=25,
+    window_aspect="normal",
+    check=True,
+    **kwargs
+):
+    """
+    Show one or multiple images by providing path string or array or list of 
+    either.
+    
+    Parameters
+    ----------
+    image: array, list of arrays
+        the image or list of images to be displayed. can be array-type, 
+        or list or arrays
+    max_dim: int, optional
+        maximum dimension on either acis
+    window_aspect: {"fixed", "free"} str, optional
+        type of opencv window ("free" is resizeable)
+    position_reset: bool, optional
+        flag whether image positions should be reset when reopening list of 
+        images
+    position_offset: int, optional
+        if image is list, the distance in pixels betweeen the positions of 
+        each newly opened window (only works in conjunction with 
+        "position_reset")
+    check: bool, optional
+        user input required when more than 10 images are opened at the same 
+        time
+    """
+    ## kwargs
+    flag_check = check
+    test_params = kwargs.get("test_params", {})
+
+    ## load image
+    if image.__class__.__name__ == "ndarray":
+        pass
+    elif image.__class__.__name__ == "container":
+        if not image.canvas.__class__.__name__ == "NoneType":
+            image = copy.deepcopy(image.canvas)
+        else:
+            image = copy.deepcopy(image.image)
+    elif image.__class__.__name__ == "list":
+        pass
+    else:
+        print("wrong input format.")
+        return
+
+    ## open images list or single images
+    while True:
+        if isinstance(image, list):
+            if len(image) > 10 and flag_check == True:
+                warning_string = (
+                    "WARNING: trying to open "
+                    + str(len(image))
+                    + " images - proceed (y/n)?"
+                )
+                check = input(warning_string)
+                if check in ["y", "Y", "yes", "Yes"]:
+                    print("Proceed - Opening images ...")
+                    pass
+                else:
+                    print("Aborting")
+                    break
+            idx = 0
+            for i in image:
+                idx += 1
+                if i.__class__.__name__ == "ndarray":
+                    _ImageViewer(
+                        i,
+                        mode="",
+                        window_aspect=window_aspect,
+                        window_name="phenopype" + " - " + str(idx),
+                        window_control="external",
+                        max_dim=max_dim,
+                        previous=test_params,
+                    )
+                    if position_reset == True:
+                        cv2.moveWindow(
+                            "phenopype" + " - " + str(idx),
+                            idx + idx * position_offset,
+                            idx + idx * position_offset,
+                        )
+                else:
+                    print("skipped showing list item of type " + i.__class__.__name__)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            break
+        else:
+            _ImageViewer(
+                image=image,
+                mode="",
+                window_aspect=window_aspect,
+                window_name="phenopype",
+                window_control="internal",
+                # max_dim=max_dim,
+                # previous=test_params,
+            )
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            break
+        
+        
+        
+def show_config_template(template):
+    """
+    
+    Helper function to print phenopype configuration file in formatted yaml.
+
+    Parameters
+    ----------
+    template : str
+        name of pype configuration file to print (with or without ".yaml")
+
+    Returns
+    -------
+    None
+
+    """
+    
+    if not template.endswith(".yaml"):
+        template_name = template + ".yaml"
+    else:
+        template_name = template
+    if template_name in pype_config_templates:
+        config_steps = _load_yaml(pype_config_templates[template_name])
+        print("SHOWING BUILTIN PHENOPYPE TEMPLATE " + template_name + "\n\n")
+        _show_yaml(config_steps)
+        

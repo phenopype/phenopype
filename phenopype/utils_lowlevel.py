@@ -7,8 +7,10 @@ import pandas as pd
 import time
 from timeit import default_timer as timer
 import ruamel.yaml
+
 from datetime import datetime
 from math import cos
+from PIL import Image
 from stat import S_IWRITE
 from ruamel.yaml import YAML
 from watchdog.observers import Observer
@@ -23,13 +25,13 @@ import io
 
 #%% settings
 
-
+Image.MAX_IMAGE_PIXELS = 999999999
 
 
 #%% classes
 
 # @_image_viewer_settings
-class _image_viewer:
+class _ImageViewer:
     def __init__(self, 
                  image, 
                  tool=None,
@@ -760,7 +762,7 @@ class _image_viewer:
         
         
 
-class _yaml_file_monitor:
+class _YamlFileMonitor:
     def __init__(self, filepath, delay=500):
 
         ## file, location and event action
@@ -779,7 +781,7 @@ class _yaml_file_monitor:
         self.time_start = None
         self.time_diff = 10
         
-    def on_update(self, event):
+    def _on_update(self, event):
         print("event")
         if not self.time_start.__class__.__name__ == "NoneType":
             self.time_end = timer()
@@ -797,13 +799,13 @@ class _yaml_file_monitor:
         
         self.time_start = timer()
         
-    def stop(self):
+    def _stop(self):
         self.observer.stop()
         self.observer.join()
 
 
 
-class _dummy_class:
+class _DummyClass:
     def __init__(self, kwargs):
         self.__dict__.update(kwargs)
 
@@ -1077,6 +1079,71 @@ def _get_circle_perimeter(center_x, center_y, radius):
     return coordinate_list
         
 
+
+def _load_image_data(obj_input, path_and_type=True, resize=1):
+    """
+    Create a DataFreame with image information (e.g. dimensions).
+
+    Parameters
+    ----------
+    obj_input: str or ndarray
+        can be a path to an image stored on the harddrive OR an array already 
+        loaded to Python.
+    path_and_type: bool, optional
+        return image path and filetype to image_data dictionary
+
+    Returns
+    -------
+    image_data: dict
+        contains image data (+meta data, if selected)
+
+    """
+    if obj_input.__class__.__name__ == "str":
+        if os.path.isfile(obj_input):
+            path = obj_input
+        image = Image.open(path)
+        width, height = image.size
+        image.close()
+        image_data = {
+            "filename": os.path.split(obj_input)[1],
+            "width": width,
+            "height": height,
+        }
+        
+        if path_and_type: 
+            image_data.update({
+                "filepath": obj_input,
+                "filetype": os.path.splitext(obj_input)[1]})
+            
+    elif obj_input.__class__.__name__ == "ndarray":
+        image = obj_input
+        width, height = image.shape[0:2]
+        image_data = {
+            "filename": "unknown",
+            "filepath": "unknown",
+            "filetype": "ndarray",
+            "width": width,
+            "height": height,
+        }
+    else:
+        warnings.warn("Not a valid image file - cannot read image data.")
+
+    ## issue warnings for large images
+    if width * height > 125000000:
+        warnings.warn(
+            "Large image - expect slow processing."
+        )
+    elif width * height > 250000000:
+        warnings.warn(
+            "Extremely large image - expect very slow processing \
+                      and consider resizing."
+        )
+
+    ## return image data
+    return image_data
+
+
+
 def _load_pype_config(config=None, 
                       template=None,
                       name=None):
@@ -1162,6 +1229,43 @@ def _load_pype_config(config=None,
     ## return
     return config
 
+
+def _resize_image(image, factor=1, interpolation="cubic"):
+    """
+    Resize image by resize factor 
+
+    Parameters
+    ----------
+    obj_input: array 
+        image to be resized
+    resize: float, optional
+        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
+        original size).
+    interpolation: str, optional
+        interpolation algorithm to use. check pp.settings.opencv_interpolation_flags
+        and refer to https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
+
+    Returns
+    -------
+    image : array or container
+        resized image
+
+    """
+    
+    ## method
+    if factor == 1:
+        pass
+    else:
+        image = cv2.resize(
+            image, 
+            (0, 0), 
+            fx=1 * factor, 
+            fy=1 * factor, 
+            interpolation=opencv_interpolation_flags[interpolation]
+        )
+
+    ## return results
+    return image
 
 def _load_yaml(string, typ="rt"):
         

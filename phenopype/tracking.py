@@ -8,8 +8,7 @@ import pprint
 
 from math import inf
 
-from phenopype.utils import load_image_data
-from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool
+from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool, _load_image_data
 from phenopype.core.segmentation import blur, threshold, contours_detect
 from phenopype.settings import colours
 

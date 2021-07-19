@@ -11,7 +11,7 @@ import SimpleITK as sitk
 from tqdm import tqdm as _tqdm
 
 from phenopype.utils_lowlevel import (
-    _image_viewer,
+    _ImageViewer,
     _auto_line_width,
     _auto_point_size,
     _auto_text_width,
@@ -261,7 +261,7 @@ def landmarks(
             pass
 
         ## set landmarks
-        out = _image_viewer(
+        out = _ImageViewer(
             image,
             tool="landmarks",
             point_size=point_size,
@@ -376,7 +376,7 @@ def polylines(
             pass
 
         ## method
-        out = _image_viewer(
+        out = _ImageViewer(
             image,
             tool="polyline",
             line_width=line_width,
