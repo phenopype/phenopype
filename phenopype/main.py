@@ -94,6 +94,8 @@ class Project:
         
         if os.path.isdir(root_dir):
             if "attributes.yaml" and "data" in os.listdir(root_dir):
+                print("--------------------------------------------")
+                print("Found existing project root directory - loading from:\n" + root_dir)
                 if flags.load and not flags.overwrite:
                     flags.overwrite_proceed = False
                 elif not flags.load and flags.overwrite:
@@ -105,36 +107,31 @@ class Project:
                 if flags.overwrite_proceed:
                     rmtree(root_dir, onerror=_del_rw)
                     print('\n"' + root_dir + '" created (overwritten)')
+                    flags.root_dir_new = True
                 else:
-                    os.listdir
+                    dirnames = os.listdir(os.path.join(root_dir, "data"))
+                    dirpaths = []
+                    for filepath in os.listdir(os.path.join(root_dir, "data")):
+                        dirpaths.append(os.path.join(root_dir, "data", filepath))
+                    flags.root_dir_new = False
+            elif len(os.listdir(root_dir)) == 0:
+                flags.root_dir_new = True
+            else:
+                print("Directory is neither empty nor a valid phenopype directory - aborting.")
+                return
+
                     
-        else:
+                    
+        if flags.root_dir_new:
+            
             print("--------------------------------------------")
-            print("Create a new phenopype project at\n" + root_dir + "\n")
-                create = input("Proceed? (y/n)\n")
-                if create in ["y", "yes"]:
-                    if os.path.isdir(root_dir):
-                        if flags.overwrite == True:
-                            rmtree(root_dir, onerror=_del_rw)
-                            print('\n"' + root_dir + '" created (overwritten)')
-                            pass
-                        else:
-                            overwrite = input(
-                                "Warning - project root_dir already exists - overwrite? (y/n)"
-                            )
-                            if overwrite == "y" or overwrite == "yes":
-                                rmtree(root_dir, onerror=_del_rw)
-                                print('\n"' + root_dir + '" created (overwritten)')
-                                pass
-                            else:
-                                print('\n"' + root_dir + '" not created!')
-                                print("--------------------------------------------")
-                                break
-                    else:
-                        pass
-                else:
-                    print('\n"' + root_dir + '" not created!')
-                    break
+            print("Creating a new phenopype project at\n" + root_dir + "\n")
+            create = input("Proceed? (y/n)\n")
+            if create in confirm_options:
+                pass
+            else:
+                print('\n"' + root_dir + '" not created!')
+                return
 
             ## make directories
             self.root_dir = root_dir
@@ -163,7 +160,15 @@ class Project:
                 + os.path.join(self.root_dir, "attributes.yaml")
             )
             print("--------------------------------------------")
-            break
+            
+        else:
+            self.root_dir = root_dir
+            self.dirnames = dirnames
+            self.dirpaths = dirpaths
+            
+            print("\nProject \"{}\" successfully loaded with {} images".format(os.path.basename(root_dir),len(self.dirpaths)))
+            print("--------------------------------------------")
+
 
     def add_files(
         self,
