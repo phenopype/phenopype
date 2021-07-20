@@ -770,7 +770,7 @@ class _YamlFileMonitor:
         self.filename = os.path.basename(filepath)
         self.filepath = filepath
         self.event_handler = PatternMatchingEventHandler(patterns=["*/" + self.filename])
-        self.event_handler.on_any_event = self.on_update
+        self.event_handler.on_any_event = self._on_update
 
         ## intitialize
         self.content = _load_yaml(self.filepath)

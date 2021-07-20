@@ -301,7 +301,6 @@ class Container(object):
         self.canvas = None
 
         ## attributes
-        self.df_image_data = copy.deepcopy(self.df_image_data_copy)
         self.reference_manual_mode = False
 
         # if hasattr(self, "df_masks"):

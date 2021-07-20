@@ -90,84 +90,78 @@ class Project:
         ## path conversion
         root_dir = root_dir.replace(os.sep, "/")
         root_dir = os.path.abspath(root_dir)
-            
         
-        if os.path.isdir(root_dir):
-            if "attributes.yaml" and "data" in os.listdir(root_dir):
-                print("--------------------------------------------")
-                print("Found existing project root directory - loading from:\n" + root_dir)
-                if flags.load and not flags.overwrite:
-                    flags.overwrite_proceed = False
-                elif not flags.load and flags.overwrite:
-                    flags.overwrite_proceed = False
-                elif flags.load and flags.overwrite:
-                    owp = input("Overwrite or load?")
-                    if owp in confirm_options:
-                        flags.overwrite_proceed = True
-                if flags.overwrite_proceed:
+        print("--------------------------------------------")
+        while True:
+            if os.path.isdir(root_dir):
+                if all(["attributes.yaml" in os.listdir(root_dir),
+                       "data" in os.listdir(root_dir)]):
+                    if flags.load and not flags.overwrite:
+                        print("Found existing project root directory - loading from:\n" + root_dir)
+                        break
+                    elif not flags.load and flags.overwrite:
+                        pass
+                    elif flags.load and flags.overwrite:
+                        print("Found existing phenopype project directory at:\n{}\n".format(root_dir))
+                        query1 = input("overwrite (y/n)?")
+                        if query1 in confirm_options:
+                            pass
+                        else:
+                            print("Aborted - project \"{}\" not overwritten".format(os.path.basename(root_dir)))
+                            return
                     rmtree(root_dir, onerror=_del_rw)
+                    os.makedirs(root_dir)
+                    os.makedirs(os.path.join(root_dir,"data"))
                     print('\n"' + root_dir + '" created (overwritten)')
-                    flags.root_dir_new = True
+                    break
+                elif len(os.listdir(root_dir)) == 0:
+                    print("Found existing project root directory - creating missing directories and files.")
+                    os.makedirs(os.path.join(root_dir,"data"))
+                    break
                 else:
-                    dirnames = os.listdir(os.path.join(root_dir, "data"))
-                    dirpaths = []
-                    for filepath in os.listdir(os.path.join(root_dir, "data")):
-                        dirpaths.append(os.path.join(root_dir, "data", filepath))
-                    flags.root_dir_new = False
-            elif len(os.listdir(root_dir)) == 0:
-                flags.root_dir_new = True
-            else:
-                print("Directory is neither empty nor a valid phenopype directory - aborting.")
-                return
-
+                    print("Directory is neither empty nor a valid phenopype directory - aborting.")
                     
-                    
-        if flags.root_dir_new:
-            
-            print("--------------------------------------------")
-            print("Creating a new phenopype project at\n" + root_dir + "\n")
-            create = input("Proceed? (y/n)\n")
-            if create in confirm_options:
-                pass
+                    return
             else:
-                print('\n"' + root_dir + '" not created!')
-                return
+                print("Creating a new phenopype project directory at:\n" + root_dir + "\n")
+                query2 = input("Proceed? (y/n)\n")
+                if query2 in confirm_options:
+                    os.makedirs(root_dir)
+                    os.makedirs(os.path.join(root_dir,"data"))
+                    break
+                else:
+                    print('\n"' + root_dir + '" not created!')
+                    return
+    
+        ## read directories
+        dirnames, dirpaths = os.listdir(os.path.join(root_dir, "data")), []
+        for filepath in os.listdir(os.path.join(root_dir, "data")):
+            dirpaths.append(os.path.join(root_dir, "data", filepath))
 
-            ## make directories
-            self.root_dir = root_dir
-            os.makedirs(self.root_dir)
-            os.makedirs(os.path.join(self.root_dir,"data"))
-            
-            ## add empty directory lists
-            self.dirnames = []
-            self.dirpaths = []
-
-            ## global project attributes
-            project_info = {
-                "date_created": datetime.today().strftime("%Y%m%d%H%M%S"),
-                "date_changed": datetime.today().strftime("%Y%m%d%H%M%S"),
-                "phenopype_version": pp_version,
-            }
-
+        ## global project attributes
+        if not os.path.isfile(os.path.join(root_dir, "attributes.yaml")):
             project_attributes = {
-                "project_info":project_info,
-                "project_data":None}
-
-            _save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
-
-            print(
-                "\nproject attributes written to "
-                + os.path.join(self.root_dir, "attributes.yaml")
-            )
-            print("--------------------------------------------")
-            
+                "project_info": {
+                    "date_created": datetime.today().strftime("%Y%m%d%H%M%S"),
+                    "date_changed": datetime.today().strftime("%Y%m%d%H%M%S"),
+                    "phenopype_version": pp_version,
+                    },
+                "project_data": None
+                }
+            _save_yaml(project_attributes, os.path.join(root_dir, "attributes.yaml"))
+            print("\nProject \"{}\" successfully created.".format(os.path.basename(root_dir),len(dirpaths)))
         else:
-            self.root_dir = root_dir
-            self.dirnames = dirnames
-            self.dirpaths = dirpaths
+            if len(dirnames) > 0:
+                print("\nProject \"{}\" successfully loaded with {} images".format(os.path.basename(root_dir),len(dirpaths)))
+            else:
+                print("\nProject \"{}\" successfully loaded, but it didn't contain any images!".format(os.path.basename(root_dir)))
+                      
+        print("--------------------------------------------")
             
-            print("\nProject \"{}\" successfully loaded with {} images".format(os.path.basename(root_dir),len(self.dirpaths)))
-            print("--------------------------------------------")
+        ## attach to instance
+        self.root_dir = root_dir
+        self.dirnames = dirnames
+        self.dirpaths = dirpaths
 
 
     def add_files(
@@ -967,7 +961,7 @@ class Pype:
         while True:
 
             ## refresh config
-            self.config = copy.deepcopy(self.FM.content)
+            self.config = copy.deepcopy(self.YFM.content)
             if not self.config:
                 continue
             
@@ -976,7 +970,7 @@ class Pype:
             
             ## terminate
             if self.flags.terminate:
-                self.FM.stop()
+                self.YFM._stop()
                 print("\n\nTERMINATE")
                 break
             
@@ -985,12 +979,19 @@ class Pype:
 
         ## load image as cointainer from array, file, or directory
         if image.__class__.__name__ == "ndarray":
-            self.container = load_image(path=image, load_container=True, save_suffix=name)
+            self.container = load_image(path=image, 
+                                        load_container=True, 
+                                        save_suffix=name)
         elif image.__class__.__name__ == "str":
             if os.path.isfile(image):
-                self.container = load_image(path=image, load_container=True, save_suffix=name)
+                self.container = load_image(path=image, 
+                                            load_container=True, 
+                                            save_suffix=name)
             elif os.path.isdir(image):
-                self.container = load_pp_directory(path=image, load_container=True, save_suffix=name) 
+                self.container = load_pp_directory(path=image, 
+                                                   dirpath=image, 
+                                                   load_container=True, 
+                                                   save_suffix=name) 
             else:
                 print("Invalid path - cannot run pype.")
                 return
@@ -1065,7 +1066,7 @@ class Pype:
         else:  # linux variants
             subprocess.call(("xdg-open", self.config_path))
 
-        self.fm = _YamlFileMonitor(self.config_path)
+        self.YFM = _YamlFileMonitor(self.config_path)
             
         
     def _check_pype_name(self, name):
@@ -1129,9 +1130,11 @@ class Pype:
             visualize=True,
             feedback=True,
             ):
+        
+        flags = AttrDict({"execute":execute, "visualize":visualize, "feedback":feedback})
 
         ## new iteration
-        if feedback:
+        if flags.feedback:
             print(
                 "\n\n------------+++ new pype iteration "
                 + datetime.today().strftime("%Y:%m:%d %H:%M:%S")
@@ -1160,7 +1163,8 @@ class Pype:
             method_list = list(dict(step).values())[0]
                                                   
             ## print current step
-            print(step_name.upper())
+            if flags.feedback:
+                print(step_name.upper())
 
             ## iterate through step list
             for method_idx, method in enumerate(method_list):
@@ -1202,7 +1206,8 @@ class Pype:
                 if execute:                   
                     try:
                         ## run method
-                        print(method_name)
+                        if flags.feedback:
+                            print(method_name)
                         method_args.update()
                         self.container.run(fun=method_name, annotation_id=annotation_id, kwargs=method_args)
                         
@@ -1216,13 +1221,13 @@ class Pype:
             _save_yaml(self.config_updated, self.config_path)
             print("updating pype config file")
 
-        if feedback:
+        if flags.feedback:
             print(
                 "\n\n------------+++ finished pype iteration +++--------------\n" 
                 + "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
             )
         
-        if visualize: 
+        if flags.visualize: 
             try:
                 if self.container.canvas.__class__.__name__ == "NoneType":
                     self.container.select_canvas(canvas="mod")
