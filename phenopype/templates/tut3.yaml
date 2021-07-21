@@ -7,7 +7,7 @@
         blocksize: 199
         constant: 5
         channel: red
-    - find_contours:
+    - detect_contours:
         retrieval: ext
         min_diameter: 0
         min_area: 150

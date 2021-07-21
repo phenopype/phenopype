@@ -6,7 +6,7 @@
         blocksize: 49
         constant: 5
     - draw
-    - find_contours:
+    - detect_contours:
         retrieval: ccomp
         min_diameter: 50
         min_area: 0

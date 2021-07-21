@@ -387,20 +387,12 @@ def threshold(
     ## checks
     if len(image.shape) == 3:
         if flag_verbose:
-            print("multi-channel supplied - need single channel image")
-            return
+            image = preprocessing.select_channel(image, "gray")
+            print("multi-channel supplied - defaulting to grayscale")
     if blocksize % 2 == 0:
-        blocksize = blocksize + 1
         if flag_verbose:
-            print("even blocksize supplied - need odd blocksize")
-    if value > 255:
-        value = 255
-        if flag_verbose:
-            print("warning - \"value\" has to be < 255")
-    elif value < 0:
-        value = 0
-        if flag_verbose:
-            print("warning - \"value\" has to be > 0")
+            blocksize = blocksize + 1
+            print("even blocksize supplied, adding 1 to make odd")
 
     ## method
     if method == "otsu":
@@ -427,28 +419,28 @@ def threshold(
             cv2.THRESH_BINARY_INV
             )
 
-    ## apply masks
-    if not masks.__class__.__name__ == "NoneType":
-        ## include == True
-        mask_bool, include_idx, exclude_idx = np.zeros(image.shape, dtype=bool), 0,0
-        for index, row in df_masks.iterrows():
-            if row["include"] == True:
-                if not row["mask"] == "":
-                    coords = eval(row["coords"])
-                    mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
-                    include_idx += 1
-        if include_idx > 0:
-            image[mask_bool == False] = 0
-        for index, row in df_masks.iterrows():
-            if row["include"] == False:
-                if not row["mask"] == "":
-                    coords = eval(row["coords"])
-                    image[_create_mask_bool(image, coords)] = 0
-                    exclude_idx += 1
-        if exclude_idx>0:
-            print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
-        if include_idx>0:
-            print("- including pixels from " + str(include_idx) + " drawn masks ")
+    # ## apply masks
+    # if not masks.__class__.__name__ == "NoneType":
+    #     ## include == True
+    #     mask_bool, include_idx, exclude_idx = np.zeros(image.shape, dtype=bool), 0,0
+    #     for index, row in df_masks.iterrows():
+    #         if row["include"] == True:
+    #             if not row["mask"] == "":
+    #                 coords = eval(row["coords"])
+    #                 mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
+    #                 include_idx += 1
+    #     if include_idx > 0:
+    #         image[mask_bool == False] = 0
+    #     for index, row in df_masks.iterrows():
+    #         if row["include"] == False:
+    #             if not row["mask"] == "":
+    #                 coords = eval(row["coords"])
+    #                 image[_create_mask_bool(image, coords)] = 0
+    #                 exclude_idx += 1
+    #     if exclude_idx>0:
+    #         print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
+    #     if include_idx>0:
+    #         print("- including pixels from " + str(include_idx) + " drawn masks ")
 
     ## return
     return thresh

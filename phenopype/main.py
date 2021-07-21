@@ -28,7 +28,7 @@ from phenopype.settings import (
     default_pype_config,
     default_meta_data_fields,
     pandas_max_rows,
-    pype_config_templates,
+    pype_config_template_list,
     flag_verbose,
     _annotation_functions,
 )
@@ -424,8 +424,8 @@ class Project:
             a range of templates that correspond to the tutorials and that can 
             be inspected using the following helper functions:
             
-            pp.pype_config_templates        # gives a dictionary with template names
-            pp.show_config_template('ex1')  # prints the configuration for example 1
+            pp.pype_config_template_list        # gives a dictionary with template names
+            pp.pype_config_template_show('ex1')  # prints the configuration for example 1
 
         interactive: bool, optional
             start a pype and modify template before saving it to phenopype directories
@@ -573,10 +573,9 @@ class Project:
         reference_name = name
         test_params = kwargs.get("test_params", {})
         print_save_msg = "== no msg =="
-
+        
         ## load reference image
         if reference_image.__class__.__name__ == "str":
-            reference_image_path = os.path.join(self.root_dir, "data", reference_image)
             if os.path.isfile(reference_image):
                 reference_image_path = reference_image
                 reference_image = cv2.imread(reference_image_path)
@@ -594,7 +593,7 @@ class Project:
             reference_image_path = "none (array-type)"
             pass
         elif reference_image.__class__.__name__ == "int":
-            reference_image_path = os.path.join(self.root_dir, "data", self.dirpaths[reference_image])
+            reference_image_path = os.path.join(self.root_dir, "data", self.dirpaths[reference_image-1])
             reference_image = load_pp_directory(
                reference_image_path
             )

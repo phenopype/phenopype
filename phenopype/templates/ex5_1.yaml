@@ -4,9 +4,9 @@
     - detect_reference
     - enter_data:
         columns: ID
-- segmentation:
     - blur:
         kernel_size: 9
+- segmentation:
     - threshold:
         method: adaptive
         blocksize: 99
@@ -21,7 +21,7 @@
         distance_cutoff: 0.8
     - draw:
         line_colour: black # "black" connects, "white" separates 
-    - find_contours:
+    - detect_contours:
         retrieval: ccomp
         min_area: 100
 - measurement:

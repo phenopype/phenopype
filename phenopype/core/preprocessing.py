@@ -28,7 +28,7 @@ def blur(
 
     Parameters
     ----------
-    obj_input : array 
+    image: array 
         input image to be blurred
     kernel_size: int, optional
         size of the blurring kernel (has to be odd - even numbers will be ceiled)
@@ -214,191 +214,163 @@ def detect_mask(
         
     
 
-def create_reference(
-    obj_input,
-    df_image_data=None,
-    df_masks=None,
-    mask=False,
-    overwrite=False,
-    template=False,
-    **kwargs
-):
-    """
-    Measure a size or colour reference card. Minimum input interaction is 
-    measuring a size reference: click on two points inside the provided image, 
-    and enter the distance - returns the pixel-to-mm-ratio as integer or 
-    inserts it into a provided DataFrame (df_image_data). In an optional second
-    step, drag a rectangle mask over the reference card to exclude it from any
-    subsequent image segementation. The mask is exported as new DataFrame, OR, 
-    if provided before, gets appended to an existing one (df_masks). The mask
-    can also be stored as a template for automatic reference detection with the
-    "detect_reference" function.
+# def create_reference(
+#     image,
+#     mask=False,
+#     overwrite=False,
+#     template=False,
+#     **kwargs
+# ):
+#     """
+#     Measure a size or colour reference card. Minimum input interaction is 
+#     measuring a size reference: click on two points inside the provided image, 
+#     and enter the distance - returns the pixel-to-mm-ratio as integer or 
+#     inserts it into a provided DataFrame (df_image_data). In an optional second
+#     step, drag a rectangle mask over the reference card to exclude it from any
+#     subsequent image segementation. The mask is exported as new DataFrame, OR, 
+#     if provided before, gets appended to an existing one (df_masks). The mask
+#     can also be stored as a template for automatic reference detection with the
+#     "detect_reference" function.
 
-    Parameters
-    ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata to add the reference 
-        information to (pixel-to-mm-ratio)
-    df_masks : DataFrame, optional
-        an existing DataFrame containing masks to add the created mask to
-    mask : bool, optional
-        mask a reference card inside the image (returns a mask DataFrame)
-    overwrite : bool, optional
-        if a container is supplied, or when working from the pype, should any 
-        exsting reference information (px-to-mm-ratio) or template be overwritten
-    template: bool, optional
-        should a template for reference detection be created. with an existing 
-        template, phenopype can try to find a reference card in a given image,
-        measure its dimensions, and adjust and colour space. automatically 
-        creates and returns a mask DataFrame that can be added to an existing
-        one
-    kwargs: optional
-        developer options
+#     Parameters
+#     ----------
+#     obj_input : array or container
+#         input object
+#     df_image_data : DataFrame, optional
+#         an existing DataFrame containing image metadata to add the reference 
+#         information to (pixel-to-mm-ratio)
+#     df_masks : DataFrame, optional
+#         an existing DataFrame containing masks to add the created mask to
+#     mask : bool, optional
+#         mask a reference card inside the image (returns a mask DataFrame)
+#     overwrite : bool, optional
+#         if a container is supplied, or when working from the pype, should any 
+#         exsting reference information (px-to-mm-ratio) or template be overwritten
+#     template: bool, optional
+#         should a template for reference detection be created. with an existing 
+#         template, phenopype can try to find a reference card in a given image,
+#         measure its dimensions, and adjust and colour space. automatically 
+#         creates and returns a mask DataFrame that can be added to an existing
+#         one
+#     kwargs: optional
+#         developer options
 
-    Returns
-    -------
-    px_mm_ratio: int or container
-        pixel to mm ratio - not returned if df_image_data is supplied
-    df_image_data: DataFrame or container
-        new or updated, containes reference information
-    df_masks: DataFrame or container
-        new or updated, contains mask information
-    template: array or container
-        template for reference card detection
+#     Returns
+#     -------
+#     px_mm_ratio: int or container
+#         pixel to mm ratio - not returned if df_image_data is supplied
+#     df_image_data: DataFrame or container
+#         new or updated, containes reference information
+#     df_masks: DataFrame or container
+#         new or updated, contains mask information
+#     template: array or container
+#         template for reference card detection
 
-    """
+#     """
 
-    ## kwargs
-    if df_image_data.__class__.__name__ == "DataFrame":
-        flag_df = True
-    else:
-        flag_df = False
-    flag_mask = mask
-    flag_template = template
-    flag_overwrite = overwrite
-    test_params = kwargs.get("test_params", {})
+#     ## kwargs
+#     flag_mask = mask
+#     flag_template = template
+#     flag_overwrite = overwrite
+#     test_params = kwargs.get("test_params", {})
+    
+#     ## load image
 
-    ## load image
-    px_mm_ratio = None
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame(
-                {"filename": "unknown"}, index=[0]
-            )  ## may not be necessary
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "reference_template_px_mm_ratio"):
-            px_mm_ratio = copy.deepcopy(obj_input.reference_template_px_mm_ratio)
-        if hasattr(obj_input, "df_masks"):
-            df_masks = copy.deepcopy(obj_input.df_masks)
-    else:
-        print("wrong input format.")
-        return
 
-    ## check if exists
-    while True:
-        if not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
-            print("- pixel-to-mm-ratio already measured (overwrite=False)")
-            break
-        elif not px_mm_ratio.__class__.__name__ == "NoneType" and flag_overwrite == False:
-            print("- measure pixel-to-mm-ratio (overwritten)")
-            pass
-        elif px_mm_ratio.__class__.__name__ == "NoneType":
-            print("- measure pixel-to-mm-ratio")
-            pass
+#     ## check if exists
 
-        ## method
-        out = _ImageViewer(image, tool="reference", previous=test_params)
+#     ## method
+#     out = _ImageViewer(image, tool="comment")
+    
+#     pp.show_image(image)
+    
+    
 
-        points = out.reference_coords
-        distance_px = _sqrt(
-                ((points[0][0] - points[1][0]) ** 2)
-                + ((points[0][1] - points[1][1]) ** 2)
-            )
-        
-        entry = enter_data(image, columns="length", test_params=test_params)
-        distance_mm = float(entry["length"][0])
-        px_mm_ratio = float(distance_px / distance_mm)
+#     points = out.reference_coords
+#     distance_px = _sqrt(
+#             ((points[0][0] - points[1][0]) ** 2)
+#             + ((points[0][1] - points[1][1]) ** 2)
+#         )
+    
+#     entry = enter_data(image, columns="length")
+#     distance_mm = float(entry["length"][0])
+#     px_mm_ratio = float(distance_px / distance_mm)
 
-        ## create template for image registration
-        if flag_template or flag_mask:
-            out = _ImageViewer(image, tool="template", previous=test_params)
+#     ## create template for image registration
+#     if flag_template or flag_mask:
+#         out = _ImageViewer(image, tool="template", previous=test_params)
 
-            ## make template and mask
-            template = image[
-                out.rect_list[0][1] : out.rect_list[0][3],
-                out.rect_list[0][0] : out.rect_list[0][2],
-            ]
-            coords = out.point_list
+#         ## make template and mask
+#         template = image[
+#             out.rect_list[0][1] : out.rect_list[0][3],
+#             out.rect_list[0][0] : out.rect_list[0][2],
+#         ]
+#         coords = out.point_list
 
-            ## check if exists
-            while True:
-                if not df_masks.__class__.__name__ == "NoneType":
-                    if "reference" in df_masks["mask"].values and flag_overwrite == False:
-                        print("- reference template mask already created (overwrite=False)")
-                        break
-                    elif "reference" in df_masks["mask"].values and flag_overwrite == True:
-                        print("- add reference template mask (overwritten)")
-                        df_masks = df_masks[~df_masks["mask"].isin(["reference"])]
-                        pass
+#         ## check if exists
+#         while True:
+#             if not df_masks.__class__.__name__ == "NoneType":
+#                 if "reference" in df_masks["mask"].values and flag_overwrite == False:
+#                     print("- reference template mask already created (overwrite=False)")
+#                     break
+#                 elif "reference" in df_masks["mask"].values and flag_overwrite == True:
+#                     print("- add reference template mask (overwritten)")
+#                     df_masks = df_masks[~df_masks["mask"].isin(["reference"])]
+#                     pass
 
-                ## make mask df
-                if len(coords) > 0:
-                    points = coords[0]
-                    df_mask_temp = pd.DataFrame(
-                        {"mask": "reference", "include": False, "coords": str(points)},
-                        index=[0],
-                    )
-                    df_mask_temp = pd.concat(
-                        [df_image_data, df_mask_temp], axis=1, sort=True
-                    )
+#             ## make mask df
+#             if len(coords) > 0:
+#                 points = coords[0]
+#                 df_mask_temp = pd.DataFrame(
+#                     {"mask": "reference", "include": False, "coords": str(points)},
+#                     index=[0],
+#                 )
+#                 df_mask_temp = pd.concat(
+#                     [df_image_data, df_mask_temp], axis=1, sort=True
+#                 )
 
-                    ## add to existing df
-                    if df_masks.__class__.__name__ == "NoneType" or len(df_masks) == 0:
-                        df_masks = df_mask_temp
-                        break
-                    if len(df_masks) > 0:
-                        df_masks = df_masks.append(df_mask_temp, sort=True)
-                        break
+#                 ## add to existing df
+#                 if df_masks.__class__.__name__ == "NoneType" or len(df_masks) == 0:
+#                     df_masks = df_mask_temp
+#                     break
+#                 if len(df_masks) > 0:
+#                     df_masks = df_masks.append(df_mask_temp, sort=True)
+#                     break
 
-                else:
-                    print("zero coordinates - redo template!")
-                    break
-            break
-        else:
-            template = None
-            break
+#             else:
+#                 print("zero coordinates - redo template!")
+#                 break
+#         break
+#     else:
+#         template = None
+#         break
 
-    ## add reference info to data frame
-    df_image_data["px_mm_ratio"] = px_mm_ratio
+#     ## add reference info to data frame
+#     df_image_data["px_mm_ratio"] = px_mm_ratio
 
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        if flag_mask:
-            if flag_df:
-                return df_image_data, df_masks
-            else:
-                return px_mm_ratio, df_masks
-        if flag_template:
-            if flag_df:
-                return df_image_data, df_masks, template
-            else:
-                return px_mm_ratio, df_masks, template
-        if not flag_template or flag_mask:
-            if flag_df:
-                return df_image_data
-            else:
-                return px_mm_ratio
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.reference_manually_measured_px_mm_ratio = px_mm_ratio
-        obj_input.reference_manual_mode = True
-        obj_input.df_image_data = df_image_data
-        obj_input.df_masks = df_masks
-        obj_input.reference_template_image = template
+#     ## return
+#     if obj_input.__class__.__name__ == "ndarray":
+#         if flag_mask:
+#             if flag_df:
+#                 return df_image_data, df_masks
+#             else:
+#                 return px_mm_ratio, df_masks
+#         if flag_template:
+#             if flag_df:
+#                 return df_image_data, df_masks, template
+#             else:
+#                 return px_mm_ratio, df_masks, template
+#         if not flag_template or flag_mask:
+#             if flag_df:
+#                 return df_image_data
+#             else:
+#                 return px_mm_ratio
+#     elif obj_input.__class__.__name__ == "container":
+#         obj_input.reference_manually_measured_px_mm_ratio = px_mm_ratio
+#         obj_input.reference_manual_mode = True
+#         obj_input.df_image_data = df_image_data
+#         obj_input.df_masks = df_masks
+#         obj_input.reference_template_image = template
 
 
          
@@ -639,11 +611,8 @@ def detect_reference(
 def enter_data(
     obj_input,
     df_image_data=None,
-    columns="ID",
+    field="ID",
     overwrite=False,
-    label_size="auto",
-    label_width="auto",
-    label_colour="red",
     **kwargs
 ):
     """
@@ -673,125 +642,11 @@ def enter_data(
     """
 
     ## kwargs
-    flag_overwrite = overwrite
-    test_params = kwargs.get("test_params", {})
-    flag_test_mode = False
-    if "flag_test_mode" in test_params:
-        flag_test_mode = test_params["flag_test_mode"]
 
-    ## format columns
-    if not columns.__class__.__name__ == "list":
-        columns = columns.replace(" ", "")
-        columns = columns.split(",")
 
-    ## load image
-    df_other_data = pd.DataFrame({}, index=[0])
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        image_copy = copy.deepcopy(obj_input)
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame(
-                {"filename": "unknown"}, index=[0]
-            )  ## may not be necessary
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
-        image_copy = copy.deepcopy(obj_input.image)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_other_data"):
-            df_other_data = obj_input.df_other_data
-    else:
-        print("wrong input format.")
-        return
 
-    ## more kwargs
-    if label_size == "auto":
-        label_size = int(_auto_text_size(image) * 3)
-    if label_width == "auto":
-        label_width = int(_auto_text_width(image) * 3)
 
-    ## keyboard listener
-    def _keyboard_entry(event, x, y, flags, params):
-        pass
 
-    ## check if exists
-    while True:
-        for col in columns:
-            if col in df_other_data and flag_overwrite == False:
-                print("- column " + col + " already created (overwrite=False)")
-                continue
-            elif col in df_other_data and flag_overwrite == True:
-                df_other_data.drop([col], inplace=True, axis=1)
-                print("- add column " + col + " (overwriting)")
-                pass
-            else:
-                print("- add column " + col)
-                pass
-
-            ## method
-            ## while loop keeps opencv window updated when entering data
-            entry = ""
-            k = 0
-            while True or entry == "":
-
-                cv2.namedWindow("phenopype", flags=cv2.WINDOW_NORMAL)
-                cv2.setMouseCallback("phenopype", _keyboard_entry)
-
-                if not flag_test_mode:
-                    k = cv2.waitKey(1)
-                    if k > 0 and k != 8 and k != 13 and k != 27:
-                        entry = entry + chr(k)
-                    elif k == 8:
-                        entry = entry[0 : len(entry) - 1]
-                else:
-                    entry = test_params["entry"]
-
-                image = copy.deepcopy(image_copy)
-                cv2.putText(
-                    image,
-                    "Enter " + col + ": " + entry,
-                    (int(image.shape[0] // 10), int(image.shape[1] / 3)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    label_size,
-                    colours[label_colour],
-                    label_width,
-                    cv2.LINE_AA,
-                )
-                cv2.imshow("phenopype", image)
-
-                if k == 27:
-                    cv2.destroyWindow("phenopype")
-                    break
-                    return True
-                elif k == 13:
-                    if not entry == "":
-                        cv2.destroyWindow("phenopype")
-                        break
-                elif flag_test_mode:
-                    cv2.destroyWindow("phenopype")
-                    break
-            df_other_data[col] = entry
-        break
-
-    ## drop unspecified columns
-    for col in list(df_other_data):
-        if col not in columns:
-            df_other_data.drop(columns=col, inplace=True)
-
-    ## merge with existing image_data frame
-    df_image_data = pd.concat(
-        [
-            pd.concat([df_image_data] * len(df_other_data)).reset_index(drop=True),
-            df_other_data.reset_index(drop=True),
-        ],
-        axis=1,
-    )
-
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_image_data
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_image_data = df_image_data
-        obj_input.df_other_data = df_other_data
 
 
 
@@ -814,7 +669,6 @@ def select_channel(image, channel="gray", invert=False):
         DESCRIPTION.
 
     """
-    
     
     if channel in ["grayscale","gray"]:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

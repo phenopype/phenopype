@@ -1,9 +1,9 @@
 - preprocessing:
     - create_reference:
         mask: true
-- segmentation:
     - blur:
         kernel_size: 5
+- segmentation:
     - threshold:
         method: binary
         value: 190
@@ -16,7 +16,7 @@
         shape: cross
         kernel_size: 3
         iterations: 3
-    - find_contours:
+    - detect_contours:
         retrieval: ext
         min_diameter: 0
         min_area: 500

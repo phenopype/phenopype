@@ -2,9 +2,9 @@
     - create_mask
     - create_reference
     - enter_data
-- segmentation:
     - blur:
         kernel_size: 3
+- segmentation:
     - threshold:
         method: adaptive
         blocksize: 59
@@ -13,7 +13,7 @@
     - watershed:
         distance_cutoff: 0.5
 #     - draw  # to separate snails
-    - find_contours:
+    - detect_contours:
         retrieval: ccomp # needs to be ccomp for watershed
         min_diameter: 0
         min_area: 200

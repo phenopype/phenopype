@@ -2,9 +2,9 @@
     - create_mask:
         # include: false
         # overwrite: true
-- segmentation:
     - blur:
         kernel_size: 9
+- segmentation:
     - threshold:
         method: adaptive
         blocksize: 299
@@ -17,7 +17,7 @@
         kernel_size: 3
         iterations: 3
     - draw  # to separate phytoplankton cells
-    - find_contours:
+    - detect_contours:
         retrieval: ext # needs to be ccomp for watershed
         min_diameter: 0
         min_area: 10

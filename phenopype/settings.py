@@ -45,13 +45,13 @@ default_pype_config_name = "v1"
 default_pype_config = "ex1"
         
 ## create template list
-pype_config_templates = {}
+pype_config_template_list = {}
 with path(__package__, 'templates') as template_dir:
     template_list = os.listdir(template_dir)
     for template_name in template_list:
         if template_name.endswith(".yaml"):
             template_path = os.path.join(template_dir, template_name)
-            pype_config_templates[template_name] = template_path
+            pype_config_template_list[template_name] = template_path
             
             
             

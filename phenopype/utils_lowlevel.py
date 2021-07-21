@@ -16,7 +16,7 @@ from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-from phenopype.settings import colours, confirm_options, pype_config_templates
+from phenopype.settings import colours, confirm_options, pype_config_template_list
 from phenopype.settings import flag_verbose, opencv_window_flags
 
 ## capture yaml output - temp
@@ -144,18 +144,16 @@ class _ImageViewer:
             self.rect_start, self.drawing = None, False
             
             ## line properties
-            if self.tool in ["rectangle", "rect", "polygon", "poly", "polyline", "draw"]:
-                self.line_colour = colours[kwargs.get("line_colour", "green")]
-                self.line_width = kwargs.get("line_width", _auto_line_width(image))
-                self.line_width_orig = copy.deepcopy(self.line_width)
+            self.line_colour = colours[kwargs.get("line_colour", "green")]
+            self.line_width = kwargs.get("line_width", _auto_line_width(image))
+            self.line_width_orig = copy.deepcopy(self.line_width)
             
             ## point properties
-            if self.tool in ["landmarks", "landmark"]:
-                self.point_size = kwargs.get("point_size", _auto_point_size(image))
-                self.point_colour = colours[kwargs.get("point_colour", "red")]
-                self.text_size = kwargs.get("label_size", _auto_text_size(image))
-                self.text_width = kwargs.get("label_size", _auto_text_width(image))
-                self.label_colour = colours[kwargs.get("label_colour", "black")]
+            self.point_size = kwargs.get("point_size", _auto_point_size(image))
+            self.point_colour = colours[kwargs.get("point_colour", "red")]
+            self.text_size = kwargs.get("label_size", _auto_text_size(image))
+            self.text_width = kwargs.get("label_size", _auto_text_width(image))
+            self.label_colour = colours[kwargs.get("label_colour", "black")]
                 
         # =============================================================================
         # previous parameters
@@ -191,78 +189,106 @@ class _ImageViewer:
         global global_end_while
         global_end_while = False
         
-        ## show canvas
-        cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
-        cv2.startWindowThread() 
-        cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
-        cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
-        cv2.imshow(self.window_name, self.canvas)
-
-
         # =============================================================================
         # window control
         # =============================================================================
         
-        self.keypress = None
-        if window_control == "internal":
-            while not any([self.finished, self.done]):
+        ## temporary data entry loop, will be integrated later
+        if self.tool == "comment":
+            entry = ""
+            k = 0
+            
+            while True or entry == "":
+
+                cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
+                cv2.setMouseCallback(self.window_name, self._keyboard_entry)
+
+                k = cv2.waitKey(1)
+                if k > 0 and k != 8 and k != 13 and k != 27:
+                    entry = entry + chr(k)
+                elif k == 8:
+                    entry = entry[0 : len(entry) - 1]
+
+
+                self.canvas = copy.deepcopy(self.canvas_copy)
+                cv2.putText(
+                    self.canvas,
+                    "Enter:" + entry,
+                    (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    self.text_size,
+                    self.label_colour,
+                    self.text_width,
+                    cv2.LINE_AA,
+                )
                 cv2.imshow(self.window_name, self.canvas)
-                self.keypress = cv2.waitKey(500)                 
-                if self.flag_test_mode == True:
-                    self.done = True
-                    self.finished = True
-                    cv2.waitKey(self.wait_time)
+
+                if k == 27:
                     cv2.destroyAllWindows()
-                elif self.flag_test_mode == False:
-                    
-                    ## keypress
-                    
-                    ## Enter
-                    if self.keypress == 13:
-                        self.done = True
+                    sys.exit("\n\nTERMINATE (by user)")
+                elif k == 13:
+                    if not entry == "":
+                        self.done
+                        self.entry = entry
                         cv2.destroyAllWindows()
-                        
-                    ## Ctrl + Enter
-                    elif self.keypress == 10:
+                        break
+            
+        else:
+            cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
+            cv2.startWindowThread() 
+            cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
+            cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
+            cv2.imshow(self.window_name, self.canvas)
+            self.keypress = None
+            
+            if window_control == "internal":
+                while not any([self.finished, self.done]):
+                    cv2.imshow(self.window_name, self.canvas)
+                    self.keypress = cv2.waitKey(500)                 
+                    if self.flag_test_mode == True:
                         self.done = True
                         self.finished = True
+                        cv2.waitKey(self.wait_time)
                         cv2.destroyAllWindows()
-                        print("finish")
-                        
-                    ## Esc
-                    elif self.keypress == 27:
-                        cv2.destroyAllWindows()
-                        sys.exit("\n\nTERMINATE (by user)")
-                        
-                    ## Ctrl + z
-                    elif self.keypress == 26 and self.tool == "draw":
-                        self.point_list = self.point_list[:-1]
-                        self._canvas_renew()
-                        self._canvas_draw(
-                            tool="line_bin", coord_list=self.point_list)
-                        self._canvas_blend()
-                        self._canvas_mount()
-                        
-                    elif global_end_while:
-                        self.done = True
-                        cv2.destroyAllWindows()
+                    elif self.flag_test_mode == False:
+                        ## Enter
+                        if self.keypress == 13:
+                            self.done = True
+                            cv2.destroyAllWindows()
+                            
+                        ## Ctrl + Enter
+                        elif self.keypress == 10:
+                            self.done = True
+                            self.finished = True
+                            cv2.destroyAllWindows()
+                            print("finish")
+                            
+                        ## Esc
+                        elif self.keypress == 27:
+                            cv2.destroyAllWindows()
+                            sys.exit("\n\nTERMINATE (by user)")
+                            
+                        ## Ctrl + z
+                        elif self.keypress == 26 and self.tool == "draw":
+                            self.point_list = self.point_list[:-1]
+                            self._canvas_renew()
+                            self._canvas_draw(
+                                tool="line_bin", coord_list=self.point_list)
+                            self._canvas_blend()
+                            self._canvas_mount()
+                            
+                        elif global_end_while:
+                            self.done = True
+                            cv2.destroyAllWindows()
+    
+            else:
+                if self.flag_test_mode == True:
+                    self.done = True
+                    cv2.waitKey(self.wait_time)
+                    cv2.destroyAllWindows()
 
-                ## complete unfinished objects
-                # if self.done:
-                #     if self.tool in ["polygon", "poly"]:
-                #         if len(self.points) > 2:
-                #             self.points.append(self.points[0])
-                #             self.polygons.append(self.points)
-                #     elif self.tool in ["polyline","polylines","lines"]:
-                #         if len(self.points) > 0:
-                #             self.polygons.append(self.points)
-                #     elif self.tool in ["landmarks", "landmark"]:
-                #         self.polygons.append(self.points)
-        else:
-            if self.flag_test_mode == True:
-                self.done = True
-                cv2.waitKey(self.wait_time)
-                cv2.destroyAllWindows()
+    def _keyboard_entry(self, event, x, y, flags, params):
+        pass
 
     def _on_mouse_plain(self, event, x, y, flags, params):
         if event == cv2.EVENT_MOUSEWHEEL and not self.keypress == 9:
@@ -301,7 +327,6 @@ class _ImageViewer:
                 self._on_mouse_rectangle(event, x, y, flags, template=True)
             elif self.tool == "draw":
                 self._on_mouse_draw(event, x, y, flags)
-
                 
     def _on_mouse_point(self, event, x, y):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -374,14 +399,10 @@ class _ImageViewer:
             self._zoom_coords_orig(x,y)
             
             ## append points to point list
-            print("append")
-            # print(self.points)
             self.points.append(self.coords_original)
             
             ## apply tool and refresh canvas
-            # self._canvas_renew()
-            print(self.polygons)
-            # print(self.polygons + [self.points])
+            self._canvas_renew()
             self._canvas_draw(
                 tool="line", coord_list=self.polygons + [self.points])
             self._canvas_mount()
@@ -1170,7 +1191,7 @@ def _load_pype_config(config=None,
     elif config.__class__.__name__ == "NoneType" and template.__class__.__name__ == "str":
         if not template.endswith(".yaml"):
             template = template + ".yaml"
-        if template in pype_config_templates:
+        if template in pype_config_template_list:
             flag_create_from_phenopype_template = True
         elif os.path.isfile(template):
             flag_create_from_user_template = True
@@ -1189,10 +1210,10 @@ def _load_pype_config(config=None,
         config = _load_yaml(config_path)
         return config
     if flag_create_from_phenopype_template:
-        config_steps = _load_yaml(pype_config_templates[template])
+        config_steps = _load_yaml(pype_config_template_list[template])
         config_path = "NA"
         template_name = template
-        template_path = pype_config_templates[template]
+        template_path = pype_config_template_list[template]
         print("New pype configuration created ({}) from phenopype template:\n{}".format((template),(template_path)))
     if flag_create_from_user_template:
         config_loaded = _load_yaml(template)

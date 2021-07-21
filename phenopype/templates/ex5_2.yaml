@@ -4,15 +4,15 @@
     - detect_reference
     - enter_data:
         columns: ID
-- segmentation:
     - blur:
         kernel_size: 5
+- segmentation:
     - threshold:
         method: binary
         value: 200
     - draw:
         line_colour: black # "black" connects, "white" separates 
-    - find_contours:
+    - detect_contours:
         retrieval: ext
         min_area: 100
 - measurement:

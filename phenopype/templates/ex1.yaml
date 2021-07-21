@@ -2,9 +2,9 @@
     - create_mask
     - create_reference:
         mask: true
-- segmentation:
     - blur:
         kernel_size: 15
+- segmentation:
     - threshold:
         method: adaptive
         blocksize: 49
@@ -15,7 +15,7 @@
         shape: cross
         kernel_size: 9
         iterations: 2
-    - find_contours:
+    - detect_contours:
         retrieval: ccomp
         min_diameter: 0
         min_area: 250

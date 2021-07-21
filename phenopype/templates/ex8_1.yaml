@@ -2,9 +2,9 @@
     - create_mask: 
         label: mask1
     - create_reference
-- segmentation:
     - blur: 
         kernel_size: 25
+- segmentation:
     - threshold: 
         method: binary
         value: 170
@@ -16,7 +16,7 @@
         shape: ellipse
         kernel_size: 3
         iterations: 3
-    - find_contours:
+    - detect_contours:
         retrieval: ext
         min_diameter: 0
         min_area: 500

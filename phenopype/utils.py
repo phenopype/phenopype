@@ -14,7 +14,7 @@ import phenopype.core.visualization as visualization
 import phenopype.core.export as export
 
 from phenopype.settings import AttrDict, default_filetypes, flag_verbose, \
-    pype_config_templates, confirm_options
+    pype_config_template_list, confirm_options
 from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr, \
     _load_image_data, _load_yaml, _show_yaml
     
@@ -489,50 +489,6 @@ def load_pp_directory(
     
 
 
-# def load_pp_project(root_dir):
-#     """
-#     Load phenoype project file to Python namespace.
-
-#     Parameters
-#     ----------
-#     root_dir: str
-#         path to project root directory that containes "project.data"
-#         and "attributes.yaml"
-
-#     Returns
-#     -------
-#     project: project
-#         phenopype project object
-#     """
-    
-#     ## path conversion
-#     root_dir = root_dir.replace(os.sep, "/")
-#     root_dir = os.path.abspath(root_dir)
-
-#     ## load pickled project object
-#     if "attributes.yaml" in os.listdir(root_dir):
-#         project_data_path = os.path.join(root_dir, "project.data")
-#                 Path(root_dir)
-#         ## add dirlist to project object (always overwrite)
-#         dirnames = os.listdir(os.path.join(proj.root_dir, "data"))
-#         dirpaths = []
-#         for dirname in dirnames:
-#             dirpaths.append(os.path.join(proj.root_dir, "data", dirname))
-#         proj.dirnames = dirnames
-#         proj.dirpaths = dirpaths
-        
-#         print("--------------------------------------------")
-#         print("Project loaded from \n" + proj.root_dir)
-#         print("\nProject has {} image folders".format(len(proj.dirpaths)))
-#         print("--------------------------------------------")
-        
-#         return proj
-            
-#     else:
-#         print("Could not load phenopype project - no \"attributes.yaml\" found in " + root_dir)
-
-
-
 def save_image(
     image,
     name,
@@ -715,7 +671,7 @@ def show_image(
         
         
         
-def show_config_template(template):
+def pype_config_template_show(template):
     """
     
     Helper function to print phenopype configuration file in formatted yaml.
@@ -735,8 +691,8 @@ def show_config_template(template):
         template_name = template + ".yaml"
     else:
         template_name = template
-    if template_name in pype_config_templates:
-        config_steps = _load_yaml(pype_config_templates[template_name])
+    if template_name in pype_config_template_list:
+        config_steps = _load_yaml(pype_config_template_list[template_name])
         print("SHOWING BUILTIN PHENOPYPE TEMPLATE " + template_name + "\n\n")
         _show_yaml(config_steps)
         

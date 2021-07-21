@@ -2,16 +2,16 @@
   - create_mask:
       tool: polygon
       label: mask1
-- segmentation:
   - blur:
       kernel_size: 9
+- segmentation:
   - threshold:
       method: adaptive
       blocksize: 99
       constant: 5
       channel: red
       df_masks: mask1
-  - find_contours:
+  - detect_contours:
       retrieval: ext
       min_area: 150
 - measurement:
