@@ -214,7 +214,7 @@ class _ImageViewer:
                 self.canvas = copy.deepcopy(self.canvas_copy)
                 cv2.putText(
                     self.canvas,
-                    display + entry,
+                    display + " " + entry,
                     (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     self.text_size,

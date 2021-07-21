@@ -30,7 +30,7 @@ def blur(
     Parameters
     ----------
     image: array 
-        input image to be blurred
+        input image
     kernel_size: int, optional
         size of the blurring kernel (has to be odd - even numbers will be ceiled)
     method: {averaging, gaussian, median, bilateral} str, optional
@@ -109,7 +109,6 @@ def create_mask(
         annotation = {
             "info": {
                 "annotation_type": "mask",
-                "mask_shape": tool,
                 "pp_function": "mask_manual",
             },
             "settings": settings,
@@ -217,8 +216,6 @@ def detect_mask(
 def create_reference(
     image,
     mask=False,
-    overwrite=False,
-    template=False,
     **kwargs
 ):
     """
@@ -234,13 +231,8 @@ def create_reference(
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata to add the reference 
-        information to (pixel-to-mm-ratio)
-    df_masks : DataFrame, optional
-        an existing DataFrame containing masks to add the created mask to
+    image: array 
+        input image
     mask : bool, optional
         mask a reference card inside the image (returns a mask DataFrame)
     overwrite : bool, optional
@@ -259,22 +251,18 @@ def create_reference(
     -------
     px_mm_ratio: int or container
         pixel to mm ratio - not returned if df_image_data is supplied
-    df_image_data: DataFrame or container
-        new or updated, containes reference information
-    df_masks: DataFrame or container
-        new or updated, contains mask information
     template: array or container
         template for reference card detection
 
     """
 
     ## kwargs    
-    flags = AttrDict({"mask":mask,"template":template, "overwrite":overwrite})
+    flags = AttrDict({"mask":mask})
 
-
-    ## method
+    ## measure
     out = _ImageViewer(image, tool="reference")
     
+    ## enter length
     points = out.reference_coords
     distance_px = _sqrt(
             ((points[0][0] - points[1][0]) ** 2)
@@ -286,28 +274,24 @@ def create_reference(
     distance_mm = float(entry)
     px_mm_ratio = float(distance_px / distance_mm)
 
-    ## create template for image registration
-    if flags.template or flags.mask:
-        out = _ImageViewer(image, tool="template")
-
-        ## make template and mask
-        template = image[
-            out.rect_list[0][1] : out.rect_list[0][3],
-            out.rect_list[0][0] : out.rect_list[0][2],
-        ]
-        coords = out.point_list
-
-    ## return results
     annotation = {
         "info": {
             "annotation_type": "reference",
             "pp_function": "create_reference",
         },
         "data": {
-            "coord_list": coords,
+            "px_mm_ratio":px_mm_ratio
         }
     }
+    
+    ## create template for image registration
+    if flags.mask:
+        out = _ImageViewer(image, tool="template")
+        annotation["data"]["coord_list"] = out.polygons   
+        
     return annotation
+
+
 
 def detect_reference(
     obj_input,

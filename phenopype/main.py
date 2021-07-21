@@ -566,12 +566,9 @@ class Project:
         """
 
         ## kwargs and setup
-        flag_overwrite = overwrite
-        flag_template = template
-        flag_activate = activate
-        
+        flags = AttrDict({"overwrite":overwrite, "activate":activate})
+
         reference_name = name
-        test_params = kwargs.get("test_params", {})
         print_save_msg = "== no msg =="
         
         ## load reference image
@@ -613,11 +610,11 @@ class Project:
             reference_filename = "reference_" + reference_name + ".tif"
             reference_path = os.path.join(self.root_dir, reference_filename)
             
-            if os.path.isfile(reference_path) and flag_overwrite == False:
+            if os.path.isfile(reference_path) and flags.overwrite == False:
                 print_save_msg = "Reference image not saved, file already exists " + \
                  "- use \"overwrite==True\" or chose different name."
                 break
-            elif os.path.isfile(reference_path) and flag_overwrite == True:
+            elif os.path.isfile(reference_path) and flags.overwrite == True:
                 print_save_msg = "Reference image saved under " + reference_path + " (overwritten)."
                 pass
             elif not os.path.isfile(reference_path):
@@ -626,42 +623,37 @@ class Project:
             
             
             ## generate template name and check if exists
-            if flag_template:
-                template_name = "reference_template_" + reference_name + ".tif"
-                template_path = os.path.join(self.root_dir, template_name)
-    
-                if os.path.isfile(template_path) and flag_overwrite == False:
-                    print_save_msg = "Reference template not saved, file already exists\
-                     - use \"overwrite==True\" or chose different name."
-                    break
-                elif os.path.isfile(template_path) and flag_overwrite == True:
-                    print_save_msg = print_save_msg + "\nReference image saved under " + template_path + " (overwritten)."
-                    pass
-                elif not os.path.isfile(template_path):
-                    print_save_msg = print_save_msg + "\nReference image saved under " + template_path 
-                    pass
-                
-                ## measure reference
-                px_mm_ratio, df_masks, template = preprocessing.create_reference(
-                    reference_image, template=True, test_params=test_params
-                )
-            else:
-                ## measure reference
-                px_mm_ratio = preprocessing.create_reference(
-                    reference_image, template=False, test_params=test_params
-                )
+            template_name = "reference_template_" + reference_name + ".tif"
+            template_path = os.path.join(self.root_dir, template_name)
 
+            if os.path.isfile(template_path) and flags.overwrite == False:
+                print_save_msg = "Reference template not saved, file already exists\
+                 - use \"overwrite==True\" or chose different name."
+                break
+            elif os.path.isfile(template_path) and flags.overwrite == True:
+                print_save_msg = print_save_msg + "\nReference image saved under " + template_path + " (overwritten)."
+                pass
+            elif not os.path.isfile(template_path):
+                print_save_msg = print_save_msg + "\nReference image saved under " + template_path 
+                pass
+            
+            ## measure reference
+            annotation_ref = preprocessing.create_reference(
+                reference_image, mask=True
+            )
+
+            ## create template from mask coordinates
+            coords = annotation_ref["data"]["coord_list"][0]
+            template = reference_image[coords[0][1]:coords[2][1], coords[0][0]:coords[1][0]]
 
             ## create reference attributes
             reference_info = {
                     "date_added":datetime.today().strftime("%Y%m%d%H%M%S"),
                     "reference_image":reference_filename,
                     "original_filepath":reference_image_path,
-                    "template_px_mm_ratio": px_mm_ratio,
+                    "template_image":template_name,
+                    "template_px_mm_ratio": annotation_ref["data"]["px_mm_ratio"],
                     }
-            if flag_template:
-                reference_info.update({
-                    "template_image":template_name})
                         
             ## load project attributes and temporarily drop project data list to 
             ## be reattched later, so it is always at then end of the file
@@ -679,8 +671,7 @@ class Project:
 
             ## save all after successful completion of all method-steps 
             cv2.imwrite(reference_path, reference_image)
-            if flag_template:
-                cv2.imwrite(template_path, template)
+            cv2.imwrite(template_path, template)
     
             _save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
             print_save_msg = print_save_msg + "\nSaved reference info to project attributes."
@@ -705,7 +696,7 @@ class Project:
                 attr["reference"]["project_level"][reference_name] = {}
                 
             ## loop through entries and set active reference
-            if flag_activate==True:
+            if flags.activate==True:
                 for key, value in attr["reference"]["project_level"].items():
                     if key == reference_name:
                         attr["reference"]["project_level"][key]["active"] = True
