@@ -154,7 +154,7 @@ class _ImageViewer:
             self.text_size = kwargs.get("label_size", _auto_text_size(image))
             self.text_width = kwargs.get("label_size", _auto_text_width(image))
             self.label_colour = colours[kwargs.get("label_colour", "black")]
-                
+                            
         # =============================================================================
         # previous parameters
         # =============================================================================              
@@ -195,6 +195,7 @@ class _ImageViewer:
         
         ## temporary data entry loop, will be integrated later
         if self.tool == "comment":
+            display = kwargs.get("display", "Enter:")
             entry = ""
             k = 0
             
@@ -213,7 +214,7 @@ class _ImageViewer:
                 self.canvas = copy.deepcopy(self.canvas_copy)
                 cv2.putText(
                     self.canvas,
-                    "Enter:" + entry,
+                    display + entry,
                     (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     self.text_size,
@@ -229,7 +230,7 @@ class _ImageViewer:
                 elif k == 13:
                     if not entry == "":
                         self.done
-                        self.entry = entry
+                        self.entry = entry.replace(display, "")
                         cv2.destroyAllWindows()
                         break
             

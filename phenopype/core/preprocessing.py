@@ -3,10 +3,11 @@ import cv2, copy
 import numpy as np
 import pandas as pd
 
+from dataclasses import dataclass
 from math import sqrt as _sqrt
 import numpy.ma as ma
 
-from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
+from phenopype.settings import AttrDict, colours, flag_verbose, _image_viewer_arg_list
 from phenopype.utils_lowlevel import _auto_text_width, _auto_text_size, \
     _convert_arr_tup_list, _equalize_histogram, _resize_image, \
     _ImageViewer, _DummyClass
@@ -201,7 +202,6 @@ def detect_mask(
     annotation = {
         "info": {
             "annotation_type": "mask",
-            "mask_shape": shape,
             "pp_function": "mask_detect",
         },
         "settings": settings,
@@ -214,167 +214,100 @@ def detect_mask(
         
     
 
-# def create_reference(
-#     image,
-#     mask=False,
-#     overwrite=False,
-#     template=False,
-#     **kwargs
-# ):
-#     """
-#     Measure a size or colour reference card. Minimum input interaction is 
-#     measuring a size reference: click on two points inside the provided image, 
-#     and enter the distance - returns the pixel-to-mm-ratio as integer or 
-#     inserts it into a provided DataFrame (df_image_data). In an optional second
-#     step, drag a rectangle mask over the reference card to exclude it from any
-#     subsequent image segementation. The mask is exported as new DataFrame, OR, 
-#     if provided before, gets appended to an existing one (df_masks). The mask
-#     can also be stored as a template for automatic reference detection with the
-#     "detect_reference" function.
+def create_reference(
+    image,
+    mask=False,
+    overwrite=False,
+    template=False,
+    **kwargs
+):
+    """
+    Measure a size or colour reference card. Minimum input interaction is 
+    measuring a size reference: click on two points inside the provided image, 
+    and enter the distance - returns the pixel-to-mm-ratio as integer or 
+    inserts it into a provided DataFrame (df_image_data). In an optional second
+    step, drag a rectangle mask over the reference card to exclude it from any
+    subsequent image segementation. The mask is exported as new DataFrame, OR, 
+    if provided before, gets appended to an existing one (df_masks). The mask
+    can also be stored as a template for automatic reference detection with the
+    "detect_reference" function.
 
-#     Parameters
-#     ----------
-#     obj_input : array or container
-#         input object
-#     df_image_data : DataFrame, optional
-#         an existing DataFrame containing image metadata to add the reference 
-#         information to (pixel-to-mm-ratio)
-#     df_masks : DataFrame, optional
-#         an existing DataFrame containing masks to add the created mask to
-#     mask : bool, optional
-#         mask a reference card inside the image (returns a mask DataFrame)
-#     overwrite : bool, optional
-#         if a container is supplied, or when working from the pype, should any 
-#         exsting reference information (px-to-mm-ratio) or template be overwritten
-#     template: bool, optional
-#         should a template for reference detection be created. with an existing 
-#         template, phenopype can try to find a reference card in a given image,
-#         measure its dimensions, and adjust and colour space. automatically 
-#         creates and returns a mask DataFrame that can be added to an existing
-#         one
-#     kwargs: optional
-#         developer options
+    Parameters
+    ----------
+    obj_input : array or container
+        input object
+    df_image_data : DataFrame, optional
+        an existing DataFrame containing image metadata to add the reference 
+        information to (pixel-to-mm-ratio)
+    df_masks : DataFrame, optional
+        an existing DataFrame containing masks to add the created mask to
+    mask : bool, optional
+        mask a reference card inside the image (returns a mask DataFrame)
+    overwrite : bool, optional
+        if a container is supplied, or when working from the pype, should any 
+        exsting reference information (px-to-mm-ratio) or template be overwritten
+    template: bool, optional
+        should a template for reference detection be created. with an existing 
+        template, phenopype can try to find a reference card in a given image,
+        measure its dimensions, and adjust and colour space. automatically 
+        creates and returns a mask DataFrame that can be added to an existing
+        one
+    kwargs: optional
+        developer options
 
-#     Returns
-#     -------
-#     px_mm_ratio: int or container
-#         pixel to mm ratio - not returned if df_image_data is supplied
-#     df_image_data: DataFrame or container
-#         new or updated, containes reference information
-#     df_masks: DataFrame or container
-#         new or updated, contains mask information
-#     template: array or container
-#         template for reference card detection
+    Returns
+    -------
+    px_mm_ratio: int or container
+        pixel to mm ratio - not returned if df_image_data is supplied
+    df_image_data: DataFrame or container
+        new or updated, containes reference information
+    df_masks: DataFrame or container
+        new or updated, contains mask information
+    template: array or container
+        template for reference card detection
 
-#     """
+    """
 
-#     ## kwargs
-#     flag_mask = mask
-#     flag_template = template
-#     flag_overwrite = overwrite
-#     test_params = kwargs.get("test_params", {})
+    ## kwargs    
+    flags = AttrDict({"mask":mask,"template":template, "overwrite":overwrite})
+
+
+    ## method
+    out = _ImageViewer(image, tool="reference")
     
-#     ## load image
-
-
-#     ## check if exists
-
-#     ## method
-#     out = _ImageViewer(image, tool="comment")
+    points = out.reference_coords
+    distance_px = _sqrt(
+            ((points[0][0] - points[1][0]) ** 2)
+            + ((points[0][1] - points[1][1]) ** 2)
+        )
     
-#     pp.show_image(image)
-    
-    
+    out = _ImageViewer(image, tool="comment", display="Enter distance in mm:")
+    entry = out.entry
+    distance_mm = float(entry)
+    px_mm_ratio = float(distance_px / distance_mm)
 
-#     points = out.reference_coords
-#     distance_px = _sqrt(
-#             ((points[0][0] - points[1][0]) ** 2)
-#             + ((points[0][1] - points[1][1]) ** 2)
-#         )
-    
-#     entry = enter_data(image, columns="length")
-#     distance_mm = float(entry["length"][0])
-#     px_mm_ratio = float(distance_px / distance_mm)
+    ## create template for image registration
+    if flags.template or flags.mask:
+        out = _ImageViewer(image, tool="template")
 
-#     ## create template for image registration
-#     if flag_template or flag_mask:
-#         out = _ImageViewer(image, tool="template", previous=test_params)
+        ## make template and mask
+        template = image[
+            out.rect_list[0][1] : out.rect_list[0][3],
+            out.rect_list[0][0] : out.rect_list[0][2],
+        ]
+        coords = out.point_list
 
-#         ## make template and mask
-#         template = image[
-#             out.rect_list[0][1] : out.rect_list[0][3],
-#             out.rect_list[0][0] : out.rect_list[0][2],
-#         ]
-#         coords = out.point_list
-
-#         ## check if exists
-#         while True:
-#             if not df_masks.__class__.__name__ == "NoneType":
-#                 if "reference" in df_masks["mask"].values and flag_overwrite == False:
-#                     print("- reference template mask already created (overwrite=False)")
-#                     break
-#                 elif "reference" in df_masks["mask"].values and flag_overwrite == True:
-#                     print("- add reference template mask (overwritten)")
-#                     df_masks = df_masks[~df_masks["mask"].isin(["reference"])]
-#                     pass
-
-#             ## make mask df
-#             if len(coords) > 0:
-#                 points = coords[0]
-#                 df_mask_temp = pd.DataFrame(
-#                     {"mask": "reference", "include": False, "coords": str(points)},
-#                     index=[0],
-#                 )
-#                 df_mask_temp = pd.concat(
-#                     [df_image_data, df_mask_temp], axis=1, sort=True
-#                 )
-
-#                 ## add to existing df
-#                 if df_masks.__class__.__name__ == "NoneType" or len(df_masks) == 0:
-#                     df_masks = df_mask_temp
-#                     break
-#                 if len(df_masks) > 0:
-#                     df_masks = df_masks.append(df_mask_temp, sort=True)
-#                     break
-
-#             else:
-#                 print("zero coordinates - redo template!")
-#                 break
-#         break
-#     else:
-#         template = None
-#         break
-
-#     ## add reference info to data frame
-#     df_image_data["px_mm_ratio"] = px_mm_ratio
-
-#     ## return
-#     if obj_input.__class__.__name__ == "ndarray":
-#         if flag_mask:
-#             if flag_df:
-#                 return df_image_data, df_masks
-#             else:
-#                 return px_mm_ratio, df_masks
-#         if flag_template:
-#             if flag_df:
-#                 return df_image_data, df_masks, template
-#             else:
-#                 return px_mm_ratio, df_masks, template
-#         if not flag_template or flag_mask:
-#             if flag_df:
-#                 return df_image_data
-#             else:
-#                 return px_mm_ratio
-#     elif obj_input.__class__.__name__ == "container":
-#         obj_input.reference_manually_measured_px_mm_ratio = px_mm_ratio
-#         obj_input.reference_manual_mode = True
-#         obj_input.df_image_data = df_image_data
-#         obj_input.df_masks = df_masks
-#         obj_input.reference_template_image = template
-
-
-         
-
+    ## return results
+    annotation = {
+        "info": {
+            "annotation_type": "reference",
+            "pp_function": "create_reference",
+        },
+        "data": {
+            "coord_list": coords,
+        }
+    }
+    return annotation
 
 def detect_reference(
     obj_input,
@@ -609,7 +542,7 @@ def detect_reference(
 
 
 def enter_data(
-    obj_input,
+    image,
     df_image_data=None,
     field="ID",
     overwrite=False,
@@ -643,6 +576,7 @@ def enter_data(
 
     ## kwargs
 
+    out = _ImageViewer(image, tool="comment")
 
 
 
