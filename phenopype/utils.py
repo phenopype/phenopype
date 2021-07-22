@@ -61,7 +61,6 @@ class Container(object):
         ## attributes
         self.dirpath = dirpath
         self.save_suffix = save_suffix
-        self.reference_manual_mode = False
         
         ## annotations
         self.annotations = {
@@ -144,6 +143,21 @@ class Container(object):
         if fun == "detect_mask":
             annotation = preprocessing.detect_mask(self.image, **kwargs)
             self.annotations["masks"][annotation_id] = annotation
+            
+        if fun == "detect_reference":
+            if all(hasattr(self, attr) for attr in [
+                    "reference_template_px_mm_ratio", 
+                    "reference_template_image"
+                    ]):
+                
+                annotation = preprocessing.detect_reference(
+                    self.image, 
+                    self.reference_template_image,
+                    self.reference_template_px_mm_ratio,
+                    **kwargs)
+                self.annotations["masks"][annotation_id] = annotation
+            else:
+                print("- missing project level reference information, cannot detect")
             
         if fun == "select_channel":
             self.image = preprocessing.select_channel(self.image, **kwargs)
@@ -263,7 +277,7 @@ class Container(object):
                         
                     ## load tempate image from project level attributes
                     if "template_image" in attr_proj["reference"][active_ref]:
-                        self.reference_template_image = cv2.imread(os.path.join(attr_local_path ,r"../../..", attr_proj["reference"][active_ref]["template_image"]))
+                        self.reference_template_image = cv2.imread(str(Path(attr_local_path).parents[2] / attr_proj["reference"][active_ref]["template_image"]))
                         loaded.append("reference template image loaded from root directory")
 
         ## contours

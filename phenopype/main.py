@@ -935,6 +935,9 @@ class Pype:
             dir_skip = self._check_directory_skip(name=name, dirpath=self.container.dirpath)
             if dir_skip:
                 return
+            
+        ## load existing annotations through container
+        self.container.load()
 
         ## check pype config for annotations
         self._iterate(self.config, execute=False, visualize=False, feedback=False)

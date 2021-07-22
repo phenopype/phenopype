@@ -295,15 +295,12 @@ def create_reference(
 
 
 def detect_reference(
-    obj_input,
-    df_image_data=None,
-    template=None,
-    overwrite=False,
+    image,
+    image_template,
+    px_mm_ratio_template,
     equalize=False,
     min_matches=10,
     resize=1,
-    px_mm_ratio_ref=None,
-    df_masks=None,
 ):
     """
     Find reference from a template created with "create_reference". Image registration 
@@ -353,151 +350,90 @@ def detect_reference(
     """
 
     ## kwargs
-    flag_overwrite = overwrite
     flag_equalize = equalize
 
-    ## load image
-    template_px_mm_ratio = None
-    template_image = None
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-        else:
-            if "template_px_mm_ratio" in df_image_data:
-                template_px_mm_ratio = df_image_data["template_px_mm_ratio"]
-                print("template_px_mm_ratio loaded")
-        if df_masks.__class__.__name__ == "NoneType":
-            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "reference_template_px_mm_ratio"):
-            template_px_mm_ratio = obj_input.reference_template_px_mm_ratio
-        if hasattr(obj_input, "reference_template_image"):
-            template_image = obj_input.reference_template_image
-        if hasattr(obj_input, "df_masks"):
-            df_masks = copy.deepcopy(obj_input.df_masks)
-        else:
-            df_masks = pd.DataFrame(columns=["mask", "include", "coords"])
 
-    ## check if all info has been provided
-    while True:
-        if any(
+
+
+    ## if image diameter bigger than 5000 px, then automatically resize
+    if (image.shape[0] + image.shape[1]) / 2 > 5000 and resize == 1:
+        resize_factor = 0.5
+        print(
+            "large image - resizing by factor "
+            + str(resize_factor)
+            + " to avoid slow image registration"
+        )
+    else:
+        resize_factor = resize
+    image = cv2.resize(image, (0, 0), fx=1 * resize_factor, fy=1 * resize_factor)
+
+    ## method
+    akaze = cv2.AKAZE_create()
+    kp1, des1 = akaze.detectAndCompute(image_template, None)
+    kp2, des2 = akaze.detectAndCompute(image, None)
+    matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
+    matches = matcher.knnMatch(des1, des2, 2)
+
+    # keep only good matches
+    good = []
+    for m, n in matches:
+        if m.distance < 0.7 * n.distance:
+            good.append(m)
+
+    # find and transpose coordinates of matches
+    if len(good) >= min_matches:
+        ## find homography betweeen detected keypoints
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
+        ## transform boundary box of template
+        rect_old = np.array(
             [
-                template_px_mm_ratio.__class__.__name__ == "NoneType",
-                template_image.__class__.__name__ == "NoneType",
-            ]
-        ):
-            print("- reference information missing - abort")
-            break
-        if hasattr(obj_input, "reference_detected_px_mm_ratio") and not flag_overwrite:
-            detected_px_mm_ratio = obj_input.reference_detected_px_mm_ratio
-            print("- reference already detected (overwrite=False)")
-            break
-        elif hasattr(obj_input, "reference_detected_px_mm_ratio") and flag_overwrite:
-            print(" - detecting reference (overwriting)")
-            pass
+                [[0, 0]],
+                [[0, image_template.shape[0]]],
+                [[image_template.shape[1], image_template.shape[0]]],
+                [[image_template.shape[1], 0]],
+            ],
+            dtype=np.float32,
+        )
+        rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
 
-        ## if image diameter bigger than 5000 px, then automatically resize
-        if (image.shape[0] + image.shape[1]) / 2 > 5000 and resize == 1:
-            resize_factor = 0.5
-            print(
-                "large image - resizing by factor "
-                + str(resize_factor)
-                + " to avoid slow image registration"
-            )
-        else:
-            resize_factor = resize
-        image = cv2.resize(image, (0, 0), fx=1 * resize_factor, fy=1 * resize_factor)
+        # calculate template diameter
+        rect_new = rect_new.astype(np.int32)
+        (x, y), radius = cv2.minEnclosingCircle(rect_new)
+        diameter_new = radius * 2
 
-        ## method
-        akaze = cv2.AKAZE_create()
-        kp1, des1 = akaze.detectAndCompute(template_image, None)
-        kp2, des2 = akaze.detectAndCompute(image, None)
-        matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
-        matches = matcher.knnMatch(des1, des2, 2)
+        # calculate transformed diameter
+        rect_old = rect_old.astype(np.int32)
+        (x, y), radius = cv2.minEnclosingCircle(rect_old)
+        diameter_old = radius * 2
 
-        # keep only good matches
-        good = []
-        for m, n in matches:
-            if m.distance < 0.7 * n.distance:
-                good.append(m)
+        ## calculate ratios
+        diameter_ratio = diameter_new / diameter_old
+        px_mm_ratio_detected = round(diameter_ratio * px_mm_ratio_template, 1)
 
-        # find and transpose coordinates of matches
-        if len(good) >= min_matches:
-            ## find homography betweeen detected keypoints
-            src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-            dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+        ## feedback
+        print("---------------------------------------------------")
+        print("Reference card found with %d keypoint matches:" % len(good))
+        print("template image has %s pixel per mm." % (px_mm_ratio_template))
+        print("current image has %s pixel per mm." % (px_mm_ratio_detected))
+        print("= %s %% of template image." % round(diameter_ratio * 100, 3))
+        print("---------------------------------------------------")
 
-            ## transform boundary box of template
-            rect_old = np.array(
-                [
-                    [[0, 0]],
-                    [[0, template_image.shape[0]]],
-                    [[template_image.shape[1], template_image.shape[0]]],
-                    [[template_image.shape[1], 0]],
-                ],
-                dtype=np.float32,
-            )
-            rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
+        ## create mask from new coordinates
+        coords = _convert_arr_tup_list(rect_new)
+        coords.append(coords[0])
 
-            # calculate template diameter
-            rect_new = rect_new.astype(np.int32)
-            (x, y), radius = cv2.minEnclosingCircle(rect_new)
-            diameter_new = radius * 2
-
-            # calculate transformed diameter
-            rect_old = rect_old.astype(np.int32)
-            (x, y), radius = cv2.minEnclosingCircle(rect_old)
-            diameter_old = radius * 2
-
-            ## calculate ratios
-            diameter_ratio = diameter_new / diameter_old
-            px_mm_ratio_new = round(diameter_ratio * template_px_mm_ratio, 1)
-
-            ## add to image df
-            df_image_data["current_px_mm_ratio"] = px_mm_ratio_new
-
-            ## feedback
-            print("---------------------------------------------------")
-            print("Reference card found with %d keypoint matches:" % len(good))
-            print("template image has %s pixel per mm." % (template_px_mm_ratio))
-            print("current image has %s pixel per mm." % (px_mm_ratio_new))
-            print("= %s %% of template image." % round(diameter_ratio * 100, 3))
-            print("---------------------------------------------------")
-
-            ## create mask from new coordinates
-            coords = _convert_arr_tup_list(rect_new)
-            coords.append(coords[0])
-            if "reference" in df_masks["mask"].values:
-                df_masks = df_masks[~df_masks["mask"].isin(["reference"])]
-            row_reference = pd.DataFrame(
-                {"mask": "reference", "include": False, "coords": str([coords])}, index=[0]
-            )
-            row_reference = pd.concat(
-                [
-                    pd.concat([df_image_data] * len(row_reference)).reset_index(drop=True),
-                    row_reference.reset_index(drop=True),
-                ],
-                axis=1,
-            )
-            df_masks = df_masks.append(row_reference, sort=False)
-            detected_px_mm_ratio = px_mm_ratio_new
-            break
-        else:
-            ## feedback
-            print("---------------------------------------------------")
-            print("Reference card not found - %d keypoint matches:" % len(good))
-            print('Setting "current reference" to None')
-            print("---------------------------------------------------")
-            detected_px_mm_ratio = None
-            break
-
-        ## merge with existing image_data frame
-        df_image_data["current_px_mm_ratio"] = detected_px_mm_ratio
-
+        
+    else:
+        ## feedback
+        print("---------------------------------------------------")
+        print("Reference card not found - %d keypoint matches:" % len(good))
+        print('Setting "current reference" to None')
+        print("---------------------------------------------------")
+        px_mm_ratio_detected = None
+        
     # ## rectangle coords of reference in image
     # rect_new = eval(df_masks.loc[df_masks["mask"]=="reference", "coords"].reset_index(drop=True)[0])
 
@@ -510,19 +446,20 @@ def detect_reference(
             data=image[ry : ry + rh, rx : rx + rw],
             mask=detected_rect_mask[ry : ry + rh, rx : rx + rw],
         )
-        image = _equalize_histogram(image, detected_rect_mask, template_image)
+        image = _equalize_histogram(image, detected_rect_mask, image_template)
         print("histograms equalized")
 
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_image_data, df_masks, image
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_image_data = df_image_data
-        obj_input.df_masks = df_masks
-        obj_input.reference_detected_px_mm_ratio = detected_px_mm_ratio
-        if flag_equalize:
-            obj_input.image_copy = image
-            obj_input.image = image
+    annotation = {
+        "info": {
+            "annotation_type": "reference",
+            "pp_function": "detect_reference",
+        },
+        "data": {
+            "px_mm_ratio":px_mm_ratio_detected
+        }
+    }
+    
+    return annotation
 
 
 
