@@ -388,7 +388,6 @@ def threshold(
     if len(image.shape) == 3:
         if flag_verbose:
             image = preprocessing.select_channel(image, "gray")
-            print("multi-channel supplied - defaulting to grayscale")
     if blocksize % 2 == 0:
         if flag_verbose:
             blocksize = blocksize + 1
@@ -419,28 +418,26 @@ def threshold(
             cv2.THRESH_BINARY_INV
             )
 
-    # ## apply masks
-    # if not masks.__class__.__name__ == "NoneType":
-    #     ## include == True
-    #     mask_bool, include_idx, exclude_idx = np.zeros(image.shape, dtype=bool), 0,0
-    #     for index, row in df_masks.iterrows():
-    #         if row["include"] == True:
-    #             if not row["mask"] == "":
-    #                 coords = eval(row["coords"])
-    #                 mask_bool = np.logical_or(mask_bool, _create_mask_bool(image, coords))
-    #                 include_idx += 1
-    #     if include_idx > 0:
-    #         image[mask_bool == False] = 0
-    #     for index, row in df_masks.iterrows():
-    #         if row["include"] == False:
-    #             if not row["mask"] == "":
-    #                 coords = eval(row["coords"])
-    #                 image[_create_mask_bool(image, coords)] = 0
-    #                 exclude_idx += 1
-    #     if exclude_idx>0:
-    #         print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
-    #     if include_idx>0:
-    #         print("- including pixels from " + str(include_idx) + " drawn masks ")
+    ## apply masks
+    if not masks.__class__.__name__ == "NoneType":
+        if not list(masks.keys())[0] == 1:
+            masks = {1: masks}
+        mask_bool, include_idx, exclude_idx = np.zeros(thresh.shape, dtype=bool), 0,0
+        for key, value in masks.items():
+            coord_list, include = value["data"]["coord_list"], value["data"]["include"]
+            if include == True:
+                for coords in coord_list:
+                    mask_bool = np.logical_or(mask_bool, _create_mask_bool(thresh, coords))
+                    include_idx += 1
+                thresh[mask_bool == False] = 0
+            elif include == False:
+                for coords in coord_list:
+                    thresh[_create_mask_bool(thresh, coords)] = 0
+                    exclude_idx += 1
+        if exclude_idx>0:
+            print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
+        if include_idx>0:
+            print("- including pixels from " + str(include_idx) + " drawn masks ")
 
     ## return
     return thresh
@@ -448,8 +445,8 @@ def threshold(
 
 
 def watershed(
-    obj_input,
-    image_thresh=None,
+    image,
+    image_thresh,
     iterations=1,
     kernel_size=3,
     distance_cutoff=0.8,
@@ -464,8 +461,8 @@ def watershed(
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
+    image : array
+        input image
     image_thresh: array, optional
         thresholded image n
     kernel_size: int, optional
@@ -501,24 +498,10 @@ def watershed(
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
 
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = copy.deepcopy(obj_input)
-        thresh = copy.deepcopy(image_thresh)
-    elif obj_input.__class__.__name__ == "container":
-        thresh = copy.deepcopy(obj_input.image)
-        image = copy.deepcopy(obj_input.image_copy)
-
-    if thresh.__class__.__name__ == "NoneType":
-        print("No thresholded version of image provided for watershed - aborting.")
-        return
-    if len(thresh.shape) == 3:
-        thresh = cv2.cvtColor(thresh, cv2.COLOR_BGR2GRAY)
 
     ## sure background
-    ## note: sure_bg is set as the thresholded input image
-    sure_bg= morphology(
-        thresh,
+    sure_bg = morphology(
+        image_thresh,
         operation="dilate",
         shape="ellipse",
         kernel_size=kernel_size,
@@ -529,7 +512,7 @@ def watershed(
     if distance_type in ["user", "l12", "fair", "welsch", "huber"]:
         distance_mask = 0
     opened = morphology(
-        thresh,
+        image_thresh,
         operation="erode",
         shape="ellipse",
         kernel_size=kernel_size,
@@ -570,14 +553,17 @@ def watershed(
     watershed_mask[0, 0 : watershed_mask.shape[1]] = 0
     watershed_mask[watershed_mask.shape[0] - 1, 0 : watershed_mask.shape[1]] = 0
 
-    contours = find_contours(watershed_mask, retrieval="ccomp")
+    contours = detect_contours(watershed_mask, retrieval="ccomp")
     image_watershed = np.zeros(watershed_mask.shape, np.uint8)
     
-    for index, row in contours.iterrows():
-        if row["order"] == "child":
+    for key, value in contours.items():
+        value.keys()
+        
+    for coord, supp in zip(contours["data"]["coords"], contours["data"]["support"]):
+        if supp["hierarchy_level"] == "child":
             cv2.drawContours(
                 image=image_watershed,
-                contours=[row["coords"]],
+                contours=[coord],
                 contourIdx=0,
                 thickness=-1,
                 color=colours["white"],
@@ -586,7 +572,7 @@ def watershed(
                 )
             cv2.drawContours(
                 image=image_watershed,
-                contours=[row["coords"]],
+                contours=[coord],
                 contourIdx=0,
                 thickness=2,
                 color=colours["black"],
@@ -595,8 +581,5 @@ def watershed(
                 )
     
     ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return image_watershed
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.image = image_watershed
-        obj_input.image_bin = image_watershed
+    return image_watershed
+

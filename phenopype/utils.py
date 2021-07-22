@@ -151,8 +151,12 @@ class Container(object):
             
         ## segmentation
         if fun == "threshold":
+            if len(self.annotations["masks"]) > 0:
+                kwargs.update({"masks":self.annotations["masks"]})
             self.image = segmentation.threshold(self.image, **kwargs)
-   
+            self.image_bin = copy.deepcopy(self.image)
+        if fun == "watershed":
+            self.image = segmentation.threshold(self.image_copy, self.image_bin, **kwargs)
         if fun == "morphology":
             self.image = segmentation.morphology(self.image, **kwargs)
             
@@ -671,7 +675,7 @@ def show_image(
         
         
         
-def pype_config_template_show(template):
+def show_pype_config_template(template):
     """
     
     Helper function to print phenopype configuration file in formatted yaml.

@@ -425,7 +425,7 @@ class Project:
             be inspected using the following helper functions:
             
             pp.pype_config_template_list        # gives a dictionary with template names
-            pp.pype_config_template_show('ex1')  # prints the configuration for example 1
+            pp.show_pype_config_template('ex1')  # prints the configuration for example 1
 
         interactive: bool, optional
             start a pype and modify template before saving it to phenopype directories
@@ -1171,7 +1171,6 @@ class Pype:
                     method_name = method
                     method_args = {}
 
-                    
                 ## annotation params 
                 if "ANNOTATION" in method_args:
                     annotation_params = dict(method_args["ANNOTATION"])
@@ -1193,7 +1192,7 @@ class Pype:
                 else:
                     annotation_id = "null"
 
-                if execute:                   
+                if execute:            
                     try:
                         ## run method
                         if flags.feedback:

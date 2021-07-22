@@ -49,7 +49,7 @@ def blur(
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
         if flag_verbose:
-            print("even kernel_size supplied - need odd kernel_size")
+            print("even kernel size supplied, adding 1 to make odd")
             
     ## method
     if method == "averaging":
@@ -67,6 +67,7 @@ def blur(
 
 def create_mask(
     image,
+    include=True,
     tool="rectangle",
     **kwargs
 ):
@@ -82,8 +83,7 @@ def create_mask(
                                
     ## retrieve and save settings
     settings = locals()
-    for rm in ["image","include",
-               "kwargs","key","value",
+    for rm in ["image", "kwargs","key","value",
                "_image_viewer_params"]:
         settings.pop(rm, None)
         
@@ -113,6 +113,7 @@ def create_mask(
             },
             "settings": settings,
             "data": {
+                "include": include,
                 "n_shapes": len(coords),
                 "coord_list": coords,
             }
