@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import pickle
 import platform
+import warnings
 
 import pprint
 import subprocess
@@ -19,6 +20,8 @@ from datetime import datetime
 from pathlib import Path
 from ruamel.yaml.comments import CommentedMap as ordereddict
 from shutil import copyfile, rmtree
+
+
 
 from phenopype import __version__ as pp_version
 from phenopype.settings import (
@@ -58,7 +61,6 @@ pretty = pprint.PrettyPrinter(width=30)  # pretty print short strings
 ruamel.yaml.Representer.add_representer(
     ordereddict, ruamel.yaml.Representer.represent_dict
 )  # suppress !!omap node info
-
 
 #%% classes
 
@@ -940,7 +942,7 @@ class Pype:
         self.container.load()
 
         ## check pype config for annotations
-        self._iterate(self.config, execute=False, visualize=False, feedback=False)
+        self._iterate(config=self.config, annotations=self.container.annotations, execute=False, visualize=False, feedback=False)
         time.sleep(1)
         
         ## final check before starting pype
@@ -949,6 +951,9 @@ class Pype:
         # open config file with system viewer
         if self.flags.feedback:
             self._start_file_monitor()
+
+        ## start log
+        self.log = []
 
         ## run pype
         while True:
@@ -959,7 +964,7 @@ class Pype:
                 continue
             
             ## run pype config in sequence
-            self._iterate(self.config)
+            self._iterate(config=self.config, annotations=self.container.annotations)
             
             ## terminate
             if self.flags.terminate:
@@ -1119,6 +1124,7 @@ class Pype:
     def _iterate(
             self, 
             config,
+            annotations,
             execute=True,
             visualize=True,
             feedback=True,
@@ -1136,11 +1142,8 @@ class Pype:
 
         # reset values
         self.container.reset()
-        annotation_counter = {
-            "mask":0,
-            "contour":0,
-            "drawing":0
-            }
+        annotation_counter = dict.fromkeys(annotations, 0)
+
 
         ## apply pype: loop through steps and contained methods
         step_list = self.config["processing_steps"]
@@ -1204,6 +1207,7 @@ class Pype:
                         self.container.run(fun=method_name, annotation_id=annotation_id, kwargs=method_args)
                         
                     except Exception as ex:
+                        self.log.append(ex)
                         location = (
                             step_name + "." + method_name + ": " + str(ex.__class__.__name__)
                         )

@@ -119,9 +119,20 @@ _image_viewer_arg_list = [
 #%% annotation functions
 
 _annotation_functions = {
-    "create_mask": "mask",
-    "detect_mask": "mask",
-    "detect_contours": "contour"
+    "create_mask": "masks",
+    "create_reference": "masks",
+    "detect_mask": "masks",
+    "detect_reference": "masks",
+    "detect_contours": "contours",
+    "enter_data": "comments",
+    }
+
+_annotation_function_dicts = {
+    "masks": {},
+    "contours": {},
+    "comments": {},
+    "drawings": {},
+    "references": {},
     }
 
 #%% python helper functions

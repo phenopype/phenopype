@@ -14,7 +14,7 @@ import phenopype.core.visualization as visualization
 import phenopype.core.export as export
 
 from phenopype.settings import AttrDict, default_filetypes, flag_verbose, \
-    pype_config_template_list, confirm_options
+    pype_config_template_list, confirm_options, _annotation_function_dicts
 from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr, \
     _load_image_data, _load_yaml, _show_yaml
     
@@ -63,15 +63,8 @@ class Container(object):
         self.save_suffix = save_suffix
         
         ## annotations
-        self.annotations = {
-            "masks": {},
-            "contours": {},
-            "drawings": {},
-            }
-        
-    # def annotation_save(self, annotation, annotation_type, annotation_id):
-    #     self.annotations[annotation_type][annotation_id] = annotation
-        
+        self.annotations = _annotation_function_dicts
+                
     def select_canvas(self, canvas="mod", multi=True):
         """
         Isolate a colour channel from an image or select canvas for the pype method.
@@ -144,18 +137,27 @@ class Container(object):
             annotation = preprocessing.detect_mask(self.image, **kwargs)
             self.annotations["masks"][annotation_id] = annotation
             
+        if fun == "enter_data":
+            annotation = preprocessing.enter_data(self.image, **kwargs)
+            self.annotations["comments"][annotation_id] = annotation
+            
+            
         if fun == "detect_reference":
             if all(hasattr(self, attr) for attr in [
                     "reference_template_px_mm_ratio", 
                     "reference_template_image"
                     ]):
-                
                 annotation = preprocessing.detect_reference(
                     self.image, 
                     self.reference_template_image,
                     self.reference_template_px_mm_ratio,
                     **kwargs)
                 self.annotations["masks"][annotation_id] = annotation
+                if annotation.__class__.__name__ == "tuple":
+                    self.annotations["masks"][annotation_id] = annotation[1]
+                    self.annotations["references"][annotation_id] = annotation[0]
+                else:
+                    self.annotations["references"][annotation_id] = annotation
             else:
                 print("- missing project level reference information, cannot detect")
             
@@ -170,7 +172,7 @@ class Container(object):
             self.image = segmentation.threshold(self.image, **kwargs)
             self.image_bin = copy.deepcopy(self.image)
         if fun == "watershed":
-            self.image = segmentation.threshold(self.image_copy, self.image_bin, **kwargs)
+            self.image = segmentation.watershed(self.image_copy, self.image_bin, **kwargs)
         if fun == "morphology":
             self.image = segmentation.morphology(self.image, **kwargs)
             

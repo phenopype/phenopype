@@ -114,7 +114,7 @@ def create_mask(
             "settings": settings,
             "data": {
                 "include": include,
-                "n_shapes": len(coords),
+                "n_masks": len(coords),
                 "coord_list": coords,
             }
         }
@@ -126,6 +126,7 @@ def create_mask(
     
 def detect_mask(
     image,
+    include=True,
     shape="circle",
     resize=1,
     dp=1,
@@ -206,7 +207,8 @@ def detect_mask(
         },
         "settings": settings,
         "data": {
-            "n_shapes": len(coords),
+            "include": include,
+            "n_masks": len(coords),
             "coord_list": coords,
         }
     }
@@ -275,7 +277,7 @@ def create_reference(
     distance_mm = float(entry)
     px_mm_ratio = float(distance_px / distance_mm)
 
-    annotation = {
+    annotation_ref = {
         "info": {
             "annotation_type": "reference",
             "pp_function": "create_reference",
@@ -285,12 +287,25 @@ def create_reference(
         }
     }
     
-    ## create template for image registration
+    ## mask reference
     if flags.mask:
         out = _ImageViewer(image, tool="template")
-        annotation["data"]["coord_list"] = out.polygons   
         
-    return annotation
+        annotation_mask = {
+            "info": {
+                "annotation_type": "mask",
+                "pp_function": "create_reference",
+            },
+            "data": {
+                "include": False,
+                "n_masks": 1,
+                "coord_list": out.polygons   
+            }
+        }
+        
+        return annotation_ref, annotation_mask
+    else:
+        return annotation_ref
 
 
 
@@ -298,9 +313,11 @@ def detect_reference(
     image,
     image_template,
     px_mm_ratio_template,
+    mask=True,
     equalize=False,
     min_matches=10,
     resize=1,
+    **kwargs,
 ):
     """
     Find reference from a template created with "create_reference". Image registration 
@@ -350,10 +367,7 @@ def detect_reference(
     """
 
     ## kwargs
-    flag_equalize = equalize
-
-
-
+    flags = AttrDict({"mask":mask, "equalize": equalize}) 
 
     ## if image diameter bigger than 5000 px, then automatically resize
     if (image.shape[0] + image.shape[1]) / 2 > 5000 and resize == 1:
@@ -382,6 +396,7 @@ def detect_reference(
 
     # find and transpose coordinates of matches
     if len(good) >= min_matches:
+        
         ## find homography betweeen detected keypoints
         src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
         dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
@@ -422,9 +437,8 @@ def detect_reference(
         print("---------------------------------------------------")
 
         ## create mask from new coordinates
-        coords = _convert_arr_tup_list(rect_new)
-        coords.append(coords[0])
-
+        coords_list = _convert_arr_tup_list(rect_new)
+        coords_list[0].append(coords_list[0][0])
         
     else:
         ## feedback
@@ -438,7 +452,7 @@ def detect_reference(
     # rect_new = eval(df_masks.loc[df_masks["mask"]=="reference", "coords"].reset_index(drop=True)[0])
 
     ## do histogram equalization
-    if flag_equalize:
+    if flags.equalize:
         detected_rect_mask = np.zeros(image.shape, np.uint8)
         cv2.fillPoly(detected_rect_mask, [np.array(rect_new)], colours["white"])
         (rx, ry, rw, rh) = cv2.boundingRect(np.array(rect_new))
@@ -449,7 +463,7 @@ def detect_reference(
         image = _equalize_histogram(image, detected_rect_mask, image_template)
         print("histograms equalized")
 
-    annotation = {
+    annotation_ref = {
         "info": {
             "annotation_type": "reference",
             "pp_function": "detect_reference",
@@ -459,15 +473,31 @@ def detect_reference(
         }
     }
     
-    return annotation
+
+    ## mask reference
+    if flags.mask:
+        
+        annotation_mask = {
+            "info": {
+                "annotation_type": "mask",
+                "pp_function": "detect_reference",
+            },
+            "data": {
+                "include": False,
+                "n_masks": 1,
+                "coord_list": coords_list
+            }
+        }
+        
+        return annotation_ref, annotation_mask
+    else:
+        return annotation_ref
 
 
 
 def enter_data(
     image,
-    df_image_data=None,
     field="ID",
-    overwrite=False,
     **kwargs
 ):
     """
@@ -496,11 +526,19 @@ def enter_data(
 
     """
 
-    ## kwargs
+    out = _ImageViewer(image, tool="comment", display=field)
 
-    out = _ImageViewer(image, tool="comment")
-
-
+    annotation = {
+        "info": {
+            "annotation_type": "comment",
+            "pp_function": "enter_data",
+        },
+        "data": {
+            field: out.entry
+        }
+    }
+    
+    return annotation
 
 
 
@@ -537,11 +575,11 @@ def select_channel(image, channel="gray", invert=False):
     if channel == "raw":
         pass
     if flag_verbose:
-        print("converted image to {} channel".format(str(channel)))
+        print("- converted image to {} channel".format(str(channel)))
         
     if invert==True:
         image = cv2.bitwise_not(image)
-        print("iverted image")
+        print("- inverted image")
         
     return image
 

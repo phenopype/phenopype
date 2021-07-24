@@ -195,7 +195,7 @@ class _ImageViewer:
         
         ## temporary data entry loop, will be integrated later
         if self.tool == "comment":
-            display = kwargs.get("display", "Enter:")
+            display = kwargs.get("display", "")
             entry = ""
             k = 0
             
@@ -214,7 +214,7 @@ class _ImageViewer:
                 self.canvas = copy.deepcopy(self.canvas_copy)
                 cv2.putText(
                     self.canvas,
-                    display + " " + entry,
+                    "Enter " + display + ": " + entry,
                     (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     self.text_size,
@@ -871,6 +871,10 @@ def _auto_text_size(image, **kwargs):
 
 
 def _convert_arr_tup_list(arr_list):
+    
+    if not arr_list.__class__.__name__ == "list":
+        arr_list = [arr_list]
+    
     tup_list = []
     for array in arr_list:
         point_list = []

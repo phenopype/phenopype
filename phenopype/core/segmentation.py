@@ -270,7 +270,8 @@ def edit_contours(
         return 
 
 
-def morphology(image, kernel_size=5, shape="rect", operation="close", iterations=1):
+def morphology(image, kernel_size=5, shape="rect", operation="close", iterations=1,
+    **kwargs):
     """
     Performs advanced morphological transformations using erosion and dilation 
     as basic operations. Provides different kernel shapes and a suite of operation
@@ -344,6 +345,7 @@ def threshold(
     value=127,
     channel="gray",
     masks=None,
+    **kwargs,
 ):
     """
     Applies a fixed-level threshold to create a binary image from a grayscale 
@@ -388,13 +390,13 @@ def threshold(
     if len(image.shape) == 3:
         if flag_verbose:
             image = preprocessing.select_channel(image, "gray")
-    if blocksize % 2 == 0:
-        if flag_verbose:
-            blocksize = blocksize + 1
-            print("even blocksize supplied, adding 1 to make odd")
+    # if blocksize % 2 == 0:
+    #     if flag_verbose:
+    #         blocksize = blocksize + 1
+    #         print("- even blocksize supplied, adding 1 to make odd")
 
     ## method
-    if method == "otsu":
+    if method in "otsu":
         ret, thresh = cv2.threshold(
             image, 
             0, 
@@ -452,6 +454,7 @@ def watershed(
     distance_cutoff=0.8,
     distance_mask=0,
     distance_type="l1",
+    **kwargs
 ):
     """
     Performs non-parametric marker-based segmentation - useful if many detected 
@@ -508,7 +511,7 @@ def watershed(
         iterations=iterations,
     )
     
-    ## sure foreground
+    ## distances in foreground 
     if distance_type in ["user", "l12", "fair", "welsch", "huber"]:
         distance_mask = 0
     opened = morphology(
@@ -518,18 +521,19 @@ def watershed(
         kernel_size=kernel_size,
         iterations=iterations,
     )
+    
+    ## distance transformation
     dist_transform = cv2.distanceTransform(
         opened, distance_type_list[distance_type], distance_mask
     )
-
     dist_transform = cv2.normalize(
         dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX
     )
-    
     dist_transform = preprocessing.blur(dist_transform, kernel_size=int(2*kernel_size))
     dist_transform = abs(255 * (1-dist_transform)) 
     dist_transform = dist_transform.astype(np.uint8)
 
+    ## sure foreground 
     sure_fg = threshold(dist_transform, method="binary", value=int(distance_cutoff*255))
 
     ## finding unknown region
@@ -543,7 +547,7 @@ def watershed(
     markers[unknown == 255] = 0
 
     ## watershed
-    markers = cv2.watershed(preprocessing.blur(image, int(2*kernel_size)), markers)
+    markers = cv2.watershed(preprocessing.blur(image, int(2*kernel_size+1)), markers)
 
     ## convert to contours
     watershed_mask = np.zeros(image.shape[:2], np.uint8)
@@ -555,10 +559,7 @@ def watershed(
 
     contours = detect_contours(watershed_mask, retrieval="ccomp")
     image_watershed = np.zeros(watershed_mask.shape, np.uint8)
-    
-    for key, value in contours.items():
-        value.keys()
-        
+           
     for coord, supp in zip(contours["data"]["coords"], contours["data"]["support"]):
         if supp["hierarchy_level"] == "child":
             cv2.drawContours(
