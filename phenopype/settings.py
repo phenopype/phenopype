@@ -119,23 +119,64 @@ _image_viewer_arg_list = [
 #%% annotation functions
 
 _annotation_functions = {
-    "create_mask": "masks",
-    "create_reference": "masks",
-    "detect_mask": "masks",
-    "detect_reference": "masks",
-    "detect_contours": "contours",
-    "enter_data": "comments",
+    "create_mask": "mask",
+    "create_reference": "mask",
+    "detect_mask": "mask",
+    "detect_reference": "reference",
+    "detect_contours": "contour",
+    "enter_data": "comment",
     }
 
 _annotation_function_dicts = {
-    "masks": {},
-    "contours": {},
-    "comments": {},
-    "drawings": {},
-    "references": {},
+    "mask": {},
+    "contour": {},
+    "comment": {},
+    "drawing": {},
+    "reference": {},
     }
 
 #%% python helper functions
+
+# from dataclasses import make_dataclass, dataclass
+
+# def set_flags(fields):
+    
+#     @dataclass
+#     class Flags:
+    
+#         def __post_init__(self):
+#             [setattr(self, k, v) for k, v in self.fields.items()]
+            
+#     my_flags = Flags(fields)
+                   
+#     return my_flags    
+    
+# # @dataclass
+# # class MyDataclass:
+# #     data1: Optional[str] = None
+# #     data2: Optional[Dict] = None
+# #     data3: Optional[Dict] = None
+
+# #     kwargs: field(default_factory=dict) = None
+
+    
+# flags = set_flags({"test": True})
+
+# # flags.test
+
+# # self.flags.skip = skip
+# # self.flags.feedback = feedback
+# # self.flags.terminate = False
+
+# # def flags(flag_args):
+    
+    
+
+
+# flags = dataclass_from_dict("flags", {"skip": False, "feedback": True, "terminate": False})
+# flags.skip
+
+
 
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):

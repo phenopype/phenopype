@@ -20,6 +20,7 @@ from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr, \
     
 from collections import defaultdict
 
+from dataclasses import make_dataclass
 
 #%% classes
 
@@ -63,7 +64,7 @@ class Container(object):
         self.save_suffix = save_suffix
         
         ## annotations
-        self.annotations = _annotation_function_dicts
+        self.annotations = copy.deepcopy(_annotation_function_dicts)
                 
     def select_canvas(self, canvas="mod", multi=True):
         """
@@ -120,10 +121,13 @@ class Container(object):
             if len(self.canvas.shape) < 3:
                 self.canvas = cv2.cvtColor(self.canvas, cv2.COLOR_GRAY2BGR)
             
-    def run(self, fun, annotation_id=None, kwargs={}):
+    def run(self, fun, annotation_id=None, annotation_type=None, kwargs={}):
         
-        if annotation_id in self.annotations["masks"]:
-            kwargs.update({"previous_annotation":self.annotations["masks"][annotation_id]})
+        if not all(
+                [annotation_id.__class__.__name__ == "NoneType",
+                 annotation_type.__class__.__name__ == "NoneType"]):
+            if annotation_id in self.annotations[annotation_type]:
+                kwargs.update({"previous_annotation":self.annotations[annotation_type][annotation_id]})
 
         ## preprocessing
         if fun == "blur":
@@ -131,15 +135,15 @@ class Container(object):
 
         if fun == "create_mask":
             annotation = preprocessing.create_mask(self.image, **kwargs)
-            self.annotations["masks"][annotation_id] = annotation
+            self.annotations[annotation_type][annotation_id] = annotation
 
         if fun == "detect_mask":
             annotation = preprocessing.detect_mask(self.image, **kwargs)
-            self.annotations["masks"][annotation_id] = annotation
+            self.annotations[annotation_type][annotation_id] = annotation
             
         if fun == "enter_data":
             annotation = preprocessing.enter_data(self.image, **kwargs)
-            self.annotations["comments"][annotation_id] = annotation
+            self.annotations[annotation_type][annotation_id] = annotation
             
             
         if fun == "detect_reference":
@@ -152,12 +156,12 @@ class Container(object):
                     self.reference_template_image,
                     self.reference_template_px_mm_ratio,
                     **kwargs)
-                self.annotations["masks"][annotation_id] = annotation
+                self.annotations[annotation_type][annotation_id] = annotation
                 if annotation.__class__.__name__ == "tuple":
-                    self.annotations["masks"][annotation_id] = annotation[1]
-                    self.annotations["references"][annotation_id] = annotation[0]
+                    self.annotations[annotation_type][annotation_id] = annotation[1]
+                    self.annotations[annotation_type][annotation_id] = annotation[0]
                 else:
-                    self.annotations["references"][annotation_id] = annotation
+                    self.annotations[annotation_type][annotation_id] = annotation
             else:
                 print("- missing project level reference information, cannot detect")
             
@@ -167,8 +171,8 @@ class Container(object):
             
         ## segmentation
         if fun == "threshold":
-            if len(self.annotations["masks"]) > 0:
-                kwargs.update({"masks":self.annotations["masks"]})
+            if len(self.annotations["mask"]) > 0:
+                kwargs.update({"mask":self.annotations["mask"]})
             self.image = segmentation.threshold(self.image, **kwargs)
             self.image_bin = copy.deepcopy(self.image)
         if fun == "watershed":
@@ -177,7 +181,7 @@ class Container(object):
             self.image = segmentation.morphology(self.image, **kwargs)
             
         if fun == "detect_contours":
-            self.annotations["contours"][annotation_id] = segmentation.detect_contours(self.image, **kwargs)
+            self.annotations[annotation_type][annotation_id] = segmentation.detect_contours(self.image, **kwargs)
             
 
                     
@@ -198,41 +202,17 @@ class Container(object):
         ## data flags
         flag_contours = contours
 
-        ## check dirpath
-        if (
-            dirpath.__class__.__name__ == "NoneType"
-            and not self.dirpath.__class__.__name__ == "NoneType"
-        ):
-            dirpath = self.dirpath
-        if dirpath.__class__.__name__ == "NoneType":
-            print('No save directory ("dirpath") specified - cannot load files.')
-            return
-        if not os.path.isdir(dirpath):
-            print("Directory does not exist - cannot load files.")
-            return
-
-        ## check save_suffix
-        if (
-            save_suffix.__class__.__name__ == "NoneType"
-            and not self.save_suffix.__class__.__name__ == "NoneType"
-        ):
-            save_suffix = "_" + self.save_suffix
-        elif not save_suffix.__class__.__name__ == "NoneType":
-            save_suffix = "_" + save_suffix
-        else:
-            save_suffix = ""
-
         # collect
-        if len(os.listdir(dirpath)) > 0:
-            for file in os.listdir(dirpath):
-                if os.path.isfile(os.path.join(dirpath, file)):
+        if len(os.listdir(self.dirpath)) > 0:
+            for file in os.listdir(self.dirpath):
+                if os.path.isfile(os.path.join(self.dirpath, file)):
                     if (
-                        len(save_suffix) > 0
-                        and save_suffix in file
+                        len(self.save_suffix) > 0
+                        and self.save_suffix in file
                         and not "pype_config" in file
                     ):
                         files.append(file[0 : file.rindex("_")])
-                    elif len(save_suffix) == 0:
+                    elif len(self.save_suffix) == 0:
                         files.append(file[0 : file.rindex(".")])
 
         else:
@@ -240,11 +220,10 @@ class Container(object):
             return
 
         ## load attributes
-        attr_local_path = os.path.join(dirpath, "attributes.yaml")
+        attr_local_path = os.path.join(self.dirpath, "attributes.yaml")
         if os.path.isfile(attr_local_path):
 
             attr_local = _load_yaml(attr_local_path)
-                
             
             if "reference" in attr_local:
                 
@@ -280,25 +259,7 @@ class Container(object):
                     ## load tempate image from project level attributes
                     if "template_image" in attr_proj["reference"][active_ref]:
                         self.reference_template_image = cv2.imread(str(Path(attr_local_path).parents[2] / attr_proj["reference"][active_ref]["template_image"]))
-                        loaded.append("reference template image loaded from root directory")
-
-        ## contours
-        if flag_contours:
-            if not hasattr(self, "df_contours") and "contours" in files:
-                path = os.path.join(dirpath, "contours" + save_suffix + ".csv")
-                if os.path.isfile(path):
-                    df = pd.read_csv(path, converters={"center": ast.literal_eval})
-                    if "x" in df:
-                        df["coords"] = list(zip(df.x, df.y))
-                        coords = df.groupby("contour")["coords"].apply(list)
-                        coords_arr = _convert_tup_list_arr(coords)
-                        df.drop(columns=["coords", "x", "y"], inplace=True)
-                        df = df.drop_duplicates().reset_index()
-                        df["coords"] = pd.Series(coords_arr, index=df.index)
-                        self.df_contours = df
-                        loaded.append("contours" + save_suffix + ".csv")
-                    else:
-                        print("Could not load contours - df saved without coordinates.")                  
+                        loaded.append("reference template image loaded from root directory")       
                 
         ## feedback
         if len(loaded) > 0:
@@ -319,16 +280,6 @@ class Container(object):
         self.image_bin = None
         self.image_gray = None
         self.canvas = None
-
-        ## attributes
-        self.reference_manual_mode = False
-
-        # if hasattr(self, "df_masks"):
-        #     del(self.df_masks)
-
-        if hasattr(self, "df_contours"):
-            del self.df_contours
-
 
 
 #%% functions
@@ -444,7 +395,8 @@ def load_image(
             
     ## create container
     if flags.container:
-        return Container(image, dirpath=dirpath, save_suffix=save_suffix)
+        cont = copy.deepcopy(Container(image, dirpath=dirpath, save_suffix=save_suffix))
+        return cont
     else:
         return image
 
@@ -479,8 +431,8 @@ def load_pp_directory(
 
     """
     ## set flags
-    flags = AttrDict({"container":load_container})    
-    
+    flags = AttrDict({"container":load_container})  
+       
     ## check if directory
     if not os.path.isdir(dirpath):
         print("Not a valid phenoype directory - cannot load files.")
@@ -505,7 +457,7 @@ def load_pp_directory(
         image_path =  os.path.join(dirpath,attributes["image_phenopype"]["filename"])
         
     ## return
-    return load_image(image_path, load_container=flags.container, dirpath=dirpath)
+    return load_image(image_path, load_container=flags.container, dirpath=dirpath, save_suffix=save_suffix)
     
 
 

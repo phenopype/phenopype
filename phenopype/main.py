@@ -53,6 +53,7 @@ from phenopype.utils_lowlevel import (
 
 
 
+from dataclasses import make_dataclass
 
 #%% settings
 
@@ -862,7 +863,7 @@ class Project:
 
 
 
-class Pype:
+class Pype(object):
     """
     The pype is phenopype’s core method that allows running all functions 
     that are available in the program’s library in sequence. Users can execute 
@@ -923,15 +924,14 @@ class Pype:
         **kwargs
     ):
 
-        ## flags
-        self.flags = AttrDict(
-            {"skip": skip, "feedback": feedback, "terminate": False})
-
+        # flags
+        self.flags = AttrDict({"skip": skip, "feedback": feedback, "terminate": False})
+        
         ## check name, load container and config
         self._check_pype_name(name=name)
         self._load_container(name=name, image=image, dirpath=dirpath)
         self._load_config(name=name, config=config, template=template)
-
+               
         ## check whether directory is skipped
         if self.flags.skip == True:
             dir_skip = self._check_directory_skip(name=name, dirpath=self.container.dirpath)
@@ -1185,27 +1185,30 @@ class Pype:
                     annotation_params = {}
                     method_args = dict(method_args)
                 if method_name in _annotation_functions:
+                    
                     annotation_counter[_annotation_functions[method_name]] += 1
-                    annotation_id = annotation_counter[_annotation_functions[method_name]]
+                    
+                    annotation_type = _annotation_functions[method_name]
                     if not "type" in annotation_params:
                         annotation_params.update({"type":_annotation_functions[method_name]})
+                    annotation_id = annotation_counter[_annotation_functions[method_name]]
                     if not "id" in annotation_params:
                         annotation_params.update({"id":annotation_id})
+                        
                     annotation_params =  _yaml_flow_style(annotation_params)
                     method_args_updated = {"ANNOTATION":annotation_params}
                     method_args_updated.update(method_args)
                     self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
                 else:
-                    annotation_id = "null"
+                    annotation_id = None
+                    annotation_type = None
 
                 if execute:            
                     try:
-                        ## run method
-                        if flags.feedback:
-                            print(method_name)
-                        method_args.update()
-                        self.container.run(fun=method_name, annotation_id=annotation_id, kwargs=method_args)
-                        
+                        self.container.run(fun=method_name, 
+                                           annotation_id=annotation_id, 
+                                           annotation_type=annotation_type,
+                                           kwargs=method_args)
                     except Exception as ex:
                         self.log.append(ex)
                         location = (

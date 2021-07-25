@@ -3,7 +3,6 @@ import cv2, copy
 import numpy as np
 import pandas as pd
 
-from dataclasses import dataclass
 from math import sqrt as _sqrt
 import numpy.ma as ma
 
@@ -83,7 +82,7 @@ def create_mask(
                                
     ## retrieve and save settings
     settings = locals()
-    for rm in ["image", "kwargs","key","value",
+    for rm in ["image", "kwargs","key","value","previous_annotation",
                "_image_viewer_params"]:
         settings.pop(rm, None)
         
@@ -437,7 +436,7 @@ def detect_reference(
         print("---------------------------------------------------")
 
         ## create mask from new coordinates
-        coords_list = _convert_arr_tup_list(rect_new)
+        coords_list = _convert_arr_tup_list(rect_new.astype(np.int8))
         coords_list[0].append(coords_list[0][0])
         
     else:
@@ -448,8 +447,6 @@ def detect_reference(
         print("---------------------------------------------------")
         px_mm_ratio_detected = None
         
-    # ## rectangle coords of reference in image
-    # rect_new = eval(df_masks.loc[df_masks["mask"]=="reference", "coords"].reset_index(drop=True)[0])
 
     ## do histogram equalization
     if flags.equalize:

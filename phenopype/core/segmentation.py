@@ -90,7 +90,7 @@ def detect_contours(
     
     ## settings
     settings = locals()
-    for rm in ["image"]:
+    for rm in ["image", "kwargs"]:
         settings.pop(rm, None)
         
     ## definitions
@@ -168,12 +168,12 @@ def detect_contours(
     ## return
     ret = {
     "info":{
-        "type": "contour", 
-        "function": "contour_detect",
+        "annotation_type": "contour", 
+        "pp_function": "contour_detect",
         "settings": settings
         },
     "data":{
-        "coords": coords,
+        "coord_list": coords,
         "support": support,
         }
     }
@@ -344,7 +344,7 @@ def threshold(
     blocksize=99,
     value=127,
     channel="gray",
-    masks=None,
+    mask=None,
     **kwargs,
 ):
     """
@@ -421,11 +421,11 @@ def threshold(
             )
 
     ## apply masks
-    if not masks.__class__.__name__ == "NoneType":
-        if not list(masks.keys())[0] == 1:
-            masks = {1: masks}
+    if not mask.__class__.__name__ == "NoneType":
+        if not list(mask.keys())[0] == 1:
+            mask = {1: mask}
         mask_bool, include_idx, exclude_idx = np.zeros(thresh.shape, dtype=bool), 0,0
-        for key, value in masks.items():
+        for key, value in mask.items():
             coord_list, include = value["data"]["coord_list"], value["data"]["include"]
             if include == True:
                 for coords in coord_list:
