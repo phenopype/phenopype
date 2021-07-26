@@ -120,7 +120,7 @@ def detect_contours(
    
     ## output conversion
     if contours is not None:
-        coords, support = [], []
+        coord_list, support = [], []
         for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
             
             ## number of contour nodes
@@ -147,7 +147,7 @@ def detect_contours(
                         ):
                 
                     ## populate data lists
-                    coords.append(contour)
+                    coord_list.append(contour)
                     support.append(
                         {
                             "center": center,
@@ -160,7 +160,7 @@ def detect_contours(
                         )
 
         if flag_verbose:
-            print("- found " + str(len(coords)) + " contours that match criteria")
+            print("- found " + str(len(coord_list)) + " contours that match criteria")
     else:
         if flag_verbose:
             print("- no contours found")
@@ -169,11 +169,12 @@ def detect_contours(
     ret = {
     "info":{
         "annotation_type": "contour", 
-        "pp_function": "contour_detect",
+        "pp_function": "detect_contours",
         "settings": settings
         },
     "data":{
-        "coord_list": coords,
+        "n_contours": len(coord_list),
+        "coord_list": coord_list,
         "support": support,
         }
     }
@@ -390,10 +391,10 @@ def threshold(
     if len(image.shape) == 3:
         if flag_verbose:
             image = preprocessing.select_channel(image, "gray")
-    # if blocksize % 2 == 0:
-    #     if flag_verbose:
-    #         blocksize = blocksize + 1
-    #         print("- even blocksize supplied, adding 1 to make odd")
+    if blocksize % 2 == 0:
+        if flag_verbose:
+            blocksize = blocksize + 1
+            print("- even blocksize supplied, adding 1 to make odd")
 
     ## method
     if method in "otsu":

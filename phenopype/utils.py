@@ -156,9 +156,9 @@ class Container(object):
                     self.reference_template_image,
                     self.reference_template_px_mm_ratio,
                     **kwargs)
-                self.annotations[annotation_type][annotation_id] = annotation
                 if annotation.__class__.__name__ == "tuple":
-                    self.annotations[annotation_type][annotation_id] = annotation[1]
+                    ref_mask_id = len(self.annotations["mask"].keys()) + 1
+                    self.annotations["mask"][ref_mask_id] = annotation[1]
                     self.annotations[annotation_type][annotation_id] = annotation[0]
                 else:
                     self.annotations[annotation_type][annotation_id] = annotation

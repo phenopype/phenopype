@@ -879,7 +879,7 @@ def _convert_arr_tup_list(arr_list):
     for array in arr_list:
         point_list = []
         for point in array:
-            point_list.append(tuple(point[0]))
+            point_list.append(tuple((int(point[0][0]),int(point[0][1]))))
         tup_list.append(point_list)
     return tup_list
 

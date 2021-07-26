@@ -82,7 +82,7 @@ def create_mask(
                                
     ## retrieve and save settings
     settings = locals()
-    for rm in ["image", "kwargs","key","value","previous_annotation",
+    for rm in ["image", "kwargs","key","value","previous_annotation", "previous",
                "_image_viewer_params"]:
         settings.pop(rm, None)
         
@@ -108,7 +108,7 @@ def create_mask(
         annotation = {
             "info": {
                 "annotation_type": "mask",
-                "pp_function": "mask_manual",
+                "pp_function": "create_mask",
             },
             "settings": settings,
             "data": {
@@ -414,13 +414,11 @@ def detect_reference(
         rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
 
         # calculate template diameter
-        rect_new = rect_new.astype(np.int32)
-        (x, y), radius = cv2.minEnclosingCircle(rect_new)
+        (x, y), radius = cv2.minEnclosingCircle(rect_new.astype(np.int32))
         diameter_new = radius * 2
 
         # calculate transformed diameter
-        rect_old = rect_old.astype(np.int32)
-        (x, y), radius = cv2.minEnclosingCircle(rect_old)
+        (x, y), radius = cv2.minEnclosingCircle(rect_old.astype(np.int32))
         diameter_old = radius * 2
 
         ## calculate ratios
@@ -436,7 +434,8 @@ def detect_reference(
         print("---------------------------------------------------")
 
         ## create mask from new coordinates
-        coords_list = _convert_arr_tup_list(rect_new.astype(np.int8))
+        rect_new = rect_new.astype(int)
+        coords_list = _convert_arr_tup_list(rect_new)
         coords_list[0].append(coords_list[0][0])
         
     else:
@@ -473,7 +472,6 @@ def detect_reference(
 
     ## mask reference
     if flags.mask:
-        
         annotation_mask = {
             "info": {
                 "annotation_type": "mask",

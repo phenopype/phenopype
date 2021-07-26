@@ -64,52 +64,73 @@ class MyEncoder(json.JSONEncoder):
 #%% functions
 
 def load_annotation(filepath, 
-                    annotation_type,
-                    annotation_id):
-    
-    ## type check
-    if not type(annotation_id) is str:
-        annotation_id = str(annotation_id)
+                    annotation_type=None,
+                    annotation_id=None):
     
     ## load annotation file
     if os.path.isfile(filepath):
         with open(filepath) as file:
             annotation_file = json.load(file)
-            annotation_file = defaultdict(dict, annotation_file)
-            annotation_file["info"] = defaultdict(dict, annotation_file["info"])
-            annotation_file["data"] = defaultdict(dict, annotation_file["data"])
+        annotation_file = defaultdict(dict, annotation_file)        
     else:
         print("file not found")
         return
-                   
-    ## reassemble info + data structure
-    annotation_info = copy.deepcopy(annotation_file["info"][annotation_type][annotation_id])
-    annotation_data = copy.deepcopy(annotation_file["data"][annotation_type][annotation_id])
-    
-    ## parse serialized array
-    annotation_data_new = {}
-    for data_key, data_values in annotation_data.items():
-        data_parsed = []
-        for data_item in data_values:
-            if type(data_item) is str:
-                data_item = eval(data_item)
-            if type(data_item) is list and data_key in ["coords"]:
-                data_item = np.asarray(data_item, dtype=np.int32)
-            data_parsed.append(data_item) 
-        annotation_data_new[data_key] = data_parsed
         
-    ## reassemble
-    annotation = {}
-    annotation["info"] = annotation_info
-    annotation["data"] = annotation_data_new
-    
+    ## parse serialized array
+    for annotation_type1 in annotation_file:
+        for annotation_id1 in annotation_file[annotation_type1]:    
+            for section in annotation_file[annotation_type1][annotation_id1]:
+                for key, value in annotation_file[annotation_type1][annotation_id1][section].items():
+                    if key in ["coord_list"] and type(value) == str:
+                        value = eval(value)
+                        if annotation_type1 == "contour":
+                            value = [np.asarray(elem, dtype=np.int32) for elem in value] 
+                    annotation_file[annotation_type1][annotation_id1][section][key] = value
+             
+    ## subsetting
+    while True:
+        
+        ## filter by annotation type
+        if annotation_type.__class__.__name__ == "NoneType":
+            print("- no annotation_type selected - returning all annotations")
+            annotation = annotation_file
+            break
+        elif annotation_type.__class__.__name__ == "str":
+            annotation_type_list = [annotation_type]
+        elif annotation_type.__class__.__name__ == "list":
+            annotation_type_list = annotation_type
+            pass
+        annotation_subset = defaultdict(dict)
+        for annotation_type in annotation_type_list:
+            annotation_subset[annotation_type] = annotation_file[annotation_type]
+                
+        ## filter by annotation id
+        if annotation_id.__class__.__name__ == "NoneType":
+            print("- no annotation_id selected - returning all annotations of type: {}".format(annotation_type_list))
+            annotation = annotation_subset
+            break
+        elif annotation_id.__class__.__name__ == "int":
+            annotation_id_list = [str(annotation_id)]
+        elif annotation_id.__class__.__name__ == "str":
+            annotation_id_list = [annotation_id]
+        elif annotation_id.__class__.__name__ == "list":
+            annotation_id_list = annotation_id
+            pass 
+        annotation = defaultdict(dict)
+        for annotation_type in annotation_type_list:
+            for annotation_id in annotation_id_list:
+                annotation_id = str(annotation_id)
+                if annotation_id in annotation_subset[annotation_type]:
+                    annotation[annotation_type][annotation_id] = annotation_subset[annotation_type][annotation_id]
+        break
+
     ## return
     return annotation
 
 
 
 def save_annotation(annotation, 
-                    annotation_id=1,
+                    annotation_id=None,
                     dirpath=None,
                     filename="annotations.json",
                     overwrite=False, 
@@ -133,25 +154,54 @@ def save_annotation(annotation,
     
     ## filepath
     filepath = os.path.join(dirpath, filename)
-            
+    annotation = copy.deepcopy(annotation)
+                
     ## open existing json or create new
-    if os.path.isfile(filepath) and overwrite in [False,"entry"]:
-        with open(filepath) as file:
-            annotation_file = json.load(file)
-            annotation_file = defaultdict(dict, annotation_file)
-    else:
-        if os.path.isfile(filepath) and overwrite=="file":
-            print("overwriting annotation file (overwrite=\"file\")")
+    while True:
+        if os.path.isfile(filepath):
+            if overwrite in [False,True,"entry"]:
+                with open(filepath) as file:
+                    annotation_file = json.load(file)
+                annotation_file = defaultdict(dict, annotation_file)           
+                print("- loading existing annotation file")
+                break
+            elif overwrite == "file":
+                pass
+                print("overwriting annotation file (overwrite=\"file\")")
+        else:
+            print("- creating new annotation file")
+            pass
         annotation_file = defaultdict(dict)
-
+        break
+    
+    ## check annotation dict input and convert to type/id/ann structure
     if list(annotation.keys())[0] in _annotation_function_dicts.keys():
-        annotation_file = defaultdict(dict, copy.deepcopy(annotation))
-    else:
-        annotation_file[annotation["info"]["annotation_type"]][annotation_id] = copy.deepcopy(annotation)
+        annotation = defaultdict(dict, annotation)
+    elif list(annotation.keys())[0] == "info":
+        if annotation_id.__class__.__name__ == "NoneType":
+            print("- annotation_id missing - please provide an integer ID > 0")
+            return
+        if not annotation_id.__class__.__name__ == "str":
+            annotation_id = str(annotation_id)
+        annotation = defaultdict(dict, {annotation["info"]["annotation_type"]:{annotation_id: annotation}})
+                
+    ## write annotation to output dict
+    for annotation_type in annotation:
+        for annotation_id in annotation[annotation_type]:
+            annotation_id_new = str(annotation_id)
+            if annotation_id in annotation_file[annotation_type]:
+                if overwrite in [True, "entry"]:
+                    annotation_file[annotation_type][annotation_id_new] = annotation[annotation_type][annotation_id]
+                    print("- updating annotation of type \"{}\" with id \"{}\" in \"{}\" (overwrite=\"entry\")".format(annotation_type, annotation_id, filename))
+                else:
+                    print("- annotation of type \"{}\" with id \"{}\" already exists in \"{}\" (overwrite=False)".format(annotation_type, annotation_id, filename))
+            else:
+                annotation_file[annotation_type][annotation_id_new] = annotation[annotation_type][annotation_id]
+                print("- writing annotation of type \"{}\" with id \"{}\" to \"{}\"".format(annotation_type, annotation_id, filename))  
     
     ## NoIndent annotation arrays and lists
     for annotation_type in annotation_file:
-        for annotation_id in annotation_file[annotation_type]:
+        for annotation_id in annotation_file[annotation_type]:    
             for section in annotation_file[annotation_type][annotation_id]:
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
                     if key in ["coord_list"]:
@@ -167,25 +217,6 @@ def save_annotation(annotation,
                     indent=indent, 
                     cls=MyEncoder)
         
-        
-
-        
-def save_annotation_list(annotation_list):
-    pass
-
-
-def save_annotation_dict(annotation_dict_dict, dirpath, overwrite=False):
-    
-    for annotation_type, annotation_dict in annotation_dict_dict.items():
-        for key, value in annotation_dict.items():
-            save_annotation(annotation=value,
-                            annotation_id=key, 
-                            dirpath=dirpath,
-                            overwrite=overwrite)
-            
-        
-    
-    
         
 
 def ROI_save(image,
