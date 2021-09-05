@@ -196,7 +196,10 @@ class _ImageViewer:
         ## temporary data entry loop, will be integrated later
         if self.tool == "comment":
             display = kwargs.get("display", "")
-            entry = ""
+            if hasattr(self, "entry"):
+                entry = self.entry
+            else:
+                entry = ""
             k = 0
             
             while True or entry == "":

@@ -145,7 +145,6 @@ class Container(object):
             annotation = preprocessing.enter_data(self.image, **kwargs)
             self.annotations[annotation_type][annotation_id] = annotation
             
-            
         if fun == "detect_reference":
             if all(hasattr(self, attr) for attr in [
                     "reference_template_px_mm_ratio", 
@@ -266,7 +265,53 @@ class Container(object):
             print("=== AUTOLOAD ===\n- " + "\n- ".join(loaded))
         else:
             print("Nothing loaded.")
-            
+
+    def save(self, dirpath=None, export_list=[], overwrite=False, **kwargs):
+        """
+        Autosave function for container. 
+        Parameters
+        ----------
+        dirpath: str, optional
+            provide a custom directory where files should be save - overwrites 
+            dirpath provided from container, if applicable
+        export_list: list, optional
+            used in pype rountine to check against already performed saving operations.
+            running container.save() with an empty export_list will assumed that nothing
+            has been saved so far, and will try 
+        overwrite : bool, optional
+            gloabl overwrite flag in case file exists
+        """
+
+        ## kwargs
+        flag_overwrite = overwrite
+
+        ## check dirpath
+        if (
+            dirpath.__class__.__name__ == "NoneType"
+            and not self.dirpath.__class__.__name__ == "NoneType"
+        ):
+            print("=== AUTOSAVE ===")
+            dirpath = self.dirpath
+        if dirpath.__class__.__name__ == "NoneType":
+            print('No save directory ("dirpath") specified - cannot save files.')
+            return
+        if not os.path.isdir(dirpath):
+            print("Directory does not exist - cannot save files.")
+
+
+        # ## canvas
+        # if (
+        #     not self.canvas.__class__.__name__ == "NoneType"
+        #     and not "save_canvas" in export_list
+        # ):
+        #     print("save_canvas")
+        #     export.save_canvas(self, dirpath=dirpath)
+
+        ## colours
+        if hasattr(self, "annotations") and not "save_annotation" in export_list:
+            print("- save_annotation")
+            export.save_annotation(self.annotations, dirpath=dirpath, overwrite=flag_overwrite)
+
             
 
     def reset(self):

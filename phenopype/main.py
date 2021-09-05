@@ -925,7 +925,10 @@ class Pype(object):
     ):
 
         # flags
-        self.flags = AttrDict({"skip": skip, "feedback": feedback, "terminate": False})
+        self.flags = AttrDict({"skip": skip, 
+                               "feedback": feedback, 
+                               "terminate": False,
+                               "debug": kwargs.get("debug",False)})
         
         ## check name, load container and config
         self._check_pype_name(name=name)
@@ -1210,6 +1213,8 @@ class Pype(object):
                                            annotation_type=annotation_type,
                                            kwargs=method_args)
                     except Exception as ex:
+                        if self.flags.debug:
+                            raise
                         self.log.append(ex)
                         location = (
                             step_name + "." + method_name + ": " + str(ex.__class__.__name__)

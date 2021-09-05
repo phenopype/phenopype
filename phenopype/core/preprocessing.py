@@ -520,14 +520,43 @@ def enter_data(
         contains the entered data
 
     """
+    
+    ## convert previous annotations to 
+    if "previous_annotation" in kwargs:
+        previous_annotation = kwargs.get("previous_annotation")
+        previous = {}            
+        previous.update(previous_annotation["settings"])
+        previous["entry"] = previous_annotation["data"][field]
+        previous = _DummyClass(previous)    
+        kwargs.update({"previous": previous})
+        
+    ## retrieve and save settings
+    settings = locals()
+    for rm in ["image", "kwargs", "key", "value",
+               "previous_annotation", "previous",
+               "_image_viewer_params"]:
+        settings.pop(rm, None)
+        
+    print(settings)
+        
+    ## retrieve settings for image viewer
+    _image_viewer_params = {}
+    for key, value in kwargs.items():
+        if key in _image_viewer_arg_list:
+            settings[key] = value
+            _image_viewer_params[key] = value
 
-    out = _ImageViewer(image, tool="comment", display=field)
+    out = _ImageViewer(image, 
+                       tool="comment", 
+                       display=field, 
+                        **_image_viewer_params)
 
     annotation = {
         "info": {
             "annotation_type": "comment",
             "pp_function": "enter_data",
         },
+        "settings": settings,
         "data": {
             field: out.entry
         }

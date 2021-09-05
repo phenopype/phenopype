@@ -184,12 +184,12 @@ def save_annotation(annotation,
         if not annotation_id.__class__.__name__ == "str":
             annotation_id = str(annotation_id)
         annotation = defaultdict(dict, {annotation["info"]["annotation_type"]:{annotation_id: annotation}})
-                
+                        
     ## write annotation to output dict
     for annotation_type in annotation:
         for annotation_id in annotation[annotation_type]:
             annotation_id_new = str(annotation_id)
-            if annotation_id in annotation_file[annotation_type]:
+            if str(annotation_id) in annotation_file[annotation_type]:
                 if overwrite in [True, "entry"]:
                     annotation_file[annotation_type][annotation_id_new] = annotation[annotation_type][annotation_id]
                     print("- updating annotation of type \"{}\" with id \"{}\" in \"{}\" (overwrite=\"entry\")".format(annotation_type, annotation_id, filename))
@@ -266,91 +266,6 @@ def ROI_save(image,
 
 
 
-
-
-def save_canvas(
-    obj_input, overwrite=True, dirpath=None, save_suffix=None, name="", resize=0.5
-):
-    """
-    Save a canvas (processed image). 
-
-    Parameters
-    ----------
-    obj_input : array or container
-        input object
-    overwrite : bool, optional
-        overwrite flag in case file exists
-    dirpath : str, optional
-        folder to save file in 
-    save_suffix : str, optional
-        suffix to append to filename
-    name: str, optional
-        custom name for file
-    resize: float, optional
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
-        original size).
-
-    """
-    ## kwargs
-    flag_overwrite = overwrite
-
-    ## load df
-    if obj_input.__class__.__name__ == "ndarray":
-        image = copy.deepcopy(obj_input)
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.canvas)
-        if (
-            dirpath.__class__.__name__ == "NoneType"
-            and not obj_input.dirpath.__class__.__name__ == "NoneType"
-        ):
-            dirpath = obj_input.dirpath
-        if (
-            save_suffix.__class__.__name__ == "NoneType"
-            and not obj_input.save_suffix.__class__.__name__ == "NoneType"
-        ):
-            save_suffix = obj_input.save_suffix
-    else:
-        print("No image supplied - cannot save canvas.")
-        return
-
-    ## dirpath
-    if dirpath.__class__.__name__ == "NoneType":
-        print('No save directory ("dirpath") specified - cannot save result.')
-        return
-    else:
-        if not os.path.isdir(dirpath):
-            q = input("Save folder {} does not exist - create?.".format(dirpath))
-            if q in ["True", "true", "y", "yes"]:
-                os.makedirs(dirpath)
-            else:
-                print("Directory not created - aborting")
-                return
-
-    ## resize
-    if resize < 1:
-        image = cv2.resize(image, (0, 0), fx=1 * resize, fy=1 * resize)
-
-    ## save suffix
-    if len(name) > 0:
-        name = "_" + name
-    if save_suffix:
-        path = os.path.join(dirpath, "canvas" + name + "_" + save_suffix + ".jpg")
-    else:
-        path = os.path.join(dirpath, "canvas" + name + ".jpg")
-
-    ## check if file exists
-    while True:
-        if os.path.isfile(path) and flag_overwrite == False:
-            print("- canvas not saved - file already exists (overwrite=False).")
-            break
-        elif os.path.isfile(path) and flag_overwrite == True:
-            print("- canvas saved under " + path + " (overwritten).")
-            pass
-        elif not os.path.isfile(path):
-            print("- canvas saved under " + path + ".")
-            pass
-        cv2.imwrite(path, image)
-        break
 
 
 def save_colours(
