@@ -119,13 +119,14 @@ def load_annotation(filepath,
         annotation = defaultdict(dict)
         for annotation_type in annotation_type_list:
             for annotation_id in annotation_id_list:
-                annotation_id = str(annotation_id)
+                annotation_id = int(annotation_id)
+                print(annotation_id)
                 if annotation_id in annotation_subset[annotation_type]:
                     annotation[annotation_type][annotation_id] = annotation_subset[annotation_type][annotation_id]
         break
 
     ## return
-    return annotation
+    return dict(annotation)
 
 
 

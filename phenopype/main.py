@@ -924,6 +924,10 @@ class Pype(object):
         **kwargs
     ):
 
+        # =============================================================================
+        # CHECKS & INIT
+        # =============================================================================
+
         # flags
         self.flags = AttrDict({"skip": skip, 
                                "feedback": feedback, 
@@ -933,7 +937,7 @@ class Pype(object):
         ## check name, load container and config
         self._check_pype_name(name=name)
         self._load_container(name=name, image=image, dirpath=dirpath)
-        self._load_config(name=name, config=config, template=template)
+        self._load_pype_config(name=name, config=config, template=template)
                
         ## check whether directory is skipped
         if self.flags.skip == True:
@@ -957,6 +961,10 @@ class Pype(object):
 
         ## start log
         self.log = []
+        
+        # =============================================================================
+        # PYPE LOOP   
+        # =============================================================================
 
         ## run pype
         while True:
@@ -973,10 +981,13 @@ class Pype(object):
             if self.flags.terminate:
                 self.YFM._stop()
                 print("\n\nTERMINATE")
+                
+                # print(self.container.annotations["contour"])
+                
                 break
         
-        if self.flags.terminate:
-            self.container.save()
+        # if self.flags.terminate:
+        #     self.container.save()
             
             
     def _load_container(self, name, image, dirpath):
@@ -1017,7 +1028,7 @@ class Pype(object):
             self.container.dirpath = dirpath
            
             
-    def _load_config(self, name, config, template):
+    def _load_pype_config(self, name, config, template):
 
         ## load pype config (three contexts):
         ## 1) load from existing file
@@ -1150,26 +1161,54 @@ class Pype(object):
         self.container.reset()
         annotation_counter = dict.fromkeys(annotations, 0)
 
-
         ## apply pype: loop through steps and contained methods
         step_list = self.config["processing_steps"]
         self.config_updated = copy.deepcopy(self.config)
                     
         for step_idx, step in enumerate(step_list):
             
+            # =============================================================================
+            # STEP
+            # =============================================================================
+                                    
             if step.__class__.__name__=="str":
                 continue
             
             ## get step name 
             step_name = list(dict(step).keys())[0]
             method_list = list(dict(step).values())[0]
-                                                  
+                                                              
             ## print current step
             if flags.feedback:
                 print(step_name.upper())
+                
+
+            if step_name == "visualization":
+                
+                ## check if canvas is selected, and otherwise execute with default values
+                if (
+                    not "select_canvas" in method_list
+                    and self.container.canvas.__class__.__name__ == "NoneType"
+                ):
+                    print("- autoselect canvas:")
+                    self.container.run("select_canvas")
+                    
+            if step_name == "export":
+                
+                ## check if canvas is selected, and otherwise execute with default values
+                if (
+                    not "select_canvas" in method_list
+                    and self.container.canvas.__class__.__name__ == "NoneType"
+                ):
+                    print("- autoselect canvas:")
+                    self.container.run("select_canvas")
 
             ## iterate through step list
             for method_idx, method in enumerate(method_list):
+                
+                # =============================================================================
+                # METHOD
+                # =============================================================================
 
                 ## format method name and arguments       
                 if method.__class__.__name__ in ["dict", "ordereddict","CommentedMap"]:
@@ -1209,7 +1248,7 @@ class Pype(object):
                     annotation_id = None
                     annotation_type = None
 
-                ## error handling
+                ## run method with error handling
                 if flags.execute:            
                     try:
                         self.container.run(fun=method_name, 
@@ -1224,6 +1263,10 @@ class Pype(object):
                             step_name + "." + method_name + ": " + str(ex.__class__.__name__)
                         )
                         print(location + " - " + str(ex))
+                        
+        # =============================================================================
+        # CONFIG-UPDATE; FEEDBACK; FINAL VISUALIZATION
+        # =============================================================================
                     
         if not self.config_updated == self.config:
             _save_yaml(self.config_updated, self.config_path)

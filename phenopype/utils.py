@@ -63,60 +63,90 @@ class Container(object):
         ## annotations
         self.annotations = copy.deepcopy(_annotation_function_dicts)
                 
-    def select_canvas(self, canvas="mod", multi=True):
+        
+    def load(self, **kwargs):
         """
-        Isolate a colour channel from an image or select canvas for the pype method.
-    
+        Autoload function for container: loads results files with given save_suffix
+        into the container. Can be used manually, but is typically used within the
+        pype routine.
+        
         Parameters
         ----------
-    
-        canvas : {"mod", "bin", "gray", "raw", "red", "green", "blue"} str, optional
-            the type of canvas to be used for visual feedback. some types require a
-            function to be run first, e.g. "bin" needs a segmentation algorithm to be
-            run first. black/white images don't have colour channels. coerced to 3D
-            array by default
-        multi: bool, optional
-            coerce returned array to multichannel (3-channel)
-    
-        Returns
-        -------
-        obj_input : container
-            canvas can be called with "obj_input.canvas".
-    
+        save_suffix : str, optional
+            suffix to include when looking for files to load
+
         """
-        ## kwargs
-        flag_multi = multi
-    
-        ## method
-        if canvas == "mod":
-            self.canvas = copy.deepcopy(self.image)
-            print("- modifed image")
-        elif canvas == "raw":
-            self.canvas = copy.deepcopy(self.image_copy)
-            print("- raw image")
-        elif canvas == "bin":
-            self.canvas = copy.deepcopy(self.image_bin)
-            print("- binary image")
-        elif canvas == "gray":
-            self.canvas = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-            print("- grayscale image")
-        elif canvas == "green":
-            self.canvas = self.image[:, :, 0]
-            print("- green channel")
-        elif canvas == "red":
-            self.canvas = self.image[:, :, 1]
-            print("- red channel")
-        elif canvas == "blue":
-            self.canvas = self.image[:, :, 2]
-            print("- blue channel")
+
+        loaded = []        
+
+        # ## load annotations
+        # annotations_filename = "annotations" + "_" + self.save_suffix + ".json"
+        # if annotations_filename in os.listdir(self.dirpath):
+        #     self.annotations = export.load_annotation(os.path.join(self.dirpath, annotations_filename))
+        #     loaded.append("annotations loaded")
+            
+        ## load attributes
+        attr_local_path = os.path.join(self.dirpath, "attributes.yaml")
+        if os.path.isfile(attr_local_path):
+
+            attr_local = _load_yaml(attr_local_path)
+            
+            if "reference" in attr_local:
+                
+                ## manually measured px-mm-ratio
+                if "manually_measured_px_mm_ratio" in attr_local["reference"]:
+                    self.reference_manually_measured_px_mm_ratio = attr_local["reference"]["manually_measured_px_mm_ratio"]
+                    loaded.append("manually measured local reference information loaded")
+                    
+                ## project level template px-mm-ratio
+                if "project_level" in attr_local["reference"]:
+                    
+                    ## load local (image specific) and global (project level) attributes 
+                    attr_proj_path =  os.path.abspath(os.path.join(attr_local_path ,r"../../../","attributes.yaml"))
+                    attr_proj = _load_yaml(attr_proj_path)
+                                        
+                    ## find active project level references
+                    n_active = 0
+                    for key, value in attr_local["reference"]["project_level"].items():
+                        if attr_local["reference"]["project_level"][key]["active"] == True:
+                            active_ref = key
+                            n_active += 1
+                    if n_active > 1:
+                        print("WARNING: multiple active reference detected - fix with running add_reference again.")                            
+                    self.reference_active = active_ref
+                    self.reference_template_px_mm_ratio = attr_proj["reference"][active_ref]["template_px_mm_ratio"]
+                    loaded.append("project level reference information loaded for " + active_ref)
+                
+                    ## load previously detect px-mm-ratio
+                    if "detected_px_mm_ratio" in attr_local["reference"]["project_level"]:
+                        self.reference_detected_px_mm_ratio = attr_local["reference"]["project_level"]["detected_px_mm_ratio"]
+                        loaded.append("detected local reference information loaded for " + active_ref)
+                        
+                    ## load tempate image from project level attributes
+                    if "template_image" in attr_proj["reference"][active_ref]:
+                        self.reference_template_image = cv2.imread(str(Path(attr_local_path).parents[2] / attr_proj["reference"][active_ref]["template_image"]))
+                        loaded.append("reference template image loaded from root directory")       
+                
+        ## feedback
+        if len(loaded) > 0:
+            print("=== AUTOLOAD ===\n- " + "\n- ".join(loaded))
         else:
-            print("- invalid selection - defaulting to raw image")
-            self.canvas = copy.deepcopy(self.image_copy)
-    
-        ## check if colour
-        if flag_multi:
-            if len(self.canvas.shape) < 3:
-                self.canvas = cv2.cvtColor(self.canvas, cv2.COLOR_GRAY2BGR)
+            print("Nothing loaded.")
+
+            
+    def reset(self):
+        """
+        Resets modified images, canvas and df_image_data to original state. Can be used manually, but is typically used within the
+        pype routine.
+
+        """
+        ## images
+        self.image = copy.deepcopy(self.image_copy)
+        self.image_bin = None
+        self.image_gray = None
+        self.canvas = None
+        # self.annotations = None
+
             
     def run(self, fun, annotation_id=None, annotation_type=None, kwargs={}):
         
@@ -124,6 +154,7 @@ class Container(object):
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
             if annotation_id in self.annotations[annotation_type]:
+                print("prev ann")
                 kwargs.update({"previous_annotation":self.annotations[annotation_type][annotation_id]})
 
         ## preprocessing
@@ -179,95 +210,19 @@ class Container(object):
             self.annotations[annotation_type][annotation_id] = segmentation.detect_contours(self.image, **kwargs)
             
         ## visualization
+        if fun == "select_canvas":
+            visualization.select_canvas(self, **kwargs)
+        
         if fun == "draw_contours":
-            self.canvas = visualization.draw_contours(self.image, self.annotations["contour"][1], **kwargs)
+            for annotation in self.annotations["contour"].values():
+                print(annotation)
+                self.canvas = visualization.draw_contours(self.canvas, annotation, **kwargs)
         
         ## export
+        if fun == "save_annotation":
+            filename = kwargs.get("filename", "annotations") + "_" + self.save_suffix + ".json"
+            export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
             
-
-                    
-    def load(self, dirpath=None, save_suffix=None, contours=False, canvas=False, **kwargs):
-        """
-        Autoload function for container: loads results files with given save_suffix
-        into the container. Can be used manually, but is typically used within the
-        pype routine.
-        
-        Parameters
-        ----------
-        save_suffix : str, optional
-            suffix to include when looking for files to load
-
-        """
-        files, loaded = [], []
-
-        ## data flags
-        flag_contours = contours
-
-        # collect
-        if len(os.listdir(self.dirpath)) > 0:
-            for file in os.listdir(self.dirpath):
-                if os.path.isfile(os.path.join(self.dirpath, file)):
-                    if (
-                        len(self.save_suffix) > 0
-                        and self.save_suffix in file
-                        and not "pype_config" in file
-                    ):
-                        files.append(file[0 : file.rindex("_")])
-                    elif len(self.save_suffix) == 0:
-                        files.append(file[0 : file.rindex(".")])
-
-        else:
-            print("No files found in given directory")
-            return
-
-        ## load attributes
-        attr_local_path = os.path.join(self.dirpath, "attributes.yaml")
-        if os.path.isfile(attr_local_path):
-
-            attr_local = _load_yaml(attr_local_path)
-            
-            if "reference" in attr_local:
-                
-                ## manually measured px-mm-ratio
-                if "manually_measured_px_mm_ratio" in attr_local["reference"]:
-                    self.reference_manually_measured_px_mm_ratio = attr_local["reference"]["manually_measured_px_mm_ratio"]
-                    loaded.append("manually measured local reference information loaded")
-                    
-                ## project level template px-mm-ratio
-                if "project_level" in attr_local["reference"]:
-                    
-                    ## load local (image specific) and global (project level) attributes 
-                    attr_proj_path =  os.path.abspath(os.path.join(attr_local_path ,r"../../../","attributes.yaml"))
-                    attr_proj = _load_yaml(attr_proj_path)
-                                        
-                    ## find active project level references
-                    n_active = 0
-                    for key, value in attr_local["reference"]["project_level"].items():
-                        if attr_local["reference"]["project_level"][key]["active"] == True:
-                            active_ref = key
-                            n_active += 1
-                    if n_active > 1:
-                        print("WARNING: multiple active reference detected - fix with running add_reference again.")                            
-                    self.reference_active = active_ref
-                    self.reference_template_px_mm_ratio = attr_proj["reference"][active_ref]["template_px_mm_ratio"]
-                    loaded.append("project level reference information loaded for " + active_ref)
-                
-                    ## load previously detect px-mm-ratio
-                    if "detected_px_mm_ratio" in attr_local["reference"]["project_level"]:
-                        self.reference_detected_px_mm_ratio = attr_local["reference"]["project_level"]["detected_px_mm_ratio"]
-                        loaded.append("detected local reference information loaded for " + active_ref)
-                        
-                    ## load tempate image from project level attributes
-                    if "template_image" in attr_proj["reference"][active_ref]:
-                        self.reference_template_image = cv2.imread(str(Path(attr_local_path).parents[2] / attr_proj["reference"][active_ref]["template_image"]))
-                        loaded.append("reference template image loaded from root directory")       
-                
-        ## feedback
-        if len(loaded) > 0:
-            print("=== AUTOLOAD ===\n- " + "\n- ".join(loaded))
-        else:
-            print("Nothing loaded.")
-
     def save(self, dirpath=None, export_list=[], overwrite=False, **kwargs):
         """
         Autosave function for container. 
@@ -315,19 +270,6 @@ class Container(object):
             export.save_annotation(self.annotations, dirpath=dirpath, overwrite=flag_overwrite)
 
             
-
-    def reset(self):
-        """
-        Resets modified images, canvas and df_image_data to original state. Can be used manually, but is typically used within the
-        pype routine.
-
-        """
-        ## images
-        self.image = copy.deepcopy(self.image_copy)
-        self.image_bin = None
-        self.image_gray = None
-        self.canvas = None
-
 
 #%% functions
 

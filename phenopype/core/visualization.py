@@ -668,3 +668,61 @@ def draw_polylines(
         return image
     elif obj_input.__class__.__name__ == "container":
         obj_input.canvas = image
+
+
+
+def select_canvas(container, canvas="raw", multi_channel=True):
+    """
+    Isolate a colour channel from an image or select canvas for the pype method.
+
+    Parameters
+    ----------
+
+    canvas : {"mod", "bin", "gray", "raw", "red", "green", "blue"} str, optional
+        the type of canvas to be used for visual feedback. some types require a
+        function to be run first, e.g. "bin" needs a segmentation algorithm to be
+        run first. black/white images don't have colour channels. coerced to 3D
+        array by default
+    multi: bool, optional
+        coerce returned array to multichannel (3-channel)
+
+    Returns
+    -------
+    obj_input : container
+        canvas can be called with "obj_input.canvas".
+
+    """
+
+    ## method
+    if canvas == "mod":
+        container.canvas = copy.deepcopy(container.image)
+        print("- modifed image")
+    elif canvas == "raw":
+        container.canvas = copy.deepcopy(container.image_copy)
+        print("- raw image")
+    elif canvas == "bin":
+        container.canvas = copy.deepcopy(container.image_bin)
+        print("- binary image")
+    elif canvas == "gray":
+        container.canvas = cv2.cvtColor(container.image, cv2.COLOR_BGR2GRAY)
+        print("- grayscale image")
+    elif canvas == "green":
+        container.canvas = container.image[:, :, 0]
+        print("- green channel")
+    elif canvas == "red":
+        container.canvas = container.image[:, :, 1]
+        print("- red channel")
+    elif canvas == "blue":
+        container.canvas = container.image[:, :, 2]
+        print("- blue channel")
+    else:
+        print("- invalid selection - defaulting to raw image")
+        container.canvas = copy.deepcopy(container.image_copy)
+
+    ## check if colour
+    if multi_channel:
+        if len(container.canvas.shape) < 3:
+            container.canvas = cv2.cvtColor(container.canvas, cv2.COLOR_GRAY2BGR)
+            
+            
+        

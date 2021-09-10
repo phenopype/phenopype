@@ -566,9 +566,6 @@ def enter_data(
 
 
 
-
-
-
 def select_channel(image, channel="gray", invert=False):
     """
     Extract single channel from multi-channel array.
