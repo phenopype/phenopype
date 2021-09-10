@@ -974,6 +974,9 @@ class Pype(object):
                 self.YFM._stop()
                 print("\n\nTERMINATE")
                 break
+        
+        if self.flags.terminate:
+            self.container.save()
             
             
     def _load_container(self, name, image, dirpath):
@@ -1206,7 +1209,8 @@ class Pype(object):
                     annotation_id = None
                     annotation_type = None
 
-                if execute:            
+                ## error handling
+                if flags.execute:            
                     try:
                         self.container.run(fun=method_name, 
                                            annotation_id=annotation_id, 

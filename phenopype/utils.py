@@ -24,9 +24,6 @@ from dataclasses import make_dataclass
 
 #%% classes
 
-
-
-
 class Container(object):
     """
     A phenopype container is a Python class where loaded images, dataframes, 
@@ -178,9 +175,14 @@ class Container(object):
             self.image = segmentation.watershed(self.image_copy, self.image_bin, **kwargs)
         if fun == "morphology":
             self.image = segmentation.morphology(self.image, **kwargs)
-            
         if fun == "detect_contours":
             self.annotations[annotation_type][annotation_id] = segmentation.detect_contours(self.image, **kwargs)
+            
+        ## visualization
+        if fun == "draw_contours":
+            self.canvas = visualization.draw_contours(self.image, self.annotations["contour"][1], **kwargs)
+        
+        ## export
             
 
                     
