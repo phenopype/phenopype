@@ -982,14 +982,11 @@ class Pype(object):
             ## terminate
             if self.flags.terminate:
                 self.YFM._stop()
-                print("\n\nTERMINATE")
-                
-                # print(self.container.annotations["contour"])
-                
+                print("\n\nTERMINATE")         
                 break
         
-        # if self.flags.terminate:
-        #     self.container.save()
+        if self.flags.terminate:
+            self.container.save()
             
             
     def _load_container(self, name, image, dirpath):

@@ -237,6 +237,10 @@ class _ImageViewer:
                         self.entry = entry.replace(display, "")
                         cv2.destroyAllWindows()
                         break
+                elif phenopype.config.window_close:
+                    self.done = True
+                    cv2.destroyAllWindows()
+                    break
             
         else:
             cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])

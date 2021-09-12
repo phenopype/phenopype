@@ -1,4 +1,5 @@
 #%% modules
+
 import cv2, copy
 import numpy as np
 import pandas as pd
@@ -78,14 +79,10 @@ def create_mask(
         previous.update(previous_annotation["settings"])
         previous["polygons"] = previous_annotation["data"]["coord_list"]
         previous = _DummyClass(previous)    
-        kwargs.update({"previous": previous})
-                               
-    ## retrieve and save settings
+        kwargs.update({"previous": previous})               
+                
     settings = locals()
-    for rm in ["image", "kwargs","key","value","previous_annotation", "previous",
-               "_image_viewer_params"]:
-        settings.pop(rm, None)
-        
+    
     ## retrieve settings for image viewer
     _image_viewer_params = {}
     for key, value in kwargs.items():
@@ -100,6 +97,13 @@ def create_mask(
     if not out.done:
         print("- didn't finish: redo mask")
         return 
+    
+    ## retrieve and save settings
+    for rm in ["image", "kwargs","key","value","previous_annotation", "previous",
+               "_image_viewer_params"]:
+        settings.pop(rm, None)     
+        
+    print(settings)
         
     # conversion and return
     if out.polygons is not None:

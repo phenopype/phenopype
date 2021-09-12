@@ -95,8 +95,8 @@ class Container(object):
             if "reference" in attr_local:
                 
                 ## manually measured px-mm-ratio
-                if "manually_measured_px_mm_ratio" in attr_local["reference"]:
-                    self.reference_manually_measured_px_mm_ratio = attr_local["reference"]["manually_measured_px_mm_ratio"]
+                if "reference_manually_measured_px_mm_ratio" in attr_local["reference"]:
+                    self.reference_manually_measured_px_mm_ratio = attr_local["reference"]["reference_manually_measured_px_mm_ratio"]
                     loaded.append("manually measured local reference information loaded")
                     
                 ## project level template px-mm-ratio
@@ -119,8 +119,8 @@ class Container(object):
                     loaded.append("project level reference information loaded for " + active_ref)
                 
                     ## load previously detect px-mm-ratio
-                    if "detected_px_mm_ratio" in attr_local["reference"]["project_level"]:
-                        self.reference_detected_px_mm_ratio = attr_local["reference"]["project_level"]["detected_px_mm_ratio"]
+                    if "reference_detected_px_mm_ratio" in attr_local["reference"]["project_level"][active_ref]:
+                        self.reference_detected_px_mm_ratio = attr_local["reference"]["project_level"][active_ref]["reference_detected_px_mm_ratio"]
                         loaded.append("detected local reference information loaded for " + active_ref)
                         
                     ## load tempate image from project level attributes
@@ -174,24 +174,30 @@ class Container(object):
             self.annotations[annotation_type][annotation_id] = annotation
             
         if fun == "detect_reference":
-            if all(hasattr(self, attr) for attr in [
-                    "reference_template_px_mm_ratio", 
-                    "reference_template_image"
+            if not any(hasattr(self, reference) for reference in [
+                    "reference_detected_px_mm_ratio"
                     ]):
-                annotation = preprocessing.detect_reference(
-                    self.image, 
-                    self.reference_template_image,
-                    self.reference_template_px_mm_ratio,
-                    **kwargs)
-                if annotation.__class__.__name__ == "tuple":
-                    ref_mask_id = string.ascii_lowercase[len(self.annotations["mask"].keys())]
-                    self.annotations["mask"][ref_mask_id] = annotation[1]
-                    self.annotations[annotation_type][annotation_id] = annotation[0]
+                if all(hasattr(self, template) for template in [
+                        "reference_template_px_mm_ratio", 
+                        "reference_template_image"
+                        ]):
+                    annotation = preprocessing.detect_reference(
+                        self.image, 
+                        self.reference_template_image,
+                        self.reference_template_px_mm_ratio,
+                        **kwargs)
+                    if annotation.__class__.__name__ == "tuple":
+                        ref_mask_id = string.ascii_lowercase[len(self.annotations["mask"].keys())]
+                        self.annotations["mask"][ref_mask_id] = annotation[1]
+                        self.annotations[annotation_type][annotation_id] = annotation[0]
+                    else:
+                        self.annotations[annotation_type][annotation_id] = annotation
+                    self.reference_as_detected = self.annotations[annotation_type][annotation_id]["data"]["px_mm_ratio"]
                 else:
-                    self.annotations[annotation_type][annotation_id] = annotation
+                    print("- missing project level reference information, cannot detect")
             else:
-                print("- missing project level reference information, cannot detect")
-            
+                print("- reference already detected (current px-to-mm-ratio: {}).".format(self.reference_detected_px_mm_ratio)) 
+
         if fun == "select_channel":
             self.image = preprocessing.select_channel(self.image, **kwargs)
             
@@ -266,8 +272,12 @@ class Container(object):
         ## colours
         if hasattr(self, "annotations") and not "save_annotation" in export_list:
             print("- save_annotation")
-            export.save_annotation(self.annotations, dirpath=dirpath, overwrite=flag_overwrite)
+            filename = kwargs.get("filename", "annotations") + "_" + self.save_suffix + ".json"            
+            export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
 
+        if "reference" in self.annotations and not "reference" in export_list:
+            print("- save reference")
+            export.save_reference(self.annotations, dirpath=dirpath, overwrite=flag_overwrite, active_ref=self.reference_active)
             
 
 #%% functions
