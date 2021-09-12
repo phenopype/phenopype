@@ -59,7 +59,6 @@ with path(__package__, 'templates') as template_dir:
 
 flag_verbose = True
 
-
 opencv_window_flags={
     "normal": cv2.WINDOW_NORMAL,
     "auto": cv2.WINDOW_AUTOSIZE,

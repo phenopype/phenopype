@@ -423,8 +423,8 @@ def threshold(
 
     ## apply masks
     if not mask.__class__.__name__ == "NoneType":
-        if not int(list(mask.keys())[0]) == 1:
-            mask = {1: mask}
+        if not list(mask.keys())[0] == "a":
+            mask = {"a": mask}
         mask_bool, include_idx, exclude_idx = np.zeros(thresh.shape, dtype=bool), 0,0
         for key, value in mask.items():
             coord_list, include = value["data"]["coord_list"], value["data"]["include"]

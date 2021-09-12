@@ -4,6 +4,7 @@ import numpy as np
 import glob
 import pandas as pd
 import pkgutil
+import string
 
 from pathlib import Path
 
@@ -79,11 +80,11 @@ class Container(object):
 
         loaded = []        
 
-        # ## load annotations
-        # annotations_filename = "annotations" + "_" + self.save_suffix + ".json"
-        # if annotations_filename in os.listdir(self.dirpath):
-        #     self.annotations = export.load_annotation(os.path.join(self.dirpath, annotations_filename))
-        #     loaded.append("annotations loaded")
+        ## load annotations
+        annotations_filename = "annotations" + "_" + self.save_suffix + ".json"
+        if annotations_filename in os.listdir(self.dirpath):
+            self.annotations = export.load_annotation(os.path.join(self.dirpath, annotations_filename))
+            loaded.append("annotations loaded")
             
         ## load attributes
         attr_local_path = os.path.join(self.dirpath, "attributes.yaml")
@@ -154,7 +155,6 @@ class Container(object):
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
             if annotation_id in self.annotations[annotation_type]:
-                print("prev ann")
                 kwargs.update({"previous_annotation":self.annotations[annotation_type][annotation_id]})
 
         ## preprocessing
@@ -184,7 +184,7 @@ class Container(object):
                     self.reference_template_px_mm_ratio,
                     **kwargs)
                 if annotation.__class__.__name__ == "tuple":
-                    ref_mask_id = len(self.annotations["mask"].keys()) + 1
+                    ref_mask_id = string.ascii_lowercase[len(self.annotations["mask"].keys())]
                     self.annotations["mask"][ref_mask_id] = annotation[1]
                     self.annotations[annotation_type][annotation_id] = annotation[0]
                 else:
@@ -215,7 +215,6 @@ class Container(object):
         
         if fun == "draw_contours":
             for annotation in self.annotations["contour"].values():
-                print(annotation)
                 self.canvas = visualization.draw_contours(self.canvas, annotation, **kwargs)
         
         ## export

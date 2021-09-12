@@ -119,8 +119,6 @@ def load_annotation(filepath,
         annotation = defaultdict(dict)
         for annotation_type in annotation_type_list:
             for annotation_id in annotation_id_list:
-                annotation_id = int(annotation_id)
-                print(annotation_id)
                 if annotation_id in annotation_subset[annotation_type]:
                     annotation[annotation_type][annotation_id] = annotation_subset[annotation_type][annotation_id]
         break
@@ -180,7 +178,7 @@ def save_annotation(annotation,
         annotation = defaultdict(dict, annotation)
     elif list(annotation.keys())[0] == "info":
         if annotation_id.__class__.__name__ == "NoneType":
-            print("- annotation_id missing - please provide an integer ID > 0")
+            print("- annotation_id missing - please provide an integer ID [a-z]")
             return
         if not annotation_id.__class__.__name__ == "str":
             annotation_id = str(annotation_id)

@@ -19,6 +19,8 @@ from watchdog.events import PatternMatchingEventHandler
 from phenopype.settings import colours, confirm_options, pype_config_template_list
 from phenopype.settings import flag_verbose, opencv_window_flags
 
+import phenopype.config
+
 ## capture yaml output - temp
 from contextlib import redirect_stdout
 import io
@@ -183,11 +185,10 @@ class _ImageViewer:
             self._canvas_blend()
         self._canvas_mount()
 
-        ## local and global control vars
+        ## local control vars
         self.done = False
         self.finished = False
-        global global_end_while
-        global_end_while = False
+        phenopype.config.window_close = False
         
         # =============================================================================
         # window control
@@ -281,7 +282,7 @@ class _ImageViewer:
                             self._canvas_blend()
                             self._canvas_mount()
                             
-                        elif global_end_while:
+                        elif phenopype.config.window_close:
                             self.done = True
                             cv2.destroyAllWindows()
     
@@ -807,16 +808,13 @@ class _YamlFileMonitor:
         self.time_diff = 10
         
     def _on_update(self, event):
-        print("event")
         if not self.time_start.__class__.__name__ == "NoneType":
             self.time_end = timer()
             self.time_diff = self.time_end - self.time_start
         
         if self.time_diff > 1:
-            print("event - PASS")
             self.content = _load_yaml(self.filepath)
-            global global_end_while
-            global_end_while = True
+            phenopype.config.window_close,phenopype.config.pype_restart = True, True
             cv2.destroyWindow("phenopype")
             cv2.waitKey(self.delay)
         else:

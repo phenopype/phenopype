@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import pickle
 import platform
+import string
 import warnings
 
 import pprint
@@ -20,7 +21,6 @@ from datetime import datetime
 from pathlib import Path
 from ruamel.yaml.comments import CommentedMap as ordereddict
 from shutil import copyfile, rmtree
-
 
 
 from phenopype import __version__ as pp_version
@@ -51,9 +51,8 @@ from phenopype.utils_lowlevel import (
     _yaml_flow_style,
 )
 
+import phenopype.config
 
-
-from dataclasses import make_dataclass
 
 #%% settings
 
@@ -927,13 +926,13 @@ class Pype(object):
         # =============================================================================
         # CHECKS & INIT
         # =============================================================================
-
-        # flags
+        
+        ## flags
         self.flags = AttrDict({"skip": skip, 
                                "feedback": feedback, 
                                "terminate": False,
                                "debug": kwargs.get("debug",False)})
-        
+                                
         ## check name, load container and config
         self._check_pype_name(name=name)
         self._load_container(name=name, image=image, dirpath=dirpath)
@@ -968,6 +967,9 @@ class Pype(object):
 
         ## run pype
         while True:
+            
+            ## pype restart flag
+            phenopype.config.pype_restart = False
 
             ## refresh config
             self.config = copy.deepcopy(self.YFM.content)
@@ -1159,7 +1161,7 @@ class Pype(object):
 
         # reset values
         self.container.reset()
-        annotation_counter = dict.fromkeys(annotations, 0)
+        annotation_counter = dict.fromkeys(annotations, -1)
 
         ## apply pype: loop through steps and contained methods
         step_list = self.config["processing_steps"]
@@ -1236,7 +1238,7 @@ class Pype(object):
                     annotation_type = _annotation_functions[method_name]
                     if not "type" in annotation_params:
                         annotation_params.update({"type":_annotation_functions[method_name]})
-                    annotation_id = annotation_counter[_annotation_functions[method_name]]
+                    annotation_id = string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]
                     if not "id" in annotation_params:
                         annotation_params.update({"id":annotation_id})
                         
@@ -1263,6 +1265,11 @@ class Pype(object):
                             step_name + "." + method_name + ": " + str(ex.__class__.__name__)
                         )
                         print(location + " - " + str(ex))
+                
+                ## check for pype-restart after config change
+                if phenopype.config.pype_restart:
+                    print("BREAK")
+                    return
                         
         # =============================================================================
         # CONFIG-UPDATE; FEEDBACK; FINAL VISUALIZATION
