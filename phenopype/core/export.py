@@ -306,7 +306,7 @@ def save_reference(annotation,
         if not "project_level" in attr["reference"]:
             attr["reference"]["project_level"] = {}     
 
-    print(active_ref)
+
     ## check if file exists
     if not active_ref.__class__.__name__ == "NoneType":
         while True:

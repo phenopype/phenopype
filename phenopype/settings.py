@@ -123,6 +123,7 @@ _annotation_functions = {
     "detect_mask": "mask",
     "detect_reference": "reference",
     "detect_contours": "contour",
+    "edit_contours": "drawing",
     "enter_data": "comment",
     }
 

@@ -89,15 +89,30 @@ class _ImageViewer:
         self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
         
         ## binary image (for blending)
-        if "image_bin" in kwargs:
-            image_bin = kwargs.get("image_bin")
-            if len(image_bin.shape) == 2:
-                image_bin = cv2.cvtColor(image_bin, cv2.COLOR_GRAY2BGR)
-            self.image_bin = copy.deepcopy(image_bin)
-            if not self.image.shape == self.image_bin.shape:
-                print("binary image has different dimensions than input image")
-                return
-        
+        if "contours" in kwargs and self.tool == "draw":
+            
+            ## get contours to create colour mask
+            contours = kwargs.get("contours")
+
+            ## coerce to multi channel image for colour mask
+            if len(self.image.shape) == 2:
+                self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
+            
+            ## create binary overlay
+            self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
+            
+            ## draw contours onto overlay
+            for contour in contours:
+                cv2.drawContours(
+                    image=self.image_bin,
+                    contours=[contour],
+                    contourIdx=0,
+                    thickness=-1,
+                    color=255,
+                    maxLevel=3,
+                    offset=(0,0),
+                    )
+                                          
         ## get canvas dimensions
         if self.image_height > win_max_dim or self.image_width > win_max_dim:
             if self.image_width >= self.image_height:
@@ -281,8 +296,7 @@ class _ImageViewer:
                         elif self.keypress == 26 and self.tool == "draw":
                             self.point_list = self.point_list[:-1]
                             self._canvas_renew()
-                            self._canvas_draw(
-                                tool="line_bin", coord_list=self.point_list)
+                            self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
                             self._canvas_blend()
                             self._canvas_mount()
                             
@@ -537,9 +551,11 @@ class _ImageViewer:
         ## set colour - left/right mouse button use different colours
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
-                self.colour_current = self.line_colour
+                self.colour_current_bin = 255
+                self.colour_current = colours["green"]
             elif event == cv2.EVENT_RBUTTONDOWN:
-                self.colour_current = colours["black"]
+                self.colour_current_bin = 0
+                self.colour_current = colours["red"]
             
             ## start drawing and use current coords as start point
             self.canvas = copy.deepcopy(self.canvas_copy)
@@ -559,21 +575,20 @@ class _ImageViewer:
             self.canvas = copy.deepcopy(self.canvas_copy)
             self.point_list.append([
                 self.points,
-                self.colour_current, 
+                self.colour_current_bin, 
                 int(self.line_width*self.global_fx),
                 ])
             self.points = []
             
             ## draw all segments
             self._canvas_renew()
-            self._canvas_draw(
-                tool="line_bin_cont", coord_list=self.point_list)
+            self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
             self._canvas_blend()
             self._canvas_mount()
                 
         ## drawing mode
         elif self.drawing:
-            
+
             ## convert cursor coords from zoomed canvas to original coordinate space
             self._zoom_coords_orig(x,y)
             
@@ -604,13 +619,20 @@ class _ImageViewer:
                 
     def _canvas_blend(self):
         
+        ## create coloured overlay from binary image
+        self.colour_mask = copy.deepcopy(self.image_bin_copy)
+        self.colour_mask = cv2.cvtColor(self.colour_mask, cv2.COLOR_GRAY2BGR)
+        self.colour_mask[self.image_bin_copy == 0] = colours["red"]
+        self.colour_mask[self.image_bin_copy == 255] = colours["green"]
+        
         ## blend two canvas layers
         self.image_copy = cv2.addWeighted(self.image_copy,
                                           1 - self.canvas_blend_factor,
-                                          self.image_bin_copy,
+                                          self.colour_mask,
                                           self.canvas_blend_factor,
                                           0)                
-                
+        
+
         
     def _canvas_draw(self, tool, coord_list):
                               
@@ -637,7 +659,7 @@ class _ImageViewer:
                 
             elif tool == "line_bin_cont":
                 
-                ## draw lines
+                ## draw lines on original binary image
                 cv2.polylines(
                     self.image_bin_copy,
                     np.array([coords[0]]),
@@ -645,27 +667,30 @@ class _ImageViewer:
                     coords[1],
                     coords[2],
                 )
-                ## find contours 
-                image_bin = cv2.cvtColor(self.image_bin_copy, cv2.COLOR_BGR2GRAY)
+                
+                ## skip contour-step if draw colour is black (rightclick)
+                if coords[1] == 0:
+                    continue
+                
+                ## find contours from binary image + drawing
                 _ , self.contours, _ = cv2.findContours(
-                    image=image_bin,
+                    image=self.image_bin_copy,
                     mode=cv2.RETR_EXTERNAL,
                     method=cv2.CHAIN_APPROX_SIMPLE,
                 )
-                self.image_bin_copy = cv2.cvtColor(np.zeros_like(image_bin), cv2.COLOR_GRAY2BGR)
                 
-                ## draw found contours
+                ## draw found contours on top of binary image + drawing
                 for contour in self.contours:
                     cv2.drawContours(
                         image=self.image_bin_copy,
                         contours=[contour],
                         contourIdx=0,
                         thickness=-1,
-                        color=self.line_colour,
+                        color=coords[1],
                         maxLevel=3,
                         offset=None,
                     )
-                                            
+ 
             elif tool == "point":
                 cv2.circle(
                     self.image_copy,
@@ -713,9 +738,9 @@ class _ImageViewer:
 
         ## pull copy from original image
         self.image_copy = copy.deepcopy(self.image)
-        if hasattr(self, "image_bin"):
+        if self.tool=="draw":
             self.image_bin_copy = copy.deepcopy(self.image_bin)
-            
+
 
     def _zoom_fun(self, x, y):
         """

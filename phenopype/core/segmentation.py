@@ -184,7 +184,7 @@ def detect_contours(
 
 def edit_contours(
     image,
-    contours,
+    annotation,
     **kwargs
 ):
     """
@@ -205,7 +205,7 @@ def edit_contours(
 
     """
     ## kwargs
-    line_colour_str = kwargs.get("line_colour", "green")    
+    line_colour_str = kwargs.get("line_colour", "green") 
     
     ## retrieve settings for image viewer
     _image_viewer_settings = {}
@@ -219,40 +219,23 @@ def edit_contours(
                "_image_viewer_settings"]:
         settings.pop(rm, None)
 
-    ## create binary overlay
-    image_bin = np.zeros(image.shape, dtype=np.uint8)
-    for contour in contours:
-        cv2.drawContours(
-            image=image_bin,
-            contours=[contour],
-            contourIdx=0,
-            thickness=-1,
-            color=colours[line_colour_str],
-            maxLevel=3,
-            offset=(0,0),
-            )
+    ## extract annotation dict
+    contours = annotation["data"]["coord_list"]
 
     ## draw masks
     out = _ImageViewer(image=image, 
-                        image_bin=image_bin,
-                        tool="draw", 
-                        **_image_viewer_settings)
+                       contours=contours,
+                       tool="draw", 
+                       **_image_viewer_settings)
     if not out.done:
         print("- didn't finish: redo drawing")
         return 
     else:
         point_list = out.point_list
-               
-    ## draw
-    for segment in point_list:
-        cv2.polylines(
-            image_bin,
-            np.array([segment[0]]),
-            False,
-            segment[1],
-            segment[2],
-            )
-
+                
+    ## convert colour to black or white
+    image_bin = out.image_bin_copy
+    
     ## return
     if len(point_list) > 0:
         ret = {
@@ -265,7 +248,7 @@ def edit_contours(
                 "point_list": point_list,
                 }
             }
-        return ret
+        return image_bin, ret
     else:
         print("- zero coordinates: redo drawing")
         return 

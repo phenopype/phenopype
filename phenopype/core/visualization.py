@@ -126,7 +126,6 @@ def draw_contours(
     canvas = copy.deepcopy(image)
     
     ## split up annotation dict
-    
     contours = annotation["data"]["coord_list"]
     contours_support = annotation["data"]["support"]
     

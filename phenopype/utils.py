@@ -132,7 +132,7 @@ class Container(object):
         if len(loaded) > 0:
             print("=== AUTOLOAD ===\n- " + "\n- ".join(loaded))
         else:
-            print("Nothing loaded.")
+            print("AUTOLOAD off - nothing loaded.")
 
             
     def reset(self):
@@ -160,19 +160,15 @@ class Container(object):
         ## preprocessing
         if fun == "blur":
             self.image = preprocessing.blur(self.image, **kwargs)
-
         if fun == "create_mask":
             annotation = preprocessing.create_mask(self.image, **kwargs)
             self.annotations[annotation_type][annotation_id] = annotation
-
         if fun == "detect_mask":
             annotation = preprocessing.detect_mask(self.image, **kwargs)
             self.annotations[annotation_type][annotation_id] = annotation
-            
         if fun == "enter_data":
             annotation = preprocessing.enter_data(self.image, **kwargs)
             self.annotations[annotation_type][annotation_id] = annotation
-            
         if fun == "detect_reference":
             if not any(hasattr(self, reference) for reference in [
                     "reference_detected_px_mm_ratio"
@@ -214,6 +210,12 @@ class Container(object):
             self.image = segmentation.morphology(self.image, **kwargs)
         if fun == "detect_contours":
             self.annotations[annotation_type][annotation_id] = segmentation.detect_contours(self.image, **kwargs)
+        if fun == "edit_contours":
+            self.image, self.annotations[annotation_type][annotation_id] = segmentation.edit_contours(self.canvas, 
+                                                                                          self.annotations["contour"]["a"],
+                                                                                          **kwargs)
+
+            
             
         ## visualization
         if fun == "select_canvas":
@@ -268,6 +270,8 @@ class Container(object):
         # ):
         #     print("save_canvas")
         #     export.save_canvas(self, dirpath=dirpath)
+        
+        
 
         ## colours
         if hasattr(self, "annotations") and not "save_annotation" in export_list:

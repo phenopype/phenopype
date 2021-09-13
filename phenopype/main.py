@@ -985,8 +985,8 @@ class Pype(object):
                 print("\n\nTERMINATE")         
                 break
         
-        if self.flags.terminate:
-            self.container.save()
+        # if self.flags.terminate:
+        #     self.container.save()
             
             
     def _load_container(self, name, image, dirpath):
@@ -1182,7 +1182,7 @@ class Pype(object):
                 print(step_name.upper())
                 
 
-            if step_name == "visualization":
+            if step_name == "visualization" and flags.execute:
                 
                 ## check if canvas is selected, and otherwise execute with default values
                 if (
@@ -1192,7 +1192,7 @@ class Pype(object):
                     print("- autoselect canvas:")
                     self.container.run("select_canvas")
                     
-            if step_name == "export":
+            if step_name == "export" and flags.execute:
                 
                 ## check if canvas is selected, and otherwise execute with default values
                 if (
@@ -1220,6 +1220,16 @@ class Pype(object):
                 elif method.__class__.__name__ == "str":
                     method_name = method
                     method_args = {}
+                    
+                ## feedback
+                if flags.feedback:
+                    print(method_name)
+                    
+                ## check if method exists
+                if hasattr(eval(step_name), method_name):
+                    pass
+                else:
+                    print("error - {} has no function called {} - please check config file!".format(step_name, method_name))
 
                 ## annotation params 
                 if "ANNOTATION" in method_args:
@@ -1284,10 +1294,11 @@ class Pype(object):
         
         if flags.visualize: 
             try:
+                print("AUTOSHOW")
                 if self.container.canvas.__class__.__name__ == "NoneType":
-                    self.container.select_canvas(canvas="mod")
+                    self.container.run(fun="select_canvas")
                     print("- autoselect canvas")
-
+                    
                 self.iv = _ImageViewer(self.container.canvas)
                 self.flags.terminate = self.iv.finished
                 
