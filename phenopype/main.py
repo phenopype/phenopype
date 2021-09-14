@@ -1307,4 +1307,3 @@ class Pype(object):
                     "visualisation: " + str(ex.__class__.__name__) + " - " + str(ex)
                 )
 
-
