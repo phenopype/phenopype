@@ -129,6 +129,10 @@ def draw_contours(
     contours = annotation["data"]["coord_list"]
     contours_support = annotation["data"]["support"]
     
+        
+    print(contours)
+
+    
     ## 1) fill contours
     if flags.fill:
         colour_mask = copy.deepcopy(canvas)

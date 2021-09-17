@@ -30,6 +30,7 @@ from phenopype.settings import (
     default_filetypes,
     default_pype_config,
     default_meta_data_fields,
+    default_window_size,
     pandas_max_rows,
     pype_config_template_list,
     flag_verbose,
@@ -52,7 +53,6 @@ from phenopype.utils_lowlevel import (
 )
 
 import phenopype.config
-
 
 #%% settings
 
@@ -927,6 +927,10 @@ class Pype(object):
         # CHECKS & INIT
         # =============================================================================
         
+        ## kwargs
+        global window_max_dim
+        window_max_dim = kwargs.get("window_max_dim")
+        
         ## flags
         self.flags = AttrDict({"skip": skip, 
                                "feedback": feedback, 
@@ -985,8 +989,12 @@ class Pype(object):
                 print("\n\nTERMINATE")         
                 break
         
-        # if self.flags.terminate:
-        #     self.container.save()
+        if self.flags.terminate:
+            if "export" not in self.config_parsed_flattened:
+                export_list = []
+            else:
+                export_list = self.config_parsed_flattened["export"]
+            self.container.save(export_list = export_list)
             
             
     def _load_container(self, name, image, dirpath):
@@ -1163,7 +1171,8 @@ class Pype(object):
         ## apply pype: loop through steps and contained methods
         step_list = self.config["processing_steps"]
         self.config_updated = copy.deepcopy(self.config)
-                    
+        self.config_parsed_flattened = {}       
+        
         for step_idx, step in enumerate(step_list):
             
             # =============================================================================
@@ -1176,7 +1185,8 @@ class Pype(object):
             ## get step name 
             step_name = list(dict(step).keys())[0]
             method_list = list(dict(step).values())[0]
-                                                              
+            self.config_parsed_flattened[step_name] = []
+                            
             ## print current step
             if flags.feedback:
                 print(step_name.upper())
@@ -1192,21 +1202,21 @@ class Pype(object):
                     print("- autoselect canvas:")
                     self.container.run("select_canvas")
                     
-            if step_name == "export" and flags.execute:
+            # if step_name == "export" and flags.execute:
                 
-                ## check if canvas is selected, and otherwise execute with default values
-                if (
-                    not "select_canvas" in method_list
-                    and self.container.canvas.__class__.__name__ == "NoneType"
-                ):
-                    print("- autoselect canvas:")
-                    self.container.run("select_canvas")
+            #     ## check if canvas is selected, and otherwise execute with default values
+            #     if (
+            #         not "select_canvas" in method_list
+            #         and self.container.canvas.__class__.__name__ == "NoneType"
+            #     ):
+            #         print("- autoselect canvas:")
+            #         self.container.run("select_canvas")
 
             ## iterate through step list
             for method_idx, method in enumerate(method_list):
                 
                 # =============================================================================
-                # METHOD
+                # METHOD / EXTRACTION AND CHEC
                 # =============================================================================
 
                 ## format method name and arguments       
@@ -1227,9 +1237,15 @@ class Pype(object):
                     
                 ## check if method exists
                 if hasattr(eval(step_name), method_name):
+                    self.config_parsed_flattened[step_name].append(method_name)
                     pass
                 else:
                     print("error - {} has no function called {} - please check config file!".format(step_name, method_name))
+                    
+                    
+                # =============================================================================
+                # METHOD / ANNOTATION 
+                # =============================================================================
 
                 ## annotation params 
                 if "ANNOTATION" in method_args:
@@ -1256,6 +1272,10 @@ class Pype(object):
                 else:
                     annotation_id = None
                     annotation_type = None
+                    
+                # =============================================================================
+                # METHOD / EXECUTE  
+                # =============================================================================
 
                 ## run method with error handling
                 if flags.execute:            

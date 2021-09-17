@@ -65,7 +65,7 @@ class Container(object):
         self.annotations = copy.deepcopy(_annotation_function_dicts)
                 
         
-    def load(self, **kwargs):
+    def load(self, contours=False,  **kwargs):
         """
         Autoload function for container: loads results files with given save_suffix
         into the container. Can be used manually, but is typically used within the
@@ -85,6 +85,9 @@ class Container(object):
         if annotations_filename in os.listdir(self.dirpath):
             self.annotations = export.load_annotation(os.path.join(self.dirpath, annotations_filename))
             loaded.append("annotations loaded")
+        
+        if contours == False:
+            self.annotations["contours"] = {}
             
         ## load attributes
         attr_local_path = os.path.join(self.dirpath, "attributes.yaml")
@@ -197,10 +200,9 @@ class Container(object):
         if fun == "select_channel":
             self.image = preprocessing.select_channel(self.image, **kwargs)
             
-            
         ## segmentation
         if fun == "threshold":
-            if len(self.annotations["mask"]) > 0:
+            if "mask" in self.annotations and len(self.annotations["mask"]) > 0:
                 kwargs.update({"mask":self.annotations["mask"]})
             self.image = segmentation.threshold(self.image, **kwargs)
             self.image_bin = copy.deepcopy(self.image)
@@ -211,12 +213,9 @@ class Container(object):
         if fun == "detect_contours":
             self.annotations[annotation_type][annotation_id] = segmentation.detect_contours(self.image, **kwargs)
         if fun == "edit_contours":
-            self.image, self.annotations[annotation_type][annotation_id] = segmentation.edit_contours(self.canvas, 
-                                                                                          self.annotations["contour"]["a"],
-                                                                                          **kwargs)
+            image, annotation = segmentation.edit_contours(self.canvas, annotation=self.annotations, **kwargs)
+            self.image, self.annotations[annotation_type][annotation_id] = (image, annotation)
 
-            
-            
         ## visualization
         if fun == "select_canvas":
             visualization.select_canvas(self, **kwargs)
@@ -279,7 +278,7 @@ class Container(object):
             filename = kwargs.get("filename", "annotations") + "_" + self.save_suffix + ".json"            
             export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
 
-        if "reference" in self.annotations and not "reference" in export_list:
+        if not len(self.annotations["reference"]) == 0 and not "reference" in export_list:
             print("- save reference")
             export.save_reference(self.annotations, dirpath=dirpath, overwrite=flag_overwrite, active_ref=self.reference_active)
             

@@ -19,16 +19,17 @@ from watchdog.events import PatternMatchingEventHandler
 from phenopype.settings import colours, confirm_options, pype_config_template_list
 from phenopype.settings import flag_verbose, opencv_window_flags
 
-import phenopype.config
 
 ## capture yaml output - temp
 from contextlib import redirect_stdout
 import io
 
+import phenopype.config
+import phenopype.main
+
 #%% settings
 
 Image.MAX_IMAGE_PIXELS = 999999999
-
 
 #%% classes
 
@@ -39,7 +40,6 @@ class _ImageViewer:
                  tool=None,
                  window_aspect='normal', 
                  window_control='internal', 
-                 win_max_dim=1000, 
                  zoom_magnification=0.5, 
                  zoom_mode='continuous', 
                  zoom_steps=20,
@@ -55,11 +55,15 @@ class _ImageViewer:
         ----------
 
         """
+        ## kwargs (FUTURE => use dictionary from config)
+        if not phenopype.main.window_max_dim:
+            window_max_dim = kwargs.get("window_max_dim", phenopype.config.window_max_dim)       
+        else: 
+            window_max_dim = phenopype.main.window_max_dim
         
         ## args
         self.window_aspect = window_aspect
         self.window_control = window_control
-        self.win_max_dim = win_max_dim
         self.zoom_magnification = zoom_magnification
         self.zoom_mod = zoom_mode
         self.zoom_steps = zoom_steps
@@ -114,13 +118,13 @@ class _ImageViewer:
                     )
                                           
         ## get canvas dimensions
-        if self.image_height > win_max_dim or self.image_width > win_max_dim:
+        if self.image_height > window_max_dim or self.image_width > window_max_dim:
             if self.image_width >= self.image_height:
-                self.canvas_width, self.canvas_height = win_max_dim, int(
-                    (win_max_dim / self.image_width) * self.image_height)
+                self.canvas_width, self.canvas_height = window_max_dim, int(
+                    (window_max_dim / self.image_width) * self.image_height)
             elif self.image_height > self.image_width:
                 self.canvas_width, self.canvas_height = int(
-                    (win_max_dim / self.image_height) * self.image_width), win_max_dim
+                    (window_max_dim / self.image_height) * self.image_width), window_max_dim
         else:
             self.canvas_width, self.canvas_height = self.image_width, self.image_height
             

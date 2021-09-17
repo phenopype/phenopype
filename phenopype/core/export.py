@@ -78,6 +78,7 @@ def load_annotation(filepath,
         
     ## parse serialized array
     for annotation_type1 in annotation_file:
+        print(annotation_type1)
         for annotation_id1 in annotation_file[annotation_type1]:    
             for section in annotation_file[annotation_type1][annotation_id1]:
                 for key, value in annotation_file[annotation_type1][annotation_id1][section].items():
@@ -179,7 +180,7 @@ def save_annotation(annotation,
         annotation = defaultdict(dict, annotation)
     elif list(annotation.keys())[0] == "info":
         if annotation_id.__class__.__name__ == "NoneType":
-            print("- annotation_id missing - please provide an integer ID [a-z]")
+            print("- annotation_id missing - please provide an annotation ID [a-z]")
             return
         if not annotation_id.__class__.__name__ == "str":
             annotation_id = str(annotation_id)

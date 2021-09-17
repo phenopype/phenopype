@@ -2,10 +2,11 @@
 import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
+import string
 
 from math import inf
 
-from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
+from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list, _annotation_function_dicts
 from phenopype.utils_lowlevel import _create_mask_bool, _ImageViewer, _auto_line_width
 
 import phenopype.core.preprocessing as preprocessing
@@ -219,8 +220,18 @@ def edit_contours(
                "_image_viewer_settings"]:
         settings.pop(rm, None)
 
-    ## extract annotation dict
-    contours = annotation["data"]["coord_list"]
+    ## check annotation dict input and convert to type/id/ann structure
+    if list(annotation.keys())[0] == "info":
+        if annotation["info"]["annotation_type"] == "contour":
+            contours = annotation["data"]["coord_list"]
+    else:
+        if not kwargs.get("contour_id"):
+            print("- contour_id missing - please provide contour ID [a-z]")
+            return
+        if list(annotation.keys())[0] in _annotation_function_dicts.keys():
+            contours = annotation["contour"][kwargs.get("contour_id")]["data"]["coord_list"]
+        elif list(annotation.keys())[0] in string.ascii_lowercase:
+            contours = annotation[kwargs.get("contour_id")]["data"]["coord_list"]
 
     ## draw masks
     out = _ImageViewer(image=image, 
@@ -236,6 +247,10 @@ def edit_contours(
     ## convert colour to black or white
     image_bin = out.image_bin_copy
     
+    ## clear settings
+    for rm in ["annotation", "contours"]:
+        settings.pop(rm, None)
+    
     ## return
     if len(point_list) > 0:
         ret = {
@@ -248,6 +263,7 @@ def edit_contours(
                 "point_list": point_list,
                 }
             }
+        print(settings)
         return image_bin, ret
     else:
         print("- zero coordinates: redo drawing")
