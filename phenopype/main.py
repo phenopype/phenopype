@@ -952,9 +952,10 @@ class Pype(object):
         self.container.load()
 
         ## check pype config for annotations
-        self._iterate(config=self.config, annotations=self.container.annotations, execute=False, visualize=False, feedback=False)
+        self._iterate(config=self.config, annotations=self.container.annotations,
+                      execute=False, visualize=False, feedback=False)
         time.sleep(1)
-        
+
         ## final check before starting pype
         self._check_final()
     
@@ -1195,23 +1196,10 @@ class Pype(object):
             if step_name == "visualization" and flags.execute:
                 
                 ## check if canvas is selected, and otherwise execute with default values
-                if (
-                    not "select_canvas" in method_list
-                    and self.container.canvas.__class__.__name__ == "NoneType"
-                ):
+                if not "select_canvas" in method_list:
                     print("- autoselect canvas:")
                     self.container.run("select_canvas")
                     
-            # if step_name == "export" and flags.execute:
-                
-            #     ## check if canvas is selected, and otherwise execute with default values
-            #     if (
-            #         not "select_canvas" in method_list
-            #         and self.container.canvas.__class__.__name__ == "NoneType"
-            #     ):
-            #         print("- autoselect canvas:")
-            #         self.container.run("select_canvas")
-
             ## iterate through step list
             for method_idx, method in enumerate(method_list):
                 
@@ -1240,7 +1228,7 @@ class Pype(object):
                     self.config_parsed_flattened[step_name].append(method_name)
                     pass
                 else:
-                    print("error - {} has no function called {} - please check config file!".format(step_name, method_name))
+                    print("ERROR - {} has no function called {} - please check config file!".format(step_name, method_name))
                     
                     
                 # =============================================================================
@@ -1255,15 +1243,16 @@ class Pype(object):
                     annotation_params = {}
                     method_args = dict(method_args)
                 if method_name in _annotation_functions:
-                    
                     annotation_counter[_annotation_functions[method_name]] += 1
-                    
                     annotation_type = _annotation_functions[method_name]
+                    
                     if not "type" in annotation_params:
                         annotation_params.update({"type":_annotation_functions[method_name]})
-                    annotation_id = string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]
                     if not "id" in annotation_params:
+                        annotation_id = string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]
                         annotation_params.update({"id":annotation_id})
+                    else:
+                        annotation_id = annotation_params["id"]
                         
                     annotation_params =  _yaml_flow_style(annotation_params)
                     method_args_updated = {"ANNOTATION":annotation_params}

@@ -21,7 +21,7 @@ from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr, \
     
 from collections import defaultdict
 
-from dataclasses import make_dataclass
+# from dataclasses import make_dataclass
 
 #%% classes
 
@@ -196,7 +196,6 @@ class Container(object):
                     print("- missing project level reference information, cannot detect")
             else:
                 print("- reference already detected (current px-to-mm-ratio: {}).".format(self.reference_detected_px_mm_ratio)) 
-
         if fun == "select_channel":
             self.image = preprocessing.select_channel(self.image, **kwargs)
             
@@ -219,10 +218,8 @@ class Container(object):
         ## visualization
         if fun == "select_canvas":
             visualization.select_canvas(self, **kwargs)
-        
         if fun == "draw_contours":
-            for annotation in self.annotations["contour"].values():
-                self.canvas = visualization.draw_contours(self.canvas, annotation, **kwargs)
+            self.canvas = visualization.draw_contours(self.canvas, annotation=self.annotations, **kwargs)
         
         ## export
         if fun == "save_annotation":
@@ -269,16 +266,13 @@ class Container(object):
         # ):
         #     print("save_canvas")
         #     export.save_canvas(self, dirpath=dirpath)
-        
-        
 
-        ## colours
         if hasattr(self, "annotations") and not "save_annotation" in export_list:
             print("- save_annotation")
             filename = kwargs.get("filename", "annotations") + "_" + self.save_suffix + ".json"            
             export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
 
-        if not len(self.annotations["reference"]) == 0 and not "reference" in export_list:
+        if "reference" in self.annotations and not len(self.annotations["reference"]) == 0 and not "reference" in export_list:
             print("- save reference")
             export.save_reference(self.annotations, dirpath=dirpath, overwrite=flag_overwrite, active_ref=self.reference_active)
             

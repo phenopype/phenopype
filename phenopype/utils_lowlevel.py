@@ -25,7 +25,6 @@ from contextlib import redirect_stdout
 import io
 
 import phenopype.config
-import phenopype.main
 
 #%% settings
 
@@ -200,7 +199,8 @@ class _ImageViewer:
             self._canvas_draw(tool="line", coord_list=self.polygons)
         if self.tool in ["landmark"]:
             self._canvas_draw(tool="line", coord_list=self.points)
-        if hasattr(self, "image_bin"):
+        if self.tool in ["draw"]:
+            self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
             self._canvas_blend()
         self._canvas_mount()
 

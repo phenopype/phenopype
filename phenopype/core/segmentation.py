@@ -7,7 +7,7 @@ import string
 from math import inf
 
 from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list, _annotation_function_dicts
-from phenopype.utils_lowlevel import _create_mask_bool, _ImageViewer, _auto_line_width
+from phenopype.utils_lowlevel import _create_mask_bool, _ImageViewer, _auto_line_width, _DummyClass
 
 import phenopype.core.preprocessing as preprocessing
 
@@ -171,8 +171,8 @@ def detect_contours(
     "info":{
         "annotation_type": "contour", 
         "pp_function": "detect_contours",
-        "settings": settings
         },
+    "settings": settings,
     "data":{
         "n_contours": len(coord_list),
         "coord_list": coord_list,
@@ -205,20 +205,23 @@ def edit_contours(
         contains the drawn polylines
 
     """
+    ## convert previous annotations to 
+    if "previous_annotation" in kwargs:
+        previous_annotation = kwargs.get("previous_annotation")
+        previous = {}        
+        previous.update(previous_annotation["settings"])
+        previous["point_list"] = previous_annotation["data"]["point_list"]
+        previous = _DummyClass(previous)    
+        kwargs.update({"previous": previous})               
+                    
     ## kwargs
     line_colour_str = kwargs.get("line_colour", "green") 
-    
+        
     ## retrieve settings for image viewer
     _image_viewer_settings = {}
     for key, value in kwargs.items():
         if key in _image_viewer_arg_list:
             _image_viewer_settings[key] = value
-
-    ## settings
-    settings = locals()
-    for rm in ["image","contours","key","value",
-               "_image_viewer_settings"]:
-        settings.pop(rm, None)
 
     ## check annotation dict input and convert to type/id/ann structure
     if list(annotation.keys())[0] == "info":
@@ -228,10 +231,12 @@ def edit_contours(
         if not kwargs.get("contour_id"):
             print("- contour_id missing - please provide contour ID [a-z]")
             return
+        else:
+           contour_id = kwargs.get("contour_id")
         if list(annotation.keys())[0] in _annotation_function_dicts.keys():
-            contours = annotation["contour"][kwargs.get("contour_id")]["data"]["coord_list"]
+            contours = annotation["contour"][contour_id]["data"]["coord_list"]
         elif list(annotation.keys())[0] in string.ascii_lowercase:
-            contours = annotation[kwargs.get("contour_id")]["data"]["coord_list"]
+            contours = annotation[contour_id]["data"]["coord_list"]
 
     ## draw masks
     out = _ImageViewer(image=image, 
@@ -248,7 +253,10 @@ def edit_contours(
     image_bin = out.image_bin_copy
     
     ## clear settings
-    for rm in ["annotation", "contours"]:
+    settings = locals()
+    for rm in ["annotation", "contours", "image", "kwargs", "out", "point_list", 
+               "key", "value", "previous_annotation", "previous","image_bin",
+               "_image_viewer_settings", "_image_viewer_params"]:
         settings.pop(rm, None)
     
     ## return
@@ -257,13 +265,12 @@ def edit_contours(
             "info": {
                 "type": "drawing", 
                 "function": "contour_modify",
-                "settings": settings,
                 },
+            "settings": settings,
             "data":{
                 "point_list": point_list,
                 }
             }
-        print(settings)
         return image_bin, ret
     else:
         print("- zero coordinates: redo drawing")

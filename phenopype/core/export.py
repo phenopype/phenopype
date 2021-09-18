@@ -78,12 +78,12 @@ def load_annotation(filepath,
         
     ## parse serialized array
     for annotation_type1 in annotation_file:
-        print(annotation_type1)
         for annotation_id1 in annotation_file[annotation_type1]:    
             for section in annotation_file[annotation_type1][annotation_id1]:
                 for key, value in annotation_file[annotation_type1][annotation_id1][section].items():
-                    if key in ["coord_list"] and type(value) == str:
-                        value = eval(value)
+                    if key in ["coord_list", "point_list"]:
+                        if type(value) == str:
+                            value = eval(value)
                         if annotation_type1 == "contour":
                             value = [np.asarray(elem, dtype=np.int32) for elem in value] 
                     annotation_file[annotation_type1][annotation_id1][section][key] = value
@@ -205,7 +205,7 @@ def save_annotation(annotation,
         for annotation_id in annotation_file[annotation_type]:    
             for section in annotation_file[annotation_type][annotation_id]:
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
-                    if key in ["coord_list"]:
+                    if key in ["coord_list", "point_list"]:
                         if not type(value[0]) == list:
                             value = [elem.tolist() for elem in value if not type(elem)==list] 
                         value = [NoIndent(elem) for elem in value]                             
