@@ -86,15 +86,23 @@ opencv_interpolation_flags = {
 #%% default arguments
 
 _image_viewer_arg_list = [
+    "blend_factor",
+    "label_size",
+    "label_width",
+    "label_colour",
+    "left_colour",
+    "right_colour",
     "line_colour",
     "line_width",
-    "previous",
+    "point_size",
+    "point_colour",
     "window_aspect", 
     "window_control", 
     "win_max_dim", 
     "zoom_magnification", 
     "zoom_mode", 
-    "zoom_steps"]
+    "zoom_steps",
+    ]
 
 # def _image_viewer_settings(function):   
     
@@ -125,6 +133,7 @@ _annotation_functions = {
     "detect_contours": "contour",
     "edit_contours": "drawing",
     "enter_data": "comment",
+    "set_landmarks": "landmark",
     }
 
 _annotation_function_dicts = {
@@ -132,6 +141,7 @@ _annotation_function_dicts = {
     "contour": {},
     "comment": {},
     "drawing": {},
+    "landmark": {},
     "reference": {},
     }
 

@@ -16,7 +16,14 @@ from phenopype.utils_lowlevel import (
     _auto_point_size,
     _auto_text_width,
     _auto_text_size,
+    _DummyClass,
 )
+from phenopype.settings import (
+    colours, 
+    flag_verbose, 
+    _image_viewer_arg_list, 
+    _annotation_function_dicts,
+    )
 
 #%% methods
 
@@ -176,12 +183,11 @@ def colour_intensity(
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_colours = df_colours
 
-def landmarks(
-    obj_input,
-    df_image_data=None,
-    overwrite=False,
+def set_landmarks(
+    image,
     point_colour="green",
     point_size="auto",
+    label=True,
     label_colour="black",
     label_size="auto",
     label_width="auto",
@@ -193,14 +199,7 @@ def landmarks(
     
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to landmark
-        output DataFrame
-    overwrite: bool, optional
-        if working using a container, or from a phenopype project directory, 
-        should existing landmarks be overwritten
+
     point_colour: {"green", "red", "blue", "black", "white"} str, optional
         landmark point colour
     point_size: int, optional
@@ -219,25 +218,31 @@ def landmarks(
     """
 
     ## kwargs
-    flag_overwrite = overwrite
-    test_params = kwargs.get("test_params", {})
+    annotation_previous = kwargs.get("annotation_previous")
 
-    ## load image
-    df_landmarks = None
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image_copy)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_landmarks"):
-            df_landmarks = obj_input.df_landmarks
-    else:
-        print("wrong input format.")
-        return
+    ## retrieve settings for image viewer and for export
+    ImageViewer_settings, local_settings, local_names = {}, {}, locals()
+    
+    ## extract image viewer settings and data from previous annotations
+    if annotation_previous:       
+        ImageViewer_previous = {}        
+        ImageViewer_previous.update(annotation_previous["settings"])
+        ImageViewer_previous["points"] = annotation_previous["data"]["points"]
+        ImageViewer_previous = _DummyClass(ImageViewer_previous)   
+        ImageViewer_settings["ImageViewer_previous"] = ImageViewer_previous
+           
+    ## assemble image viewer and local settings 
+    for key, value in kwargs.items():
+        if key in _image_viewer_arg_list:
+            ImageViewer_settings[key] = value
+            local_settings[key] = value
+            
+    ## assemble local settings 
+    for key, value in local_names.items():
+        if key in _image_viewer_arg_list:
+            local_settings[key] = value
 
-    ## more kwargs
+    ## configure points
     if point_size == "auto":
         point_size = _auto_point_size(image)
     if label_size == "auto":
@@ -245,66 +250,40 @@ def landmarks(
     if label_width == "auto":
         label_width = _auto_text_width(image)
 
-    while True:
-        ## check if exists
-        if not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == False:
-            df_landmarks = df_landmarks[
-                df_landmarks.columns.intersection(["landmark", "x", "y"])
-            ]
-            print("- landmarks already set (overwrite=False)")
-            break
-        elif not df_landmarks.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            print("- setting landmarks (overwriting)")
-            pass
-        elif df_landmarks.__class__.__name__ == "NoneType":
-            print("- setting landmarks")
-            pass
-
-        ## set landmarks
-        out = _ImageViewer(
-            image,
-            tool="landmarks",
-            point_size=point_size,
-            point_colour=point_colour,
-            label_size=label_size,
-            label_width=label_width,
-            label_colour=label_colour,
-            previous=test_params,
-        )
-        coords = out.points
-
-        ## abort
-        if not out.done:
-            if obj_input.__class__.__name__ == "ndarray":
-                print("terminated polyline creation")
-                return
-            elif obj_input.__class__.__name__ == "container":
-                print("- terminated polyline creation")
-                return True
-
-        ## make df
-        df_landmarks = pd.DataFrame(coords, columns=["x", "y"])
-        df_landmarks.reset_index(inplace=True)
-        df_landmarks.rename(columns={"index": "landmark"}, inplace=True)
-        df_landmarks["landmark"] = df_landmarks["landmark"] + 1
-        break
-
-    ## merge with existing image_data frame
-    df_landmarks = pd.concat(
-        [
-            pd.concat([df_image_data] * len(df_landmarks)).reset_index(drop=True),
-            df_landmarks.reset_index(drop=True),
-        ],
-        axis=1,
-    )
+    ## use GUI 
+    out = _ImageViewer(image=image, 
+                       tool="landmark", 
+                       flag_text_label = label,
+                       point_size=point_size,
+                       point_colour=point_colour,
+                       label_size=label_size,
+                       label_width=label_width,
+                       label_colour=label_colour,                       
+                       **ImageViewer_settings)
+    
+    ## checks
+    if not out.done:
+        print("- didn't finish: redo landmarks")
+        return 
+    elif len(out.points) == 0:
+        print("- zero coordinates: redo landmarks")
+        return 
+    else:
+        points = out.points
 
     ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_landmarks
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_landmarks = df_landmarks
-
-
+    annotation = {
+        "info": {
+            "type": "landmark", 
+            "function": "set_landmarks",
+            },
+        "settings": local_settings,
+        "data":{
+            "points": points,
+            }
+        }
+        
+    return annotation
 
 
 def polylines(

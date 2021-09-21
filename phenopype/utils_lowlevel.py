@@ -68,8 +68,8 @@ class _ImageViewer:
         self.zoom_steps = zoom_steps
 
         self.flag_text_label = kwargs.get("flag_text_label", False)
-        self.canvas_blend_factor = kwargs.get("blend", 0.5)
-        
+        self.canvas_blend_factor = kwargs.get("blend_factor", 0.5)
+
         self.__dict__.update(kwargs)
 
         ## set class arguments
@@ -170,18 +170,22 @@ class _ImageViewer:
             
             ## point properties
             self.point_size = kwargs.get("point_size", _auto_point_size(image))
-            self.point_colour = colours[kwargs.get("point_colour", "red")]
+            self.point_colour = kwargs.get("point_colour", "red")
             self.text_size = kwargs.get("label_size", _auto_text_size(image))
             self.text_width = kwargs.get("label_size", _auto_text_width(image))
-            self.label_colour = colours[kwargs.get("label_colour", "black")]
+            self.label_colour = kwargs.get("label_colour", "black")
+            
+            ## for contour edit tool
+            self.left_colour = kwargs.get("left_colour", "green")
+            self.right_colour = kwargs.get("right_colour", "red")
                             
         # =============================================================================
-        # previous parameters
+        # update self with parameters from previous instance
         # =============================================================================              
         
         ## update from previous call
-        if kwargs.get("previous"):
-            prev_attr = kwargs.get("previous").__dict__
+        if kwargs.get("ImageViewer_previous"):
+            prev_attr = kwargs.get("ImageViewer_previous").__dict__
             prev_attr = {
                 i: prev_attr[i]
                 for i in prev_attr
@@ -198,7 +202,7 @@ class _ImageViewer:
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
             self._canvas_draw(tool="line", coord_list=self.polygons)
         if self.tool in ["landmark"]:
-            self._canvas_draw(tool="line", coord_list=self.points)
+            self._canvas_draw(tool="point", coord_list=self.points)
         if self.tool in ["draw"]:
             self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
             self._canvas_blend()
@@ -363,7 +367,7 @@ class _ImageViewer:
             
             ## append points to point list
             self.points.append(self.coords_original)
-            
+                       
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(tool="point", coord_list=self.points)
@@ -556,10 +560,10 @@ class _ImageViewer:
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
                 self.colour_current_bin = 255
-                self.colour_current = colours["green"]
+                self.colour_current = colours[self.left_colour]
             elif event == cv2.EVENT_RBUTTONDOWN:
                 self.colour_current_bin = 0
-                self.colour_current = colours["red"]
+                self.colour_current = colours[self.right_colour]
             
             ## start drawing and use current coords as start point
             self.canvas = copy.deepcopy(self.canvas_copy)
@@ -626,9 +630,9 @@ class _ImageViewer:
         ## create coloured overlay from binary image
         self.colour_mask = copy.deepcopy(self.image_bin_copy)
         self.colour_mask = cv2.cvtColor(self.colour_mask, cv2.COLOR_GRAY2BGR)
-        self.colour_mask[self.image_bin_copy == 0] = colours["red"]
-        self.colour_mask[self.image_bin_copy == 255] = colours["green"]
-        
+        self.colour_mask[self.image_bin_copy == 0] = colours[self.right_colour]
+        self.colour_mask[self.image_bin_copy == 255] = colours[self.left_colour]
+
         ## blend two canvas layers
         self.image_copy = cv2.addWeighted(self.image_copy,
                                           1 - self.canvas_blend_factor,
@@ -641,7 +645,7 @@ class _ImageViewer:
     def _canvas_draw(self, tool, coord_list):
                               
         ## apply coords to tool and draw on canvas
-        for coords in coord_list:
+        for idx, coords in enumerate(coord_list):
             if len(coords)==0:
                 continue
             if tool == "line":
@@ -700,17 +704,17 @@ class _ImageViewer:
                     self.image_copy,
                     coords,
                     self.point_size,
-                    self.point_colour,
+                    colours[self.point_colour],
                     -1,
                 )
                 if self.flag_text_label:
                     cv2.putText(
                         self.image_copy,
-                        str(len(self.points)),
+                        str(idx+1),
                         coords,
                         cv2.FONT_HERSHEY_SIMPLEX,
                         self.text_size,
-                        self.label_colour,
+                        colours[self.label_colour],
                         self.text_width,
                         cv2.LINE_AA,
                     )

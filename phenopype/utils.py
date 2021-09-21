@@ -83,7 +83,7 @@ class Container(object):
         ## load annotations
         annotations_filename = "annotations" + "_" + self.save_suffix + ".json"
         if annotations_filename in os.listdir(self.dirpath):
-            self.annotations = export.load_annotation(os.path.join(self.dirpath, annotations_filename))
+            self.annotations.update(export.load_annotation(os.path.join(self.dirpath, annotations_filename)))
             loaded.append("annotations loaded")
         
         if contours == False:
@@ -158,7 +158,7 @@ class Container(object):
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
             if annotation_id in self.annotations[annotation_type]:
-                kwargs.update({"previous_annotation":self.annotations[annotation_type][annotation_id]})
+                kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
 
         ## preprocessing
         if fun == "blur":
@@ -199,6 +199,10 @@ class Container(object):
         if fun == "select_channel":
             self.image = preprocessing.select_channel(self.image, **kwargs)
             
+        ## measurement
+        if fun == "set_landmarks":
+            self.annotations[annotation_type][annotation_id] = measurement.set_landmarks(self.canvas, **kwargs)
+
         ## segmentation
         if fun == "threshold":
             if "mask" in self.annotations and len(self.annotations["mask"]) > 0:

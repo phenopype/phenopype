@@ -193,88 +193,82 @@ def edit_contours(
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to
-        output DataFrame
+    image : array
+        input image
+    annotation: dict
+        annotation-dictionary containing contours 
 
     Returns
     -------
-    df_polylines : DataFrame or container
-        contains the drawn polylines
+    (image_bin, annotation) : tuple
+        modified image and contour modifications saved to annotations dictionary
 
     """
-    ## convert previous annotations to 
-    if "previous_annotation" in kwargs:
-        previous_annotation = kwargs.get("previous_annotation")
-        previous = {}        
-        previous.update(previous_annotation["settings"])
-        previous["point_list"] = previous_annotation["data"]["point_list"]
-        previous = _DummyClass(previous)    
-        kwargs.update({"previous": previous})               
-                    
     ## kwargs
-    line_colour_str = kwargs.get("line_colour", "green") 
-        
-    ## retrieve settings for image viewer
-    _image_viewer_settings = {}
-    for key, value in kwargs.items():
-        if key in _image_viewer_arg_list:
-            _image_viewer_settings[key] = value
+    contour_id = kwargs.get("contour_id")
+    annotation_previous = kwargs.get("annotation_previous")
+    
+    ## retrieve settings for image viewer and for export
+    ImageViewer_settings, local_settings  = {}, {}
+    
+    ## extract image viewer settings and data from previous annotations
+    if "annotation_previous" in kwargs:       
+        ImageViewer_previous = {}        
+        ImageViewer_previous.update(annotation_previous["settings"])
+        ImageViewer_previous["point_list"] = annotation_previous["data"]["point_list"]
+        ImageViewer_previous = _DummyClass(ImageViewer_previous)   
+        ImageViewer_settings["ImageViewer_previous"] = ImageViewer_previous
 
     ## check annotation dict input and convert to type/id/ann structure
     if list(annotation.keys())[0] == "info":
         if annotation["info"]["annotation_type"] == "contour":
             contours = annotation["data"]["coord_list"]
     else:
-        if not kwargs.get("contour_id"):
+        if contour_id:
+            local_settings["contour_id"] = contour_id
+        else: 
             print("- contour_id missing - please provide contour ID [a-z]")
             return
-        else:
-           contour_id = kwargs.get("contour_id")
         if list(annotation.keys())[0] in _annotation_function_dicts.keys():
             contours = annotation["contour"][contour_id]["data"]["coord_list"]
         elif list(annotation.keys())[0] in string.ascii_lowercase:
             contours = annotation[contour_id]["data"]["coord_list"]
+            
+    ## assemble image viewer settings from kwargs
+    for key, value in kwargs.items():
+        if key in _image_viewer_arg_list:
+            ImageViewer_settings[key] = value
+            local_settings[key] = value
 
-    ## draw masks
+    ## use GUI 
     out = _ImageViewer(image=image, 
                        contours=contours,
                        tool="draw", 
-                       **_image_viewer_settings)
+                       **ImageViewer_settings)
+    
+    ## checks
     if not out.done:
         print("- didn't finish: redo drawing")
         return 
     else:
         point_list = out.point_list
                 
-    ## convert colour to black or white
+    ## extract modified binary mask
     image_bin = out.image_bin_copy
-    
-    ## clear settings
-    settings = locals()
-    for rm in ["annotation", "contours", "image", "kwargs", "out", "point_list", 
-               "key", "value", "previous_annotation", "previous","image_bin",
-               "_image_viewer_settings", "_image_viewer_params"]:
-        settings.pop(rm, None)
-    
+        
     ## return
-    if len(point_list) > 0:
-        ret = {
-            "info": {
-                "type": "drawing", 
-                "function": "contour_modify",
-                },
-            "settings": settings,
-            "data":{
-                "point_list": point_list,
-                }
+    annotation = {
+        "info": {
+            "type": "drawing", 
+            "function": "contour_modify",
+            },
+        "settings": local_settings,
+        "data":{
+            "point_list": point_list,
             }
-        return image_bin, ret
-    else:
-        print("- zero coordinates: redo drawing")
-        return 
+        }
+    return image_bin, annotation
+
 
 
 def morphology(image, kernel_size=5, shape="rect", operation="close", iterations=1,

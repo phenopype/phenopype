@@ -920,6 +920,7 @@ class Pype(object):
         dirpath=None,
         skip=False,
         feedback=True,
+        save=True,
         **kwargs
     ):
 
@@ -935,7 +936,8 @@ class Pype(object):
         self.flags = AttrDict({"skip": skip, 
                                "feedback": feedback, 
                                "terminate": False,
-                               "debug": kwargs.get("debug",False)})
+                               "debug": kwargs.get("debug",False),
+                               "save": save})
                                 
         ## check name, load container and config
         self._check_pype_name(name=name)
@@ -990,7 +992,7 @@ class Pype(object):
                 print("\n\nTERMINATE")         
                 break
         
-        if self.flags.terminate:
+        if self.flags.save and self.flags.terminate:
             if "export" not in self.config_parsed_flattened:
                 export_list = []
             else:
@@ -1243,6 +1245,7 @@ class Pype(object):
                     annotation_params = {}
                     method_args = dict(method_args)
                 if method_name in _annotation_functions:
+                    # print(_annotation_functions)
                     annotation_counter[_annotation_functions[method_name]] += 1
                     annotation_type = _annotation_functions[method_name]
                     
