@@ -12,7 +12,7 @@ from _ctypes import PyObj_FromPtr
 
 from phenopype.settings import confirm_options, _annotation_function_dicts
 from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _convert_arr_tup_list
-
+from phenopype.utils import save_image
 #%% settings   
     
 class NoIndent(object):
@@ -223,7 +223,7 @@ def save_annotation(annotation,
         
         
 
-def ROI_save(image,
+def save_ROI(image,
              annotation,
              dirpath,
              name,
@@ -265,6 +265,28 @@ def ROI_save(image,
         #     roi_new_coords.append([new_coord])
         # roi_new_coords = np.asarray(roi_new_coords, np.int32)
         
+        
+def save_canvas(
+        image,
+        save_suffix,
+        dirpath,
+        **kwargs):
+    
+    extension = kwargs.get("extension", ".jpg")
+    resize = kwargs.get("resize", 1)
+    overwrite = kwargs.get("overwrite", True)
+    
+    if "." not in extension:
+        extension = "." + extension
+    name = "canvas_" + save_suffix + extension
+    
+    save_image(image=image,
+               name=name,
+               dirpath=dirpath,
+               resize=resize,
+               overwrite=overwrite)
+        
+    
         
 
 def save_reference(annotation, 

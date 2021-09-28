@@ -525,42 +525,37 @@ def enter_data(
 
     """
     
-    ## convert previous annotations to 
-    if "previous_annotation" in kwargs:
-        previous_annotation = kwargs.get("previous_annotation")
-        previous = {}            
-        previous.update(previous_annotation["settings"])
-        previous["entry"] = previous_annotation["data"][field]
-        previous = _DummyClass(previous)    
-        kwargs.update({"previous": previous})
+    annotation_previous = kwargs.get("annotation_previous")
+    
+    ## retrieve settings for image viewer and for export
+    ImageViewer_settings, local_settings  = {}, {}
+    
+    ## extract image viewer settings and data from previous annotations
+    if "annotation_previous" in kwargs:       
+        ImageViewer_previous = {}        
+        ImageViewer_previous.update(annotation_previous["settings"])
+        ImageViewer_previous["entry"] = annotation_previous["data"][field]
+        ImageViewer_previous = _DummyClass(ImageViewer_previous)   
+        ImageViewer_settings["ImageViewer_previous"] = ImageViewer_previous
+                
         
-    ## retrieve and save settings
-    settings = locals()
-    for rm in ["image", "kwargs", "key", "value",
-               "previous_annotation", "previous",
-               "_image_viewer_params"]:
-        settings.pop(rm, None)
-        
-    print(settings)
-        
-    ## retrieve settings for image viewer
-    _image_viewer_params = {}
+    ## assemble image viewer settings from kwargs
     for key, value in kwargs.items():
         if key in _image_viewer_arg_list:
-            settings[key] = value
-            _image_viewer_params[key] = value
+            ImageViewer_settings[key] = value
+            local_settings[key] = value
 
     out = _ImageViewer(image, 
                        tool="comment", 
                        display=field, 
-                        **_image_viewer_params)
+                        **ImageViewer_settings)
 
     annotation = {
         "info": {
             "annotation_type": "comment",
             "pp_function": "enter_data",
         },
-        "settings": settings,
+        "settings": local_settings,
         "data": {
             field: out.entry
         }

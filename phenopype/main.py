@@ -235,13 +235,17 @@ class Project:
         """
 
         # kwargs
-        flag_mode = mode
-        flag_overwrite = overwrite
-        flag_resize = False
+        ## flags
+        flags = AttrDict({"mode": mode, 
+                          "recursive": recursive, 
+                          "overwrite": overwrite,
+                          "resize": False,
+                          })
+
         if resize_factor < 1:
-            flag_resize = True
-            if not mode=="mod":
-                flag_mode = "mod"
+            flags.resize = True
+            if not flags.mode=="mod":
+                flags.mode = "mod"
                 print("Resize factor <1 or >1 - switched to \"mod\" mode")
         
         ## path conversion
@@ -272,11 +276,11 @@ class Project:
             + ", exclude: "
             + str(exclude)
             + ", mode: "
-            + str(mode)
+            + str(flags.mode)
             + ", recursive: "
-            + str(recursive)
+            + str(flags.recursive)
             + ", resize: "
-            + str(flag_resize)
+            + str(flags.resize)
             + ", unique: "
             + str(unique)
             + "\n"
@@ -299,26 +303,29 @@ class Project:
             dirpath = os.path.join(self.root_dir, "data", dirname)
 
             ## make image-specific directories
-            if os.path.isdir(dirpath) and flag_overwrite == False:
-                print(
-                    "Found image "
-                    + relpath
-                    + " - "
-                    + dirname
-                    + " already exists (overwrite=False)"
-                )
-                continue
-            if os.path.isdir(dirpath) and flag_overwrite == True:
-                rmtree(dirpath, ignore_errors=True, onerror=_del_rw)
-                print(
-                    "Found image "
-                    + relpath
-                    + " - "
-                    + "phenopype-project folder "
-                    + dirname
-                    + " created (overwritten)"
-                )
-                os.mkdir(dirpath)
+            if os.path.isdir(dirpath): 
+                if flags.overwrite == False:
+                    print(
+                        "Found image "
+                        + relpath
+                        + " - "
+                        + dirname
+                        + " already exists (overwrite=False)"
+                    )
+                    continue
+                elif flags.overwrite == "files":
+                    pass
+                elif flags.overwrite == "dir":
+                    rmtree(dirpath, ignore_errors=True, onerror=_del_rw)
+                    print(
+                        "Found image "
+                        + relpath
+                        + " - "
+                        + "phenopype-project folder "
+                        + dirname
+                        + " created (overwrite == \"dir\")"
+                    )
+                    os.mkdir(dirpath)
             else:
                 print(
                     "Found image "
@@ -337,11 +344,11 @@ class Project:
             image_data_original = _load_image_data(filepath)
             image_data_phenopype = {
                 "date_added": datetime.today().strftime("%Y%m%d%H%M%S"),
-                "mode": flag_mode,
+                "mode": flags.mode,
                     }
 
             ## copy or link raw files
-            if flag_mode == "copy":
+            if flags.mode == "copy":
                 image_phenopype_path = os.path.join(
                     self.root_dir,
                     "data",
@@ -350,7 +357,8 @@ class Project:
                 )
                 copyfile(filepath, image_phenopype_path)
                 image_data_phenopype.update(_load_image_data(image_phenopype_path, path_and_type=False))
-            elif flag_mode == "mod":
+                
+            elif flags.mode == "mod":
                 if resize_factor < 1:
                     image = _resize_image(image, resize_factor)
                 if not "." in extension:
@@ -361,20 +369,30 @@ class Project:
                     dirname,
                     "mod_" + image_basename + extension,
                 )
+                if os.path.isfile(image_phenopype_path) and flags.overwrite=="file":
+                    print(
+                        "Found image "
+                        + image_phenopype_path
+                        + " in "
+                        + dirname
+                        + " - overwriting (overwrite == \"files\")"
+                    )
                 cv2.imwrite(image_phenopype_path, image)
                 image_data_phenopype.update({
-                    "resize": flag_resize,
+                    "resize": flags.resize,
                     "resize_factor":resize_factor,
                     })
                 image_data_phenopype.update(_load_image_data(image_phenopype_path, path_and_type=False))
-            elif flag_mode == "link":
+                
+            elif flags.mode == "link":
                 image_phenopype_path = filepath
 
             ## write attributes file
             attributes = {
                 "image_original":image_data_original,
                 "image_phenopype":image_data_phenopype}
-            
+            if os.path.isfile(os.path.join(dirpath, "attributes.yaml")) and flags.overwrite=="file":
+                print("overwriting attributes")
             _save_yaml(
                 attributes, os.path.join(dirpath, "attributes.yaml")
             )

@@ -7,6 +7,7 @@ import pandas as pd
 import time
 from timeit import default_timer as timer
 import ruamel.yaml
+from ruamel.yaml.constructor import SafeConstructor
 
 from datetime import datetime
 from math import cos
@@ -245,7 +246,7 @@ class _ImageViewer:
                     (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     self.text_size,
-                    self.label_colour,
+                    colours[self.label_colour],
                     self.text_width,
                     cv2.LINE_AA,
                 )
@@ -1331,9 +1332,29 @@ def _resize_image(image, factor=1, interpolation="cubic"):
     ## return results
     return image
 
-def _load_yaml(string, typ="rt"):
+from ruamel.yaml.comments import CommentedMap
+from collections import OrderedDict
+
+def _load_yaml(string, typ="rt", pure=False, legacy=False):
         
-    yaml = YAML(typ=typ)
+    ## this can read phenopype < 2.0 style config yaml files
+    if legacy==True:
+        def _construct_yaml_map(self, node):
+            data = []
+            yield data
+            for key_node, value_node in node.value:
+                key = self.construct_object(key_node, deep=True)
+                val = self.construct_object(value_node, deep=True)
+                data.append((key, val))
+    else:
+        def _construct_yaml_map(self, node):
+            data = self.yaml_base_dict_type()
+            yield data
+            value = self.construct_mapping(node)
+            data.update(value) 
+        
+    SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
+    yaml = YAML(typ=typ, pure=pure)
 
     if string.__class__.__name__ == "str":
         if os.path.isfile(string):
@@ -1345,8 +1366,7 @@ def _load_yaml(string, typ="rt"):
     else:
         print("Not a valid path - couldn't load yaml.")
         return
-
-
+    
 
 def _show_yaml(odict, ret=False, typ="rt"):
     

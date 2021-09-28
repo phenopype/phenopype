@@ -229,6 +229,8 @@ class Container(object):
         if fun == "save_annotation":
             filename = kwargs.get("filename", "annotations") + "_" + self.save_suffix + ".json"
             export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
+        if fun == "save_canvas":
+            export.save_canvas(self.canvas, dirpath=self.dirpath, save_suffix=self.save_suffix, **kwargs)
             
     def save(self, dirpath=None, export_list=[], overwrite=False, **kwargs):
         """
