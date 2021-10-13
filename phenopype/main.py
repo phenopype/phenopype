@@ -52,7 +52,7 @@ from phenopype.utils_lowlevel import (
     _yaml_flow_style,
 )
 
-import phenopype.config
+import phenopype._config
 
 #%% settings
 
@@ -586,7 +586,8 @@ class Project:
         """
 
         ## kwargs and setup
-        flags = AttrDict({"overwrite":overwrite, "activate":activate})
+        flags = AttrDict({"overwrite": overwrite, 
+                          "activate": activate})
 
         reference_name = name
         print_save_msg = "== no msg =="
@@ -729,19 +730,20 @@ class Project:
                 print("could not set active reference for " + dirname + \
                         " (overwrite=False/activate=False)")
 
-
-    def collect_results(self, name, files=None, folder="results", overwrite=False):
+    def collect_canvas(self, 
+                       name, 
+                       folder="canvas", 
+                       overwrite=False, 
+                       **kwargs):
+        
         """
-        Collect results (images or CSVs) from the entire data folder. Search by 
-        pype name (e.g. "v1") and filter by filetypes (e.g. landmarks, 
-        contours or colours)
+        Collect canvas from each folder in the project tree. Search by 
+        name/safe_suffix (e.g. "v1").
 
         Parameters
         ----------
         name : str
             name of the pype or save_suffix
-        files : str or list, optional
-            filetypes to look for (e.g. landmarks, contours or colours)
         folder : str, optional
             folder in the root directory where the results are stored
         overwrite : bool, optional
@@ -749,7 +751,11 @@ class Project:
 
         """
         ## kwargs
-        flag_overwrite = overwrite
+        flags = AttrDict({"overwrite":overwrite})
+
+        extension = kwargs.get("extension", ".jpg")
+        if "." not in extension:
+            extension = "." + extension
 
         results_path = os.path.join(self.root_dir, folder)
 
@@ -758,27 +764,18 @@ class Project:
             print("Created " + results_path)
 
         ## search string
-        if not files.__class__.__name__ == "NoneType":
-            if not files.__class__.__name__ == "list":
-                files = [files]
-            search_strings = []
-            for file in files:
-                if not name == "":
-                    search_strings.append(file + "_" + name)
-                else:
-                    search_strings.append(file)
-        else:
-            search_strings = name
+        search_string = "canvas_" + name + extension
+
             
         ## append name
-        print(search_strings)
+        print(search_string)
 
         ## search
         found, duplicates = _file_walker(
             os.path.join(self.root_dir,"data"),
             recursive=True,
-            include=search_strings,
-            exclude=["pype_config"],
+            include=search_string,
+            exclude=["pype_config", "attributes", "annotations"],
         )
 
         ## collect
@@ -798,12 +795,12 @@ class Project:
 
             ## overwrite check
             while True:
-                if os.path.isfile(path) and flag_overwrite == False:
+                if os.path.isfile(path) and flags.overwrite == False:
                     print(
                         filename + " not saved - file already exists (overwrite=False)."
                     )
                     break
-                elif os.path.isfile(path) and flag_overwrite == True:
+                elif os.path.isfile(path) and flags.overwrite == True:
                     print(filename + " saved under " + path + " (overwritten).")
                     pass
                 elif not os.path.isfile(path):
@@ -994,7 +991,7 @@ class Pype(object):
         while True:
             
             ## pype restart flag
-            phenopype.config.pype_restart = False
+            phenopype._config.pype_restart = False
 
             ## refresh config
             self.config = copy.deepcopy(self.YFM.content)
@@ -1256,32 +1253,28 @@ class Pype(object):
                 # =============================================================================
 
                 ## annotation params 
-                if "ANNOTATION" in method_args:
-                    annotation_params = dict(method_args["ANNOTATION"])
-                    del method_args["ANNOTATION"]
-                else:
-                    annotation_params = {}
-                    method_args = dict(method_args)
                 if method_name in _annotation_functions:
-                    # print(_annotation_functions)
-                    annotation_counter[_annotation_functions[method_name]] += 1
-                    annotation_type = _annotation_functions[method_name]
-                    
-                    if not "type" in annotation_params:
-                        annotation_params.update({"type":_annotation_functions[method_name]})
-                    if not "id" in annotation_params:
-                        annotation_id = string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]
-                        annotation_params.update({"id":annotation_id})
+                
+                    if "ANNOTATION" in method_args:
+                        annotation_args = dict(method_args["ANNOTATION"])
+                        del method_args["ANNOTATION"]
                     else:
-                        annotation_id = annotation_params["id"]
+                        annotation_args = {}
+                        method_args = dict(method_args)
                         
-                    annotation_params =  _yaml_flow_style(annotation_params)
-                    method_args_updated = {"ANNOTATION":annotation_params}
-                    method_args_updated.update(method_args)
-                    self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
+                        annotation_counter[_annotation_functions[method_name]] += 1
+                        if not "type" in annotation_args:
+                            annotation_args.update({"type":_annotation_functions[method_name]})
+                        if not "id" in annotation_args:
+                            annotation_id = string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]
+                            annotation_args.update({"id":annotation_id})
+    
+                        annotation_args =  _yaml_flow_style(annotation_args)
+                        method_args_updated = {"ANNOTATION":annotation_args}
+                        method_args_updated.update(method_args)
+                        self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
                 else:
-                    annotation_id = None
-                    annotation_type = None
+                    annotation_args = {}
                     
                 # =============================================================================
                 # METHOD / EXECUTE  
@@ -1291,9 +1284,9 @@ class Pype(object):
                 if flags.execute:            
                     try:
                         self.container.run(fun=method_name, 
-                                           annotation_id=annotation_id, 
-                                           annotation_type=annotation_type,
-                                           kwargs=method_args)
+                                           fun_kwargs=method_args,
+                                           annotation_kwargs=annotation_args
+                                           )
                     except Exception as ex:
                         if self.flags.debug:
                             raise
@@ -1304,7 +1297,7 @@ class Pype(object):
                         print(location + " - " + str(ex))
                 
                 ## check for pype-restart after config change
-                if phenopype.config.pype_restart:
+                if phenopype._config.pype_restart:
                     print("BREAK")
                     return
                         

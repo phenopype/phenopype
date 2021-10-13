@@ -70,41 +70,36 @@ def create_mask(
     include=True,
     tool="rectangle",
     **kwargs
-):
-
-    ## convert previous annotations to 
-    if "previous_annotation" in kwargs:
-        previous_annotation = kwargs.get("previous_annotation")
-        previous = {}            
-        previous.update(previous_annotation["settings"])
-        previous["polygons"] = previous_annotation["data"]["coord_list"]
-        previous = _DummyClass(previous)    
-        kwargs.update({"previous": previous})               
-                
-    settings = locals()
+):           
     
-    ## retrieve settings for image viewer
-    _image_viewer_params = {}
+    annotation_previous = kwargs.get("annotation_previous")
+                
+    ## retrieve settings for image viewer and for export
+    ImageViewer_settings, local_settings  = {}, {}
+    
+    ## extract image viewer settings and data from previous annotations
+    if "annotation_previous" in kwargs:       
+        ImageViewer_previous = {}        
+        ImageViewer_previous.update(annotation_previous["settings"])
+        ImageViewer_previous["polygons"] = annotation_previous["data"]["coord_list"]
+        ImageViewer_previous = _DummyClass(ImageViewer_previous)   
+        ImageViewer_settings["ImageViewer_previous"] = ImageViewer_previous
+                
+        
+    ## assemble image viewer settings from kwargs
     for key, value in kwargs.items():
         if key in _image_viewer_arg_list:
-            settings[key] = value
-            _image_viewer_params[key] = value
-
+            ImageViewer_settings[key] = value
+            local_settings[key] = value
+    
     ## draw masks
     out = _ImageViewer(image=image, 
                         tool=tool, 
-                        **_image_viewer_params)
+                        **ImageViewer_settings)
     if not out.done:
         print("- didn't finish: redo mask")
         return 
-    
-    ## retrieve and save settings
-    for rm in ["image", "kwargs","key","value","previous_annotation", "previous",
-               "_image_viewer_params"]:
-        settings.pop(rm, None)     
-        
-    print(settings)
-        
+
     # conversion and return
     if out.polygons is not None:
         coords = out.polygons
@@ -114,7 +109,7 @@ def create_mask(
                 "annotation_type": "mask",
                 "pp_function": "create_mask",
             },
-            "settings": settings,
+            "settings": local_settings,
             "data": {
                 "include": include,
                 "n_masks": len(coords),

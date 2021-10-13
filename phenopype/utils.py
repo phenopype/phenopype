@@ -85,7 +85,7 @@ class Container(object):
         if annotations_filename in os.listdir(self.dirpath):
             self.annotations.update(export.load_annotation(os.path.join(self.dirpath, annotations_filename)))
             loaded.append("annotations loaded")
-        
+                    
         if contours == False:
             self.annotations["contours"] = {}
             
@@ -152,26 +152,40 @@ class Container(object):
         # self.annotations = None
 
             
-    def run(self, fun, annotation_id=None, annotation_type=None, kwargs={}):
+    def run(self, fun, fun_kwargs={}, annotation_kwargs={}):
         
+        
+        ## kwargs
+        kwargs = fun_kwargs
+        
+        annotation = None
+        annotation_id = annotation_kwargs.get("id") 
+        annotation_type = annotation_kwargs.get("type")
+        overwrite = annotation_kwargs.get("overwrite", False)
+                
         if not all(
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
             if annotation_id in self.annotations[annotation_type]:
-                kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
-
+                if overwrite == "edit":
+                    print("- editing annotation of type \"{}\" with ID \"{}\" already present (overwrite=edit)".format(annotation_type, annotation_id))
+                    kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
+                elif overwrite == True:
+                    print("- overwriting annotation of type \"{}\" with ID \"{}\" already present (overwrite=True)".format(annotation_type, annotation_id))
+                    pass
+                elif overwrite == False:
+                    print("- annotation of type \"{}\" with ID \"{}\" already present (overwrite=False)".format(annotation_type, annotation_id))
+                    return
+                
         ## preprocessing
         if fun == "blur":
             self.image = preprocessing.blur(self.image, **kwargs)
         if fun == "create_mask":
             annotation = preprocessing.create_mask(self.image, **kwargs)
-            self.annotations[annotation_type][annotation_id] = annotation
         if fun == "detect_mask":
             annotation = preprocessing.detect_mask(self.image, **kwargs)
-            self.annotations[annotation_type][annotation_id] = annotation
         if fun == "enter_data":
             annotation = preprocessing.enter_data(self.image, **kwargs)
-            self.annotations[annotation_type][annotation_id] = annotation
         if fun == "detect_reference":
             if not any(hasattr(self, reference) for reference in [
                     "reference_detected_px_mm_ratio"
@@ -188,9 +202,7 @@ class Container(object):
                     if annotation.__class__.__name__ == "tuple":
                         ref_mask_id = string.ascii_lowercase[len(self.annotations["mask"].keys())]
                         self.annotations["mask"][ref_mask_id] = annotation[1]
-                        self.annotations[annotation_type][annotation_id] = annotation[0]
-                    else:
-                        self.annotations[annotation_type][annotation_id] = annotation
+                        annotation = annotation[0]
                     self.reference_as_detected = self.annotations[annotation_type][annotation_id]["data"]["px_mm_ratio"]
                 else:
                     print("- missing project level reference information, cannot detect")
@@ -201,7 +213,7 @@ class Container(object):
             
         ## measurement
         if fun == "set_landmarks":
-            self.annotations[annotation_type][annotation_id] = measurement.set_landmarks(self.canvas, **kwargs)
+            annotation = measurement.set_landmarks(self.canvas, **kwargs)
 
         ## segmentation
         if fun == "threshold":
@@ -214,10 +226,10 @@ class Container(object):
         if fun == "morphology":
             self.image = segmentation.morphology(self.image, **kwargs)
         if fun == "detect_contours":
-            self.annotations[annotation_type][annotation_id] = segmentation.detect_contours(self.image, **kwargs)
+            annotation = segmentation.detect_contours(self.image, **kwargs)
         if fun == "edit_contours":
             image, annotation = segmentation.edit_contours(self.canvas, annotation=self.annotations, **kwargs)
-            self.image, self.annotations[annotation_type][annotation_id] = (image, annotation)
+            self.image = image
 
         ## visualization
         if fun == "select_canvas":
@@ -231,6 +243,12 @@ class Container(object):
             export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
         if fun == "save_canvas":
             export.save_canvas(self.canvas, dirpath=self.dirpath, save_suffix=self.save_suffix, **kwargs)
+            
+            
+        ## save annotation to dict
+        if annotation:
+            self.annotations[annotation_type][annotation_id] = annotation
+
             
     def save(self, dirpath=None, export_list=[], overwrite=False, **kwargs):
         """

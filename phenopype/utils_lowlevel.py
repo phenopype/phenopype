@@ -17,7 +17,7 @@ from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-from phenopype.settings import colours, confirm_options, pype_config_template_list
+from phenopype.settings import colours, confirm_options, pype_config_template_list, opencv_interpolation_flags
 from phenopype.settings import flag_verbose, opencv_window_flags
 
 
@@ -25,7 +25,7 @@ from phenopype.settings import flag_verbose, opencv_window_flags
 from contextlib import redirect_stdout
 import io
 
-import phenopype.config
+import phenopype._config
 
 #%% settings
 
@@ -57,7 +57,7 @@ class _ImageViewer:
         """
         ## kwargs (FUTURE => use dictionary from config)
         if not phenopype.main.window_max_dim:
-            window_max_dim = kwargs.get("window_max_dim", phenopype.config.window_max_dim)       
+            window_max_dim = kwargs.get("window_max_dim", phenopype._config.window_max_dim)       
         else: 
             window_max_dim = phenopype.main.window_max_dim
         
@@ -212,7 +212,7 @@ class _ImageViewer:
         ## local control vars
         self.done = False
         self.finished = False
-        phenopype.config.window_close = False
+        phenopype._config.window_close = False
         
         # =============================================================================
         # window control
@@ -261,7 +261,7 @@ class _ImageViewer:
                         self.entry = entry.replace(display, "")
                         cv2.destroyAllWindows()
                         break
-                elif phenopype.config.window_close:
+                elif phenopype._config.window_close:
                     self.done = True
                     cv2.destroyAllWindows()
                     break
@@ -309,7 +309,7 @@ class _ImageViewer:
                             self._canvas_blend()
                             self._canvas_mount()
                             
-                        elif phenopype.config.window_close:
+                        elif phenopype._config.window_close:
                             self.done = True
                             cv2.destroyAllWindows()
     
@@ -852,7 +852,7 @@ class _YamlFileMonitor:
         
         if self.time_diff > 1:
             self.content = _load_yaml(self.filepath)
-            phenopype.config.window_close,phenopype.config.pype_restart = True, True
+            phenopype._config.window_close,phenopype._config.pype_restart = True, True
             cv2.destroyWindow("phenopype")
             cv2.waitKey(self.delay)
         else:
