@@ -18,7 +18,7 @@ from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
 from phenopype.settings import colours, confirm_options, pype_config_template_list, opencv_interpolation_flags
-from phenopype.settings import flag_verbose, opencv_window_flags
+from phenopype.settings import flag_verbose, opencv_window_flags, AttrDict
 
 
 ## capture yaml output - temp
@@ -82,7 +82,8 @@ class _ImageViewer:
         self.window_name = "phenopype"
                 
         ## needs cleaning
-        self.flag_test_mode = kwargs.get("test_mode", False)
+        self.flags = AttrDict({"passive":False})
+        self.flags.passive = kwargs.get("passive", False)
         
         # =============================================================================
         # initialize variables
@@ -218,6 +219,11 @@ class _ImageViewer:
         # window control
         # =============================================================================
         
+        if self.flags.passive == True:
+            self.done = True
+            self.finished = True
+            return
+        
         ## temporary data entry loop, will be integrated later
         if self.tool == "comment":
             display = kwargs.get("display", "")
@@ -278,12 +284,8 @@ class _ImageViewer:
                 while not any([self.finished, self.done]):
                     cv2.imshow(self.window_name, self.canvas)
                     self.keypress = cv2.waitKey(500)                 
-                    if self.flag_test_mode == True:
-                        self.done = True
-                        self.finished = True
-                        cv2.waitKey(self.wait_time)
-                        cv2.destroyAllWindows()
-                    elif self.flag_test_mode == False:
+                    if self.flags.passive == False:
+                        
                         ## Enter
                         if self.keypress == 13:
                             self.done = True
@@ -314,7 +316,7 @@ class _ImageViewer:
                             cv2.destroyAllWindows()
     
             else:
-                if self.flag_test_mode == True:
+                if self.flags.passive == True:
                     self.done = True
                     cv2.waitKey(self.wait_time)
                     cv2.destroyAllWindows()

@@ -83,7 +83,7 @@ opencv_interpolation_flags = {
     }
 
 
-#%% default arguments
+#%% image viewer
 
 _image_viewer_arg_list = [
     "blend_factor",
@@ -94,6 +94,7 @@ _image_viewer_arg_list = [
     "right_colour",
     "line_colour",
     "line_width",
+    "passive",
     "point_size",
     "point_colour",
     "window_aspect", 

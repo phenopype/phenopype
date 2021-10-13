@@ -167,16 +167,17 @@ class Container(object):
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
             if annotation_id in self.annotations[annotation_type]:
+                kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
                 if overwrite == "edit":
                     print("- editing annotation of type \"{}\" with ID \"{}\" already present (overwrite=edit)".format(annotation_type, annotation_id))
-                    kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
                 elif overwrite == True:
                     print("- overwriting annotation of type \"{}\" with ID \"{}\" already present (overwrite=True)".format(annotation_type, annotation_id))
                     pass
                 elif overwrite == False:
                     print("- annotation of type \"{}\" with ID \"{}\" already present (overwrite=False)".format(annotation_type, annotation_id))
-                    # if annotation_type == "drawing":
-
+                    if annotation_type == "drawing":
+                        kwargs.update({"passive":True})
+                        self.image, annotation = segmentation.edit_contours(self.canvas, annotation=self.annotations, **kwargs)
                     return
                 
         ## preprocessing
