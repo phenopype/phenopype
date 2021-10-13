@@ -175,6 +175,8 @@ class Container(object):
                     pass
                 elif overwrite == False:
                     print("- annotation of type \"{}\" with ID \"{}\" already present (overwrite=False)".format(annotation_type, annotation_id))
+                    # if annotation_type == "drawing":
+
                     return
                 
         ## preprocessing

@@ -1255,6 +1255,8 @@ class Pype(object):
                 ## annotation params 
                 if method_name in _annotation_functions:
                 
+                    annotation_counter[_annotation_functions[method_name]] += 1
+                
                     if "ANNOTATION" in method_args:
                         annotation_args = dict(method_args["ANNOTATION"])
                         del method_args["ANNOTATION"]
@@ -1262,17 +1264,24 @@ class Pype(object):
                         annotation_args = {}
                         method_args = dict(method_args)
                         
-                        annotation_counter[_annotation_functions[method_name]] += 1
-                        if not "type" in annotation_args:
-                            annotation_args.update({"type":_annotation_functions[method_name]})
-                        if not "id" in annotation_args:
-                            annotation_id = string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]
-                            annotation_args.update({"id":annotation_id})
-    
-                        annotation_args =  _yaml_flow_style(annotation_args)
-                        method_args_updated = {"ANNOTATION":annotation_args}
-                        method_args_updated.update(method_args)
-                        self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
+                    if not "type" in annotation_args:
+                        annotation_args.update({"type":_annotation_functions[method_name]})
+                    if not "id" in annotation_args:
+                        annotation_id = string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]
+                        annotation_args.update({"id":annotation_id})
+                    if not "overwrite" in annotation_args:
+                        if annotation_args["type"] in ["contour"]:
+                            overwrite = True
+                        elif annotation_args["type"] in ["drawing"]:
+                            overwrite = "edit"
+                        else:
+                            overwrite = False
+                        annotation_args.update({"overwrite": overwrite})
+
+                    annotation_args =  _yaml_flow_style(annotation_args)
+                    method_args_updated = {"ANNOTATION":annotation_args}
+                    method_args_updated.update(method_args)
+                    self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
                 else:
                     annotation_args = {}
                     
