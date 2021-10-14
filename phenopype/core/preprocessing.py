@@ -542,7 +542,7 @@ def enter_data(
 
     out = _ImageViewer(image, 
                        tool="comment", 
-                       display=field, 
+                       field=field, 
                         **ImageViewer_settings)
 
     annotation = {

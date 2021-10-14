@@ -180,6 +180,10 @@ class _ImageViewer:
             ## for contour edit tool
             self.left_colour = kwargs.get("left_colour", "green")
             self.right_colour = kwargs.get("right_colour", "red")
+            
+            ## initialize comment tool
+            self.field = kwargs.get("field", "")
+            self.entry = ""
                             
         # =============================================================================
         # update self with parameters from previous instance
@@ -196,7 +200,7 @@ class _ImageViewer:
             self.__dict__.update(copy.deepcopy(prev_attr))
 
         # =============================================================================
-        # open canvas
+        # generate canvas
         # =============================================================================
         
         ## initialize canvas
@@ -220,110 +224,81 @@ class _ImageViewer:
         # =============================================================================
         
         if self.flags.passive == True:
+            
             self.done = True
             self.finished = True
-            return
-        
-        ## temporary data entry loop, will be integrated later
-        if self.tool == "comment":
-            display = kwargs.get("display", "")
-            if hasattr(self, "entry"):
-                entry = self.entry
-            else:
-                entry = ""
-            k = 0
-            
-            while True or entry == "":
-
-                cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
-                cv2.setMouseCallback(self.window_name, self._keyboard_entry)
-
-                k = cv2.waitKey(1)
-                if k > 0 and k != 8 and k != 13 and k != 27:
-                    entry = entry + chr(k)
-                elif k == 8:
-                    entry = entry[0 : len(entry) - 1]
-
-
-                self.canvas = copy.deepcopy(self.canvas_copy)
-                cv2.putText(
-                    self.canvas,
-                    "Enter " + display + ": " + entry,
-                    (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    self.text_size,
-                    colours[self.label_colour],
-                    self.text_width,
-                    cv2.LINE_AA,
-                )
-                cv2.imshow(self.window_name, self.canvas)
-
-                if k == 27:
-                    cv2.destroyAllWindows()
-                    sys.exit("\n\nTERMINATE (by user)")
-                elif k == 13:
-                    if not entry == "":
-                        self.done
-                        self.entry = entry.replace(display, "")
-                        cv2.destroyAllWindows()
-                        break
-                elif phenopype._config.window_close:
-                    self.done = True
-                    cv2.destroyAllWindows()
-                    break
             
         else:
+            
             cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
             cv2.startWindowThread() 
             cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
             cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
             cv2.imshow(self.window_name, self.canvas)
             self.keypress = None
-            
-            if window_control == "internal":
-                while not any([self.finished, self.done]):
-                    cv2.imshow(self.window_name, self.canvas)
-                    self.keypress = cv2.waitKey(500)                 
-                    if self.flags.passive == False:
-                        
-                        ## Enter
-                        if self.keypress == 13:
-                            self.done = True
-                            cv2.destroyAllWindows()
-                            
-                        ## Ctrl + Enter
-                        elif self.keypress == 10:
-                            self.done = True
-                            self.finished = True
-                            cv2.destroyAllWindows()
-                            print("finish")
-                            
-                        ## Esc
-                        elif self.keypress == 27:
-                            cv2.destroyAllWindows()
-                            sys.exit("\n\nTERMINATE (by user)")
-                            
-                        ## Ctrl + z
-                        elif self.keypress == 26 and self.tool == "draw":
-                            self.point_list = self.point_list[:-1]
-                            self._canvas_renew()
-                            self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
-                            self._canvas_blend()
-                            self._canvas_mount()
-                            
-                        elif phenopype._config.window_close:
-                            self.done = True
-                            cv2.destroyAllWindows()
+        
+            while not any([self.finished, self.done]):
+                cv2.imshow(self.window_name, self.canvas)
+                if self.flags.passive == False:
+                    
+                    ## comment tool
+                    if self.tool == "comment":
+                        self.keypress = cv2.waitKey(1)
+                        self._comment_tool()
+                    else:
+                        self.keypress = cv2.waitKey(500)                 
     
-            else:
-                if self.flags.passive == True:
-                    self.done = True
-                    cv2.waitKey(self.wait_time)
-                    cv2.destroyAllWindows()
+                    ## Enter = close window and redo
+                    if self.keypress == 13:
+                        self.done = True
+                        cv2.destroyAllWindows()
+                        
+                    ## Ctrl + Enter = close window and move on
+                    elif self.keypress == 10:
+                        self.done = True
+                        self.finished = True
+                        cv2.destroyAllWindows()
+                        print("finish")
+                        
+                    ## Esc = close window and terminate
+                    elif self.keypress == 27:
+                        cv2.destroyAllWindows()
+                        sys.exit("\n\nTERMINATE (by user)")
+                        
+                    ## Ctrl + z = undo
+                    elif self.keypress == 26 and self.tool == "draw":
+                        self.point_list = self.point_list[:-1]
+                        self._canvas_renew()
+                        self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
+                        self._canvas_blend()
+                        self._canvas_mount()
+                        
+                    ## external window close
+                    elif phenopype._config.window_close:
+                        self.done = True
+                        cv2.destroyAllWindows()
+                    
+                    
+    def _comment_tool(self):
+                
+        if self.keypress > 0 and not self.keypress in [8, 13, 27]:
+            self.entry = self.entry + chr(self.keypress)
+        elif self.keypress == 8:
+            self.entry = self.entry[0 : len(self.entry) - 1]
 
-    def _keyboard_entry(self, event, x, y, flags, params):
-        pass
-
+        self.canvas = copy.deepcopy(self.canvas_copy)
+        cv2.putText(
+            self.canvas,
+            "Enter " + self.field + ": " + self.entry,
+            (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            self.text_size,
+            colours[self.label_colour],
+            self.text_width,
+            cv2.LINE_AA,
+        )
+        cv2.imshow(self.window_name, self.canvas)
+                    
     def _on_mouse_plain(self, event, x, y, flags, params):
         if event == cv2.EVENT_MOUSEWHEEL and not self.keypress == 9:
             self.keypress = None
@@ -361,6 +336,7 @@ class _ImageViewer:
                 self._on_mouse_rectangle(event, x, y, flags, template=True)
             elif self.tool == "draw":
                 self._on_mouse_draw(event, x, y, flags)
+                
                 
     def _on_mouse_point(self, event, x, y):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -421,8 +397,7 @@ class _ImageViewer:
             ## pump updates
             cv2.imshow(self.window_name, self.canvas)
             
-            
-        if event == cv2.EVENT_LBUTTONDOWN:  ## and (flags & cv2.EVENT_FLAG_CTRLKEY)
+        if event == cv2.EVENT_LBUTTONDOWN:  
         
             ## skip if in reference mode
             if reference and len(self.points) == 2:
@@ -462,7 +437,7 @@ class _ImageViewer:
             self._canvas_mount()
 
         if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.points) > 2:
-            
+
             ## close polygon
             if not polyline:
                 self.points.append(self.points[0])
@@ -477,7 +452,6 @@ class _ImageViewer:
             self._canvas_draw(
                 tool="line", coord_list=self.polygons + [self.points])
             self._canvas_mount()
-
 
 
     def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
@@ -643,7 +617,6 @@ class _ImageViewer:
                                           self.canvas_blend_factor,
                                           0)                
         
-
         
     def _canvas_draw(self, tool, coord_list):
                               
