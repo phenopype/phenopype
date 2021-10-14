@@ -3,8 +3,18 @@
 import cv2
 import os
 from importlib.resources import path
+from pathlib import Path
 from pprint import PrettyPrinter
 
+import phenopype.utils_lowlevel as utils_lowlevel
+
+#%% helper-class
+
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+        
 
 #%% scalars and definitions
 
@@ -47,14 +57,16 @@ default_pype_config = "ex1"
 ## create template list
 pype_config_template_list = {}
 with path(__package__, 'templates') as template_dir:
-    template_list = os.listdir(template_dir)
-    for template_name in template_list:
-        if template_name.endswith(".yaml"):
-            template_path = os.path.join(template_dir, template_name)
-            pype_config_template_list[template_name] = template_path
-            
-            
-            
+    for folder in os.listdir(template_dir):
+        if not folder in ['__init__.py','__pycache__']:
+            pype_config_template_list[folder] = {}
+            for file in os.listdir(Path(template_dir) / folder):
+                if file.endswith(".yaml"):
+                    template_name = os.path.splitext(file)[0]
+                    pype_config_template_list[folder][template_name] = utils_lowlevel._load_yaml(str(Path(template_dir) / folder / file))
+            pype_config_template_list[folder] = AttrDict(pype_config_template_list[folder])            
+pype_templates = AttrDict(pype_config_template_list)
+
 #%% flags
 
 flag_verbose = True
@@ -189,11 +201,7 @@ _annotation_function_dicts = {
 
 
 
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-        
+
 #%% dependencies
 
 pretty = PrettyPrinter(width=30)

@@ -17,9 +17,10 @@ from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-from phenopype.settings import colours, confirm_options, pype_config_template_list, opencv_interpolation_flags
-from phenopype.settings import flag_verbose, opencv_window_flags, AttrDict
+# from phenopype.settings import colours, confirm_options, pype_config_template_list, opencv_interpolation_flags
+# from phenopype.settings import flag_verbose, opencv_window_flags, AttrDict
 
+import phenopype.settings as settings
 
 ## capture yaml output - temp
 from contextlib import redirect_stdout
@@ -82,7 +83,7 @@ class _ImageViewer:
         self.window_name = "phenopype"
                 
         ## needs cleaning
-        self.flags = AttrDict({"passive":False})
+        self.flags = settings.AttrDict({"passive":False})
         self.flags.passive = kwargs.get("passive", False)
         
         # =============================================================================
@@ -166,7 +167,7 @@ class _ImageViewer:
             self.rect_start, self.drawing = None, False
             
             ## line properties
-            self.line_colour = colours[kwargs.get("line_colour", "green")]
+            self.line_colour = settings.colours[kwargs.get("line_colour", "green")]
             self.line_width = kwargs.get("line_width", _auto_line_width(image))
             self.line_width_orig = copy.deepcopy(self.line_width)
             
@@ -230,7 +231,7 @@ class _ImageViewer:
             
         else:
             
-            cv2.namedWindow(self.window_name, opencv_window_flags[window_aspect])
+            cv2.namedWindow(self.window_name, settings.opencv_window_flags[window_aspect])
             cv2.startWindowThread() 
             cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
             cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
@@ -293,7 +294,7 @@ class _ImageViewer:
             (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
             cv2.FONT_HERSHEY_SIMPLEX,
             self.text_size,
-            colours[self.label_colour],
+            settings.colours[self.label_colour],
             self.text_width,
             cv2.LINE_AA,
         )
@@ -537,10 +538,10 @@ class _ImageViewer:
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
                 self.colour_current_bin = 255
-                self.colour_current = colours[self.left_colour]
+                self.colour_current = settings.colours[self.left_colour]
             elif event == cv2.EVENT_RBUTTONDOWN:
                 self.colour_current_bin = 0
-                self.colour_current = colours[self.right_colour]
+                self.colour_current = settings.colours[self.right_colour]
             
             ## start drawing and use current coords as start point
             self.canvas = copy.deepcopy(self.canvas_copy)
@@ -596,9 +597,9 @@ class _ImageViewer:
             self.line_width = int(
                 self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
             cv2.line(self.canvas, (x, y), (x, y),
-                     colours["black"], self.line_width)
+                     settings.colours["black"], self.line_width)
             cv2.line(self.canvas, (x, y), (x, y),
-                     colours["white"], max(self.line_width-5, 1))
+                     settings.colours["white"], max(self.line_width-5, 1))
             cv2.imshow(self.window_name, self.canvas)
             
                 
@@ -607,8 +608,8 @@ class _ImageViewer:
         ## create coloured overlay from binary image
         self.colour_mask = copy.deepcopy(self.image_bin_copy)
         self.colour_mask = cv2.cvtColor(self.colour_mask, cv2.COLOR_GRAY2BGR)
-        self.colour_mask[self.image_bin_copy == 0] = colours[self.right_colour]
-        self.colour_mask[self.image_bin_copy == 255] = colours[self.left_colour]
+        self.colour_mask[self.image_bin_copy == 0] = settings.colours[self.right_colour]
+        self.colour_mask[self.image_bin_copy == 255] = settings.colours[self.left_colour]
 
         ## blend two canvas layers
         self.image_copy = cv2.addWeighted(self.image_copy,
@@ -680,7 +681,7 @@ class _ImageViewer:
                     self.image_copy,
                     coords,
                     self.point_size,
-                    colours[self.point_colour],
+                    settings.colours[self.point_colour],
                     -1,
                 )
                 if self.flag_text_label:
@@ -690,7 +691,7 @@ class _ImageViewer:
                         coords,
                         cv2.FONT_HERSHEY_SIMPLEX,
                         self.text_size,
-                        colours[self.label_colour],
+                        settings.colours[self.label_colour],
                         self.text_width,
                         cv2.LINE_AA,
                     )
@@ -913,9 +914,9 @@ def _create_mask_bin(image, masks):
     if masks.__class__.__name__ == "DataFrame":
         for index, row in masks.iterrows():
             coords = eval(row["coords"])
-            cv2.fillPoly(mask_bin, [np.array(coords, dtype=np.int32)], colours["white"])
+            cv2.fillPoly(mask_bin, [np.array(coords, dtype=np.int32)], settings.colours["white"])
     elif masks.__class__.__name__ == "list":
-        cv2.fillPoly(mask_bin, [np.array(masks, dtype=np.int32)], colours["white"])
+        cv2.fillPoly(mask_bin, [np.array(masks, dtype=np.int32)], settings.colours["white"])
     return mask_bin
 
 
@@ -1210,7 +1211,7 @@ def _load_pype_config(config=None,
     elif config.__class__.__name__ == "NoneType" and template.__class__.__name__ == "str":
         if not template.endswith(".yaml"):
             template = template + ".yaml"
-        if template in pype_config_template_list:
+        if template in settings.pype_config_template_list:
             flag_create_from_phenopype_template = True
         elif os.path.isfile(template):
             flag_create_from_user_template = True
@@ -1229,10 +1230,10 @@ def _load_pype_config(config=None,
         config = _load_yaml(config_path)
         return config
     if flag_create_from_phenopype_template:
-        config_steps = _load_yaml(pype_config_template_list[template])
+        config_steps = _load_yaml(settings.pype_config_template_list[template])
         config_path = "NA"
         template_name = template
-        template_path = pype_config_template_list[template]
+        template_path = settings.pype_config_template_list[template]
         print("New pype configuration created ({}) from phenopype template:\n{}".format((template),(template_path)))
     if flag_create_from_user_template:
         config_loaded = _load_yaml(template)
@@ -1301,14 +1302,11 @@ def _resize_image(image, factor=1, interpolation="cubic"):
             (0, 0), 
             fx=1 * factor, 
             fy=1 * factor, 
-            interpolation=opencv_interpolation_flags[interpolation]
+            interpolation=settings.opencv_interpolation_flags[interpolation]
         )
 
     ## return results
     return image
-
-from ruamel.yaml.comments import CommentedMap
-from collections import OrderedDict
 
 def _load_yaml(string, typ="rt", pure=False, legacy=False):
         

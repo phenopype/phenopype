@@ -1,0 +1,45 @@
+processing_steps:
+- preprocessing:
+  - enter_data:
+      column: ID
+  - create_mask
+  - create_reference
+  - blur:
+      kernel_size: 5
+- segmentation:
+  - threshold:
+      method: binary
+      value: 90
+  - morphology:
+      operation: open
+      shape: cross
+      kernel_size: 7
+      iterations: 2
+  - morphology:
+      operation: close
+      shape: ellipse
+      kernel_size: 5
+      iterations: 3
+  - detect_contours:
+      min_diameter: 0
+      min_area: 10000
+- visualization:
+  - select_canvas:
+      canvas: raw
+  - draw_contours:
+      contour_id: a
+- segmentation:
+  - edit_contours:
+      contour_id: a
+  - detect_contours:
+      min_diameter: 0
+      min_area: 10000
+- visualization:
+  - draw_contours:
+      contour_id: b
+- export:
+  - save_canvas:
+      resize: 1
+  - save_annotation:
+      overwrite: true
+

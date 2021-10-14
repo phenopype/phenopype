@@ -8,7 +8,6 @@ from math import inf
 
 from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list, _annotation_function_dicts
 from phenopype.utils_lowlevel import _create_mask_bool, _ImageViewer, _auto_line_width, _DummyClass
-
 import phenopype.core.preprocessing as preprocessing
 
 
