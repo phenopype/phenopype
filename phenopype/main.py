@@ -1265,16 +1265,9 @@ class Pype(object):
                     if not "type" in annotation_args:
                         annotation_args.update({"type":_annotation_functions[method_name]})
                     if not "id" in annotation_args:
-                        annotation_id = string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]
-                        annotation_args.update({"id":annotation_id})
-                    if not "overwrite" in annotation_args:
-                        if annotation_args["type"] in ["contour"]:
-                            overwrite = True
-                        elif annotation_args["type"] in ["drawing"]:
-                            overwrite = "edit"
-                        else:
-                            overwrite = False
-                        annotation_args.update({"overwrite": overwrite})
+                        annotation_args.update({"id": string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]})
+                    if not "edit" in annotation_args:
+                        annotation_args.update({"edit": "overwrite" if annotation_args["type"] in ["contour"] else False})
 
                     annotation_args =  _yaml_flow_style(annotation_args)
                     method_args_updated = {"ANNOTATION":annotation_args}

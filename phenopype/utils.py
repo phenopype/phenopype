@@ -155,30 +155,32 @@ class Container(object):
     def run(self, fun, fun_kwargs={}, annotation_kwargs={}):
         
         
-        ## kwargs
+        ## function kwargs
         kwargs = fun_kwargs
         
+        ## annotation kwargs
         annotation = None
         annotation_id = annotation_kwargs.get("id") 
         annotation_type = annotation_kwargs.get("type")
-        overwrite = annotation_kwargs.get("overwrite", False)
-                
+        edit = annotation_kwargs.get("edit", False)
+
         if not all(
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
             if annotation_id in self.annotations[annotation_type]:
-                kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
-                if overwrite == "edit":
-                    print("- editing annotation of type \"{}\" with ID \"{}\" already present (overwrite=edit)".format(annotation_type, annotation_id))
-                elif overwrite == True:
-                    print("- overwriting annotation of type \"{}\" with ID \"{}\" already present (overwrite=True)".format(annotation_type, annotation_id))
-                    pass
-                elif overwrite == False:
+                if edit == True:
+                    kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
+                    print("- editing annotation of type \"{}\" with ID \"{}\" already present (edit=True)".format(annotation_type, annotation_id))
+                elif edit == False:
+                    kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
                     print("- annotation of type \"{}\" with ID \"{}\" already present (overwrite=False)".format(annotation_type, annotation_id))
                     if annotation_type == "drawing":
                         kwargs.update({"passive":True})
                         self.image, annotation = segmentation.edit_contours(self.canvas, annotation=self.annotations, **kwargs)
                     return
+                elif edit == "overwrite":
+                    print("- overwriting annotation of type \"{}\" with ID \"{}\" already present (edit=overwrite)".format(annotation_type, annotation_id))
+                    pass
                 
         ## preprocessing
         if fun == "blur":
