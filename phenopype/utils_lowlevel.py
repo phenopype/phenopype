@@ -11,6 +11,7 @@ from ruamel.yaml.constructor import SafeConstructor
 
 from datetime import datetime
 from math import cos
+from pathlib import Path
 from PIL import Image
 from stat import S_IWRITE
 from ruamel.yaml import YAML
@@ -1111,6 +1112,81 @@ def _file_walker(
     return unique, duplicate
 
 
+
+def _provide_pype_config(config=None, 
+                         template=None,
+                         name=None):
+    
+    ## kwargs and setup
+    step_names = ["preprocessing", 
+                  "segmentation", 
+                  "measurement",  
+                  "visualization", 
+                  "export"]
+    
+    ## load exiisting config file
+    if config.__class__.__name__ == "str":
+        if not config.endswith(".yaml"):
+            config = config + ".yaml"
+        if os.path.isfile(config):
+            config_name, config_path = os.path.basename(config), config
+            print("Succesfully loaded existing pype config ({}) from:\n{} ".format((config_name),(config_path)))
+            config = _load_yaml(config_path)
+            return config
+        else:    
+            print("No config file found under: {}".format(config))
+            return
+        
+    ## create config from template
+    elif config.__class__.__name__ == "NoneType": 
+        
+        ## phenopype template 
+        if isinstance(template, settings.Template):
+            config_steps, config_path = template.processing_steps, "NA"
+            template_name, template_path = template.name, template.path
+            
+        ## user template
+        elif os.path.isfile(template):
+            config_loaded = _load_yaml(template)
+            if config_loaded.__class__.__name__ in ["dict", 'CommentedMap']:
+                if "config_info" in config_loaded:
+                    config_loaded.pop('config_info', None)
+                    print("Removed existing \"config_info\" section")
+                if "processing_steps" in config_loaded:
+                    config_steps, config_path = config_loaded["processing_steps"], "NA"
+                else:
+                    print("Broken template - check for correct template structure")
+                    return
+            elif config_loaded.__class__.__name__ in ["list",'CommentedSeq'] and any(step in config_loaded[0] for step in step_names):
+                config_steps, config_path = config_loaded, "NA"
+            template_name, template_path = os.path.basename(template), template      
+
+        else:
+            print("Invalid template supplied - aborting.")
+            return
+    else:
+        print("Could not load config or template - pease check input.")
+        return 
+    
+    ## create config-layout
+    if name.__class__.__name__ == "NoneType":
+        config_name = "NA"
+    elif name.__class__.__name__ == "str":
+        config_name = "pype_config_" + name + ".yaml"
+    config_info = {"config_name":config_name,
+                   "config_path": config_path,
+                   "template_name":template_name,
+                   "template_path":template_path,
+                   "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
+                   "date_last_modified":None}
+    config = {"config_info":config_info,
+              "processing_steps":config_steps}
+            
+    ## return
+    return config
+
+
+
 def _get_circle_perimeter(center_x, center_y, radius):
     coordinate_list=[]
     for i in range(360):
@@ -1185,92 +1261,6 @@ def _load_image_data(obj_input, path_and_type=True, resize=1):
 
 
 
-def _load_pype_config(config=None, 
-                      template=None,
-                      name=None):
-    
-    ## kwargs and setup
-    flag_load_existing_config = False
-    flag_create_from_phenopype_template = False
-    flag_create_from_user_template = False 
-    step_names = ["preprocessing", 
-                  "segmentation", 
-                  "measurement",  
-                  "visualization", 
-                  "export"]
-    
-    ## decision tree 1: context
-    if config.__class__.__name__ == "str":
-        if not config.endswith(".yaml"):
-            config = config + ".yaml"
-        if os.path.isfile(config):
-            flag_load_existing_config = True
-        else:    
-            print("No config file found at: {}".format(config))
-            return
-    elif config.__class__.__name__ == "NoneType" and template.__class__.__name__ == "str":
-        if not template.endswith(".yaml"):
-            template = template + ".yaml"
-        if template in settings.pype_config_template_list:
-            flag_create_from_phenopype_template = True
-        elif os.path.isfile(template):
-            flag_create_from_user_template = True
-        else:
-            print("Invalid template supplied - aborting.")
-            return
-    else:
-        print("Could not load config or template - pease check input.")
-        return 
-    
-    ## decision tree 2 - return
-    if flag_load_existing_config:
-        config_name = os.path.basename(config)
-        config_path = config
-        print("Succesfully loaded existing pype config ({}) from:\n{} ".format((config_name),(config_path)))
-        config = _load_yaml(config_path)
-        return config
-    if flag_create_from_phenopype_template:
-        config_steps = _load_yaml(settings.pype_config_template_list[template])
-        config_path = "NA"
-        template_name = template
-        template_path = settings.pype_config_template_list[template]
-        print("New pype configuration created ({}) from phenopype template:\n{}".format((template),(template_path)))
-    if flag_create_from_user_template:
-        config_loaded = _load_yaml(template)
-        config_path = "NA"
-        template_name = os.path.basename(template)
-        template_path = template
-        print("New pype configuration created ({}) from custom user template:\n{}".format((template),(template_path)))
-        if config_loaded.__class__.__name__ in ["dict", 'CommentedMap']:
-            if "config_info" in config_loaded:
-                config_loaded.pop('config_info', None)
-                print("Removed existing \"config_info\" section")
-            if "processing_steps" in config_loaded:
-                config_steps = config_loaded["processing_steps"]
-            else:
-                print("Broken template - check for correct template structure")
-                return
-        elif config_loaded.__class__.__name__ in ["list",'CommentedSeq'] and any(step in config_loaded[0] for step in step_names):
-            config_steps = config_loaded
-            
-    ## create config-layout
-    if name.__class__.__name__ == "NoneType":
-        config_name = "NA"
-    elif name.__class__.__name__ == "str":
-        config_name = "pype_config_" + name + ".yaml"
-    config_info = {"config_name":config_name,
-                   "config_path": config_path,
-                   "template_name":template_name,
-                   "template_path":template_path,
-                   "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
-                   "date_last_modified":None}
-    config = {"config_info":config_info,
-              "processing_steps":config_steps}
-            
-    ## return
-    return config
-
-
 def _resize_image(image, factor=1, interpolation="cubic"):
     """
     Resize image by resize factor 
@@ -1308,7 +1298,7 @@ def _resize_image(image, factor=1, interpolation="cubic"):
     ## return results
     return image
 
-def _load_yaml(string, typ="rt", pure=False, legacy=False):
+def _load_yaml(filepath, typ="rt", pure=False, legacy=False):
         
     ## this can read phenopype < 2.0 style config yaml files
     if legacy==True:
@@ -1329,17 +1319,20 @@ def _load_yaml(string, typ="rt", pure=False, legacy=False):
     SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
     yaml = YAML(typ=typ, pure=pure)
 
-    if string.__class__.__name__ == "str":
-        if os.path.isfile(string):
-            with open(string, "r") as file:
+    if isinstance(filepath, (Path, str)):
+        if Path(filepath).is_file():
+            with open(filepath, "r") as file:
                 return yaml.load(file)
             
         else:
-            print("Cannot load config from string")
+            print("Cannot load config from specified filepath")
     else:
         print("Not a valid path - couldn't load yaml.")
         return
     
+    
+    
+    isinstance(filepath, )
 
 def _show_yaml(odict, ret=False, typ="rt"):
     

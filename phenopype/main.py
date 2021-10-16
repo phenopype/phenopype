@@ -45,8 +45,8 @@ from phenopype.utils_lowlevel import (
     _del_rw,
     _file_walker,
     _load_image_data,
-    _load_pype_config,
     _load_yaml,
+    _provide_pype_config,
     _resize_image,
     _save_yaml,
     _yaml_flow_style,
@@ -467,9 +467,7 @@ class Project:
         test_params = kwargs.get("test_params", {})
         
         ## load config
-        config = _load_pype_config(config=None, template=template, name=name)
-        if config.__class__.__name__ == "NoneType":
-            return
+        config = _provide_pype_config(config=None, template=template, name=name)
         
         ## interactive template modification
         if flag_interactive:
@@ -1059,11 +1057,11 @@ class Pype(object):
         ## 1) load from existing file
         if all([config.__class__.__name__ == "str",
                 template.__class__.__name__ == "NoneType"]):
-             self.config = _load_pype_config(config=config, template=None, name=name)
+             self.config = _provide_pype_config(config=config, template=None, name=name)
              self.config_path = config       
              if self.config.__class__.__name__ == "NoneType":
                  self.config_path = os.path.join(self.container.dirpath, config)
-                 self.config = _load_pype_config(config=self.config_path, template=None, name=name)
+                 self.config = _provide_pype_config(config=self.config_path, template=None, name=name)
 
              
         ## 2) create new from template or, if already exists, load from file
@@ -1077,13 +1075,13 @@ class Pype(object):
                           "n: no, existing file will be loaded instead\n" + \
                           "To load an existing file, use \"config\" instead of \"template\".")
                 if q in confirm_options:
-                    self.config = _load_pype_config(config=None, template=template, name=name)
+                    self.config = _provide_pype_config(config=None, template=template, name=name)
                     self.config["config_info"]["config_path"] = self.config_path
                     _save_yaml(self.config, self.config_path)
                 else: 
-                    self.config = _load_pype_config(config=self.config_path, template=None)
+                    self.config = _provide_pype_config(config=self.config_path, template=None)
             else:
-                self.config = _load_pype_config(config=None, template=template, name=name)
+                self.config = _provide_pype_config(config=None, template=template, name=name)
                 self.config["config_info"]["config_path"] = self.config_path
                 _save_yaml(self.config, self.config_path)
 
@@ -1093,7 +1091,7 @@ class Pype(object):
                 template.__class__.__name__ == "NoneType"]):
             config_path = os.path.join(self.container.dirpath,
                                        "pype_config_" + name + ".yaml")
-            self.config = _load_pype_config(config=config_path, template=None)
+            self.config = _provide_pype_config(config=config_path, template=None)
             self.config_path = config_path
             
             
