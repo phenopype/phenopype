@@ -11,7 +11,7 @@
       constant: 5
       channel: red
       df_masks: mask1
-  - detect_contours:
+  - detect_contour:
       retrieval: ext
       min_area: 150
 - measurement:
@@ -20,11 +20,10 @@
 - visualization:
   - select_canvas:
       canvas: raw
-  - draw_contours
+  - draw_contour
   - draw_masks
 - export:
   - save_canvas:
+      resize: 1
+  - save_annotation:
       overwrite: true
-  - save_contours
-  - save_masks
-  - save_shapes

@@ -1,18 +1,16 @@
 - preprocessing:
-    - create_mask
+    - create_mask: 
+        tool: polygon
 - segmentation:
     - threshold:
-        method: adaptive
-        blocksize: 49
+        method: adaptive 
+        blocksize: 199
         constant: 5
-    - draw
+        channel: red
     - detect_contour:
-        retrieval: ccomp
-        min_diameter: 50
-        min_area: 0
-- measurement:
-    - skeletonize
-    - polylines
+        retrieval: ext
+        min_diameter: 0
+        min_area: 150
 - visualization:
     - select_canvas:
         canvas: image
@@ -22,7 +20,9 @@
         label_size: 1
         fill: 0.3
     - draw_masks
-    - draw_polylines
 - export:
     - save_contours:
+        overwrite: true
+    - save_canvas:
+        resize: 0.5
         overwrite: true

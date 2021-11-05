@@ -14,10 +14,8 @@ import phenopype.core.measurement as measurement
 import phenopype.core.visualization as visualization
 import phenopype.core.export as export
 
-from phenopype.settings import AttrDict, default_filetypes, flag_verbose, \
-    pype_config_template_list, confirm_options, _annotation_function_dicts
-from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr, \
-    _load_image_data, _load_yaml, _show_yaml
+from phenopype.settings import AttrDict, default_filetypes, flag_verbose, confirm_options, _annotation_function_dicts
+from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr,  _load_image_data, _load_yaml, _show_yaml
     
 from collections import defaultdict
 
@@ -163,6 +161,10 @@ class Container(object):
         annotation_id = annotation_kwargs.get("id") 
         annotation_type = annotation_kwargs.get("type")
         edit = annotation_kwargs.get("edit", False)
+        
+        ## annotation_counter
+        annotation_counter = annotation_kwargs.get("annotation_counter")
+
 
         if not all(
                 [annotation_id.__class__.__name__ == "NoneType",
@@ -176,7 +178,7 @@ class Container(object):
                     print("- annotation of type \"{}\" with ID \"{}\" already present (overwrite=False)".format(annotation_type, annotation_id))
                     if annotation_type == "drawing":
                         kwargs.update({"passive":True})
-                        self.image, annotation = segmentation.edit_contours(self.canvas, annotation=self.annotations, **kwargs)
+                        self.image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
                     return
                 elif edit == "overwrite":
                     print("- overwriting annotation of type \"{}\" with ID \"{}\" already present (edit=overwrite)".format(annotation_type, annotation_id))
@@ -230,17 +232,18 @@ class Container(object):
             self.image = segmentation.watershed(self.image_copy, self.image_bin, **kwargs)
         if fun == "morphology":
             self.image = segmentation.morphology(self.image, **kwargs)
-        if fun == "detect_contours":
-            annotation = segmentation.detect_contours(self.image, **kwargs)
-        if fun == "edit_contours":
-            image, annotation = segmentation.edit_contours(self.canvas, annotation=self.annotations, **kwargs)
+        if fun == "detect_contour":
+            annotation = segmentation.detect_contour(self.image, **kwargs)
+        if fun == "edit_contour":
+            XX
+            image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
             self.image = image
 
         ## visualization
         if fun == "select_canvas":
             visualization.select_canvas(self, **kwargs)
-        if fun == "draw_contours":
-            self.canvas = visualization.draw_contours(self.canvas, annotation=self.annotations, **kwargs)
+        if fun == "draw_contour":
+            self.canvas = visualization.draw_contour(self.canvas, annotation=self.annotations, **kwargs)
         
         ## export
         if fun == "save_annotation":

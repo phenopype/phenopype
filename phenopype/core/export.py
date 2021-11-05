@@ -208,7 +208,7 @@ def save_annotation(annotation,
         for annotation_id in annotation_file[annotation_type]:    
             for section in annotation_file[annotation_type][annotation_id]:
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
-                    if key in ["coord_list", "point_list", "points"]:
+                    if key in ["coord_list", "point_list", "points", "coords"]:
                         if len(value)>0 and not type(value[0]) in [list,tuple]:
                             value = [elem.tolist() for elem in value if not type(elem)==list] 
                         value = [NoIndent(elem) for elem in value]                             

@@ -6,8 +6,18 @@ import string
 
 from math import inf
 
-from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list, _annotation_function_dicts
-from phenopype.utils_lowlevel import _create_mask_bool, _ImageViewer, _auto_line_width, _DummyClass
+from phenopype.settings import (
+    colours, 
+    flag_verbose, 
+    _image_viewer_arg_list, 
+    _annotation_function_dicts
+    )
+from phenopype.utils_lowlevel import (
+    _create_mask_bool, 
+    _ImageViewer, 
+    _auto_line_width, 
+    _load_previous_annotation
+    )
 import phenopype.core.preprocessing as preprocessing
 
 
@@ -17,7 +27,7 @@ import phenopype.core.preprocessing as preprocessing
 
 # pp.show_image(image)
 
-def detect_contours(
+def detect_contour(
     image,
     approximation="simple",
     retrieval="ext",
@@ -169,7 +179,7 @@ def detect_contours(
     ret = {
     "info":{
         "annotation_type": "contour", 
-        "pp_function": "detect_contours",
+        "pp_function": "detect_contour",
         },
     "settings": settings,
     "data":{
@@ -182,7 +192,7 @@ def detect_contours(
     return ret
 
 
-def edit_contours(
+def edit_contour(
     image,
     annotation,
     **kwargs
@@ -210,24 +220,23 @@ def edit_contours(
     ## retrieve settings for image viewer and for export
     ImageViewer_settings, local_settings  = {}, {}
     
-    ## extract image viewer settings and data from previous annotations
-    if "annotation_previous" in kwargs:       
-        ImageViewer_previous = {}        
-        ImageViewer_previous.update(annotation_previous["settings"])
-        ImageViewer_previous["point_list"] = annotation_previous["data"]["point_list"]
-        ImageViewer_previous = _DummyClass(ImageViewer_previous)   
-        ImageViewer_settings["ImageViewer_previous"] = ImageViewer_previous
-
+    ## extract image viewer settings and data from previous annotations       
+    if annotation_previous:       
+        ImageViewer_settings["ImageViewer_previous"] = _load_previous_annotation(annotation=annotation_previous, 
+                                                                                 component="data",
+                                                                                 field="point_list")
+              
     ## check annotation dict input and convert to type/id/ann structure
     if list(annotation.keys())[0] == "info":
         if annotation["info"]["annotation_type"] == "contour":
             contours = annotation["data"]["coord_list"]
     else:
-        if contour_id:
-            local_settings["contour_id"] = contour_id
-        else: 
-            print("- contour_id missing - please provide contour ID [a-z]")
-            return
+        if not kwargs.get("contour_id"):
+            contour_id =  max(list(annotation["contour"].keys()))
+            print("- contour_id missing - using last one (\"{}\")".format(contour_id))
+        else:
+           contour_id = kwargs.get("contour_id")
+           local_settings["contour_id"]
         if list(annotation.keys())[0] in _annotation_function_dicts.keys():
             contours = annotation["contour"][contour_id]["data"]["coord_list"]
         elif list(annotation.keys())[0] in string.ascii_lowercase:
@@ -557,7 +566,7 @@ def watershed(
     watershed_mask[0, 0 : watershed_mask.shape[1]] = 0
     watershed_mask[watershed_mask.shape[0] - 1, 0 : watershed_mask.shape[1]] = 0
 
-    contours = detect_contours(watershed_mask, retrieval="ccomp")
+    contours = detect_contour(watershed_mask, retrieval="ccomp")
     image_watershed = np.zeros(watershed_mask.shape, np.uint8)
            
     for coord, supp in zip(contours["data"]["coords"], contours["data"]["support"]):

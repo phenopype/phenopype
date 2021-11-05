@@ -1,9 +1,7 @@
-processing_steps:
 - preprocessing:
   - enter_data:
       column: ID
   - create_mask
-  - create_reference
   - blur:
       kernel_size: 5
 - segmentation:
@@ -20,22 +18,22 @@ processing_steps:
       shape: ellipse
       kernel_size: 5
       iterations: 3
-  - detect_contours:
+  - detect_contour:
       min_diameter: 0
-      min_area: 10000
+      min_area: 5000
 - visualization:
   - select_canvas:
       canvas: raw
-  - draw_contours:
+  - draw_contour:
       contour_id: a
 - segmentation:
-  - edit_contours:
+  - edit_contour:
       contour_id: a
-  - detect_contours:
+  - detect_contour:
       min_diameter: 0
       min_area: 10000
 - visualization:
-  - draw_contours:
+  - draw_contour:
       contour_id: b
 - export:
   - save_canvas:

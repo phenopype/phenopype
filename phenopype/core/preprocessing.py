@@ -8,9 +8,15 @@ from math import sqrt as _sqrt
 import numpy.ma as ma
 
 from phenopype.settings import AttrDict, colours, flag_verbose, _image_viewer_arg_list
-from phenopype.utils_lowlevel import _auto_text_width, _auto_text_size, \
-    _convert_arr_tup_list, _equalize_histogram, _resize_image, \
-    _ImageViewer, _DummyClass
+from phenopype.utils_lowlevel import (
+    _auto_text_width, 
+    _auto_text_size, 
+    _convert_arr_tup_list, 
+    _equalize_histogram, 
+    _resize_image, 
+    _ImageViewer, 
+    _load_previous_annotation
+    )
 import phenopype.core.segmentation as segmentation
 
 #%% functions
@@ -77,14 +83,11 @@ def create_mask(
     ## retrieve settings for image viewer and for export
     ImageViewer_settings, local_settings  = {}, {}
     
-    ## extract image viewer settings and data from previous annotations
-    if "annotation_previous" in kwargs:       
-        ImageViewer_previous = {}        
-        ImageViewer_previous.update(annotation_previous["settings"])
-        ImageViewer_previous["polygons"] = annotation_previous["data"]["coord_list"]
-        ImageViewer_previous = _DummyClass(ImageViewer_previous)   
-        ImageViewer_settings["ImageViewer_previous"] = ImageViewer_previous
-                
+    ## extract image viewer settings and data from previous annotations       
+    if annotation_previous:       
+        ImageViewer_settings["ImageViewer_previous"] = _load_previous_annotation(annotation=annotation_previous, 
+                                                                                 component="data",
+                                                                                 field="coord_list")                
         
     ## assemble image viewer settings from kwargs
     for key, value in kwargs.items():
@@ -177,7 +180,7 @@ def detect_mask(
                 x,y,radius = circle/resize
                 mask = np.zeros(image.shape[:2], dtype=np.uint8)
                 mask = cv2.circle(mask, (x,y), radius, 255, -1)
-                mask_contours = segmentation.detect_contours(
+                mask_contours = segmentation.detect_contour(
                     mask,
                     retrieval="ext", 
                     approximation="KCOS", 
@@ -532,6 +535,14 @@ def enter_data(
         ImageViewer_previous["entry"] = annotation_previous["data"][field]
         ImageViewer_previous = _DummyClass(ImageViewer_previous)   
         ImageViewer_settings["ImageViewer_previous"] = ImageViewer_previous
+        
+    if annotation_previous:       
+        ImageViewer_settings["ImageViewer_previous"] = _load_previous_annotation(annotation=annotation_previous, 
+                                                                                 component="data",
+                                                                                 field="field")   
+        ImageViewer_settings["ImageViewer_previous"].update(_load_previous_annotation(annotation=annotation_previous, 
+                                                                                 component="data",
+                                                                                 field="entry"))   
                 
         
     ## assemble image viewer settings from kwargs
@@ -552,7 +563,8 @@ def enter_data(
         },
         "settings": local_settings,
         "data": {
-            field: out.entry
+            "field": out.field,
+            "entry": out.entry
         }
     }
     

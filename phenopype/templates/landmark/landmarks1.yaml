@@ -1,0 +1,14 @@
+- measurement:
+    - landmarks:
+        point_size: 25
+        point_colour: green
+        label_size: 3
+        label_width: 5
+- visualization:
+    - draw_landmarks:
+        point_size: 25
+        point_colour: green
+        label_size: 3
+        label_width: 5
+- export:
+    - save_landmarks

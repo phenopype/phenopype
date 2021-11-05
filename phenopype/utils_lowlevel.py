@@ -27,7 +27,9 @@ import phenopype.settings as settings
 from contextlib import redirect_stdout
 import io
 
-import phenopype._config
+from phenopype import _config
+from phenopype import main
+
 
 #%% settings
 
@@ -58,10 +60,11 @@ class _ImageViewer:
 
         """
         ## kwargs (FUTURE => use dictionary from config)
-        if not phenopype.main.window_max_dim:
-            window_max_dim = kwargs.get("window_max_dim", phenopype._config.window_max_dim)       
-        else: 
-            window_max_dim = phenopype.main.window_max_dim
+        
+        if hasattr(main, "window_max_dim"):
+            window_max_dim = main.window_max_dim
+        else:
+            window_max_dim = kwargs.get("window_max_dim", _config.window_max_dim)  
         
         ## args
         self.window_aspect = window_aspect
@@ -164,7 +167,7 @@ class _ImageViewer:
         if self.tool:
             
             ## collect interactions and set flags
-            self.points, self.point_list, self.polygons = [], [], []
+            self.points, self.point_list, self.coord_list = [], [], []
             self.rect_start, self.drawing = None, False
             
             ## line properties
@@ -208,7 +211,7 @@ class _ImageViewer:
         ## initialize canvas
         self._canvas_renew()
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
-            self._canvas_draw(tool="line", coord_list=self.polygons)
+            self._canvas_draw(tool="line", coord_list=self.coord_list)
         if self.tool in ["landmark"]:
             self._canvas_draw(tool="point", coord_list=self.points)
         if self.tool in ["draw"]:
@@ -219,7 +222,7 @@ class _ImageViewer:
         ## local control vars
         self.done = False
         self.finished = False
-        phenopype._config.window_close = False
+        _config.window_close = False
         
         # =============================================================================
         # window control
@@ -252,6 +255,10 @@ class _ImageViewer:
     
                     ## Enter = close window and redo
                     if self.keypress == 13:
+                        ## close unfinished polygon and append to polygon list
+                        if len(self.points) > 2:
+                            self.points.append(self.points[0])
+                            self.coord_list.append(self.points)
                         self.done = True
                         cv2.destroyAllWindows()
                         
@@ -276,7 +283,7 @@ class _ImageViewer:
                         self._canvas_mount()
                         
                     ## external window close
-                    elif phenopype._config.window_close:
+                    elif _config.window_close:
                         self.done = True
                         cv2.destroyAllWindows()
                     
@@ -415,27 +422,27 @@ class _ImageViewer:
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.polygons + [self.points])
+                tool="line", coord_list=self.coord_list + [self.points])
             self._canvas_mount()
             
             ## if in reference mode, append to ref coords
             if reference and len(self.points) == 2:
                 print("Reference set")
                 self.reference_coords = self.points
-                
+                                                
         if event == cv2.EVENT_RBUTTONDOWN:
             
             ## remove points and update canvas
             if len(self.points) > 0:
                 self.points = self.points[:-1]
             else:
-                self.polygons = self.polygons[:-1]
+                self.coord_list = self.coord_list[:-1]
                 
             ## apply tool and refresh canvas
             print("remove")
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.polygons + [self.points])
+                tool="line", coord_list=self.coord_list + [self.points])
             self._canvas_mount()
 
         if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.points) > 2:
@@ -446,13 +453,13 @@ class _ImageViewer:
                 
             ## add current points to polygon and empyt point list
             print("poly")
-            self.polygons.append(self.points)
+            self.coord_list.append(self.points)
             self.points = []
 
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.polygons + [self.points])
+                tool="line", coord_list=self.coord_list + [self.points])
             self._canvas_mount()
 
 
@@ -464,7 +471,7 @@ class _ImageViewer:
         if event == cv2.EVENT_LBUTTONDOWN:  
             
             ## end after one set of points if creating a template
-            if template == True and len(self.polygons) == 1:
+            if template == True and len(self.coord_list) == 1:
                 return
             
             ## start drawing temporary rectangle 
@@ -474,7 +481,7 @@ class _ImageViewer:
         if event == cv2.EVENT_LBUTTONUP:
             
             ## end after one set of points if creating a template
-            if template == True and len(self.polygons) == 1:
+            if template == True and len(self.coord_list) == 1:
                 print("Template selected")
                 return
             
@@ -488,7 +495,7 @@ class _ImageViewer:
                 int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])),
                 int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1])),
                 ]
-            self.polygons.append(
+            self.coord_list.append(
                 [
                     (self.rect[0], self.rect[1]), 
                     (self.rect[2], self.rect[1]),
@@ -501,19 +508,19 @@ class _ImageViewer:
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.polygons)
+                tool="line", coord_list=self.coord_list)
             self._canvas_mount(refresh=False)
             
         if event == cv2.EVENT_RBUTTONDOWN:
             
             ## remove polygons and update canvas
-            if len(self.polygons) > 0:
-                self.polygons = self.polygons[:-1]
+            if len(self.coord_list) > 0:
+                self.coord_list = self.coord_list[:-1]
                 
                 ## apply tool and refresh canvas
                 self._canvas_renew()
                 self._canvas_draw(
-                    tool="line", coord_list=self.polygons)
+                    tool="line", coord_list=self.coord_list)
                 self._canvas_mount()
 
                 
@@ -829,7 +836,7 @@ class _YamlFileMonitor:
         
         if self.time_diff > 1:
             self.content = _load_yaml(self.filepath)
-            phenopype._config.window_close,phenopype._config.pype_restart = True, True
+            _config.window_close,_config.pype_restart = True, True
             cv2.destroyWindow("phenopype")
             cv2.waitKey(self.delay)
         else:
@@ -1159,7 +1166,7 @@ def _provide_pype_config(config=None,
                     return
             elif config_loaded.__class__.__name__ in ["list",'CommentedSeq'] and any(step in config_loaded[0] for step in step_names):
                 config_steps, config_path = config_loaded, "NA"
-            template_name, template_path = os.path.basename(template), template      
+            template_name, template_path = os.path.basename(template), os.path.abspath(template)
 
         else:
             print("Invalid template supplied - aborting.")
@@ -1194,7 +1201,17 @@ def _get_circle_perimeter(center_x, center_y, radius):
         x = center_y + radius * cos(i)
         coordinate_list.append((int(x),int(y)))
     return coordinate_list
-        
+
+
+
+def _load_previous_annotation(annotation, component, field, load_settings=True):
+
+    ImageViewer_previous = {}    
+    if load_settings:
+        ImageViewer_previous.update(annotation["settings"])
+    ImageViewer_previous[field] = annotation[component][field]
+
+    return _DummyClass(ImageViewer_previous)
 
 
 def _load_image_data(obj_input, path_and_type=True, resize=1):

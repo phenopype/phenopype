@@ -16,7 +16,7 @@ from phenopype.utils_lowlevel import (
     _auto_point_size,
     _auto_text_width,
     _auto_text_size,
-    _DummyClass,
+    _load_previous_annotation
 )
 from phenopype.settings import (
     colours, 
@@ -183,7 +183,7 @@ def colour_intensity(
     elif obj_input.__class__.__name__ == "container":
         obj_input.df_colours = df_colours
 
-def set_landmarks(
+def set_landmark(
     image,
     point_colour="green",
     point_size="auto",
@@ -218,19 +218,17 @@ def set_landmarks(
     """
 
     ## kwargs
-    annotation_previous = kwargs.get("annotation_previous")
+    annotation_previous = kwargs.get("annotation_previous", None)
 
     ## retrieve settings for image viewer and for export
     ImageViewer_settings, local_settings, local_names = {}, {}, locals()
     
     ## extract image viewer settings and data from previous annotations
     if annotation_previous:       
-        ImageViewer_previous = {}        
-        ImageViewer_previous.update(annotation_previous["settings"])
-        ImageViewer_previous["points"] = annotation_previous["data"]["points"]
-        ImageViewer_previous = _DummyClass(ImageViewer_previous)   
-        ImageViewer_settings["ImageViewer_previous"] = ImageViewer_previous
-           
+        ImageViewer_settings["ImageViewer_previous"] = _load_previous_annotation(annotation=annotation_previous, 
+                                                                                 component="data",
+                                                                                 field="points")
+              
     ## assemble image viewer and local settings 
     for key, value in kwargs.items():
         if key in _image_viewer_arg_list:

@@ -8,6 +8,8 @@ import platform
 import string
 import warnings
 
+from dataclasses import make_dataclass
+
 import pprint
 import subprocess
 import sys
@@ -28,11 +30,9 @@ from phenopype.settings import (
     AttrDict,
     confirm_options,
     default_filetypes,
-    default_pype_config,
     default_meta_data_fields,
     default_window_size,
     pandas_max_rows,
-    pype_config_template_list,
     flag_verbose,
     _annotation_functions,
 )
@@ -87,7 +87,12 @@ class Project:
     def __init__(self, root_dir, load=True, overwrite=False):
 
         ## set flags
-        flags = AttrDict({"overwrite":overwrite, "load":load})    
+        flags = make_dataclass(cls_name="flags", 
+                               fields=[("load", bool, load), 
+                                       ("overwrite", bool, overwrite)])
+
+        # flags = AttrDict({"overwrite":overwrite, "load":load})  
+        
     
         ## path conversion
         root_dir = root_dir.replace(os.sep, "/")
@@ -931,9 +936,10 @@ class Pype(object):
         config=None,
         template=None,
         dirpath=None,
+        debug=False,
         skip=False,
         feedback=True,
-        save=True,
+        autosave=True,
         **kwargs
     ):
 
@@ -946,11 +952,17 @@ class Pype(object):
         window_max_dim = kwargs.get("window_max_dim")
         
         ## flags
-        self.flags = AttrDict({"skip": skip, 
-                               "feedback": feedback, 
-                               "terminate": False,
-                               "debug": kwargs.get("debug",False),
-                               "save": save})
+        self.flags = make_dataclass(cls_name="flags", 
+                                    fields=[("skip", bool, skip), 
+                                            ("feedback", bool, feedback),
+                                            ("debug",bool,debug),
+                                            ("autosave", bool, autosave)])
+        
+        # self.flags = AttrDict({"skip": skip, 
+        #                        "feedback": feedback, 
+        #                        "terminate": False,
+        #                        "debug": kwargs.get("debug",False),
+        #                        "save": autosave})
                                 
         ## check name, load container and config
         self._check_pype_name(name=name)
@@ -1005,7 +1017,7 @@ class Pype(object):
                 print("\n\nTERMINATE")         
                 break
         
-        if self.flags.save and self.flags.terminate:
+        if self.flags.autosave and self.flags.terminate:
             if "export" not in self.config_parsed_flattened:
                 export_list = []
             else:
@@ -1170,7 +1182,13 @@ class Pype(object):
             feedback=True,
             ):
         
-        flags = AttrDict({"execute":execute, "visualize":visualize, "feedback":feedback})
+        
+        flags = make_dataclass(cls_name="flags", 
+                               fields=[("execute", bool, execute), 
+                                       ("visualize", bool, visualize),
+                                       ("feedback", bool, feedback)])
+
+        # flags = AttrDict({"execute":execute, "visualize":visualize, "feedback":feedback})
 
         ## new iteration
         if flags.feedback:
@@ -1276,6 +1294,8 @@ class Pype(object):
                 else:
                     annotation_args = {}
                     
+                print(annotation_counter)
+                    
                 # =============================================================================
                 # METHOD / EXECUTE  
                 # =============================================================================
@@ -1285,7 +1305,8 @@ class Pype(object):
                     try:
                         self.container.run(fun=method_name, 
                                            fun_kwargs=method_args,
-                                           annotation_kwargs=annotation_args
+                                           annotation_kwargs=annotation_args, 
+                                           annotation_counter=annotation_counter,
                                            )
                     except Exception as ex:
                         if self.flags.debug:

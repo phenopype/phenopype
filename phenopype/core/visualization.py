@@ -20,7 +20,7 @@ inf = math.inf
 #%% functions
 
 
-def draw_contours(
+def draw_contour(
     image,
     annotation,
     offset_coords=None,
@@ -131,13 +131,10 @@ def draw_contours(
         if annotation["info"]["annotation_type"] == "contour":
             contours = annotation["data"]["coord_list"]
             contours_support = annotation["data"]["support"]
-            print("THIS")
-
-
     else:
         if not kwargs.get("contour_id"):
-            print("- contour_id missing - please provide contour ID [a-z]")
-            return
+            contour_id =  max(list(annotation["contour"].keys()))
+            print("- contour_id missing - using last one (\"{}\")".format(contour_id))
         else:
            contour_id = kwargs.get("contour_id")
         if list(annotation.keys())[0] in _annotation_function_dicts.keys():
@@ -205,56 +202,9 @@ def draw_contours(
     ## return
     return canvas
 
-    # ## load previous contours
-    # if obj_input.__class__.__name__ == "container" and not compare.__class__.__name__ == "NoneType":
-    #     while True:
-    #         if compare.__class__.__name__ == "str":
-    #             compare = [compare]
-    #         elif compare.__class__.__name__ == "list" and len(compare) > 3:
-    #             print("compare supports a maximum of three contour files")
-    #             break
-    #         col_idx = 0
-    #         cols = ["green","blue","red","black","white"]
-    #         for comp in compare:
-    #             if line_colour == cols[col_idx]:
-    #                 col_idx +=1
-    #             comp_line_colour = colours[cols[col_idx]]
-    #             comp_path = os.path.join(obj_input.dirpath, "contours_" + comp + ".csv")
-    #             col_idx +=1
-    #             if os.path.isfile(comp_path):
-    #                 compare_df = pd.read_csv(comp_path, converters={"center": ast.literal_eval})
-    #                 if "x" in compare_df:
-    #                     compare_df["coords"] = list(zip(compare_df.x, compare_df.y))
-    #                     coords = compare_df.groupby("contour")["coords"].apply(list)
-    #                     coords_arr = _contours_tup_array(coords)
-    #                     compare_df.drop(columns=["coords", "x", "y"], inplace=True)
-    #                     compare_df = compare_df.drop_duplicates().reset_index()
-    #                     compare_df["coords"] = pd.Series(coords_arr, index=compare_df.index)
-    #                 else:
-    #                     print("no coords found, cannot draw contours for comparison")
-    #                     continue
-    #                 print("- " + comp + " contours loaded")           
-    #                 for key, value in contours_compare.items():
-    #                     cv2.drawContours(
-    #                         image=image,
-    #                         contours=[value["coords"]],
-    #                         contourIdx=0,
-    #                         thickness=compare_line_width,
-    #                         color=comp_line_colour,
-    #                         maxLevel=level,
-    #                         offset=None,
-    #                     )
-    #             else:
-    #                 print("wrong compare suffix")
-    #         break
-
-    # df_contours= df_contours.drop("skeleton_coords", axis=1)
-
-    ## return
-    return image
 
 
-def draw_landmarks(
+def draw_landmark(
     obj_input,
     df_landmarks=None,
     label=True,
@@ -432,7 +382,7 @@ def draw_masks(
         obj_input.canvas = image
 
 
-def draw_polylines(
+def draw_polyline(
         obj_input, 
         df_polylines=None, 
         line_colour="blue", 
