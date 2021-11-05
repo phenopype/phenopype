@@ -85,7 +85,7 @@ class Container(object):
             loaded.append("annotations loaded")
                     
         if contours == False:
-            self.annotations["contours"] = {}
+            self.annotations["contour"] = {}
             
         ## load attributes
         attr_local_path = os.path.join(self.dirpath, "attributes.yaml")
@@ -150,11 +150,7 @@ class Container(object):
         # self.annotations = None
 
             
-    def run(self, fun, fun_kwargs={}, annotation_kwargs={}):
-        
-        
-        ## function kwargs
-        kwargs = fun_kwargs
+    def run(self, fun, fun_kwargs={}, annotation_kwargs={}, annotation_counter={}):
         
         ## annotation kwargs
         annotation = None
@@ -163,9 +159,11 @@ class Container(object):
         edit = annotation_kwargs.get("edit", False)
         
         ## annotation_counter
-        annotation_counter = annotation_kwargs.get("annotation_counter")
-
-
+        fun_kwargs["annotation_counter"] = annotation_counter
+        
+        ## function kwargs
+        kwargs = fun_kwargs
+                
         if not all(
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
@@ -235,7 +233,6 @@ class Container(object):
         if fun == "detect_contour":
             annotation = segmentation.detect_contour(self.image, **kwargs)
         if fun == "edit_contour":
-            XX
             image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
             self.image = image
 

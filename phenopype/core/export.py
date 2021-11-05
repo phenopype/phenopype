@@ -196,23 +196,39 @@ def save_annotation(annotation,
             if str(annotation_id) in annotation_file[annotation_type]:
                 if overwrite in [True, "entry"]:
                     annotation_file[annotation_type][annotation_id_new] = annotation[annotation_type][annotation_id]
-                    print("- updating annotation of type \"{}\" with id \"{}\" in \"{}\" (overwrite=\"entry\")".format(annotation_type, annotation_id, filename))
+                    print("- updating annotation of type \"{}\" with id "
+                          "\"{}\" in \"{}\" (overwrite=\"entry\")".format(
+                              annotation_type, annotation_id, filename))
                 else:
-                    print("- annotation of type \"{}\" with id \"{}\" already exists in \"{}\" (overwrite=False)".format(annotation_type, annotation_id, filename))
+                    print("- annotation of type \"{}\" with id \"{}\" already "
+                          "exists in \"{}\" (overwrite=False)".format(
+                              annotation_type, annotation_id, filename))
             else:
                 annotation_file[annotation_type][annotation_id_new] = annotation[annotation_type][annotation_id]
-                print("- writing annotation of type \"{}\" with id \"{}\" to \"{}\"".format(annotation_type, annotation_id, filename))  
+                print("- writing annotation of type \"{}\" with id "
+                      "\"{}\" to \"{}\"".format(
+                          annotation_type, annotation_id, filename))  
     
     ## NoIndent annotation arrays and lists
     for annotation_type in annotation_file:
         for annotation_id in annotation_file[annotation_type]:    
             for section in annotation_file[annotation_type][annotation_id]:
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
+                    
+                    ## unindent entries for better legibility
                     if key in ["coord_list", "point_list", "points", "coords"]:
-                        if len(value)>0 and not type(value[0]) in [list,tuple]:
+                        if len(value)>0 and not type(value[0]) in [list,tuple, int]:
                             value = [elem.tolist() for elem in value if not type(elem)==list] 
-                        value = [NoIndent(elem) for elem in value]                             
-                        annotation_file[annotation_type][annotation_id][section][key] = value
+                        value = [NoIndent(elem) for elem in value]   
+                    elif key in ["offset_coords"]:
+                        value = NoIndent(value)
+                    elif key in ["support"]:
+                        value_new = []
+                        for item in value:
+                            item["center"] = NoIndent(item["center"])
+                            value_new.append(item) 
+                        value = value_new
+                    annotation_file[annotation_type][annotation_id][section][key] = value
 
     ## save
     with open(filepath, 'w') as file:

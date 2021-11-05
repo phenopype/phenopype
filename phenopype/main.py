@@ -956,7 +956,8 @@ class Pype(object):
                                     fields=[("skip", bool, skip), 
                                             ("feedback", bool, feedback),
                                             ("debug",bool,debug),
-                                            ("autosave", bool, autosave)])
+                                            ("autosave", bool, autosave),
+                                            ("terminate", bool, False)])
         
         # self.flags = AttrDict({"skip": skip, 
         #                        "feedback": feedback, 
@@ -1293,9 +1294,7 @@ class Pype(object):
                     self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
                 else:
                     annotation_args = {}
-                    
-                print(annotation_counter)
-                    
+                                        
                 # =============================================================================
                 # METHOD / EXECUTE  
                 # =============================================================================
@@ -1303,11 +1302,12 @@ class Pype(object):
                 ## run method with error handling
                 if flags.execute:            
                     try:
-                        self.container.run(fun=method_name, 
-                                           fun_kwargs=method_args,
-                                           annotation_kwargs=annotation_args, 
-                                           annotation_counter=annotation_counter,
-                                           )
+                        self.container.run(
+                            fun=method_name, 
+                            fun_kwargs=method_args,
+                            annotation_kwargs=annotation_args, 
+                            annotation_counter=annotation_counter,
+                            )
                     except Exception as ex:
                         if self.flags.debug:
                             raise

@@ -15,7 +15,8 @@ from phenopype.utils_lowlevel import (
     _equalize_histogram, 
     _resize_image, 
     _ImageViewer, 
-    _load_previous_annotation
+    _load_previous_annotation,
+    _update_settings,
     )
 import phenopype.core.segmentation as segmentation
 
@@ -77,53 +78,75 @@ def create_mask(
     tool="rectangle",
     **kwargs
 ):           
+    """
     
+
+    Parameters
+    ----------
+    image : TYPE
+        DESCRIPTION.
+    include : TYPE, optional
+        DESCRIPTION. The default is True.
+    tool : TYPE, optional
+        DESCRIPTION. The default is "rectangle".
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    annotation : TYPE
+        DESCRIPTION.
+
+    """
+    
+    ## kwargs
     annotation_previous = kwargs.get("annotation_previous")
                 
     ## retrieve settings for image viewer and for export
-    ImageViewer_settings, local_settings  = {}, {}
+    IV_settings, local_settings  = {}, {}
     
     ## extract image viewer settings and data from previous annotations       
     if annotation_previous:       
-        ImageViewer_settings["ImageViewer_previous"] = _load_previous_annotation(annotation=annotation_previous, 
-                                                                                 component="data",
-                                                                                 field="coord_list")                
+        IV_settings["ImageViewer_previous"] =_load_previous_annotation(
+            annotation_previous = annotation_previous, 
+            components = [
+                ("data","coord_list"),
+                ]
+            )            
         
-    ## assemble image viewer settings from kwargs
-    for key, value in kwargs.items():
-        if key in _image_viewer_arg_list:
-            ImageViewer_settings[key] = value
-            local_settings[key] = value
-    
-    ## draw masks
+    ## update image viewer and local settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings, IV_settings)
+
+    ## execute function
     out = _ImageViewer(image=image, 
                         tool=tool, 
-                        **ImageViewer_settings)
+                        **IV_settings)
+    
+    ## check if tasks completed successfully
     if not out.done:
         print("- didn't finish: redo mask")
         return 
-
-    # conversion and return
-    if out.polygons is not None:
-        coords = out.polygons
-
-        annotation = {
-            "info": {
-                "annotation_type": "mask",
-                "pp_function": "create_mask",
-            },
-            "settings": local_settings,
-            "data": {
-                "include": include,
-                "n_masks": len(coords),
-                "coord_list": coords,
-            }
-        }
-        return annotation
-    else:
+    if not out.coord_list:
         print("- zero coordinates: redo mask")
         return 
     
+    ## assemble annotation dictionary
+    annotation = {
+        "info": {
+            "annotation_type": "mask",
+            "pp_function": "create_mask",
+        },
+        "settings": local_settings,
+        "data": {
+            "include": include,
+            "n_masks": len(out.coord_list),
+            "coord_list": out.coord_list,
+        }
+    }
+    
+    return annotation
+
     
 def detect_mask(
     image,
@@ -142,15 +165,42 @@ def detect_mask(
     """
     Detect circles in grayscale image using Hough-Transform. Results can be 
     returned either as mask or contour
-    
+
     Parameters
     ----------
-
+    image : TYPE
+        DESCRIPTION.
+    include : TYPE, optional
+        DESCRIPTION. The default is True.
+    shape : TYPE, optional
+        DESCRIPTION. The default is "circle".
+    resize : TYPE, optional
+        DESCRIPTION. The default is 1.
+    dp : TYPE, optional
+        DESCRIPTION. The default is 1.
+    min_dist : TYPE, optional
+        DESCRIPTION. The default is 50.
+    param1 : TYPE, optional
+        DESCRIPTION. The default is 200.
+    param2 : TYPE, optional
+        DESCRIPTION. The default is 100.
+    min_radius : TYPE, optional
+        DESCRIPTION. The default is 0.
+    max_radius : TYPE, optional
+        DESCRIPTION. The default is 0.
+    verbose : TYPE, optional
+        DESCRIPTION. The default is True.
+    **kwargs : TYPE
+        DESCRIPTION.
 
     Returns
     -------
-    
+    annotation : TYPE
+        DESCRIPTION.
+
     """
+
+    
 
     ## checks
     if len(image.shape) == 3:
@@ -498,64 +548,51 @@ def enter_data(
     **kwargs
 ):
     """
-    Generic data entry that can be added as columns to an existing DataFrame. 
-    Useful for images containing labels, or other comments. 
+    
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata to add columns to
-    columns : str or list
-        columns to be added to existing or generic data frame
-    overwrite : bool, optional
-        overwrite existing columns in df
-    fontsize : int, optional
-        fonsize for onscreen display. 
-    font_col : {"red", "green", "blue", "black", "white"} str, optional
-        font colour for onscreen display. 
+    image : TYPE
+        DESCRIPTION.
+    field : TYPE, optional
+        DESCRIPTION. The default is "ID".
+    **kwargs : TYPE
+        DESCRIPTION.
 
     Returns
     -------
-    df_other_data: DataFrame or container
-        contains the entered data
+    annotation : TYPE
+        DESCRIPTION.
 
     """
-    
+
+    ## kwargs
     annotation_previous = kwargs.get("annotation_previous")
     
     ## retrieve settings for image viewer and for export
-    ImageViewer_settings, local_settings  = {}, {}
+    IV_settings, local_settings  = {}, {}
     
-    ## extract image viewer settings and data from previous annotations
-    if "annotation_previous" in kwargs:       
-        ImageViewer_previous = {}        
-        ImageViewer_previous.update(annotation_previous["settings"])
-        ImageViewer_previous["entry"] = annotation_previous["data"][field]
-        ImageViewer_previous = _DummyClass(ImageViewer_previous)   
-        ImageViewer_settings["ImageViewer_previous"] = ImageViewer_previous
-        
+    ## extract image viewer settings and data from previous annotations       
     if annotation_previous:       
-        ImageViewer_settings["ImageViewer_previous"] = _load_previous_annotation(annotation=annotation_previous, 
-                                                                                 component="data",
-                                                                                 field="field")   
-        ImageViewer_settings["ImageViewer_previous"].update(_load_previous_annotation(annotation=annotation_previous, 
-                                                                                 component="data",
-                                                                                 field="entry"))   
-                
-        
-    ## assemble image viewer settings from kwargs
-    for key, value in kwargs.items():
-        if key in _image_viewer_arg_list:
-            ImageViewer_settings[key] = value
-            local_settings[key] = value
+        IV_settings["ImageViewer_previous"] =_load_previous_annotation(
+            annotation_previous = annotation_previous, 
+            components = [
+                ("data","field"),
+                ("data","entry")
+                ])
 
+    ## update image viewer and local settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings, IV_settings)
+
+
+    ## execute function
     out = _ImageViewer(image, 
                        tool="comment", 
                        field=field, 
-                        **ImageViewer_settings)
+                        **IV_settings)
 
+    ## assemble annotation dictionary
     annotation = {
         "info": {
             "annotation_type": "comment",
@@ -572,7 +609,10 @@ def enter_data(
 
 
 
-def select_channel(image, channel="gray", invert=False):
+def select_channel(image, 
+                   channel="gray", 
+                   invert=False):
+    
     """
     Extract single channel from multi-channel array.
 

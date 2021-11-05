@@ -16,7 +16,8 @@ from phenopype.utils_lowlevel import (
     _auto_point_size,
     _auto_text_width,
     _auto_text_size,
-    _load_previous_annotation
+    _load_previous_annotation,
+    _update_settings
 )
 from phenopype.settings import (
     colours, 
@@ -221,24 +222,26 @@ def set_landmark(
     annotation_previous = kwargs.get("annotation_previous", None)
 
     ## retrieve settings for image viewer and for export
-    ImageViewer_settings, local_settings, local_names = {}, {}, locals()
-    
-    ## extract image viewer settings and data from previous annotations
+    IV_settings, local_settings, local_names = {}, {}, locals()
+        
+    ## extract image viewer settings and data from previous annotations       
     if annotation_previous:       
-        ImageViewer_settings["ImageViewer_previous"] = _load_previous_annotation(annotation=annotation_previous, 
-                                                                                 component="data",
-                                                                                 field="points")
+        IV_settings["ImageViewer_previous"] =_load_previous_annotation(
+            annotation_previous = annotation_previous, 
+            components = [
+                ("data","points"),
+                ]
+            )
               
     ## assemble image viewer and local settings 
     for key, value in kwargs.items():
         if key in _image_viewer_arg_list:
-            ImageViewer_settings[key] = value
+            IV_settings[key] = value
             local_settings[key] = value
             
-    ## assemble local settings 
-    for key, value in local_names.items():
-        if key in _image_viewer_arg_list:
-            local_settings[key] = value
+    ## update image viewer and local settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings, IV_settings)
 
     ## configure points
     if point_size == "auto":
@@ -257,7 +260,7 @@ def set_landmark(
                        label_size=label_size,
                        label_width=label_width,
                        label_colour=label_colour,                       
-                       **ImageViewer_settings)
+                       **IV_settings)
     
     ## checks
     if not out.done:

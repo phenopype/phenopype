@@ -16,7 +16,8 @@ from phenopype.utils_lowlevel import (
     _create_mask_bool, 
     _ImageViewer, 
     _auto_line_width, 
-    _load_previous_annotation
+    _load_previous_annotation,
+    _update_settings
     )
 import phenopype.core.preprocessing as preprocessing
 
@@ -218,13 +219,16 @@ def edit_contour(
     annotation_previous = kwargs.get("annotation_previous")
     
     ## retrieve settings for image viewer and for export
-    ImageViewer_settings, local_settings  = {}, {}
-    
+    IV_settings, local_settings  = {}, {}
+            
     ## extract image viewer settings and data from previous annotations       
     if annotation_previous:       
-        ImageViewer_settings["ImageViewer_previous"] = _load_previous_annotation(annotation=annotation_previous, 
-                                                                                 component="data",
-                                                                                 field="point_list")
+        IV_settings["ImageViewer_previous"] =_load_previous_annotation(
+            annotation_previous = annotation_previous, 
+            components = [
+                ("data","point_list"),
+                ]
+            )
               
     ## check annotation dict input and convert to type/id/ann structure
     if list(annotation.keys())[0] == "info":
@@ -232,27 +236,32 @@ def edit_contour(
             contours = annotation["data"]["coord_list"]
     else:
         if not kwargs.get("contour_id"):
-            contour_id =  max(list(annotation["contour"].keys()))
-            print("- contour_id missing - using last one (\"{}\")".format(contour_id))
+            if kwargs.get("annotation_counter"):
+                annotation_counter = kwargs.get("annotation_counter")
+                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
+                print("- contour_id not specified - editing recent most one (\"{}\")".format(contour_id))
+            else:
+                print("- contour_id not specified - can't edit")
+                return
         else:
            contour_id = kwargs.get("contour_id")
-           local_settings["contour_id"]
+           
+        local_settings["contour_id"] = contour_id
+        
         if list(annotation.keys())[0] in _annotation_function_dicts.keys():
             contours = annotation["contour"][contour_id]["data"]["coord_list"]
         elif list(annotation.keys())[0] in string.ascii_lowercase:
             contours = annotation[contour_id]["data"]["coord_list"]
             
-    ## assemble image viewer settings from kwargs
-    for key, value in kwargs.items():
-        if key in _image_viewer_arg_list:
-            ImageViewer_settings[key] = value
-            local_settings[key] = value
+    ## update image viewer and local settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings, IV_settings)
 
     ## use GUI 
     out = _ImageViewer(image=image, 
                        contours=contours,
                        tool="draw", 
-                       **ImageViewer_settings)
+                       **IV_settings)
     
     ## checks
     if not out.done:

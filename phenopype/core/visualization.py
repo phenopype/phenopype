@@ -133,10 +133,16 @@ def draw_contour(
             contours_support = annotation["data"]["support"]
     else:
         if not kwargs.get("contour_id"):
-            contour_id =  max(list(annotation["contour"].keys()))
-            print("- contour_id missing - using last one (\"{}\")".format(contour_id))
+            if kwargs.get("annotation_counter"):
+                annotation_counter = kwargs.get("annotation_counter")
+                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
+                print("- contour_id not specified - drawing recent most one (\"{}\")".format(contour_id))
+            else:
+                print("- contour_id not specified - can't drawing")
+                return
         else:
            contour_id = kwargs.get("contour_id")
+
         if list(annotation.keys())[0] in _annotation_function_dicts.keys():
             contours = annotation["contour"][contour_id]["data"]["coord_list"]
             contours_support = annotation["contour"][contour_id]["data"]["support"]
@@ -443,7 +449,7 @@ def draw_polyline(
 
 
 
-def select_canvas(container, canvas="raw", multi_channel=True):
+def select_canvas(container, canvas="raw", multi_channel=True, **kwargs):
     """
     Isolate a colour channel from an image or select canvas for the pype method.
 

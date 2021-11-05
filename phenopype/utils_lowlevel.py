@@ -1204,12 +1204,13 @@ def _get_circle_perimeter(center_x, center_y, radius):
 
 
 
-def _load_previous_annotation(annotation, component, field, load_settings=True):
-
+def _load_previous_annotation(annotation_previous, components, load_settings=True):
     ImageViewer_previous = {}    
     if load_settings:
-        ImageViewer_previous.update(annotation["settings"])
-    ImageViewer_previous[field] = annotation[component][field]
+        ImageViewer_previous.update(annotation_previous["settings"])
+    for item in components:
+        field, data = item
+        ImageViewer_previous[data] = annotation_previous[field][data]
 
     return _DummyClass(ImageViewer_previous)
 
@@ -1365,11 +1366,18 @@ def _show_yaml(odict, ret=False, typ="rt"):
 
 
 def _save_yaml(dictionary, filepath, typ="rt"):
-    
-    yaml = YAML(typ=typ)      
-
+    yaml = YAML(typ=typ)
     with open(filepath, "w") as out:
         yaml.dump(dictionary, out)
+
+
+
+def _update_settings(kwargs, local_settings, IV_settings):
+    for key, value in kwargs.items():
+        if key in settings._image_viewer_arg_list:
+            IV_settings[key] = value
+            local_settings[key] = value
+
 
 
 def _yaml_flow_style(dictionary):
