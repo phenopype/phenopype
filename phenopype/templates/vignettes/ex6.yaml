@@ -31,7 +31,7 @@
         fill: 0
         watershed: true
         bounding_box: True
-    - draw_masks
+    - draw_mask
 - export:
     - save_contours:
         save_coords: False

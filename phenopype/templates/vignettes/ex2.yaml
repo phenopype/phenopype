@@ -8,7 +8,7 @@
         label_size: 2
         label_width: 2
 - visualization:
-    - draw_masks
+    - draw_mask
     - draw_landmarks:
         point_size: 12
         point_colour: green

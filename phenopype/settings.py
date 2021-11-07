@@ -5,10 +5,10 @@ import os
 from importlib.resources import path
 from pathlib import Path, PurePath
 from pprint import PrettyPrinter
+from dataclasses import dataclass
 
 import phenopype.utils_lowlevel as utils_lowlevel
 
-from dataclasses import dataclass
 
 
 #%% helper-class
@@ -106,16 +106,51 @@ flag_verbose = True
 
 #%% flags opencv
 
-opencv_window_flags={
-    "normal": cv2.WINDOW_NORMAL,
-    "auto": cv2.WINDOW_AUTOSIZE,
-    "openGL": cv2.WINDOW_OPENGL,
-    "full": cv2.WINDOW_FULLSCREEN, 
-    "free": cv2.WINDOW_FREERATIO,
-    "keep": cv2.WINDOW_KEEPRATIO,
-    "GUIexp": cv2.WINDOW_GUI_EXPANDED, 
-    "GUInorm": cv2.WINDOW_GUI_NORMAL,
-    } 
+
+opencv_contour_flags = {
+    "retrieval" : {
+        "ext": cv2.RETR_EXTERNAL,  ## only external
+        "list": cv2.RETR_LIST,  ## all contours
+        "tree": cv2.RETR_TREE,  ## fully hierarchy
+        "ccomp": cv2.RETR_CCOMP,  ## outer perimeter and holes
+        "flood": cv2.RETR_FLOODFILL, ## not sure what this does
+        },
+    "approximation" : {
+        "none": cv2.CHAIN_APPROX_NONE,  ## all points (no approx)
+        "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
+        "L1": cv2.CHAIN_APPROX_TC89_L1,  
+        "KCOS": cv2.CHAIN_APPROX_TC89_KCOS, 
+        }
+    }
+
+opencv_distance_flags = {
+    "user": cv2.DIST_USER,
+    "l1": cv2.DIST_L1,
+    "l2": cv2.DIST_L2,
+    "C": cv2.DIST_C,
+    "l12": cv2.DIST_L12,
+    "fair": cv2.DIST_FAIR,
+    "welsch": cv2.DIST_WELSCH,
+    "huber": cv2.DIST_HUBER,
+}
+
+opencv_morphology_flags = {
+    "shape_list" : {
+        "cross": cv2.MORPH_CROSS,
+        "rect": cv2.MORPH_RECT,
+        "ellipse": cv2.MORPH_ELLIPSE,
+        },
+    "operation_list" : {
+        "erode": cv2.MORPH_ERODE,
+        "dilate": cv2.MORPH_DILATE,
+        "open": cv2.MORPH_OPEN,
+        "close": cv2.MORPH_CLOSE,
+        "gradient": cv2.MORPH_GRADIENT,
+        "tophat ": cv2.MORPH_TOPHAT,
+        "blackhat": cv2.MORPH_BLACKHAT,
+        "hitmiss": cv2.MORPH_HITMISS,
+        }
+    }
 
 opencv_interpolation_flags = {
     "nearest": cv2.INTER_NEAREST,
@@ -129,7 +164,16 @@ opencv_interpolation_flags = {
     "warp_inverse": cv2.WARP_INVERSE_MAP, 
     }
 
-
+opencv_window_flags={
+    "normal": cv2.WINDOW_NORMAL,
+    "auto": cv2.WINDOW_AUTOSIZE,
+    "openGL": cv2.WINDOW_OPENGL,
+    "full": cv2.WINDOW_FULLSCREEN, 
+    "free": cv2.WINDOW_FREERATIO,
+    "keep": cv2.WINDOW_KEEPRATIO,
+    "GUIexp": cv2.WINDOW_GUI_EXPANDED, 
+    "GUInorm": cv2.WINDOW_GUI_NORMAL,
+    } 
 #%% image viewer
 
 _image_viewer_arg_list = [
@@ -158,20 +202,22 @@ _image_viewer_arg_list = [
 _annotation_functions = {
     "create_mask": "mask",
     "create_reference": "mask",
-    "detect_mask": "mask",
+    "detect_shape": "mask",
     "detect_reference": "reference",
     "detect_contour": "contour",
     "edit_contour": "drawing",
     "enter_data": "comment",
-    "set_landmarks": "landmark",
+    
+    "set_landmark": "landmark",
     }
 
 _annotation_function_dicts = {
-    "mask": {},
-    "contour": {},
     "comment": {},
+    "contour": {},
+    "data": {},
     "drawing": {},
     "landmark": {},
+    "mask": {},
     "reference": {},
     }
 

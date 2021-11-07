@@ -3,17 +3,22 @@ import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
 import string
+from dataclasses import make_dataclass
 
 from math import inf
 
 from phenopype.settings import (
     colours, 
     flag_verbose, 
+    opencv_contour_flags,
+    opencv_distance_flags,
+    opencv_morphology_flags,
     _image_viewer_arg_list, 
     _annotation_function_dicts
     )
 from phenopype.utils_lowlevel import (
     _create_mask_bool, 
+    _drop_dict_entries,
     _ImageViewer, 
     _auto_line_width, 
     _load_previous_annotation,
@@ -94,34 +99,28 @@ def detect_contour(
     """    
     
     
-    ## check
+	# =============================================================================
+	# setup
+    
     if len(image.shape) > 2:
         print("Multi-channel array supplied - need binary array.")
         return 
     
-    ## settings
-    settings = locals()
-    for rm in ["image", "kwargs"]:
-        settings.pop(rm, None)
-        
-    ## definitions
-    opencv_contour_flags = {
-        "retrieval" : {
-            "ext": cv2.RETR_EXTERNAL,  ## only external
-            "list": cv2.RETR_LIST,  ## all contours
-            "tree": cv2.RETR_TREE,  ## fully hierarchy
-            "ccomp": cv2.RETR_CCOMP,  ## outer perimeter and holes
-            "flood": cv2.RETR_FLOODFILL, ## not sure what this does
-            },
-        "approximation" : {
-            "none": cv2.CHAIN_APPROX_NONE,  ## all points (no approx)
-            "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
-            "L1": cv2.CHAIN_APPROX_TC89_L1,  
-            "KCOS": cv2.CHAIN_APPROX_TC89_KCOS, 
-            }
-        }
+    # =============================================================================
+    # retain settings
 
-    ## method
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(
+        locals(), drop=["image","kwargs", "image_resized"])
+        
+    ## update settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings)
+        
+        
+	# =============================================================================
+	# execute
+    
     image, contours, hierarchies = cv2.findContours(
         image=image,
         mode=opencv_contour_flags["retrieval"][retrieval],
@@ -129,7 +128,10 @@ def detect_contour(
         offset=tuple(offset_coords),
     )
    
-    ## output conversion
+
+	# =============================================================================
+	# process
+    
     if contours is not None:
         coord_list, support = [], []
         for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
@@ -176,20 +178,27 @@ def detect_contour(
         if flag_verbose:
             print("- no contours found")
 
-    ## return
+
+	# =============================================================================
+	# assemble results
+
     ret = {
     "info":{
         "annotation_type": "contour", 
         "pp_function": "detect_contour",
         },
-    "settings": settings,
+    "settings": local_settings,
     "data":{
         "n_contours": len(coord_list),
         "coord_list": coord_list,
         "support": support,
         }
     }
-
+    
+    
+	# =============================================================================
+	# return
+    
     return ret
 
 
@@ -214,21 +223,34 @@ def edit_contour(
         modified image and contour modifications saved to annotations dictionary
 
     """
-    ## kwargs
+	# =============================================================================
+	# setup 
+
     contour_id = kwargs.get("contour_id")
     annotation_previous = kwargs.get("annotation_previous")
     
-    ## retrieve settings for image viewer and for export
-    IV_settings, local_settings  = {}, {}
-            
-    ## extract image viewer settings and data from previous annotations       
+    # =============================================================================
+    # retain settings
+
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(locals(),
+        drop=["image","annotation","kwargs","annotation_previous"])
+
+    ## retrieve update IV settings and data from previous annotations  
+    IV_settings = {}     
     if annotation_previous:       
         IV_settings["ImageViewer_previous"] =_load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
                 ("data","point_list"),
-                ]
-            )
+                ])            
+        
+    ## update local and IV settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings, IV_settings)
+        
+  	# =============================================================================
+  	# setup       
               
     ## check annotation dict input and convert to type/id/ann structure
     if list(annotation.keys())[0] == "info":
@@ -253,27 +275,32 @@ def edit_contour(
         elif list(annotation.keys())[0] in string.ascii_lowercase:
             contours = annotation[contour_id]["data"]["coord_list"]
             
-    ## update image viewer and local settings from kwargs
-    if kwargs:
-        _update_settings(kwargs, local_settings, IV_settings)
 
-    ## use GUI 
+
+	# =============================================================================
+	# execute
+    
     out = _ImageViewer(image=image, 
                        contours=contours,
                        tool="draw", 
                        **IV_settings)
     
-    ## checks
+    ## check if tasks completed successfully
     if not out.done:
         print("- didn't finish: redo drawing")
         return 
-    else:
-        point_list = out.point_list
+    if not out.point_list:
+        print("- zero coordinates: redo drawing")
+        return 
                 
-    ## extract modified binary mask
+	# =============================================================================
+	# process
+    
     image_bin = out.image_bin_copy
         
-    ## return
+	# =============================================================================
+	# assemble results
+
     annotation = {
         "info": {
             "type": "drawing", 
@@ -281,9 +308,13 @@ def edit_contour(
             },
         "settings": local_settings,
         "data":{
-            "point_list": point_list,
+            "point_list": out.point_list,
             }
         }
+    
+	# =============================================================================
+	# return
+    
     return image_bin, annotation
 
 
@@ -325,30 +356,26 @@ def morphology(image, kernel_size=5, shape="rect", operation="close", iterations
         processed image
 
     """
-    ## kwargs
+	# =============================================================================
+	# setup 
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
-    shape_list = {
-        "cross": cv2.MORPH_CROSS,
-        "rect": cv2.MORPH_RECT,
-        "ellipse": cv2.MORPH_ELLIPSE,
-    }
-    operation_list = {
-        "erode": cv2.MORPH_ERODE,
-        "dilate": cv2.MORPH_DILATE,
-        "open": cv2.MORPH_OPEN,
-        "close": cv2.MORPH_CLOSE,
-        "gradient": cv2.MORPH_GRADIENT,
-        "tophat ": cv2.MORPH_TOPHAT,
-        "blackhat": cv2.MORPH_BLACKHAT,
-        "hitmiss": cv2.MORPH_HITMISS,
-    }
-    kernel = cv2.getStructuringElement(shape_list[shape], (kernel_size, kernel_size))
-
-    ## method
+        
+        
+	# =============================================================================
+	# execute
+        
+    kernel = cv2.getStructuringElement(opencv_morphology_flags["shape_list"][shape], 
+                                       (kernel_size, kernel_size))
+    operation = opencv_morphology_flags["operation_list"][operation]
+    
     image = cv2.morphologyEx(
-        image, op=operation_list[operation], kernel=kernel, iterations=iterations
+        image, op=operation, kernel=kernel, iterations=iterations
     )
+    
+
+	# =============================================================================
+	# return
 
     ## return
     return image
@@ -404,7 +431,9 @@ def threshold(
     """
 
 
-    ## checks
+	# =============================================================================
+	# setup 
+
     if len(image.shape) == 3:
         if flag_verbose:
             image = preprocessing.select_channel(image, "gray")
@@ -413,7 +442,9 @@ def threshold(
             blocksize = blocksize + 1
             print("- even blocksize supplied, adding 1 to make odd")
 
-    ## method
+	# =============================================================================
+	# execute
+    
     if method in "otsu":
         ret, thresh = cv2.threshold(
             image, 
@@ -438,7 +469,9 @@ def threshold(
             cv2.THRESH_BINARY_INV
             )
 
-    ## apply masks
+	# =============================================================================
+	# process
+
     if not mask.__class__.__name__ == "NoneType":
         if not list(mask.keys())[0] == "a":
             mask = {"a": mask}
@@ -459,7 +492,11 @@ def threshold(
         if include_idx>0:
             print("- including pixels from " + str(include_idx) + " drawn masks ")
 
-    ## return
+
+
+	# =============================================================================
+	# return
+
     return thresh
 
 
@@ -505,20 +542,15 @@ def watershed(
 
     """
 
-    ##kwargs
-    distance_type_list = {
-        "user": cv2.DIST_USER,
-        "l1": cv2.DIST_L1,
-        "l2": cv2.DIST_L2,
-        "C": cv2.DIST_C,
-        "l12": cv2.DIST_L12,
-        "fair": cv2.DIST_FAIR,
-        "welsch": cv2.DIST_WELSCH,
-        "huber": cv2.DIST_HUBER,
-    }
+	# =============================================================================
+	# setup 
+    
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
 
+
+	# =============================================================================
+	# execute
 
     ## sure background
     sure_bg = morphology(
@@ -542,7 +574,7 @@ def watershed(
     
     ## distance transformation
     dist_transform = cv2.distanceTransform(
-        opened, distance_type_list[distance_type], distance_mask
+        opened, opencv_distance_flags[distance_type], distance_mask
     )
     dist_transform = cv2.normalize(
         dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX
@@ -578,6 +610,10 @@ def watershed(
     contours = detect_contour(watershed_mask, retrieval="ccomp")
     image_watershed = np.zeros(watershed_mask.shape, np.uint8)
            
+    
+	# =============================================================================
+	# process
+
     for coord, supp in zip(contours["data"]["coords"], contours["data"]["support"]):
         if supp["hierarchy_level"] == "child":
             cv2.drawContours(
@@ -599,6 +635,9 @@ def watershed(
                 offset=None
                 )
     
-    ## return
+    
+	# =============================================================================
+	# return
+    
     return image_watershed
 

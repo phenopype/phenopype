@@ -27,7 +27,6 @@ from shutil import copyfile, rmtree
 
 from phenopype import __version__ as pp_version
 from phenopype.settings import (
-    AttrDict,
     confirm_options,
     default_filetypes,
     default_meta_data_fields,
@@ -89,10 +88,7 @@ class Project:
         ## set flags
         flags = make_dataclass(cls_name="flags", 
                                fields=[("load", bool, load), 
-                                       ("overwrite", bool, overwrite)])
-
-        # flags = AttrDict({"overwrite":overwrite, "load":load})  
-        
+                                       ("overwrite", bool, overwrite)])        
     
         ## path conversion
         root_dir = root_dir.replace(os.sep, "/")
@@ -240,12 +236,11 @@ class Project:
         """
 
         # kwargs
-        ## flags
-        flags = AttrDict({"mode": mode, 
-                          "recursive": recursive, 
-                          "overwrite": overwrite,
-                          "resize": False,
-                          })
+        flags = make_dataclass(cls_name="flags", 
+                               fields=[("mode", str, mode),
+                                       ("recursive", bool, recursive), 
+                                       ("overwrite", bool, overwrite),
+                                       ("resize", bool, False)])
 
         if resize_factor < 1:
             flags.resize = True
@@ -588,9 +583,10 @@ class Project:
             measure its dimensions, and adjust pixel-to-mm-ratio and colour space
         """
 
-        ## kwargs and setup
-        flags = AttrDict({"overwrite": overwrite, 
-                          "activate": activate})
+        ## set flags
+        flags = make_dataclass(cls_name="flags", 
+                               fields=[("overwrite", bool, overwrite), 
+                                       ("activate", bool, activate)])                
 
         reference_name = name
         print_save_msg = "== no msg =="
@@ -753,8 +749,10 @@ class Project:
             should the results be overwritten
 
         """
-        ## kwargs
-        flags = AttrDict({"overwrite":overwrite})
+        
+        ## set flags
+        flags = make_dataclass(cls_name="flags", 
+                               fields=[("overwrite", bool, overwrite)])        
 
         extension = kwargs.get("extension", ".jpg")
         if "." not in extension:

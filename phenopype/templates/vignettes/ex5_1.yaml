@@ -33,7 +33,7 @@
         label_width: 0
         label_size: 1
         fill: 0.3
-    - draw_masks
+    - draw_mask
 - export:
     - save_contours:
         overwrite: true

@@ -5,6 +5,7 @@ import glob
 import pandas as pd
 import pkgutil
 import string
+from dataclasses import make_dataclass
 
 from pathlib import Path
 
@@ -14,12 +15,10 @@ import phenopype.core.measurement as measurement
 import phenopype.core.visualization as visualization
 import phenopype.core.export as export
 
-from phenopype.settings import AttrDict, default_filetypes, flag_verbose, confirm_options, _annotation_function_dicts
+from phenopype.settings import default_filetypes, flag_verbose, confirm_options, _annotation_function_dicts
 from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr,  _load_image_data, _load_yaml, _show_yaml
     
 from collections import defaultdict
-
-# from dataclasses import make_dataclass
 
 #%% classes
 
@@ -187,8 +186,8 @@ class Container(object):
             self.image = preprocessing.blur(self.image, **kwargs)
         if fun == "create_mask":
             annotation = preprocessing.create_mask(self.image, **kwargs)
-        if fun == "detect_mask":
-            annotation = preprocessing.detect_mask(self.image, **kwargs)
+        if fun == "detect_shape":
+            annotation = preprocessing.detect_shape(self.image, **kwargs)
         if fun == "enter_data":
             annotation = preprocessing.enter_data(self.image, **kwargs)
         if fun == "detect_reference":
@@ -217,8 +216,8 @@ class Container(object):
             self.image = preprocessing.select_channel(self.image, **kwargs)
             
         ## measurement
-        if fun == "set_landmarks":
-            annotation = measurement.set_landmarks(self.canvas, **kwargs)
+        if fun == "set_landmark":
+            annotation = measurement.set_landmark(self.canvas, **kwargs)
 
         ## segmentation
         if fun == "threshold":
@@ -241,7 +240,11 @@ class Container(object):
             visualization.select_canvas(self, **kwargs)
         if fun == "draw_contour":
             self.canvas = visualization.draw_contour(self.canvas, annotation=self.annotations, **kwargs)
-        
+        if fun == "draw_landmark":
+            self.canvas = visualization.draw_landmark(self.canvas, annotation=self.annotations, **kwargs)
+        if fun == "draw_mask":
+            self.canvas = visualization.draw_mask(self.canvas, annotation=self.annotations, **kwargs)
+            
         ## export
         if fun == "save_annotation":
             filename = kwargs.get("filename", "annotations") + "_" + self.save_suffix + ".json"
@@ -351,9 +354,12 @@ def load_image(
         original image (resized, if selected)
 
     """
+    
     ## set flags
-    flags = AttrDict({"mode":mode,"container":load_container})
-
+    flags = make_dataclass(cls_name="flags", 
+                           fields=[("mode", str, mode), 
+                                   ("load_container", bool, load_container)])   
+     
     ## load image
     if path.__class__.__name__ == "str":
         if os.path.isfile(path):
@@ -379,7 +385,7 @@ def load_image(
         return
 
     ## check dirpath
-    if flags.container == True:
+    if flags.load_container == True:
         if dirpath == "cwd":
             dirpath = os.getcwd()
             if flag_verbose:
@@ -418,7 +424,7 @@ def load_image(
             
             
     ## create container
-    if flags.container:
+    if flags.load_container:
         cont = copy.deepcopy(Container(image, dirpath=dirpath, save_suffix=save_suffix))
         return cont
     else:
@@ -454,9 +460,10 @@ def load_pp_directory(
         the analysis. 
 
     """
+    
     ## set flags
-    flags = AttrDict({"container":load_container})  
-       
+    flags = make_dataclass(cls_name="flags", 
+                           fields=[ ("load_container", bool, load_container)])   
     ## check if directory
     if not os.path.isdir(dirpath):
         print("Not a valid phenoype directory - cannot load files.")
@@ -481,7 +488,7 @@ def load_pp_directory(
         image_path =  os.path.join(dirpath,attributes["image_phenopype"]["filename"])
         
     ## return
-    return load_image(image_path, load_container=flags.container, dirpath=dirpath, save_suffix=save_suffix)
+    return load_image(image_path, load_container=flags.load_container, dirpath=dirpath, save_suffix=save_suffix)
     
 
 
@@ -664,31 +671,4 @@ def show_image(
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             break
-        
-        
-        
-def show_pype_config_template(template):
-    """
-    
-    Helper function to print phenopype configuration file in formatted yaml.
-
-    Parameters
-    ----------
-    template : str
-        name of pype configuration file to print (with or without ".yaml")
-
-    Returns
-    -------
-    None
-
-    """
-    
-    if not template.endswith(".yaml"):
-        template_name = template + ".yaml"
-    else:
-        template_name = template
-    if template_name in pype_config_template_list:
-        config_steps = _load_yaml(pype_config_template_list[template_name])
-        print("SHOWING BUILTIN PHENOPYPE TEMPLATE " + template_name + "\n\n")
-        _show_yaml(config_steps)
         

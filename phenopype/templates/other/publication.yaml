@@ -21,7 +21,7 @@
   - select_canvas:
       canvas: raw
   - draw_contour
-  - draw_masks
+  - draw_mask
 - export:
   - save_canvas:
       resize: 1

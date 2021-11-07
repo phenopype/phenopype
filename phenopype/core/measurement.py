@@ -4,11 +4,14 @@ import math
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
+from dataclasses import make_dataclass
 
 import logging
 from radiomics import featureextractor
 import SimpleITK as sitk
 from tqdm import tqdm as _tqdm
+
+
 
 from phenopype.utils_lowlevel import (
     _ImageViewer,
@@ -16,6 +19,7 @@ from phenopype.utils_lowlevel import (
     _auto_point_size,
     _auto_text_width,
     _auto_text_size,
+    _drop_dict_entries,
     _load_previous_annotation,
     _update_settings
 )
@@ -28,161 +32,6 @@ from phenopype.settings import (
 
 #%% methods
 
-
-def colour_intensity(
-    obj_input,
-    df_image_data=None,
-    df_contours=None,
-    channels="gray",
-    background=False,
-    background_ext=20,
-):
-    """
-    Measures pixel values within the provided contours, either across all 
-    channels ("gray") or for each channel separately ("rgb"). Measures mean 
-    and standard deviation
-    
-    Parameters
-    ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to
-        output DataFrame
-    df_contours : DataFrame, optional
-        contains the contours
-    channels : {"gray", "rgb"} str, optional
-        for which channels should pixel intensity be measured
-    background: bool, optional
-        measure the pixels of the background in an extended (background_ext) 
-        bounding box around the contour
-    background_ext: in, optional
-        value in pixels by which the bounding box should be extended
-    Returns
-    -------
-    df_colours : DataFrame or container
-        contains the pixel intensities 
-    """
-    ## kwargs
-    if channels.__class__.__name__ == "str":
-        channels = [channels]
-    if background == True:
-        flag_background = background
-        q = background_ext
-    else:
-        flag_background = False
-
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-        if df_contours.__class__.__name__ == "NoneType":
-            print("no df supplied - cannot measure colour intensity")
-            return
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image_copy)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_contours"):
-            df_contours = obj_input.df_contours
-    else:
-        print("wrong input format.")
-        return
-
-    ## make dataframe backbone
-    df_colours = pd.DataFrame(df_contours["contour"])
-
-    ## create forgeround mask
-    foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)
-    for index, row in df_contours.iterrows():
-        foreground_mask_inverted = cv2.fillPoly(
-            foreground_mask_inverted, [row["coords"]], 255
-        )
-    foreground_mask = np.invert(np.array(foreground_mask_inverted))
-
-    ## grayscale
-    if "gray" in channels:
-        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        new_cols = {"gray_mean": "NA", "gray_sd": "NA"}
-        df_colours = df_colours.assign(**new_cols)
-        for index, row in df_contours.iterrows():
-            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
-            grayscale = ma.array(
-                data=image_gray[ry : ry + rh, rx : rx + rw],
-                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
-            )
-            df_colours.at[index, ["gray_mean", "gray_sd"]] = (
-                np.ma.mean(grayscale),
-                np.ma.std(grayscale),
-            )
-
-    ## red, green, blue
-    if "rgb" in channels:
-        df_colours = df_colours.assign(
-            **{
-                "red_mean": "NA",
-                "red_sd": "NA",
-                "green_mean": "NA",
-                "green_sd": "NA",
-                "blue_mean": "NA",
-                "blue_sd": "NA",
-            }
-        )
-        for index, row in df_contours.iterrows():
-            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
-            blue = ma.array(
-                data=image[ry : ry + rh, rx : rx + rw, 0],
-                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
-            )
-            green = ma.array(
-                data=image[ry : ry + rh, rx : rx + rw, 1],
-                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
-            )
-            red = ma.array(
-                data=image[ry : ry + rh, rx : rx + rw, 2],
-                mask=foreground_mask[ry : ry + rh, rx : rx + rw],
-            )
-            df_colours.at[index, ["red_mean", "red_sd"]] = np.ma.mean(red), np.ma.std(red)
-            df_colours.at[index, ["green_mean", "green_sd"]] = (
-                np.ma.mean(green),
-                np.ma.std(green),
-            )
-            df_colours.at[index, ["blue_mean", "blue_sd"]] = (
-                np.ma.mean(blue),
-                np.ma.std(blue),
-            )
-
-    ## background grayscale
-    if flag_background:
-        df_colours = df_colours.assign(**{"gray_mean_b": "NA", "gray_sd_b": "NA"})
-        for index, row in df_contours.iterrows():
-            rx, ry, rw, rh = cv2.boundingRect(row["coords"])
-            foreground_mask_inverted_extended = foreground_mask_inverted[
-                (ry - q) : (ry + rh + q), (rx - q) : (rx + rw + q)
-            ]
-            grayscale = ma.array(
-                data=image_gray[(ry - q) : (ry + rh + q), (rx - q) : (rx + rw + q)],
-                mask=foreground_mask_inverted_extended,
-            )
-            df_colours.at[index, ["gray_mean_b", "gray_sd_b"]] = (
-                np.ma.mean(grayscale),
-                np.ma.std(grayscale),
-            )
-
-    ## merge with existing image_data frame
-    df_colours = pd.concat(
-        [
-            pd.concat([df_image_data] * len(df_colours)).reset_index(drop=True),
-            df_colours.reset_index(drop=True),
-        ],
-        axis=1,
-    )
-
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_colours
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_colours = df_colours
 
 def set_landmark(
     image,
@@ -218,30 +67,34 @@ def set_landmark(
         contains landmark coordiantes
     """
 
-    ## kwargs
+	# =============================================================================
+	# setup 
+    
     annotation_previous = kwargs.get("annotation_previous", None)
 
-    ## retrieve settings for image viewer and for export
-    IV_settings, local_settings, local_names = {}, {}, locals()
-        
-    ## extract image viewer settings and data from previous annotations       
+
+    # =============================================================================
+    # retain settings
+
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(locals(),
+        drop=["image","kwargs","annotation_previous"])
+
+    ## retrieve update IV settings and data from previous annotations  
+    IV_settings = {}     
     if annotation_previous:       
         IV_settings["ImageViewer_previous"] =_load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
                 ("data","points"),
-                ]
-            )
-              
-    ## assemble image viewer and local settings 
-    for key, value in kwargs.items():
-        if key in _image_viewer_arg_list:
-            IV_settings[key] = value
-            local_settings[key] = value
-            
-    ## update image viewer and local settings from kwargs
+                ])            
+        
+    ## update local and IV settings from kwargs
     if kwargs:
         _update_settings(kwargs, local_settings, IV_settings)
+        
+	# =============================================================================
+	# further prep
 
     ## configure points
     if point_size == "auto":
@@ -251,9 +104,12 @@ def set_landmark(
     if label_width == "auto":
         label_width = _auto_text_width(image)
 
-    ## use GUI 
+
+	# =============================================================================
+	# execute
+
     out = _ImageViewer(image=image, 
-                       tool="landmark", 
+                       tool="point", 
                        flag_text_label = label,
                        point_size=point_size,
                        point_colour=point_colour,
@@ -271,23 +127,30 @@ def set_landmark(
         return 
     else:
         points = out.points
+        
+        
+	# =============================================================================
+	# assemble results
 
-    ## return
     annotation = {
         "info": {
             "type": "landmark", 
-            "function": "set_landmarks",
+            "function": "set_landmark",
             },
         "settings": local_settings,
         "data":{
             "points": points,
             }
         }
-        
+    
+    
+	# =============================================================================
+	# return
+    
     return annotation
 
 
-def polylines(
+def set_polyline(
     obj_input,
     df_image_data=None,
     overwrite=False,

@@ -3,6 +3,7 @@
 import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
+from dataclasses import make_dataclass
 
 import time
 from timeit import default_timer as timer
@@ -198,11 +199,14 @@ class _ImageViewer:
         if kwargs.get("ImageViewer_previous"):
             prev_attr = kwargs.get("ImageViewer_previous").__dict__
             prev_attr = {
-                i: prev_attr[i]
-                for i in prev_attr
-                if i not in ["canvas_copy", "canvas", "image_copy", "image", "image_bin"]
+                i: prev_attr[i] for i in prev_attr 
+                
+                ## don't update arrays or provided kwargs
+                if i not in ["canvas_copy", "canvas", "image_copy", "image", "image_bin"] + list(kwargs.keys())
             }
+            
             self.__dict__.update(copy.deepcopy(prev_attr))
+            
 
         # =============================================================================
         # generate canvas
@@ -212,7 +216,7 @@ class _ImageViewer:
         self._canvas_renew()
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
             self._canvas_draw(tool="line", coord_list=self.coord_list)
-        if self.tool in ["landmark"]:
+        if self.tool in ["point"]:
             self._canvas_draw(tool="point", coord_list=self.points)
         if self.tool in ["draw"]:
             self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
@@ -256,7 +260,7 @@ class _ImageViewer:
                     ## Enter = close window and redo
                     if self.keypress == 13:
                         ## close unfinished polygon and append to polygon list
-                        if len(self.points) > 2:
+                        if len(self.points) > 2 and not self.tool in ["point"]:
                             self.points.append(self.points[0])
                             self.coord_list.append(self.points)
                         self.done = True
@@ -331,20 +335,21 @@ class _ImageViewer:
             cv2.imshow(self.window_name, self.canvas)
 
         if self.tool:
-            if self.tool == "landmark" or self.tool == "landmarks":
+            if self.tool == "draw":
+                self._on_mouse_draw(event, x, y, flags)
+            elif self.tool == "point":
                 self._on_mouse_point(event, x, y)
-            elif self.tool == "rectangle" or self.tool == "rect":
-                self._on_mouse_rectangle(event, x, y, flags)
-            elif self.tool == "polygon" or self.tool == "poly":
+            elif self.tool == "polygon":
                 self._on_mouse_polygon(event, x, y, flags)
             elif self.tool == "polyline" or self.tool == "polylines":
                 self._on_mouse_polygon(event, x, y, flags, polyline=True)
+            elif self.tool == "rectangle":
+                self._on_mouse_rectangle(event, x, y, flags)
             elif self.tool == "reference":
                 self._on_mouse_polygon(event, x, y, flags, reference=True)
             elif self.tool == "template":
                 self._on_mouse_rectangle(event, x, y, flags, template=True)
-            elif self.tool == "draw":
-                self._on_mouse_draw(event, x, y, flags)
+
                 
                 
     def _on_mouse_point(self, event, x, y):
@@ -1279,6 +1284,18 @@ def _load_image_data(obj_input, path_and_type=True, resize=1):
 
 
 
+def _drop_dict_entries(dictionary, drop=[]):
+    
+    new_dictionary = {}
+    
+    for key, value in dictionary.items():
+        if not key in drop:
+            new_dictionary[key] = value
+            
+    return new_dictionary
+
+
+
 def _resize_image(image, factor=1, interpolation="cubic"):
     """
     Resize image by resize factor 
@@ -1372,10 +1389,12 @@ def _save_yaml(dictionary, filepath, typ="rt"):
 
 
 
-def _update_settings(kwargs, local_settings, IV_settings):
+def _update_settings(kwargs, local_settings, IV_settings=None):
+    
     for key, value in kwargs.items():
         if key in settings._image_viewer_arg_list:
-            IV_settings[key] = value
+            if IV_settings:
+                IV_settings[key] = value
             local_settings[key] = value
 
 

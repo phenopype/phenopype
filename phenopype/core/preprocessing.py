@@ -3,6 +3,7 @@
 import cv2, copy
 import numpy as np
 import pandas as pd
+from dataclasses import make_dataclass
 
 from math import sqrt as _sqrt
 import numpy.ma as ma
@@ -16,6 +17,7 @@ from phenopype.utils_lowlevel import (
     _resize_image, 
     _ImageViewer, 
     _load_previous_annotation,
+    _drop_dict_entries,
     _update_settings,
     )
 import phenopype.core.segmentation as segmentation
@@ -52,13 +54,18 @@ def blur(
     image : array 
 
     """
-    ## checks
+    
+	# =============================================================================
+	# setup 
+    
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
         if flag_verbose:
-            print("even kernel size supplied, adding 1 to make odd")
+            print("- even kernel size supplied, adding 1 to make odd")
             
-    ## method
+	# =============================================================================
+	# execute
+    
     if method == "averaging":
         blurred = cv2.blur(image, (kernel_size, kernel_size))
     elif method == "gaussian":
@@ -68,7 +75,9 @@ def blur(
     elif method == "bilateral":
         blurred = cv2.bilateralFilter(image, kernel_size, sigma_color, sigma_space)
 
-    ## return
+	# =============================================================================
+	# return
+    
     return blurred
 
 
@@ -99,26 +108,34 @@ def create_mask(
 
     """
     
-    ## kwargs
-    annotation_previous = kwargs.get("annotation_previous")
-                
-    ## retrieve settings for image viewer and for export
-    IV_settings, local_settings  = {}, {}
+    # =============================================================================
+    # setup
     
-    ## extract image viewer settings and data from previous annotations       
+    annotation_previous = kwargs.get("annotation_previous")
+    
+    # =============================================================================
+    # retain settings
+
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(locals(),
+        drop=["image","kwargs","annotation_previous"])
+
+    ## retrieve update IV settings and data from previous annotations  
+    IV_settings = {}     
     if annotation_previous:       
         IV_settings["ImageViewer_previous"] =_load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
                 ("data","coord_list"),
-                ]
-            )            
+                ])            
         
-    ## update image viewer and local settings from kwargs
+    ## update local and IV settings from kwargs
     if kwargs:
         _update_settings(kwargs, local_settings, IV_settings)
 
-    ## execute function
+	# =============================================================================
+	# execute
+    
     out = _ImageViewer(image=image, 
                         tool=tool, 
                         **IV_settings)
@@ -130,8 +147,10 @@ def create_mask(
     if not out.coord_list:
         print("- zero coordinates: redo mask")
         return 
+        
+	# =============================================================================
+	# assemble results
     
-    ## assemble annotation dictionary
     annotation = {
         "info": {
             "annotation_type": "mask",
@@ -145,20 +164,25 @@ def create_mask(
         }
     }
     
+	# =============================================================================
+	# return
+    
     return annotation
 
     
-def detect_mask(
+def detect_shape(
     image,
     include=True,
     shape="circle",
     resize=1,
-    dp=1,
-    min_dist=50,
-    param1=200,
-    param2=100,
-    min_radius=0,
-    max_radius=0,
+    circle_args={
+        "dp":1,
+        "min_dist":50,
+        "param1":200,
+        "param2":100,
+        "min_radius":0,
+        "max_radius":0
+        },
     verbose=True,
     **kwargs
 ):
@@ -202,26 +226,38 @@ def detect_mask(
 
     
 
-    ## checks
+    # =============================================================================
+    # setup
+    
     if len(image.shape) == 3:
         image = select_channel(image)
     image_resized = _resize_image(image, resize)
-            
-    ## settings
-    settings = locals()
-    for rm in ["image","resized"]:
-        settings.pop(rm, None)
+    
+    
+    # =============================================================================
+    # retain settings
+
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(
+        locals(), drop=["image","kwargs", "image_resized"])
         
-    ## method
+    ## update settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings)
+        
+        
+    # =============================================================================
+    # execute 
+    
     if shape=="circle":
         circles = cv2.HoughCircles(image_resized, 
                                    cv2.HOUGH_GRADIENT, 
-                                   dp=max(int(dp*resize),1), 
-                                   minDist=int(min_dist*resize),
-                                   param1=int(param1*resize), 
-                                   param2=int(param2*resize),
-                                   minRadius=int(min_radius*resize), 
-                                   maxRadius=int(max_radius*resize))
+                                   dp=max(int(circle_args["dp"]*resize),1), 
+                                   minDist=int(circle_args["min_dist"]*resize),
+                                   param1=int(circle_args["param1"]*resize), 
+                                   param2=int(circle_args["param2"]*resize),
+                                   minRadius=int(circle_args["min_radius"]*resize), 
+                                   maxRadius=int(circle_args["max_radius"]*resize))
     
         ## output conversion
         if circles is not None:
@@ -238,8 +274,8 @@ def detect_mask(
                     )
                 coords.append(
                     np.append(
-                        mask_contours["data"]["coords"][0],
-                        [mask_contours["data"]["coords"][0][0]],
+                        mask_contours["data"]["coord_list"][0],
+                        [mask_contours["data"]["coord_list"][0][0]],
                         axis=0
                         )
                     )
@@ -250,19 +286,26 @@ def detect_mask(
                 print("No circles detected")
             return None
         
-    ## return results
+        
+	# =============================================================================
+	# assemble results
+    
     annotation = {
         "info": {
             "annotation_type": "mask",
             "pp_function": "mask_detect",
         },
-        "settings": settings,
+        "settings": local_settings,
         "data": {
             "include": include,
             "n_masks": len(coords),
             "coord_list": coords,
         }
     }
+    
+	# =============================================================================
+	# return
+    
     return annotation
         
     
@@ -310,10 +353,20 @@ def create_reference(
 
     """
 
-    ## kwargs    
-    flags = AttrDict({"mask":mask})
 
-    ## measure
+
+    # =============================================================================
+    # setup 
+    
+    flags = AttrDict({"mask":mask})
+    
+    # =============================================================================
+    # retain settings
+
+    
+    # =============================================================================
+    # exectue
+
     out = _ImageViewer(image, tool="reference")
     
     ## enter length
@@ -327,6 +380,9 @@ def create_reference(
     entry = out.entry
     distance_mm = float(entry)
     px_mm_ratio = float(distance_px / distance_mm)
+    
+	# =============================================================================
+	# assemble results
 
     annotation_ref = {
         "info": {
@@ -419,6 +475,11 @@ def detect_reference(
 
     ## kwargs
     flags = AttrDict({"mask":mask, "equalize": equalize}) 
+    
+    
+    # =============================================================================
+    # retain settings
+
 
     ## if image diameter bigger than 5000 px, then automatically resize
     if (image.shape[0] + image.shape[1]) / 2 > 5000 and resize == 1:
@@ -432,7 +493,9 @@ def detect_reference(
         resize_factor = resize
     image = cv2.resize(image, (0, 0), fx=1 * resize_factor, fy=1 * resize_factor)
 
-    ## method
+    # =============================================================================
+    # exectue function
+    
     akaze = cv2.AKAZE_create()
     kp1, des1 = akaze.detectAndCompute(image_template, None)
     kp2, des2 = akaze.detectAndCompute(image, None)
@@ -566,33 +629,41 @@ def enter_data(
 
     """
 
-    ## kwargs
+	# =============================================================================
+	# setup 
+    
     annotation_previous = kwargs.get("annotation_previous")
     
-    ## retrieve settings for image viewer and for export
-    IV_settings, local_settings  = {}, {}
-    
-    ## extract image viewer settings and data from previous annotations       
+    # =============================================================================
+    # retain settings
+
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(locals(),
+        drop=["image","kwargs","annotation_previous"])
+
+    ## retrieve update IV settings and data from previous annotations  
+    IV_settings = {}     
     if annotation_previous:       
         IV_settings["ImageViewer_previous"] =_load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
                 ("data","field"),
                 ("data","entry")
-                ])
+                ])            
+        
 
-    ## update image viewer and local settings from kwargs
-    if kwargs:
-        _update_settings(kwargs, local_settings, IV_settings)
-
-
-    ## execute function
+	# =============================================================================
+	# execute
+    
     out = _ImageViewer(image, 
                        tool="comment", 
                        field=field, 
                         **IV_settings)
+    
 
-    ## assemble annotation dictionary
+	# =============================================================================
+	# assemble results
+
     annotation = {
         "info": {
             "annotation_type": "comment",
@@ -605,6 +676,10 @@ def enter_data(
         }
     }
     
+    
+	# =============================================================================
+	# return
+
     return annotation
 
 
@@ -624,12 +699,16 @@ def select_channel(image,
         select specific image channel
     invert: false, bool
         invert all pixel intensities in image (e.g. 0 to 255 or 100 to 155)
+        
     Returns
     -------
     image : TYPE
         DESCRIPTION.
 
     """
+    
+	# =============================================================================
+	# execute
     
     if channel in ["grayscale","gray"]:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -647,6 +726,10 @@ def select_channel(image,
     if invert==True:
         image = cv2.bitwise_not(image)
         print("- inverted image")
+        
+        
+	# =============================================================================
+	# return
         
     return image
 

@@ -3,6 +3,7 @@ import copy
 import json
 import os
 from collections import defaultdict
+from dataclasses import make_dataclass
 
 import cv2
 import numpy as np
@@ -88,7 +89,6 @@ def load_annotation(filepath,
                             value = [np.asarray(elem, dtype=np.int32) for elem in value] 
                         if annotation_type1 == "landmark":
                             value = [tuple(elem) for elem in value] 
-
                     annotation_file[annotation_type1][annotation_id1][section][key] = value
              
     ## subsetting
