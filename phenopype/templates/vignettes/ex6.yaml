@@ -1,7 +1,7 @@
 - preprocessing:
     - create_mask
     - create_reference
-    - enter_data
+    - comment
     - blur:
         kernel_size: 3
 - segmentation:

@@ -2,7 +2,7 @@
     - create_mask:
         tool: polygon
     - detect_reference
-    - enter_data:
+    - comment:
         columns: ID
     - blur:
         kernel_size: 5

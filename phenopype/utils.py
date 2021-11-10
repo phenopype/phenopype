@@ -15,7 +15,7 @@ import phenopype.core.measurement as measurement
 import phenopype.core.visualization as visualization
 import phenopype.core.export as export
 
-from phenopype.settings import default_filetypes, flag_verbose, confirm_options, _annotation_function_dicts
+from phenopype.settings import default_filetypes, flag_verbose, confirm_options, _annotation_types
 from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr,  _load_image_data, _load_yaml, _show_yaml
     
 from collections import defaultdict
@@ -59,7 +59,7 @@ class Container(object):
         self.save_suffix = save_suffix
         
         ## annotations
-        self.annotations = copy.deepcopy(_annotation_function_dicts)
+        self.annotations = copy.deepcopy(_annotation_types)
                 
         
     def load(self, contours=False,  **kwargs):
@@ -174,7 +174,7 @@ class Container(object):
                     kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
                     print("- annotation of type \"{}\" with ID \"{}\" already present (overwrite=False)".format(annotation_type, annotation_id))
                     if annotation_type == "drawing":
-                        kwargs.update({"passive":True})
+                        kwargs.update({"passive":True})                                             
                         self.image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
                     return
                 elif edit == "overwrite":
@@ -188,8 +188,8 @@ class Container(object):
             annotation = preprocessing.create_mask(self.image, **kwargs)
         if fun == "detect_shape":
             annotation = preprocessing.detect_shape(self.image, **kwargs)
-        if fun == "enter_data":
-            annotation = preprocessing.enter_data(self.image, **kwargs)
+        if fun == "comment":
+            annotation = preprocessing.comment(self.image, **kwargs)
         if fun == "detect_reference":
             if not any(hasattr(self, reference) for reference in [
                     "reference_detected_px_mm_ratio"
@@ -212,13 +212,21 @@ class Container(object):
                     print("- missing project level reference information, cannot detect")
             else:
                 print("- reference already detected (current px-to-mm-ratio: {}).".format(self.reference_detected_px_mm_ratio)) 
-        if fun == "select_channel":
-            self.image = preprocessing.select_channel(self.image, **kwargs)
+        if fun == "decompose_image":
+            self.image = preprocessing.decompose_image(self.image, **kwargs)
             
         ## measurement
         if fun == "set_landmark":
             annotation = measurement.set_landmark(self.canvas, **kwargs)
-
+        if fun == "set_polyline":
+            annotation = measurement.set_polyline(self.canvas, **kwargs)
+        if fun == "skeletonize":
+            annotation = measurement.skeletonize(self.image, annotation=self.annotations, **kwargs)
+        if fun == "shape_features":
+            annotation = measurement.shape_features(annotation=self.annotations, **kwargs)
+        if fun == "texture_features":
+            annotation = measurement.texture_features(self.image_copy, annotation=self.annotations, **kwargs)
+            
         ## segmentation
         if fun == "threshold":
             if "mask" in self.annotations and len(self.annotations["mask"]) > 0:
@@ -569,7 +577,7 @@ def save_image(
 
 def show_image(
     image,
-    max_dim=1200,
+    window_max_dim=1200,
     position_reset=True,
     position_offset=25,
     window_aspect="normal",
@@ -585,7 +593,7 @@ def show_image(
     image: array, list of arrays
         the image or list of images to be displayed. can be array-type, 
         or list or arrays
-    max_dim: int, optional
+    window_max_dim: int, optional
         maximum dimension on either acis
     window_aspect: {"fixed", "free"} str, optional
         type of opencv window ("free" is resizeable)
@@ -602,7 +610,6 @@ def show_image(
     """
     ## kwargs
     flag_check = check
-    test_params = kwargs.get("test_params", {})
 
     ## load image
     if image.__class__.__name__ == "ndarray":
@@ -644,8 +651,7 @@ def show_image(
                         window_aspect=window_aspect,
                         window_name="phenopype" + " - " + str(idx),
                         window_control="external",
-                        max_dim=max_dim,
-                        previous=test_params,
+                        window_max_dim=window_max_dim,
                     )
                     if position_reset == True:
                         cv2.moveWindow(
@@ -665,8 +671,8 @@ def show_image(
                 window_aspect=window_aspect,
                 window_name="phenopype",
                 window_control="internal",
-                # max_dim=max_dim,
-                # previous=test_params,
+                window_max_dim=window_max_dim,
+                # window_max_dim=window_max_dim,
             )
             cv2.waitKey(0)
             cv2.destroyAllWindows()

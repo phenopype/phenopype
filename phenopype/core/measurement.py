@@ -5,6 +5,7 @@ import numpy as np
 import numpy.ma as ma
 import pandas as pd
 from dataclasses import make_dataclass
+import string 
 
 import logging
 from radiomics import featureextractor
@@ -21,14 +22,18 @@ from phenopype.utils_lowlevel import (
     _auto_text_size,
     _drop_dict_entries,
     _load_previous_annotation,
-    _update_settings
+    _update_settings,
 )
 from phenopype.settings import (
     colours, 
     flag_verbose, 
     _image_viewer_arg_list, 
-    _annotation_function_dicts,
+    _annotation_types,
+    opencv_skeletonize_flags,
     )
+
+from phenopype.core.preprocessing import decompose_image
+
 
 #%% methods
 
@@ -93,6 +98,7 @@ def set_landmark(
     if kwargs:
         _update_settings(kwargs, local_settings, IV_settings)
         
+        
 	# =============================================================================
 	# further prep
 
@@ -110,7 +116,7 @@ def set_landmark(
 
     out = _ImageViewer(image=image, 
                        tool="point", 
-                       flag_text_label = label,
+                       flag_text_label=label,
                        point_size=point_size,
                        point_colour=point_colour,
                        label_size=label_size,
@@ -151,11 +157,9 @@ def set_landmark(
 
 
 def set_polyline(
-    obj_input,
-    df_image_data=None,
-    overwrite=False,
+    image,
     line_width="auto",
-    line_colour="blue",
+    line_colour="green",
     **kwargs
 ):
     """
@@ -180,93 +184,85 @@ def set_polyline(
         contains the drawn polylines
 
     """
+	# =============================================================================
+	# setup 
+    
     ## kwargs
-    flag_overwrite = overwrite
+    annotation_previous = kwargs.get("annotation_previous", None)
+    
 
-    ## load image
-    df_polylines = None
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image_copy)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_polylines"):
-            df_polylines = obj_input.df_polylines
-    else:
-        print("wrong input format.")
-        return
+    # =============================================================================
+    # retain settings
 
-    ## more kwargs
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(locals(),
+        drop=["image","kwargs","annotation_previous"])
+
+    ## retrieve update IV settings and data from previous annotations  
+    IV_settings = {}     
+    if annotation_previous:       
+        IV_settings["ImageViewer_previous"] =_load_previous_annotation(
+            annotation_previous = annotation_previous, 
+            components = [
+                ("data","points"),
+                ])            
+        
+    ## update local and IV settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings, IV_settings)
+
+
+	# =============================================================================
+	# further prep
+    
     if line_width == "auto":
         line_width = _auto_line_width(image)
-    test_params = kwargs.get("test_params", {})
 
-    while True:
-        ## check if exists
-        if not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == False:
-            df_polylines = df_polylines[
-                df_polylines.columns.intersection(["polyline", "length", "x", "y"])
-            ]
-            print("- polylines already drawn (overwrite=False)")
-            break
-        elif not df_polylines.__class__.__name__ == "NoneType" and flag_overwrite == True:
-            print("- draw polylines (overwriting)")
-            pass
-        elif df_polylines.__class__.__name__ == "NoneType":
-            print("- draw polylines")
-            pass
 
-        ## method
-        out = _ImageViewer(
-            image,
-            tool="polyline",
-            line_width=line_width,
-            line_colour=line_colour,
-            previous=test_params,
-        )
-        coords = out.point_list
+    ## method
+    out = _ImageViewer(image=image,
+                       tool="polyline",
+                       line_width=line_width,
+                       line_colour=line_colour,
+                       **IV_settings)
+    
+    ## checks
+    if not out.done:
+        print("- didn't finish: redo landmarks")
+        return 
+    elif len(out.coord_list) == 0:
+        print("- zero coordinates: redo landmarks")
+        return 
+    else:
+        coord_list = out.coord_list
+        
 
-        ## abort
-        if not out.done:
-            if obj_input.__class__.__name__ == "ndarray":
-                print("terminated polyline creation")
-                return
-            elif obj_input.__class__.__name__ == "container":
-                print("- terminated polyline creation")
-                return True
+	# =============================================================================
+	# assemble results
+    
+    annotation = {
+        "info": {
+            "type": "landmark", 
+            "function": "set_landmark",
+            },
+        "settings": local_settings,
+        "data":{
+            "coord_list": coord_list,
+            }
+        }
+    
+	# =============================================================================
+	# return
+    
+    return annotation
 
-        ## create df
-        df_polylines = pd.DataFrame(columns=["polyline", "length", "x", "y"])
-        idx = 0
-        for point_list in coords:
-            idx += 1
-            arc_length = int(cv2.arcLength(np.array(point_list), closed=False))
-            df_sub = pd.DataFrame(point_list, columns=["x", "y"])
-            df_sub["polyline"] = idx
-            df_sub["length"] = arc_length
-            df_polylines = df_polylines.append(df_sub, ignore_index=True, sort=False)
-        break
-
-    ## merge with existing image_data frame
-    df_polylines = pd.concat(
-        [
-            pd.concat([df_image_data] * len(df_polylines)).reset_index(drop=True),
-            df_polylines.reset_index(drop=True),
-        ],
-        axis=1,
-    )
-
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_polylines
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_polylines = df_polylines
 
 
 def skeletonize(
-    obj_input, df_image_data=None, df_contours=None, thinning="zhangsuen", padding=10
+    image, 
+    annotation, 
+    thinning="zhangsuen", 
+    **kwargs,
 ):
     """
     Applies a binary blob thinning operation, to achieve a skeletization of 
@@ -292,36 +288,57 @@ def skeletonize(
         thinned binary image
     """
 
-    ## kwargs
-    skeleton_alg = {
-        "zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
-        "guohall": cv2.ximgproc.THINNING_GUOHALL,
-    }
+    # =============================================================================
+    # retain settings
+    
+    padding = kwargs.get("padding", 1)
 
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-        if df_contours.__class__.__name__ == "NoneType":
-            print("no df supplied - cannot measure colour intensity")
-            return
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image_copy)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_contours"):
-            df_contours = obj_input.df_contours
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(
+        locals(), drop=["image", "kwargs", "annotation"])
+        
+    ## update settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings)
+        
+
+	# =============================================================================
+	# setup 
+       
+    ## check annotation dict input and convert to type/id/ann structure
+    if list(annotation.keys())[0] == "info":
+        if annotation["info"]["annotation_type"] == "contour":
+            contours = annotation["data"]["coord_list"]
+            contours_support = annotation["data"]["support"]
     else:
-        print("wrong input format.")
-        return
+        if not kwargs.get("contour_id"):
+            if kwargs.get("annotation_counter"):
+                annotation_counter = kwargs.get("annotation_counter")
+                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
+                print("- contour_id not specified - drawing recent most one (\"{}\")".format(contour_id))
+            else:
+                print("- contour_id not specified - can't drawing")
+                return
+        else:
+           contour_id = kwargs.get("contour_id")
+        
+        ## subtract self-count
+        contour_id =  chr(ord(contour_id) - 1)
 
-    ## create forgeround mask
-    df_contours = df_contours.assign(
-        **{"skeleton_perimeter": "NA", "skeleton_coords": "NA"}
-    )
-
-    for index, row in df_contours.iterrows():
-        coords = copy.deepcopy(row["coords"])
+        if list(annotation.keys())[0] in _annotation_types.keys():
+            contours = annotation["contour"][contour_id]["data"]["coord_list"]
+            contours_support = annotation["contour"][contour_id]["data"]["support"]
+        elif list(annotation.keys())[0] in string.ascii_lowercase:
+            contours = annotation[contour_id]["data"]["coord_list"]
+            contours_support = annotation[contour_id]["data"]["support"]
+       
+        
+	# =============================================================================
+	# execute
+    
+    coord_list = []
+    
+    for coords in contours:
         rx, ry, rw, rh = cv2.boundingRect(coords)
         image_sub = image[
             (ry - padding) : (ry + rh + padding), (rx - padding) : (rx + rw + padding)
@@ -330,37 +347,49 @@ def skeletonize(
         mask = np.zeros(image_sub.shape[0:2], np.uint8)
         mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx + padding, -ry + padding))
 
-        skeleton = cv2.ximgproc.thinning(mask, thinningType=skeleton_alg[thinning])
+        skeleton = cv2.ximgproc.thinning(mask, thinningType=opencv_skeletonize_flags[thinning])
         skel_ret, skel_contour, skel_hierarchy = cv2.findContours(
             skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        perimeter = int(cv2.arcLength(skel_contour[0], closed=False) / 2)
-
         skel_contour = skel_contour[0]
         skel_contour[:, :, 0] = skel_contour[:, :, 0] + rx - padding
         skel_contour[:, :, 1] = skel_contour[:, :, 1] + ry - padding
+                
+        coord_list.append(skel_contour)
+               
+        
+	# =============================================================================
+	# assemble results
+    
+    annotation = {
+        "info": {
+            "type": "contour", 
+            "function": "skeletonize",
+            },
+        "settings": local_settings,
+        "data":{
+            "coord_list": coord_list,
+            }
+        }
+    
+    
+	# =============================================================================
+	# return
+    
+    return annotation
+    
 
-        df_contours.at[index, ["skeleton_perimeter", "skeleton_coords"]] = (
-            perimeter,
-            skel_contour,
-        )
 
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_contours
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_contours = df_contours
+
 
 
 def shape_features(
-    obj_input,
-    df_contours=None,
-    resize=True,
-    resize_to=100,
-    return_basic=True,
-    return_moments=False, 
-    return_hu_moments=True,
-
+    annotation,
+    basic=True,
+    moments=False, 
+    hu_moments=False,
+    **kwargs
 ):
     """
     Collects a set of 41 shape descriptors from every contour. There are three sets of 
@@ -421,133 +450,138 @@ def shape_features(
         contains contours, and added features
 
     """
+    
+    # =============================================================================
+    # retain settings
+    
+    # kwargs
+    flags = make_dataclass(cls_name="flags", 
+                           fields=[("basic", bool, basic),
+                                   ("moments", bool, moments), 
+                                   ("hu_moments", bool, hu_moments)])
 
-    ## load df
-    if obj_input.__class__.__name__ == "DataFrame":
-        df_contours = obj_input
-    elif obj_input.__class__.__name__ == "container":
-        if hasattr(obj_input, "df_contours"):
-            df_contours = obj_input.df_contours
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(
+        locals(), drop=["kwargs", "annotation", "flags"])
+        
+    ## update settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings)
+        
+
+	# =============================================================================
+	# setup 
+       
+    ## check annotation dict input and convert to type/id/ann structure
+    if list(annotation.keys())[0] == "info":
+        if annotation["info"]["annotation_type"] == "contour":
+            contours = annotation["data"]["coord_list"]
+            contours_support = annotation["data"]["support"]
     else:
-        print("wrong input format.")
-        return
+        if not kwargs.get("contour_id"):
+            if kwargs.get("annotation_counter"):
+                annotation_counter = kwargs.get("annotation_counter")
+                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
+                print("- contour_id not specified - drawing recent most one (\"{}\")".format(contour_id))
+            else:
+                print("- contour_id not specified - can't drawing")
+                return
+        else:
+           contour_id = kwargs.get("contour_id")
+
+        if list(annotation.keys())[0] in _annotation_types.keys():
+            contours = annotation["contour"][contour_id]["data"]["coord_list"]
+            contours_support = annotation["contour"][contour_id]["data"]["support"]
+        elif list(annotation.keys())[0] in string.ascii_lowercase:
+            contours = annotation[contour_id]["data"]["coord_list"]
+            contours_support = annotation[contour_id]["data"]["support"]
     
-    if df_contours.__class__.__name__ == "NoneType":
-        print("no df supplied - cannot measure shape features")
-        return
+
+	# =============================================================================
+	# execute
     
-    ## make dataframe backbone
-    df_shapes = copy.deepcopy(df_contours.drop(columns=["coords"]))
-
-    ## custom shape descriptors
-    desc_basic_shape = ['circularity',
-                         'compactness',
-                         'min_rect_max',
-                         'min_rect_min',
-                         'perimeter_length',
-                         'rect_height',
-                         'rect_width',
-                         'roundness',
-                         'solidity',
-                         'tri_area']
-    for name in desc_basic_shape:
-        df_shapes = df_shapes.assign(**{name: "NA"})
-
-    ## moments 
-    desc_moments = ['m00', 'm10', 'm01', 'm20', 'm11', 'm02', 'm30', 'm21', 
-                'm12', 'm03', 'mu20', 'mu11', 'mu02', 'mu30', 'mu21', 'mu12',
-                'mu03', 'nu20', 'nu11', 'nu02', 'nu30', 'nu21', 'nu12', 'nu03']
-    for name in desc_moments:
-        df_shapes = df_shapes.assign(**{name: "NA"})
-
-    ## hu moments
-    desc_hu = ['hu1','hu2','hu3','hu4','hu5','hu6','hu7']
-    for name in desc_hu:
-        df_shapes = df_shapes.assign(**{name: "NA"})
-
-
+    shape_features = {}
+    
     ## calculate shape descriptors from contours
-    for index, row in df_contours.iterrows():
+    for idx1, (coords, support) in enumerate(zip(contours, contours_support)):      
         
-        ## contour coords
-        coords = row["coords"]
+        idx1 += 1
+        shape_features[idx1] = {}
         
-        if resize==True and "current_px_mm_ratio" in row:
-            factor = resize_to / row["current_px_mm_ratio"]        
-            coords_norm = coords - row["center"]
-            coords_scaled = coords_norm * factor
-            coords = coords_scaled + row["center"]
-            coords = coords.astype(np.int32)
-            
-            ## correct in df
-            df_shapes.loc[index, "diameter"] = int(row["diameter"] * factor)
-            df_shapes.loc[index, "area"]  = int(cv2.contourArea(coords))
-            
-        ## retrieve area and diameter
-        cnt_diameter = df_contours.loc[index]["diameter"]
-        cnt_area = df_contours.loc[index]["area"]
+        if flags.basic:
 
-        ## custom shape descriptors
-        convex_hull = cv2.convexHull(coords)
-        tri_area, tri_coords = cv2.minEnclosingTriangle(coords)
-        min_rect_center, min_rect_min_max, min_rect_angle = cv2.minAreaRect(coords)
-        min_rect_min, min_rect_max = min_rect_min_max[0], min_rect_min_max[1]
-        rect_x, rect_y, rect_width, rect_height = cv2.boundingRect(coords)
-        perimeter_length = cv2.arcLength(coords, closed=True)
-        circularity = 4 * np.pi * cnt_area / math.pow(perimeter_length, 2)
-        roundness = (4 * cnt_area) / (np.pi * math.pow(cnt_diameter, 2))
-        solidity = cnt_area / cv2.contourArea(convex_hull)
-        compactness = math.sqrt(4 * cnt_area / np.pi) / cnt_diameter
+            ## retrieve area and diameter
+            cnt_diameter = support["diameter"]
+            cnt_area = support["area"]
+    
+    
         
-        df_shapes.at[index, desc_basic_shape] = (
-            circularity,
-            compactness,
-            min_rect_max,
-            min_rect_min,
-            perimeter_length,
-            rect_height,
-            rect_width,
-            roundness,
-            solidity,
-            tri_area
-        )    
-                     
+            ## basic shape descriptors
+            tri_area, tri_coords = cv2.minEnclosingTriangle(coords)
+            min_rect_center, min_rect_min_max, min_rect_angle = cv2.minAreaRect(coords)
+            min_rect_max, min_rect_min = min_rect_min_max[0], min_rect_min_max[1]
+            rect_x, rect_y, rect_width, rect_height = cv2.boundingRect(coords)
+            perimeter_length = cv2.arcLength(coords, closed=True)
+            circularity = 4 * np.pi * cnt_area / math.pow(perimeter_length, 2)
+            roundness = (4 * cnt_area) / (np.pi * math.pow(cnt_diameter, 2))
+            solidity = cnt_area / cv2.contourArea(cv2.convexHull(coords))
+            compactness = math.sqrt(4 * cnt_area / np.pi) / cnt_diameter
+            
+            basic = {
+                'circularity': circularity, 
+                'compactness': compactness,
+                'min_rect_max': min_rect_max,
+                'min_rect_min': min_rect_min,
+                'perimeter_length': perimeter_length,
+                'rect_height': rect_height,
+                'rect_width': rect_width,
+                'roundness': roundness,
+                'solidity':solidity,
+                'tri_area': tri_area,
+                }
+            
+            shape_features[idx1]["basic"] = basic
+                                 
         ## moments
-        moments = cv2.moments(coords)
-        df_shapes.at[index, desc_moments] = list(moments.values())
-                     
-        ## hu moments
-        hu_moments = cv2.HuMoments(moments)
-        hu_moments_list = []
-        for i in hu_moments:
-            hu_moments_list.append(i[0])
-        df_shapes.at[index, desc_hu] = hu_moments_list
-        
-        
-    ## drop unwanted columns
-    if return_basic == False:
-        df_shapes.drop(desc_basic_shape, axis=1, inplace=True)
-    if return_moments == False:
-        df_shapes.drop(desc_moments, axis=1, inplace=True)
-    if return_hu_moments == False:
-        df_shapes.drop(desc_hu, axis=1, inplace=True)
-        
-    ## return
-    if obj_input.__class__.__name__ == "DataFrame":
-        return df_shapes
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_shapes = df_shapes
+        if flags.moments:
+            moments = cv2.moments(coords)
+            shape_features[idx1]["moments"] = moments
 
+        ## hu moments
+        if flags.hu_moments:
+            hu_moments = {}
+            for idx2, mom in enumerate(cv2.HuMoments(moments)):
+                hu_moments["hu" + str(idx2 + 1)] = mom[0]
+            shape_features[idx1]["hu_moments"] = hu_moments
+
+                
+	# =============================================================================
+	# return
+        
+    annotation = {
+        "info": {
+            "type": "data", 
+            "function": "shape_features",
+            },
+        "settings": local_settings,
+        "data":{
+            "shape_features": shape_features,
+            }
+        }
+    
+
+    return annotation
 
 
 def texture_features(
-    obj_input,
-    df_image_data=None,
-    df_contours=None,
-    channels="gray",
+    image,
+    annotation,
+    channels=["gray"],
     background=False,
     background_ext=20,
     min_diameter=5,
+    features = ["firstorder"],
+    **kwargs
 ):
     """
     Collects 120 texture features using the pyradiomics feature extractor
@@ -583,6 +617,8 @@ def texture_features(
         value in pixels by which the bounding box should be extended
     min_diameter: int, optional
         minimum diameter of the contour
+    features: list, optional
+        firstorder, shape, glcm, gldm, glrlm, glszm, ngtdm]
 
     Returns
     -------
@@ -590,99 +626,119 @@ def texture_features(
         contains the pixel intensities 
 
     """
-    ## kwargs
-    if channels.__class__.__name__ == "str":
-        channels = [channels]
-    if background == True:
-        flag_background = background
-        q = background_ext
-    else:
-        flag_background = False
-
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_image_data.__class__.__name__ == "NoneType":
-            df_image_data = pd.DataFrame({"filename": "unknown"}, index=[0])
-        if df_contours.__class__.__name__ == "NoneType":
-            print("no df supplied - cannot measure colour intensity")
-            return
-    elif obj_input.__class__.__name__ == "container":
-        image = copy.deepcopy(obj_input.image_copy)
-        df_image_data = obj_input.df_image_data
-        if hasattr(obj_input, "df_contours"):
-            df_contours = obj_input.df_contours
-    else:
-        print("wrong input format.")
-        return
     
-    ## deactivate warnigns from pyradiomics feature extractor
+    # =============================================================================
+    # retain settings
+    
+    ## retrieve settings from args
+    local_settings  = _drop_dict_entries(
+        locals(), drop=["image","kwargs", "annotation"])
+        
+    ## update settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings)
+        
+    if not isinstance(channels, list):
+        channels = [channels]
+
+    feature_activation = {}
+    for feature in features:
+        feature_activation[feature] = []
+        
+        
+
+	# =============================================================================
+	# setup 
+       
+    ## check annotation dict input and convert to type/id/ann structure
+    if list(annotation.keys())[0] == "info":
+        if annotation["info"]["annotation_type"] == "contour":
+            contours = annotation["data"]["coord_list"]
+            contours_support = annotation["data"]["support"]
+    else:
+        if not kwargs.get("contour_id"):
+            if kwargs.get("annotation_counter"):
+                annotation_counter = kwargs.get("annotation_counter")
+                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
+                print("- contour_id not specified - drawing recent most one (\"{}\")".format(contour_id))
+            else:
+                print("- contour_id not specified - can't drawing")
+                return
+        else:
+           contour_id = kwargs.get("contour_id")
+
+        if list(annotation.keys())[0] in _annotation_types.keys():
+            contours = annotation["contour"][contour_id]["data"]["coord_list"]
+            contours_support = annotation["contour"][contour_id]["data"]["support"]
+        elif list(annotation.keys())[0] in string.ascii_lowercase:
+            contours = annotation[contour_id]["data"]["coord_list"]
+            contours_support = annotation[contour_id]["data"]["support"]
+    
+    
+	# =============================================================================
+	# execute
+
     logger = logging.getLogger("radiomics")
     logger.setLevel(logging.ERROR)
 
-    ## make dataframe backbone
-    df_textures_meta = df_contours.drop(columns=["coords"])
-
     ## create forgeround mask
     foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)
-    for index, row in df_contours.iterrows():
+    for coords in contours:
         foreground_mask_inverted = cv2.fillPoly(
-            foreground_mask_inverted, [row["coords"]], 255
+            foreground_mask_inverted, [coords], 255
         )
 
     ## method
-    df_df_list = []
+    
+    texture_features = {}
+    
     for channel in channels:
-        df_textures_list = []
 
-        if channel in ["grey","gray", "grayscale"]:
-            channel = "gray"
-            if len(image.shape)==3:
-                image_data = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            else:
-                image_data = copy.deepcopy(image)
-        elif channel in ["r","red"]:
-            channel = "red"
-            image_data = image[:,:,0]
-        elif channel in ["g","green"]:
-            channel = "green"
-            image_data = image[:,:,1]
-        elif channel in ["b","blue"]:
-            channel = "blue"
-            image_data = image[:,:,2]
-        for index, row in _tqdm(df_contours.iterrows(), 
-                               desc="Processing " + channel + " texture features", 
-                               total=df_contours.shape[0]):
-            if row["diameter"] > min_diameter:
-                rx, ry, rw, rh = cv2.boundingRect(row["coords"])
+        image_slice = decompose_image(image, channel)
+        texture_features[channel] = {}
 
-                data=image_data[ry : ry + rh, rx : rx + rw]
+        for idx1, (coords, support) in _tqdm(
+                enumerate(zip(contours, contours_support)),
+                "Processing " + channel + " channel texture features",
+                total=len(contours)):
+            
+            idx1 += 1
+            
+            if support["diameter"] > min_diameter:
+                
+                rx, ry, rw, rh = cv2.boundingRect(coords)
+
+                data=image_slice[ry : ry + rh, rx : rx + rw]
                 mask=foreground_mask_inverted[ry : ry + rh, rx : rx + rw]
                 sitk_data = sitk.GetImageFromArray(data)
                 sitk_mask = sitk.GetImageFromArray(mask)
                 
-                # pp.show_image(foreground_mask_inverted)
-
                 extractor = featureextractor.RadiomicsFeatureExtractor()
+                extractor.disableAllFeatures()
+                extractor.enableFeaturesByName(**feature_activation)
                 features = extractor.execute(sitk_data, sitk_mask, label=255)
                 
                 output = {}
                 for key, val in features.items():
                     if not "diagnostics" in key :
-                        output[key.split('_', 1)[1]  ] = val
-                df_textures_list.append(output)
-            else:
-                df_textures_list.append({})
-                
-        df_textures_int = pd.DataFrame(df_textures_list)
-        df_textures_int.insert(0, column="Channel", value=channel)
-        df_df_list.append(pd.concat([df_textures_meta, df_textures_int], axis=1))
+                        output[key.split('_', 1)[1]  ] = float(val)
+                        
+                texture_features[channel][idx1] = output 
+
+
+	# =============================================================================
+	# return
         
-    df_textures = pd.concat(df_df_list)
+    annotation = {
+        "info": {
+            "type": "data", 
+            "function": "texture_features",
+            },
+        "settings": local_settings,
+        "data":{
+            "texture_features": texture_features,
+            }
+        }
+    
 
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
-        return df_textures
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.df_textures = df_textures
-
+    return annotation

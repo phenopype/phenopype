@@ -6,7 +6,7 @@ import math
 import string
 from dataclasses import make_dataclass
 
-from phenopype.settings import AttrDict, colours, _annotation_function_dicts
+from phenopype.settings import AttrDict, colours, _annotation_types
 from phenopype.utils_lowlevel import (
     _auto_line_width,
     _auto_point_size,
@@ -29,12 +29,12 @@ def draw_contour(
     line_width="auto",
     fill=0.3,
     label=False,
-    label_colour="black",
+    label_colour="red",
     label_font_size="auto",
     label_font_width="auto",
     bounding_box=False,
     bounding_box_ext=20,
-    bounding_box_colour="black",
+    bounding_box_colour="red",
     bounding_box_line_width="auto",
     **kwargs,
 ):
@@ -135,7 +135,8 @@ def draw_contour(
     if list(annotation.keys())[0] == "info":
         if annotation["info"]["annotation_type"] == "contour":
             contours = annotation["data"]["coord_list"]
-            contours_support = annotation["data"]["support"]
+            if "support" in annotation["data"]:
+                contours_support = annotation["data"]["support"]
     else:
         if not kwargs.get("contour_id"):
             if kwargs.get("annotation_counter"):
@@ -148,12 +149,14 @@ def draw_contour(
         else:
            contour_id = kwargs.get("contour_id")
 
-        if list(annotation.keys())[0] in _annotation_function_dicts.keys():
+        if list(annotation.keys())[0] in _annotation_types.keys():
             contours = annotation["contour"][contour_id]["data"]["coord_list"]
-            contours_support = annotation["contour"][contour_id]["data"]["support"]
+            if "support" in annotation["contour"][contour_id]["data"]:
+                contours_support = annotation["contour"][contour_id]["data"]["support"]
         elif list(annotation.keys())[0] in string.ascii_lowercase:
             contours = annotation[contour_id]["data"]["coord_list"]
-            contours_support = annotation[contour_id]["data"]["support"]
+            if "support" in annotation[contour_id]["data"]:
+                contours_support = annotation[contour_id]["data"]["support"]
        
 	# =============================================================================
 	# execute
@@ -203,7 +206,7 @@ def draw_contour(
         for idx, support in enumerate(contours_support):
             cv2.putText(
             canvas,
-            str(idx),
+            str(idx + 1),
             tuple(support["center"]),
             cv2.FONT_HERSHEY_SIMPLEX,
             label_size,
@@ -301,7 +304,7 @@ def draw_landmark(
         else:
            landmark_id = kwargs.get("landmark_id")
 
-        if list(annotation.keys())[0] in _annotation_function_dicts.keys():
+        if list(annotation.keys())[0] in _annotation_types.keys():
             points = annotation["landmark"][landmark_id]["data"]["points"]
         elif list(annotation.keys())[0] in string.ascii_lowercase:
             points = annotation[landmark_id]["data"]["points"]
@@ -403,7 +406,7 @@ def draw_mask(
         else:
            mask_id = kwargs.get("mask_id")
 
-        if list(annotation.keys())[0] in _annotation_function_dicts.keys():
+        if list(annotation.keys())[0] in _annotation_types.keys():
             coord_list = annotation["mask"][mask_id]["data"]["coord_list"]
         elif list(annotation.keys())[0] in string.ascii_lowercase:
             coord_list = annotation[mask_id]["data"]["coord_list"]

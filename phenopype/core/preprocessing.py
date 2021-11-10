@@ -230,7 +230,7 @@ def detect_shape(
     # setup
     
     if len(image.shape) == 3:
-        image = select_channel(image)
+        image = decompose_image(image, "gray")
     image_resized = _resize_image(image, resize)
     
     
@@ -605,7 +605,7 @@ def detect_reference(
 
 
 
-def enter_data(
+def comment(
     image,
     field="ID",
     **kwargs
@@ -667,7 +667,7 @@ def enter_data(
     annotation = {
         "info": {
             "annotation_type": "comment",
-            "pp_function": "enter_data",
+            "pp_function": "comment",
         },
         "settings": local_settings,
         "data": {
@@ -684,9 +684,9 @@ def enter_data(
 
 
 
-def select_channel(image, 
-                   channel="gray", 
-                   invert=False):
+def decompose_image(image, 
+                    channel="gray", 
+                    invert=False):
     
     """
     Extract single channel from multi-channel array.
@@ -710,18 +710,35 @@ def select_channel(image,
 	# =============================================================================
 	# execute
     
-    if channel in ["grayscale","gray"]:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    if channel in ["green","g",1]:
-        image = image[:, :, 0]
-    if channel in ["red", "r",2]:
-        image = image[:, :, 1]
-    if channel in ["blue","b",3]:
-        image = image[:, :, 2]
-    if channel == "raw":
+    if len(image.shape) == 2: 
+        print("- single channel image supplied - no decomposition possible")
         pass
-    if flag_verbose:
-        print("- converted image to {} channel".format(str(channel)))
+    elif len(image.shape) == 3: 
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+        if channel in ["grayscale","gray"]:
+            image = gray
+        elif channel in ["green","g"]:
+            image = image[:, :, 0]
+        elif channel in ["red", "r"]:
+            image = image[:, :, 1]
+        elif channel in ["blue","b"]:
+            image = image[:, :, 2]
+        elif channel in ["hue","h"]:
+            image = hsv[:, :, 0]
+        elif channel in ["saturation", "sat", "s"]:
+            image = hsv[:, :, 1]
+        elif channel in ["value","v"]:
+            image = hsv[:, :, 2]
+        elif channel == "raw":
+            pass
+        else:
+            print("- don't know how to handle channel {}".format(channel))
+            return 
+            
+        if flag_verbose:
+            print("- extracted {} channel".format(str(channel)))
         
     if invert==True:
         image = cv2.bitwise_not(image)

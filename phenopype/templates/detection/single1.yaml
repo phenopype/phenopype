@@ -1,5 +1,5 @@
 - preprocessing:
-  - enter_data:
+  - comment:
       column: ID
   - create_mask
   - blur:
@@ -24,17 +24,14 @@
 - visualization:
   - select_canvas:
       canvas: raw
-  - draw_contour:
-      contour_id: a
+  - draw_contour
 - segmentation:
-  - edit_contour:
-      contour_id: a
+  - edit_contour
   - detect_contour:
       min_diameter: 0
       min_area: 10000
 - visualization:
-  - draw_contour:
-      contour_id: b
+  - draw_contour
 - export:
   - save_canvas:
       resize: 1

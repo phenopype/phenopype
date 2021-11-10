@@ -134,6 +134,18 @@ opencv_distance_flags = {
     "huber": cv2.DIST_HUBER,
 }
 
+opencv_interpolation_flags = {
+    "nearest": cv2.INTER_NEAREST,
+    "linear": cv2.INTER_LINEAR,
+    "cubic": cv2.INTER_CUBIC,
+    "area": cv2.INTER_AREA,
+    "lanczos": cv2.INTER_LANCZOS4, 
+    "lin_exact": cv2.INTER_LINEAR_EXACT, 
+    "inter": cv2.INTER_MAX,
+    "warp_fill": cv2.WARP_FILL_OUTLIERS,
+    "warp_inverse": cv2.WARP_INVERSE_MAP, 
+    }
+
 opencv_morphology_flags = {
     "shape_list" : {
         "cross": cv2.MORPH_CROSS,
@@ -152,17 +164,10 @@ opencv_morphology_flags = {
         }
     }
 
-opencv_interpolation_flags = {
-    "nearest": cv2.INTER_NEAREST,
-    "linear": cv2.INTER_LINEAR,
-    "cubic": cv2.INTER_CUBIC,
-    "area": cv2.INTER_AREA,
-    "lanczos": cv2.INTER_LANCZOS4, 
-    "lin_exact": cv2.INTER_LINEAR_EXACT, 
-    "inter": cv2.INTER_MAX,
-    "warp_fill": cv2.WARP_FILL_OUTLIERS,
-    "warp_inverse": cv2.WARP_INVERSE_MAP, 
-    }
+opencv_skeletonize_flags = {
+    "zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
+    "guohall": cv2.ximgproc.THINNING_GUOHALL,
+}
 
 opencv_window_flags={
     "normal": cv2.WINDOW_NORMAL,
@@ -206,17 +211,21 @@ _annotation_functions = {
     "detect_reference": "reference",
     "detect_contour": "contour",
     "edit_contour": "drawing",
-    "enter_data": "comment",
-    
+    "comment": "comment",
+    "shape_features": "data",
+    "texture_features": "data",
     "set_landmark": "landmark",
+    "set_polyline": "line",
+    "skeletonize": "contour",
     }
 
-_annotation_function_dicts = {
+_annotation_types = {
     "comment": {},
     "contour": {},
-    "data": {},
     "drawing": {},
+    "data": {},
     "landmark": {},
+    "line": {},
     "mask": {},
     "reference": {},
     }

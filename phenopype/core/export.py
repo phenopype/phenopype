@@ -11,7 +11,7 @@ import pandas as pd
 import re
 from _ctypes import PyObj_FromPtr
 
-from phenopype.settings import confirm_options, _annotation_function_dicts
+from phenopype.settings import confirm_options, _annotation_types
 from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _convert_arr_tup_list
 from phenopype.utils import save_image
 #%% settings   
@@ -179,7 +179,7 @@ def save_annotation(annotation,
         break
     
     ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] in _annotation_function_dicts.keys():
+    if list(annotation.keys())[0] in _annotation_types.keys():
         annotation = defaultdict(dict, annotation)
     elif list(annotation.keys())[0] == "info":
         if annotation_id.__class__.__name__ == "NoneType":
@@ -220,7 +220,7 @@ def save_annotation(annotation,
                         if len(value)>0 and not type(value[0]) in [list,tuple, int]:
                             value = [elem.tolist() for elem in value if not type(elem)==list] 
                         value = [NoIndent(elem) for elem in value]   
-                    elif key in ["offset_coords"]:
+                    elif key in ["offset_coords", "channels", "features"]:
                         value = NoIndent(value)
                     elif key in ["support"]:
                         value_new = []

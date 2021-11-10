@@ -51,7 +51,7 @@ from phenopype.utils_lowlevel import (
     _yaml_flow_style,
 )
 
-import phenopype._config
+from  phenopype import _config
 
 #%% settings
 
@@ -1000,11 +1000,17 @@ class Pype(object):
         while True:
             
             ## pype restart flag
-            phenopype._config.pype_restart = False
+            _config.pype_restart = False
 
             ## refresh config
+            if not self.YFM.content:
+                print("- STILL UPDATING CONFIG (no content)")
+                continue
+            
             self.config = copy.deepcopy(self.YFM.content)
+            
             if not self.config:
+                print("- STILL UPDATING CONFIG (no config)")
                 continue
             
             ## run pype config in sequence
@@ -1284,7 +1290,7 @@ class Pype(object):
                     if not "id" in annotation_args:
                         annotation_args.update({"id": string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]})
                     if not "edit" in annotation_args:
-                        annotation_args.update({"edit": "overwrite" if annotation_args["type"] in ["contour"] else False})
+                        annotation_args.update({"edit": "overwrite" if annotation_args["type"] in ["contour", "data"] else False})
 
                     annotation_args =  _yaml_flow_style(annotation_args)
                     method_args_updated = {"ANNOTATION":annotation_args}
@@ -1316,7 +1322,7 @@ class Pype(object):
                         print(location + " - " + str(ex))
                 
                 ## check for pype-restart after config change
-                if phenopype._config.pype_restart:
+                if _config.pype_restart:
                     print("BREAK")
                     return
                         
@@ -1341,8 +1347,8 @@ class Pype(object):
                     self.container.run(fun="select_canvas")
                     print("- autoselect canvas")
                     
-                self.iv = _ImageViewer(self.container.canvas)
-                self.flags.terminate = self.iv.finished
+                self.IV = _ImageViewer(self.container.canvas)
+                self.flags.terminate = self.IV.finished
                 
             except Exception as ex:
                 print(

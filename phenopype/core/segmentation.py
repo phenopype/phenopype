@@ -14,7 +14,7 @@ from phenopype.settings import (
     opencv_distance_flags,
     opencv_morphology_flags,
     _image_viewer_arg_list, 
-    _annotation_function_dicts
+    _annotation_types
     )
 from phenopype.utils_lowlevel import (
     _create_mask_bool, 
@@ -152,25 +152,21 @@ def detect_contour(
                     hierarchy_level = "child"
                     
                 ## contour filter
-                if all(
-                        [
-                            diameter > min_diameter and diameter < max_diameter,
-                            area > min_area and area < max_area,
-                            ]
-                        ):
+                if all([
+                        diameter > min_diameter and diameter < max_diameter,
+                        area > min_area and area < max_area,
+                            ]):
                 
                     ## populate data lists
                     coord_list.append(contour)
-                    support.append(
-                        {
+                    support.append({
                             "center": center,
                             "area": area,
                             "diameter": diameter,
                             "hierarchy_level": hierarchy_level,
                             "hierarchy_idx_child": int(hierarchy[2]),
                             "hierarchy_idx_parent": int(hierarchy[3]),
-                            }
-                        )
+                            })
 
         if flag_verbose:
             print("- found " + str(len(coord_list)) + " contours that match criteria")
@@ -270,7 +266,7 @@ def edit_contour(
            
         local_settings["contour_id"] = contour_id
         
-        if list(annotation.keys())[0] in _annotation_function_dicts.keys():
+        if list(annotation.keys())[0] in _annotation_types.keys():
             contours = annotation["contour"][contour_id]["data"]["coord_list"]
         elif list(annotation.keys())[0] in string.ascii_lowercase:
             contours = annotation[contour_id]["data"]["coord_list"]
@@ -314,7 +310,7 @@ def edit_contour(
     
 	# =============================================================================
 	# return
-    
+        
     return image_bin, annotation
 
 
@@ -436,7 +432,7 @@ def threshold(
 
     if len(image.shape) == 3:
         if flag_verbose:
-            image = preprocessing.select_channel(image, "gray")
+            image = preprocessing.decompose_image(image, "gray")
     if blocksize % 2 == 0:
         if flag_verbose:
             blocksize = blocksize + 1

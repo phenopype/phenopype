@@ -1,6 +1,6 @@
 - preprocessing: 
     - detect_reference
-    - enter_data
+    - comment
 - measurement:
     - landmarks:
         point_size: 12
