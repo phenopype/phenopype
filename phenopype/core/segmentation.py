@@ -201,6 +201,10 @@ def detect_contour(
 def edit_contour(
     image,
     annotation,
+    overlay_blend=0.5,
+    overlay_line_width=1,
+    left_colour="green",
+    right_colour="red",
     **kwargs
 ):
     """
@@ -279,15 +283,19 @@ def edit_contour(
     out = _ImageViewer(image=image, 
                        contours=contours,
                        tool="draw", 
+                       overlay_blend=overlay_blend,
+                       overlay_line_width=overlay_line_width,
+                       left_colour=left_colour,
+                       right_colour=right_colour,
                        **IV_settings)
     
     ## check if tasks completed successfully
     if not out.done:
-        print("- didn't finish: redo drawing")
-        return 
+        print("- didn't finish: redo contour editing!")
+        # return 
     if not out.point_list:
-        print("- zero coordinates: redo drawing")
-        return 
+        print("- zero coordinates: did you draw anything?")
+        # return 
                 
 	# =============================================================================
 	# process
@@ -384,7 +392,7 @@ def threshold(
     constant=1,
     blocksize=99,
     value=127,
-    channel="gray",
+    channel=None,
     mask=None,
     **kwargs,
 ):
@@ -431,8 +439,11 @@ def threshold(
 	# setup 
 
     if len(image.shape) == 3:
-        if flag_verbose:
-            image = preprocessing.decompose_image(image, "gray")
+        if not channel:
+            channel = "gray"
+            print("- multichannel image supplied, converting to grayscale")
+        image = preprocessing.decompose_image(image, channel)
+            
     if blocksize % 2 == 0:
         if flag_verbose:
             blocksize = blocksize + 1

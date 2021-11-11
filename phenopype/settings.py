@@ -182,7 +182,8 @@ opencv_window_flags={
 #%% image viewer
 
 _image_viewer_arg_list = [
-    "blend_factor",
+    # "overlay_blend",
+    # "overlay_line_width"
     "label_size",
     "label_width",
     "label_colour",

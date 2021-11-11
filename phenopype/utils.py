@@ -50,7 +50,7 @@ class Container(object):
         ## images
         self.image = image
         self.image_copy = copy.deepcopy(self.image)
-        self.image_bin = None
+        # self.image_bin = None
         self.image_gray = None
         self.canvas = None
 
@@ -143,7 +143,7 @@ class Container(object):
         """
         ## images
         self.image = copy.deepcopy(self.image_copy)
-        self.image_bin = None
+        # self.image_bin = None
         self.image_gray = None
         self.canvas = None
         # self.annotations = None
@@ -229,12 +229,12 @@ class Container(object):
             
         ## segmentation
         if fun == "threshold":
-            if "mask" in self.annotations and len(self.annotations["mask"]) > 0:
+            if "mask" in self.annotations and len(self.annotations["mask"]) > 0 :
                 kwargs.update({"mask":self.annotations["mask"]})
             self.image = segmentation.threshold(self.image, **kwargs)
-            self.image_bin = copy.deepcopy(self.image)
-        if fun == "watershed":
-            self.image = segmentation.watershed(self.image_copy, self.image_bin, **kwargs)
+            # self.image_bin = copy.deepcopy(self.image)
+        # if fun == "watershed":
+        #     self.image = segmentation.watershed(self.image_copy, self.image_bin, **kwargs)
         if fun == "morphology":
             self.image = segmentation.morphology(self.image, **kwargs)
         if fun == "detect_contour":

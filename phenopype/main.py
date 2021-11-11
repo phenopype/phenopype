@@ -936,8 +936,9 @@ class Pype(object):
         dirpath=None,
         debug=False,
         skip=False,
-        feedback=True,
         autosave=True,
+        feedback=True,
+        visualize=True,
         **kwargs
     ):
 
@@ -951,18 +952,14 @@ class Pype(object):
         
         ## flags
         self.flags = make_dataclass(cls_name="flags", 
-                                    fields=[("skip", bool, skip), 
-                                            ("feedback", bool, feedback),
-                                            ("debug",bool,debug),
+                                    fields=[("debug",bool,debug),
+                                            ("skip", bool, skip), 
                                             ("autosave", bool, autosave),
-                                            ("terminate", bool, False)])
+                                            ("feedback", bool, feedback),
+                                            ("visualize", bool, visualize),
+                                            ("terminate", bool, False),
+                                            ])
         
-        # self.flags = AttrDict({"skip": skip, 
-        #                        "feedback": feedback, 
-        #                        "terminate": False,
-        #                        "debug": kwargs.get("debug",False),
-        #                        "save": autosave})
-                                
         ## check name, load container and config
         self._check_pype_name(name=name)
         self._load_container(name=name, image=image, dirpath=dirpath)
@@ -986,7 +983,7 @@ class Pype(object):
         self._check_final()
     
         # open config file with system viewer
-        if self.flags.feedback:
+        if self.flags.feedback and self.flags.visualize:
             self._start_file_monitor()
 
         ## start log
@@ -1003,23 +1000,32 @@ class Pype(object):
             _config.pype_restart = False
 
             ## refresh config
-            if not self.YFM.content:
-                print("- STILL UPDATING CONFIG (no content)")
-                continue
+            if self.flags.feedback and self.flags.visualize:
             
-            self.config = copy.deepcopy(self.YFM.content)
+                if not self.YFM.content:
+                    print("- STILL UPDATING CONFIG (no content)")
+                    continue
             
-            if not self.config:
-                print("- STILL UPDATING CONFIG (no config)")
-                continue
+                self.config = copy.deepcopy(self.YFM.content)
             
+                if not self.config:
+                    print("- STILL UPDATING CONFIG (no config)")
+                    continue
+                
             ## run pype config in sequence
-            self._iterate(config=self.config, annotations=self.container.annotations)
+            self._iterate(config=self.config, 
+                          annotations=self.container.annotations,
+                          feedback=self.flags.feedback,
+                          visualize=self.flags.visualize
+                          )
             
             ## terminate
-            if self.flags.terminate:
-                self.YFM._stop()
-                print("\n\nTERMINATE")         
+            if self.flags.visualize:
+                if self.flags.terminate:
+                    self.YFM._stop()
+                    print("\n\nTERMINATE")         
+                    break
+            else:
                 break
         
         if self.flags.autosave and self.flags.terminate:
@@ -1193,8 +1199,6 @@ class Pype(object):
                                        ("visualize", bool, visualize),
                                        ("feedback", bool, feedback)])
 
-        # flags = AttrDict({"execute":execute, "visualize":visualize, "feedback":feedback})
-
         ## new iteration
         if flags.feedback:
             print(
@@ -1242,7 +1246,7 @@ class Pype(object):
             for method_idx, method in enumerate(method_list):
                 
                 # =============================================================================
-                # METHOD / EXTRACTION AND CHEC
+                # METHOD / EXTRACTION AND CHECK
                 # =============================================================================
 
                 ## format method name and arguments       
@@ -1267,7 +1271,6 @@ class Pype(object):
                     pass
                 else:
                     print("ERROR - {} has no function called {} - please check config file!".format(step_name, method_name))
-                    
                     
                 # =============================================================================
                 # METHOD / ANNOTATION 
@@ -1337,8 +1340,8 @@ class Pype(object):
         if flags.feedback:
             print(
                 "\n\n------------+++ finished pype iteration +++--------------\n" 
-                + "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
-            )
+                    "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
+                )
         
         if flags.visualize: 
             try:

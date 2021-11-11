@@ -30,6 +30,7 @@ import io
 
 from phenopype import _config
 from phenopype import main
+from phenopype.utils import show_image
 
 
 #%% settings
@@ -77,7 +78,8 @@ class _ImageViewer:
         self.zoom_steps = zoom_steps
 
         self.flag_text_label = kwargs.get("flag_text_label", False)
-        self.canvas_blend_factor = kwargs.get("blend_factor", 0.5)
+        self.overlay_blend = kwargs.get("overlay_blend", 0.5)
+        self.overlay_line_width = kwargs.get("overlay_line_width", 1)
 
         self.__dict__.update(kwargs)
 
@@ -221,8 +223,9 @@ class _ImageViewer:
         if self.tool in ["point"]:
             self._canvas_draw(tool="point", coord_list=self.points)
         if self.tool in ["draw"]:
-            self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
+            self._canvas_draw(tool="line_bin", coord_list=self.point_list)
             self._canvas_blend()
+            self._canvas_add_lines()
         self._canvas_mount()
 
         ## local control vars
@@ -262,9 +265,10 @@ class _ImageViewer:
                     ## Enter = close window and redo
                     if self.keypress == 13:
                         ## close unfinished polygon and append to polygon list
-                        if len(self.points) > 2 and not self.tool in ["point"]:
-                            self.points.append(self.points[0])
-                            self.coord_list.append(self.points)
+                        if self.tool:
+                            if len(self.points) > 2 and not self.tool in ["point"]:
+                                self.points.append(self.points[0])
+                                self.coord_list.append(self.points)
                         self.done = True
                         cv2.destroyAllWindows()
                         
@@ -284,8 +288,9 @@ class _ImageViewer:
                     elif self.keypress == 26 and self.tool == "draw":
                         self.point_list = self.point_list[:-1]
                         self._canvas_renew()
-                        self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
+                        self._canvas_draw(tool="line_bin", coord_list=self.point_list)
                         self._canvas_blend()
+                        self._canvas_add_lines()
                         self._canvas_mount()
                         
                     ## external window close
@@ -583,8 +588,9 @@ class _ImageViewer:
             
             ## draw all segments
             self._canvas_renew()
-            self._canvas_draw(tool="line_bin_cont", coord_list=self.point_list)
+            self._canvas_draw(tool="line_bin", coord_list=self.point_list)
             self._canvas_blend()
+            self._canvas_add_lines()
             self._canvas_mount()
                 
         ## drawing mode
@@ -617,7 +623,27 @@ class _ImageViewer:
                      settings.colours["white"], max(self.line_width-5, 1))
             cv2.imshow(self.window_name, self.canvas)
             
-                
+    
+    def _canvas_add_lines(self):
+        
+        _ , self.contours, self.hierarchies = cv2.findContours(
+            image=self.image_bin_copy,
+            mode=cv2.RETR_CCOMP,
+            method=cv2.CHAIN_APPROX_SIMPLE,
+        )
+        
+        for contour in self.contours:
+            cv2.drawContours(
+                image=self.image_copy,
+                contours=[contour],
+                contourIdx=0,
+                thickness=self.overlay_line_width,
+                color=settings.colours[self.left_colour],
+                maxLevel=3,
+                offset=None,
+            )   
+            
+            
     def _canvas_blend(self):
         
         ## create coloured overlay from binary image
@@ -628,10 +654,10 @@ class _ImageViewer:
 
         ## blend two canvas layers
         self.image_copy = cv2.addWeighted(self.image_copy,
-                                          1 - self.canvas_blend_factor,
+                                          1 - self.overlay_blend,
                                           self.colour_mask,
-                                          self.canvas_blend_factor,
-                                          0)                
+                                          self.overlay_blend,
+                                          0)           
         
         
     def _canvas_draw(self, tool, coord_list):
@@ -659,59 +685,12 @@ class _ImageViewer:
                 
             elif tool == "line_bin_cont":
                 
-                ## draw lines on original binary image
-                cv2.polylines(
-                    self.image_bin_copy,
-                    np.array([coords[0]]),
-                    False,
-                    coords[1],
-                    coords[2],
-                )
+                ## contour finding algorithm got too complicated to maintain with 
+                ## overlay blend and lines - may be implmented again in the future
                 
-                ## skip contour-step if draw colour is black (rightclick)
-                if coords[1] == 0:
-                    continue
+                pass
                 
-                ## find contours from binary image + drawing
-                _ , self.contours, _ = cv2.findContours(
-                    image=self.image_bin_copy,
-                    mode=cv2.RETR_EXTERNAL,
-                    method=cv2.CHAIN_APPROX_SIMPLE,
-                )
                 
-                ## draw found contours on top of binary image + drawing
-                for contour in self.contours:
-                    cv2.drawContours(
-                        image=self.image_bin_copy,
-                        contours=[contour],
-                        contourIdx=0,
-                        thickness=-1,
-                        color=coords[1],
-                        maxLevel=3,
-                        offset=None,
-                    )
- 
-            elif tool == "point":
-                cv2.circle(
-                    self.image_copy,
-                    coords,
-                    self.point_size,
-                    settings.colours[self.point_colour],
-                    -1,
-                )
-                if self.flag_text_label:
-                    cv2.putText(
-                        self.image_copy,
-                        str(idx+1),
-                        coords,
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        self.text_size,
-                        settings.colours[self.label_colour],
-                        self.text_width,
-                        cv2.LINE_AA,
-                    )
-        
-        
     def _canvas_mount(self, refresh=True):
               
         ## pass zoomed part of original image to canvas
@@ -924,19 +903,18 @@ def _convert_tup_list_arr(tup_list):
     return array_list
 
 
-def _create_mask_bin(image, masks):
+def _create_mask_bin(image, contours):
     mask_bin = np.zeros(image.shape[0:2], np.uint8)
-    if masks.__class__.__name__ == "DataFrame":
-        for index, row in masks.iterrows():
-            coords = eval(row["coords"])
-            cv2.fillPoly(mask_bin, [np.array(coords, dtype=np.int32)], settings.colours["white"])
-    elif masks.__class__.__name__ == "list":
-        cv2.fillPoly(mask_bin, [np.array(masks, dtype=np.int32)], settings.colours["white"])
+    if contours[0].__class__.__name__ == "list":
+        cv2.fillPoly(mask_bin, [np.array(contours, dtype=np.int32)], settings.colours["white"])
+    elif contours[0].__class__.__name__ == "ndarray":
+        for contour in contours:
+            cv2.fillPoly(mask_bin, [np.array(contour, dtype=np.int32)], settings.colours["white"])
     return mask_bin
 
 
-def _create_mask_bool(image, masks):
-    mask_bin = _create_mask_bin(image, masks)
+def _create_mask_bool(image, contours):
+    mask_bin = _create_mask_bin(image, contours)
     return np.array(mask_bin, dtype=bool)
 
 

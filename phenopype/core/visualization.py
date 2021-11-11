@@ -128,8 +128,7 @@ def draw_contour(
     if label_font_width == "auto":
         label_width = _auto_text_width(image)
 
-    ## create local canvas
-    canvas = copy.deepcopy(image)
+
        
     ## check annotation dict input and convert to type/id/ann structure
     if list(annotation.keys())[0] == "info":
@@ -150,13 +149,24 @@ def draw_contour(
            contour_id = kwargs.get("contour_id")
 
         if list(annotation.keys())[0] in _annotation_types.keys():
-            contours = annotation["contour"][contour_id]["data"]["coord_list"]
+            if contour_id in annotation["contour"]:
+                contours = annotation["contour"][contour_id]["data"]["coord_list"]
+            else:
+                print("- could not find contour with the id (\"{}\")".format(contour_id))
+                return image
             if "support" in annotation["contour"][contour_id]["data"]:
                 contours_support = annotation["contour"][contour_id]["data"]["support"]
         elif list(annotation.keys())[0] in string.ascii_lowercase:
-            contours = annotation[contour_id]["data"]["coord_list"]
+            if contour_id in annotation["contour"]:
+                contours = annotation[contour_id]["data"]["coord_list"]
+            else:
+                print("- could not find contour with the id (\"{}\")".format(contour_id))
+                return image
             if "support" in annotation[contour_id]["data"]:
                 contours_support = annotation[contour_id]["data"]["support"]
+       
+    ## create local canvas
+    canvas = copy.deepcopy(image)
        
 	# =============================================================================
 	# execute
@@ -405,12 +415,20 @@ def draw_mask(
                 return
         else:
            mask_id = kwargs.get("mask_id")
-
+            
         if list(annotation.keys())[0] in _annotation_types.keys():
-            coord_list = annotation["mask"][mask_id]["data"]["coord_list"]
+            if mask_id in annotation["mask"]:
+                coord_list = annotation["mask"][mask_id]["data"]["coord_list"]
+            else:
+                print("- could not find mask with the id (\"{}\")".format(mask_id))
+                return image
         elif list(annotation.keys())[0] in string.ascii_lowercase:
-            coord_list = annotation[mask_id]["data"]["coord_list"]
-    
+            if mask_id in annotation["mask"]:
+                coord_list = annotation[mask_id]["data"]["coord_list"]
+            else:
+                print("- could not find mask with the id (\"{}\")".format(mask_id))
+                return image
+
     
 	# =============================================================================
 	# execute
@@ -527,20 +545,20 @@ def select_canvas(container, canvas="raw", multi_channel=True, **kwargs):
     elif canvas == "raw":
         container.canvas = copy.deepcopy(container.image_copy)
         print("- raw image")
-    elif canvas == "bin":
-        container.canvas = copy.deepcopy(container.image_bin)
-        print("- binary image")
+    # elif canvas == "bin":
+    #     container.canvas = copy.deepcopy(container.image_bin)
+        # print("- binary image")
     elif canvas == "gray":
-        container.canvas = cv2.cvtColor(container.image, cv2.COLOR_BGR2GRAY)
+        container.canvas = cv2.cvtColor(container.image_gray, cv2.COLOR_BGR2GRAY)
         print("- grayscale image")
     elif canvas == "green":
-        container.canvas = container.image[:, :, 0]
+        container.canvas = container.image_copy[:, :, 0]
         print("- green channel")
     elif canvas == "red":
-        container.canvas = container.image[:, :, 1]
+        container.canvas = container.image_copy[:, :, 1]
         print("- red channel")
     elif canvas == "blue":
-        container.canvas = container.image[:, :, 2]
+        container.canvas = container.image_copy[:, :, 2]
         print("- blue channel")
     else:
         print("- invalid selection - defaulting to raw image")
