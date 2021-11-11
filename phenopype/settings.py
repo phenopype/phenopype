@@ -7,7 +7,7 @@ from pathlib import Path, PurePath
 from pprint import PrettyPrinter
 from dataclasses import dataclass
 
-import phenopype.utils_lowlevel as utils_lowlevel
+from phenopype import utils_lowlevel
 
 
 
@@ -217,7 +217,7 @@ _annotation_functions = {
     "texture_features": "data",
     "set_landmark": "landmark",
     "set_polyline": "line",
-    "skeletonize": "contour",
+    "skeletonize": "line",
     }
 
 _annotation_types = {

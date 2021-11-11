@@ -1,5 +1,6 @@
 #%% modules
 import ast, cv2, copy, os, sys, warnings
+import json
 import numpy as np
 import glob
 import pandas as pd
@@ -81,10 +82,21 @@ class Container(object):
         annotations_filename = "annotations" + "_" + self.save_suffix + ".json"
         if annotations_filename in os.listdir(self.dirpath):
             self.annotations.update(export.load_annotation(os.path.join(self.dirpath, annotations_filename)))
-            loaded.append("annotations loaded")
-                    
-        if contours == False:
-            self.annotations["contour"] = {}
+            
+                                
+            # if contours == False:
+            #     self.annotations["contour"] = {}
+            
+            annotation_types_loaded = {}
+            for annotation_type in self.annotations.keys():
+                id_list = []
+                for annotation_id in self.annotations[annotation_type].keys():
+                    id_list.append(annotation_id)
+                if len(id_list) > 0:
+                    annotation_types_loaded[annotation_type] = export.NoIndent(id_list)
+                
+            loaded.append("annotations loaded:\n{}".format(json.dumps(annotation_types_loaded, indent=0, cls=export.MyEncoder)))
+
             
         ## load attributes
         attr_local_path = os.path.join(self.dirpath, "attributes.yaml")
@@ -167,18 +179,19 @@ class Container(object):
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
             if annotation_id in self.annotations[annotation_type]:
+                print_msg = "- loaded existing annotation of type \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
                 if edit == True:
                     kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
-                    print("- editing annotation of type \"{}\" with ID \"{}\" already present (edit=True)".format(annotation_type, annotation_id))
+                    print(print_msg + ": editing (edit=True)")
                 elif edit == False:
                     kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
-                    print("- annotation of type \"{}\" with ID \"{}\" already present (overwrite=False)".format(annotation_type, annotation_id))
+                    print(print_msg + ": skipping (edit=False)")
                     if annotation_type == "drawing":
                         kwargs.update({"passive":True})                                             
                         self.image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
                     return
                 elif edit == "overwrite":
-                    print("- overwriting annotation of type \"{}\" with ID \"{}\" already present (edit=overwrite)".format(annotation_type, annotation_id))
+                    print(print_msg + ": overwriting (edit=overwrite)")
                     pass
                 
         ## preprocessing
@@ -252,6 +265,8 @@ class Container(object):
             self.canvas = visualization.draw_landmark(self.canvas, annotation=self.annotations, **kwargs)
         if fun == "draw_mask":
             self.canvas = visualization.draw_mask(self.canvas, annotation=self.annotations, **kwargs)
+        if fun == "draw_polyline":
+            self.canvas = visualization.draw_polyline(self.canvas, annotation=self.annotations, **kwargs)
             
         ## export
         if fun == "save_annotation":
@@ -508,6 +523,7 @@ def save_image(
     append="",
     extension="jpg",
     overwrite=False,
+    verbose=True,
     **kwargs
 ):
     """Save an image (array) to jpg.
@@ -561,15 +577,20 @@ def save_image(
 
     ## save
     while True:
+        print_msg = None
         if os.path.isfile(path) and flag_overwrite == False:
-            print("Image not saved - file already exists (overwrite=False).")
+            print_msg = "- image not saved - file already exists (overwrite=False)."
             break
         elif os.path.isfile(path) and flag_overwrite == True:
-            print("Image saved under " + path + " (overwritten).")
+            print_msg =  "- image saved under " + path + " (overwritten)."
             pass
         elif not os.path.isfile(path):
-            print("Image saved under " + path + ".")
+            print_msg =  "- image saved under " + path + "."
             pass
+        
+        if verbose:
+            print(print_msg)
+        
         cv2.imwrite(path, image)
         break
 

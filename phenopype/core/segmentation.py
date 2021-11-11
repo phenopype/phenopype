@@ -13,15 +13,14 @@ from phenopype.settings import (
     opencv_contour_flags,
     opencv_distance_flags,
     opencv_morphology_flags,
-    _image_viewer_arg_list, 
     _annotation_types
     )
 from phenopype.utils_lowlevel import (
     _create_mask_bool, 
     _drop_dict_entries,
     _ImageViewer, 
-    _auto_line_width, 
     _load_previous_annotation,
+    _provide_annotation_data,
     _update_settings
     )
 import phenopype.core.preprocessing as preprocessing
@@ -252,31 +251,12 @@ def edit_contour(
   	# =============================================================================
   	# setup       
               
-    ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] == "info":
-        if annotation["info"]["annotation_type"] == "contour":
-            contours = annotation["data"]["coord_list"]
-    else:
-        if not kwargs.get("contour_id"):
-            if kwargs.get("annotation_counter"):
-                annotation_counter = kwargs.get("annotation_counter")
-                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
-                print("- contour_id not specified - editing recent most one (\"{}\")".format(contour_id))
-            else:
-                print("- contour_id not specified - can't edit")
-                return
-        else:
-           contour_id = kwargs.get("contour_id")
+    ## extract annotation data     
+    contours = _provide_annotation_data(annotation, "contour", "coord_list", kwargs)
+
+    if not contours:
+        return {}
            
-        local_settings["contour_id"] = contour_id
-        
-        if list(annotation.keys())[0] in _annotation_types.keys():
-            contours = annotation["contour"][contour_id]["data"]["coord_list"]
-        elif list(annotation.keys())[0] in string.ascii_lowercase:
-            contours = annotation[contour_id]["data"]["coord_list"]
-            
-
-
 	# =============================================================================
 	# execute
     
@@ -307,7 +287,7 @@ def edit_contour(
 
     annotation = {
         "info": {
-            "type": "drawing", 
+            "annotation_type": "drawing", 
             "function": "contour_modify",
             },
         "settings": local_settings,

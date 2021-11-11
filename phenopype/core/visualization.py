@@ -12,6 +12,7 @@ from phenopype.utils_lowlevel import (
     _auto_point_size,
     _auto_text_width,
     _auto_text_size,
+    _provide_annotation_data,
 )
 
 #%% settings
@@ -129,44 +130,14 @@ def draw_contour(
         label_width = _auto_text_width(image)
 
 
-       
-    ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] == "info":
-        if annotation["info"]["annotation_type"] == "contour":
-            contours = annotation["data"]["coord_list"]
-            if "support" in annotation["data"]:
-                contours_support = annotation["data"]["support"]
-    else:
-        if not kwargs.get("contour_id"):
-            if kwargs.get("annotation_counter"):
-                annotation_counter = kwargs.get("annotation_counter")
-                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
-                print("- contour_id not specified - drawing recent most one (\"{}\")".format(contour_id))
-            else:
-                print("- contour_id not specified - can't drawing")
-                return
-        else:
-           contour_id = kwargs.get("contour_id")
+    ## extract annotation data     
+    contours = _provide_annotation_data(annotation, "contour", "coord_list", kwargs)
+    contours_support = _provide_annotation_data(annotation, "contour", "support", kwargs)
 
-        if list(annotation.keys())[0] in _annotation_types.keys():
-            if contour_id in annotation["contour"]:
-                contours = annotation["contour"][contour_id]["data"]["coord_list"]
-            else:
-                print("- could not find contour with the id (\"{}\")".format(contour_id))
-                return image
-            if "support" in annotation["contour"][contour_id]["data"]:
-                contours_support = annotation["contour"][contour_id]["data"]["support"]
-        elif list(annotation.keys())[0] in string.ascii_lowercase:
-            if contour_id in annotation["contour"]:
-                contours = annotation[contour_id]["data"]["coord_list"]
-            else:
-                print("- could not find contour with the id (\"{}\")".format(contour_id))
-                return image
-            if "support" in annotation[contour_id]["data"]:
-                contours_support = annotation[contour_id]["data"]["support"]
-       
-    ## create local canvas
-    canvas = copy.deepcopy(image)
+    if not contours or (not contours_support and flags.label):
+        return image
+    else:
+        canvas = copy.deepcopy(image)
        
 	# =============================================================================
 	# execute
@@ -280,14 +251,12 @@ def draw_landmark(
     
     ## flags
     flags = make_dataclass(cls_name="flags", 
-                            fields=[("label", bool, label), 
-                                    ])
+                            fields=[("label", bool, label)])
     
+    ## point and label settings
     point_colour = colours[point_colour]
     label_col = colours[label_colour]
 
-
-    ## kwargs
     if point_size == "auto":
         point_size = _auto_point_size(image)
     if label_size == "auto":
@@ -295,29 +264,13 @@ def draw_landmark(
     if label_width == "auto":
         label_width = _auto_text_width(image)
 
-    ## create local canvas
-    canvas = copy.deepcopy(image)
-    
-    ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] == "info":
-        if annotation["info"]["annotation_type"] == "landmark":
-            points = annotation["data"]["points"]
-    else:
-        if not kwargs.get("landmark_id"):
-            if kwargs.get("annotation_counter"):
-                annotation_counter = kwargs.get("annotation_counter")
-                landmark_id = string.ascii_lowercase[annotation_counter["landmark"]]
-                print("- landmark_id not specified - drawing recent most one (\"{}\")".format(landmark_id))
-            else:
-                print("- landmark_id not specified - can't drawing")
-                return
-        else:
-           landmark_id = kwargs.get("landmark_id")
+    ## extract annotation data     
+    points = _provide_annotation_data(annotation, "landmark", "points", kwargs)
 
-        if list(annotation.keys())[0] in _annotation_types.keys():
-            points = annotation["landmark"][landmark_id]["data"]["points"]
-        elif list(annotation.keys())[0] in string.ascii_lowercase:
-            points = annotation[landmark_id]["data"]["points"]
+    if not points:
+        return image
+    else:
+        canvas = copy.deepcopy(image)
 
 
 	# =============================================================================
@@ -387,7 +340,11 @@ def draw_mask(
 	# =============================================================================
 	# setup 
 
-    flag_label = label
+    ## flags
+    flags = make_dataclass(cls_name="flags", 
+                            fields=[("label", bool, label)])
+
+    ## filling and line settings
     line_colour = colours[line_colour]
     label_colour = colours[label_colour]
     
@@ -397,46 +354,21 @@ def draw_mask(
         label_size = _auto_text_size(image)
     if label_width == "auto":
         label_width = _auto_text_width(image)
-        
-    canvas = copy.deepcopy(image)
-   
-    ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] == "info":
-        if annotation["info"]["annotation_type"] == "mask":
-            coord_list = annotation["data"]["coord_list"]
+               
+    ## extract annotation data     
+    coord_list = _provide_annotation_data(annotation, "mask", "coord_list", kwargs)
+    if not coord_list:
+        return image
     else:
-        if not kwargs.get("mask_id"):
-            if kwargs.get("annotation_counter"):
-                annotation_counter = kwargs.get("annotation_counter")
-                mask_id = string.ascii_lowercase[annotation_counter["mask"]]
-                print("- mask_id not specified - drawing recent most one (\"{}\")".format(mask_id))
-            else:
-                print("- mask_id not specified - can't drawing")
-                return
-        else:
-           mask_id = kwargs.get("mask_id")
-            
-        if list(annotation.keys())[0] in _annotation_types.keys():
-            if mask_id in annotation["mask"]:
-                coord_list = annotation["mask"][mask_id]["data"]["coord_list"]
-            else:
-                print("- could not find mask with the id (\"{}\")".format(mask_id))
-                return image
-        elif list(annotation.keys())[0] in string.ascii_lowercase:
-            if mask_id in annotation["mask"]:
-                coord_list = annotation[mask_id]["data"]["coord_list"]
-            else:
-                print("- could not find mask with the id (\"{}\")".format(mask_id))
-                return image
+        canvas = copy.deepcopy(image)
 
-    
 	# =============================================================================
 	# execute
     
-    ## draw masks from mask obect
+    ## draw masks
     for coords in coord_list:
         cv2.polylines(canvas, np.array([coords]), False, line_colour, line_width)
-        if flag_label:
+        if flags.label:
             cv2.putText(
                 canvas,
                 label,
@@ -455,64 +387,71 @@ def draw_mask(
     return canvas
 
 
+
 def draw_polyline(
-        obj_input, 
-        df_polylines=None, 
-        line_colour="blue", 
-        line_width="auto",
-        ):
+    image,
+    annotation,
+    line_colour="blue",
+    line_width="auto",
+    **kwargs
+):
     """
-    Draw polylines onto an image. 
+    Draw masks into an image. This function is also used to draw the perimeter 
+    of a created or detected reference card.
     
     Parameters
-    ----------
+    ----------        
     obj_input : array or container
         input object
-    df_polylines: DataFrame, optional
-        should contain polyline coordinates as an array in a df cell
+    select: str or list
+        select a subset of masks to display
+    df_masks: DataFrame, optional
+        contains mask coordinates and label
     line_colour: {"blue", "red", "green", "black", "white"} str, optional
-        polyline colour
+        mask line colour
     line_width: int, optional
-        polyline width
+        mask line width
+    label_colour : {"black", "white", "green", "red", "blue"} str, optional
+        mask label colour.
+    label_size: int, optional
+        mask label font size (scaled to image)
+    label_width: int, optional
+        mask label font width  (scaled to image)
 
     Returns
     -------
     image: array or container
-        image with polylines
+        image with coord_list
     """
+	# =============================================================================
+	# setup 
 
-    ## kwargs
+    ## line settings
     line_colour = colours[line_colour]
-
-    ## load image
-    if obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
-        if df_polylines.__class__.__name__ == "NoneType":
-            print("No df provided - cannot draw landmarks.")
-            return
-    elif obj_input.__class__.__name__ == "container":
-        image = obj_input.canvas
-        df_polylines = obj_input.df_polylines
-    else:
-        print("wrong input format.")
-        return
-
-    ## more kwargs
+    
     if line_width == "auto":
         line_width = _auto_line_width(image)
 
-    ## visualize
-    for polyline in df_polylines["polyline"].unique():
-        sub = df_polylines.groupby(["polyline"])
-        sub = sub.get_group(polyline)
-        coords = list(sub[["x", "y"]].itertuples(index=False, name=None))
-        cv2.polylines(image, np.array([coords]), False, line_colour, line_width)
-
-    ## return
-    if obj_input.__class__.__name__ == "ndarray":
+    ## extract annotation data     
+    coord_list = _provide_annotation_data(annotation, "line", "coord_list", kwargs)
+    if not coord_list:
         return image
-    elif obj_input.__class__.__name__ == "container":
-        obj_input.canvas = image
+    else:
+        canvas = copy.deepcopy(image)
+
+    
+	# =============================================================================
+	# execute
+    
+    ## draw lines
+    for coords in coord_list:
+        cv2.polylines(canvas, np.array([coords]), False, line_colour, line_width)
+
+
+	# =============================================================================
+	# return
+
+    return canvas
 
 
 

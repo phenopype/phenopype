@@ -738,7 +738,7 @@ def decompose_image(image,
             return 
             
         if flag_verbose:
-            print("- extracted {} channel".format(str(channel)))
+            print("- decompose image: using {} channel".format(str(channel)))
         
     if invert==True:
         image = cv2.bitwise_not(image)

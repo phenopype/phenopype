@@ -22,6 +22,7 @@ from phenopype.utils_lowlevel import (
     _auto_text_size,
     _drop_dict_entries,
     _load_previous_annotation,
+    _provide_annotation_data,
     _update_settings,
 )
 from phenopype.settings import (
@@ -140,7 +141,7 @@ def set_landmark(
 
     annotation = {
         "info": {
-            "type": "landmark", 
+            "annotation_type": "landmark", 
             "function": "set_landmark",
             },
         "settings": local_settings,
@@ -204,13 +205,14 @@ def set_polyline(
         IV_settings["ImageViewer_previous"] =_load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
-                ("data","points"),
+                ("data","coord_list"),
                 ])            
         
     ## update local and IV settings from kwargs
     if kwargs:
         _update_settings(kwargs, local_settings, IV_settings)
-
+        
+    print(kwargs)
 
 	# =============================================================================
 	# further prep
@@ -242,8 +244,8 @@ def set_polyline(
     
     annotation = {
         "info": {
-            "type": "landmark", 
-            "function": "set_landmark",
+            "annotation_type": "line", 
+            "function": "set_polyline",
             },
         "settings": local_settings,
         "data":{
@@ -304,34 +306,15 @@ def skeletonize(
 
 	# =============================================================================
 	# setup 
-       
-    ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] == "info":
-        if annotation["info"]["annotation_type"] == "contour":
-            contours = annotation["data"]["coord_list"]
-            contours_support = annotation["data"]["support"]
-    else:
-        if not kwargs.get("contour_id"):
-            if kwargs.get("annotation_counter"):
-                annotation_counter = kwargs.get("annotation_counter")
-                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
-                print("- contour_id not specified - drawing recent most one (\"{}\")".format(contour_id))
-            else:
-                print("- contour_id not specified - can't drawing")
-                return
-        else:
-           contour_id = kwargs.get("contour_id")
-        
-        ## subtract self-count
-        contour_id =  chr(ord(contour_id) - 1)
 
-        if list(annotation.keys())[0] in _annotation_types.keys():
-            contours = annotation["contour"][contour_id]["data"]["coord_list"]
-            contours_support = annotation["contour"][contour_id]["data"]["support"]
-        elif list(annotation.keys())[0] in string.ascii_lowercase:
-            contours = annotation[contour_id]["data"]["coord_list"]
-            contours_support = annotation[contour_id]["data"]["support"]
-       
+    ## extract annotation data     
+    contours = _provide_annotation_data(annotation, 
+                                        "contour",
+                                        "coord_list",
+                                        kwargs)
+
+    if not contours:
+        return {}
         
 	# =============================================================================
 	# execute
@@ -364,7 +347,7 @@ def skeletonize(
     
     annotation = {
         "info": {
-            "type": "contour", 
+            "annotation_type": "line", 
             "function": "skeletonize",
             },
         "settings": local_settings,
@@ -379,9 +362,6 @@ def skeletonize(
     
     return annotation
     
-
-
-
 
 
 def shape_features(
@@ -469,54 +449,32 @@ def shape_features(
         _update_settings(kwargs, local_settings)
         
 
-	# =============================================================================
-	# setup 
-       
-    ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] == "info":
-        if annotation["info"]["annotation_type"] == "contour":
-            contours = annotation["data"]["coord_list"]
-            contours_support = annotation["data"]["support"]
-    else:
-        if not kwargs.get("contour_id"):
-            if kwargs.get("annotation_counter"):
-                annotation_counter = kwargs.get("annotation_counter")
-                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
-                print("- contour_id not specified - drawing recent most one (\"{}\")".format(contour_id))
-            else:
-                print("- contour_id not specified - can't drawing")
-                return
-        else:
-           contour_id = kwargs.get("contour_id")
+    # =============================================================================
+    # setup             
 
-        if list(annotation.keys())[0] in _annotation_types.keys():
-            contours = annotation["contour"][contour_id]["data"]["coord_list"]
-            contours_support = annotation["contour"][contour_id]["data"]["support"]
-        elif list(annotation.keys())[0] in string.ascii_lowercase:
-            contours = annotation[contour_id]["data"]["coord_list"]
-            contours_support = annotation[contour_id]["data"]["support"]
+    contours = _provide_annotation_data(annotation, "contour", "coord_list", kwargs)
+    contours_support = _provide_annotation_data(annotation, "contour", "support", kwargs)
     
+    if not contours or not contours_support:
+        return {}
 
-	# =============================================================================
-	# execute
+    # =============================================================================
+    # execute
     
     shape_features = {}
     
-    ## calculate shape descriptors from contours
     for idx1, (coords, support) in enumerate(zip(contours, contours_support)):      
         
         idx1 += 1
         shape_features[idx1] = {}
         
+        ## basic shape descriptors
         if flags.basic:
 
-            ## retrieve area and diameter
+            ## retrieve area and diameter, needed for calculation
             cnt_diameter = support["diameter"]
             cnt_area = support["area"]
-    
-    
-        
-            ## basic shape descriptors
+
             tri_area, tri_coords = cv2.minEnclosingTriangle(coords)
             min_rect_center, min_rect_min_max, min_rect_angle = cv2.minAreaRect(coords)
             min_rect_max, min_rect_min = min_rect_min_max[0], min_rect_min_max[1]
@@ -560,7 +518,7 @@ def shape_features(
         
     annotation = {
         "info": {
-            "type": "data", 
+            "annotation_type": "data", 
             "function": "shape_features",
             },
         "settings": local_settings,
@@ -569,7 +527,6 @@ def shape_features(
             }
         }
     
-
     return annotation
 
 
@@ -650,29 +607,11 @@ def texture_features(
 	# =============================================================================
 	# setup 
        
-    ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] == "info":
-        if annotation["info"]["annotation_type"] == "contour":
-            contours = annotation["data"]["coord_list"]
-            contours_support = annotation["data"]["support"]
-    else:
-        if not kwargs.get("contour_id"):
-            if kwargs.get("annotation_counter"):
-                annotation_counter = kwargs.get("annotation_counter")
-                contour_id = string.ascii_lowercase[annotation_counter["contour"]]
-                print("- contour_id not specified - drawing recent most one (\"{}\")".format(contour_id))
-            else:
-                print("- contour_id not specified - can't drawing")
-                return
-        else:
-           contour_id = kwargs.get("contour_id")
-
-        if list(annotation.keys())[0] in _annotation_types.keys():
-            contours = annotation["contour"][contour_id]["data"]["coord_list"]
-            contours_support = annotation["contour"][contour_id]["data"]["support"]
-        elif list(annotation.keys())[0] in string.ascii_lowercase:
-            contours = annotation[contour_id]["data"]["coord_list"]
-            contours_support = annotation[contour_id]["data"]["support"]
+    contours = _provide_annotation_data(annotation, "contour", "coord_list", kwargs)
+    contours_support = _provide_annotation_data(annotation, "contour", "support", kwargs)
+    
+    if not contours or not contours_support:
+        return {}
     
     
 	# =============================================================================
@@ -688,7 +627,6 @@ def texture_features(
             foreground_mask_inverted, [coords], 255
         )
 
-    ## method
     
     texture_features = {}
     
@@ -731,7 +669,7 @@ def texture_features(
         
     annotation = {
         "info": {
-            "type": "data", 
+            "annotation_type": "data", 
             "function": "texture_features",
             },
         "settings": local_settings,
@@ -740,5 +678,4 @@ def texture_features(
             }
         }
     
-
     return annotation

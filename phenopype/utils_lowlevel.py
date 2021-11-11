@@ -4,6 +4,7 @@ import cv2, copy, os, sys, warnings
 import numpy as np
 import pandas as pd
 from dataclasses import make_dataclass
+import string
 
 import time
 from timeit import default_timer as timer
@@ -19,10 +20,10 @@ from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-# from phenopype.settings import colours, confirm_options, pype_config_template_list, opencv_interpolation_flags
-# from phenopype.settings import flag_verbose, opencv_window_flags, AttrDict
+# from phenopype.settings import settings.colours, confirm_options, pype_config_template_list, settings.opencv_interpolation_flags
+# from phenopype.settings import flag_verbose, settings.opencv_window_flags, AttrDict
 
-import phenopype.settings as settings
+# import phenopype.settings as settings
 
 ## capture yaml output - temp
 from contextlib import redirect_stdout
@@ -30,6 +31,7 @@ import io
 
 from phenopype import _config
 from phenopype import main
+from phenopype import settings
 
 
 #%% settings
@@ -91,8 +93,11 @@ class _ImageViewer:
         self.window_name = "phenopype"
                 
         ## needs cleaning
-        self.flags = settings.AttrDict({"passive":False})
-        self.flags.passive = kwargs.get("passive", False)
+        
+        self.flags = make_dataclass(cls_name="flags", 
+                                    fields=[("passive", bool, kwargs.get("passive", False))])   
+     
+
         
         # =============================================================================
         # initialize variables
@@ -553,7 +558,7 @@ class _ImageViewer:
                 
     def _on_mouse_draw(self, event, x, y, flags):     
 
-        ## set colour - left/right mouse button use different colours
+        ## set colour - left/right mouse button use different settings.colours
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
                 self.colour_current_bin = 255
@@ -681,8 +686,26 @@ class _ImageViewer:
                     coords[1],
                     coords[2],
                 )
-                
-                
+            elif tool == "point":
+                cv2.circle(
+                    self.image_copy,
+                    coords,
+                    self.point_size,
+                    settings.colours[self.point_colour],
+                    -1,
+                )
+                if self.flag_text_label:
+                    cv2.putText(
+                        self.image_copy,
+                        str(idx+1),
+                        coords,
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        self.text_size,
+                        settings.colours[self.label_colour],
+                        self.text_width,
+                        cv2.LINE_AA,
+                    )
+        
     def _canvas_mount(self, refresh=True):
               
         ## pass zoomed part of original image to canvas
@@ -1171,6 +1194,84 @@ def _provide_pype_config(config=None,
 
 
 
+
+def _provide_annotation_data(annotation, 
+                             annotation_type, 
+                             data_type, 
+                             kwargs, 
+                             reduce_counter=False):
+    
+    ## setup
+    annotation = copy.deepcopy(annotation)
+    annotation_id_str = annotation_type + "_id"
+    print_msg = None
+    
+    ## low-throughput annotation structure without multiple types or IDs
+    if list(annotation.keys())[0] == "info":
+        if annotation["info"]["annotation_type"] == annotation_type:
+            data = annotation["data"][data_type]
+        else:
+            print_msg = "- incompatible data type supplied - need annotation of type \"{}\"".format(annotation_type)
+            data = None
+            
+    ## high-throughput annotation structure needs an annotation ID
+    else:
+        
+        ## get ID from user provided kwargs
+        if kwargs.get(annotation_id_str):
+            annotation_id = kwargs.get(annotation_id_str)
+            
+        ## get ID from last used annotation function of that type
+        elif not kwargs.get(annotation_id_str):
+            if kwargs.get("annotation_counter"):
+                print_msg = "- \"{}\" not provided: ".format(annotation_id_str)
+                annotation_counter = kwargs.get("annotation_counter")
+                annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
+                if annotation_id == "z":
+                    print_msg = print_msg + "no precursing annotations of type \"{}\" found - check your config file".format(annotation_type)
+                    annotation_id = None
+                else:
+                    if reduce_counter:
+                        annotation_id =  chr(ord(annotation_id) - 1)
+                    print_msg = print_msg + "using last annotation of type \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
+                    pass
+            else:
+                print_msg = "\"{}\" not specified or available through precursing annotations".format(annotation_id_str)
+                annotation_id = None
+        
+        ## check if type is given
+        if annotation_type in annotation:
+            
+            ## convert local annotation structure for extraction
+            if list(annotation.keys())[0] in settings._annotation_types.keys():
+                annotation = annotation[annotation_type] 
+        
+            ## extract data
+            if annotation_id:
+                if annotation_id in annotation:
+                    if data_type in annotation[annotation_id]["data"]:
+                        data = annotation[annotation_id]["data"][data_type]
+                    else:
+                        print_msg = "- \"{}\" not found in precursing annotation of type \"{}\" with ID \"{}\"".format(data_type, annotation_type, annotation_id)
+                        data = None
+                else:
+                    print_msg = "- could not find \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
+                    data = None
+            else:
+                data = None
+        else:
+            print_msg = "- incompatible data type supplied - need annotation of type \"{}\"".format(annotation_type)
+            data = None
+            
+    ## cleaned feedback (skip identical messages)
+    if print_msg:          
+        if not print_msg == _config.last_print_msg:
+            _config.last_print_msg = print_msg
+            print(print_msg)
+            
+    return data
+		
+
 def _get_circle_perimeter(center_x, center_y, radius):
     coordinate_list=[]
     for i in range(360):
@@ -1280,7 +1381,7 @@ def _resize_image(image, factor=1, interpolation="cubic"):
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
         original size).
     interpolation: str, optional
-        interpolation algorithm to use. check pp.settings.opencv_interpolation_flags
+        interpolation algorithm to use. check pp.settings.settings.opencv_interpolation_flags
         and refer to https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
 
     Returns

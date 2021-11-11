@@ -51,7 +51,7 @@ from phenopype.utils_lowlevel import (
     _yaml_flow_style,
 )
 
-from  phenopype import _config
+from phenopype import _config
 
 #%% settings
 
@@ -1002,8 +1002,11 @@ class Pype(object):
             ## refresh config
             if self.flags.feedback and self.flags.visualize:
             
+                ## to stop infinite loop without opening new window
                 if not self.YFM.content:
                     print("- STILL UPDATING CONFIG (no content)")
+                    cv2.destroyWindow("phenopype")
+                    time.sleep(1)
                     continue
             
                 self.config = copy.deepcopy(self.YFM.content)
@@ -1238,8 +1241,9 @@ class Pype(object):
             if step_name == "visualization" and flags.execute:
                 
                 ## check if canvas is selected, and otherwise execute with default values
-                if not "select_canvas" in method_list:
-                    print("- autoselect canvas:")
+                vis_list = [list(dict(i).keys())[0] if not isinstance(i, str) else i for i in method_list]
+                if not "select_canvas" in vis_list:
+                    print("select_canvas (autoselect)")
                     self.container.run("select_canvas")
                     
             ## iterate through step list
@@ -1309,12 +1313,17 @@ class Pype(object):
                 ## run method with error handling
                 if flags.execute:            
                     try:
+                        
+                        ## excecute 
                         self.container.run(
                             fun=method_name, 
                             fun_kwargs=method_args,
                             annotation_kwargs=annotation_args, 
                             annotation_counter=annotation_counter,
                             )
+                        ## feedback cleanup
+                        _config.last_print_msg = ""
+                        
                     except Exception as ex:
                         if self.flags.debug:
                             raise

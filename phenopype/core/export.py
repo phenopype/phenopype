@@ -163,7 +163,6 @@ def save_annotation(annotation,
     while True:
         if os.path.isfile(filepath):
             if overwrite in [False,True,"entry"]:
-                print(filepath)
                 with open(filepath) as file:
                     annotation_file = json.load(file)
                 annotation_file = defaultdict(dict, annotation_file)           
@@ -171,7 +170,7 @@ def save_annotation(annotation,
                 break
             elif overwrite == "file":
                 pass
-                print("overwriting annotation file (overwrite=\"file\")")
+                print("- overwriting annotation file (overwrite=\"file\")")
         else:
             print("- creating new annotation file")
             pass
@@ -286,6 +285,7 @@ def save_canvas(
         image,
         save_suffix,
         dirpath,
+        verbose=False,
         **kwargs):
     
     extension = kwargs.get("extension", ".jpg")
@@ -300,7 +300,8 @@ def save_canvas(
                name=name,
                dirpath=dirpath,
                resize=resize,
-               overwrite=overwrite)
+               overwrite=overwrite,
+               verbose=verbose)
         
     
         
@@ -381,71 +382,4 @@ def save_reference(annotation,
 
 
 
-def save_data_entry(obj_input, overwrite=True, dirpath=None):
-    """
-    Save data entry to attributes.yaml 
 
-    Parameters
-    ----------
-    obj_input : DataFrame or container
-        input object
-    overwrite: bool optional
-        overwrite if entry already exists
-    dirpath: str, optional
-        location to save df
-    """
-
-    ## kwargs
-    flag_overwrite = overwrite
-
-    ## load df
-    if obj_input.__class__.__name__ == "DataFrame":
-        df = obj_input
-    elif obj_input.__class__.__name__ == "container":
-        df = obj_input.df_other_data
-        if (
-            dirpath.__class__.__name__ == "NoneType"
-            and not obj_input.dirpath.__class__.__name__ == "NoneType"
-        ):
-            dirpath = obj_input.dirpath
-    else:
-        print("No df supplied - cannot export results.")
-        return
-
-    ## dirpath
-    if dirpath.__class__.__name__ == "NoneType":
-        print('No save directory ("dirpath") specified - cannot save result.')
-        return
-    else:
-        if not os.path.isdir(dirpath):
-            q = input("Save folder {} does not exist - create?.".format(dirpath))
-            if q in ["True", "true", "y", "yes"]:
-                os.makedirs(dirpath)
-            else:
-                print("Directory not created - aborting")
-                return
-
-    ## load attributes file
-    attr_path = os.path.join(dirpath, "attributes.yaml")
-    if os.path.isfile(attr_path):
-        attr = _load_yaml(attr_path)
-    else:
-        attr = {}
-    if not "other" in attr:
-        attr["other"] = {}
-
-    ## check if entry exists
-    while True:
-        for col in list(df):
-            if col in attr["other"] and flag_overwrite == False:
-                print("- column " + col + " not saved (overwrite=False)")
-                continue
-            elif col in attr["other"] and flag_overwrite == True:
-                print("- add column " + col + " (overwriting)")
-                pass
-            else:
-                print("- add column " + col)
-                pass
-            attr["other"][col] = df[col][0]
-        break
-    _save_yaml(attr, attr_path)
