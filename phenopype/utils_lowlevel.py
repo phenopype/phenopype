@@ -30,7 +30,6 @@ import io
 
 from phenopype import _config
 from phenopype import main
-from phenopype.utils import show_image
 
 
 #%% settings
@@ -682,13 +681,6 @@ class _ImageViewer:
                     coords[1],
                     coords[2],
                 )
-                
-            elif tool == "line_bin_cont":
-                
-                ## contour finding algorithm got too complicated to maintain with 
-                ## overlay blend and lines - may be implmented again in the future
-                
-                pass
                 
                 
     def _canvas_mount(self, refresh=True):
