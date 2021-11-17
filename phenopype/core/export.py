@@ -294,10 +294,11 @@ def save_canvas(
     
     if "." not in extension:
         extension = "." + extension
-    name = "canvas_" + save_suffix + extension
+    name = "canvas_" + save_suffix
     
     save_image(image=image,
                name=name,
+               extension=extension,
                dirpath=dirpath,
                resize=resize,
                overwrite=overwrite,

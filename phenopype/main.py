@@ -1067,7 +1067,9 @@ class Pype(object):
     
         ## manually supply dirpath to save files (overwrites container dirpath)
         if not dirpath.__class__.__name__ == "NoneType":
-            if not os.path.isdir(dirpath):
+            if dirpath == "cwd":
+                dirpath = os.getcwd()
+            elif not os.path.isdir(dirpath):
                 q = input("Save folder {} does not exist - create?.".format(dirpath))
                 if q in ["True", "true", "y", "yes"]:
                     os.makedirs(dirpath)
@@ -1092,7 +1094,7 @@ class Pype(object):
              
         ## 2) create new from template or, if already exists, load from file
         if all([config.__class__.__name__ == "NoneType",
-                template.__class__.__name__ == "str"]):
+                template.__class__.__name__ == "Template"]):
             self.config_path = os.path.join(self.container.dirpath,
                                        "pype_config_" + name + ".yaml")
             if os.path.isfile(self.config_path):
@@ -1225,15 +1227,18 @@ class Pype(object):
             # =============================================================================
             # STEP
             # =============================================================================
-                                    
-            if step.__class__.__name__=="str":
+                              
+            if step.__class__.__name__ == "str":
                 continue
-            
+                                        
             ## get step name 
             step_name = list(dict(step).keys())[0]
             method_list = list(dict(step).values())[0]
             self.config_parsed_flattened[step_name] = []
-                            
+            
+            if method_list.__class__.__name__ == "NoneType":
+                continue
+                                            
             ## print current step
             if flags.feedback:
                 print(step_name.upper())

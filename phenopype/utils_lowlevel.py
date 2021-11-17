@@ -67,7 +67,10 @@ class _ImageViewer:
         if kwargs.get("window_max_dim"):
             window_max_dim = kwargs.get("window_max_dim")
         elif hasattr(main, "window_max_dim"):
-            window_max_dim = main.window_max_dim
+            if not main.window_max_dim == None:
+                window_max_dim = main.window_max_dim
+            else:
+                window_max_dim = _config.window_max_dim
         else:
             window_max_dim = _config.window_max_dim
         

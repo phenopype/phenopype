@@ -437,13 +437,13 @@ def load_image(
                     dirpath = os.path.dirname(os.path.abspath(path))
                     if flag_verbose:
                         print("Directory to save phenopype-container output set to parent folder of image:\n{}".format(dirpath))
-            else: 
-                print(
-                    "No directory provided to save phenopype-container output" +
-                    " - provide dirpath or use dirpath==\"cwd\" to set save" +
-                    " paths to current working directory - aborting."
-                      )
-                return
+            # else: 
+            #     print(
+            #         "No directory provided to save phenopype-container output" +
+            #         " - provide dirpath or use dirpath==\"cwd\" to set save" +
+            #         " paths to current working directory - aborting."
+            #           )
+            #     return
             
             
     ## create container
@@ -518,7 +518,7 @@ def load_pp_directory(
 def save_image(
     image,
     name,
-    dirpath=os.getcwd(),
+    dirpath,
     resize=1,
     append="",
     extension="jpg",
@@ -572,7 +572,11 @@ def save_image(
         )
 
     ## construct save path
-    new_name = name + append + extension
+    
+    if name.endswith(extension):
+        new_name = name
+    else:
+        new_name = name + append + extension
     path = os.path.join(dirpath, new_name)
 
     ## save
