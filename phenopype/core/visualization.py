@@ -455,7 +455,7 @@ def draw_polyline(
 
 
 
-def select_canvas(container, canvas="raw", multi_channel=True, **kwargs):
+def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
     """
     Isolate a colour channel from an image or select canvas for the pype method.
 
@@ -477,36 +477,46 @@ def select_canvas(container, canvas="raw", multi_channel=True, **kwargs):
 
     """
 
-    ## method
-    if canvas == "mod":
-        container.canvas = copy.deepcopy(container.image)
-        print("- modifed image")
-    elif canvas == "raw":
-        container.canvas = copy.deepcopy(container.image_copy)
-        print("- raw image")
-    # elif canvas == "bin":
-    #     container.canvas = copy.deepcopy(container.image_bin)
-        # print("- binary image")
-    elif canvas == "gray":
-        container.canvas = cv2.cvtColor(container.image_gray, cv2.COLOR_BGR2GRAY)
-        print("- grayscale image")
-    elif canvas == "green":
-        container.canvas = container.image_copy[:, :, 0]
-        print("- green channel")
-    elif canvas == "red":
-        container.canvas = container.image_copy[:, :, 1]
-        print("- red channel")
-    elif canvas == "blue":
-        container.canvas = container.image_copy[:, :, 2]
-        print("- blue channel")
-    else:
-        print("- invalid selection - defaulting to raw image")
-        container.canvas = copy.deepcopy(container.image_copy)
+    if image.__class__.__name__ == "Container":
+
+        ## method
+        if canvas == "mod":
+            image.canvas = copy.deepcopy(image.image)
+            print("- modifed image")
+        elif canvas == "raw":
+            image.canvas = copy.deepcopy(image.image_copy)
+            print("- raw image")
+        # elif canvas == "bin":
+        #     image.canvas = copy.deepcopy(image.image_bin)
+            # print("- binary image")
+        elif canvas == "gray":
+            image.canvas = cv2.cvtColor(image.image_gray, cv2.COLOR_BGR2GRAY)
+            print("- grayscale image")
+        elif canvas == "green":
+            image.canvas = image.image_copy[:, :, 0]
+            print("- green channel")
+        elif canvas == "red":
+            image.canvas = image.image_copy[:, :, 1]
+            print("- red channel")
+        elif canvas == "blue":
+            image.canvas = image.image_copy[:, :, 2]
+            print("- blue channel")
+        else:
+            print("- invalid selection - defaulting to raw image")
+            image.canvas = copy.deepcopy(image.image_copy)
+            
+    elif image.__class__.__name__ == "ndarray":
+        if canvas == "raw":
+            canvas = copy.deepcopy(image)
+            print("- raw image")
+            
+        return canvas
+            
 
     ## check if colour
     if multi_channel:
-        if len(container.canvas.shape) < 3:
-            container.canvas = cv2.cvtColor(container.canvas, cv2.COLOR_GRAY2BGR)
+        if len(image.canvas.shape) < 3:
+            image.canvas = cv2.cvtColor(image.canvas, cv2.COLOR_GRAY2BGR)
             
             
         

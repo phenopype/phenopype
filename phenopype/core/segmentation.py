@@ -455,7 +455,7 @@ def threshold(
             255, 
             cv2.THRESH_BINARY_INV
             )
-
+        
 	# =============================================================================
 	# process
 
@@ -478,8 +478,7 @@ def threshold(
             print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
         if include_idx>0:
             print("- including pixels from " + str(include_idx) + " drawn masks ")
-
-
+   
 
 	# =============================================================================
 	# return

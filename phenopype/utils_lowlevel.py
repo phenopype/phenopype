@@ -920,7 +920,7 @@ def _convert_tup_list_arr(tup_list):
 
 def _create_mask_bin(image, contours):
     mask_bin = np.zeros(image.shape[0:2], np.uint8)
-    if contours[0].__class__.__name__ == "list":
+    if contours[0].__class__.__name__ == "list" or contours.__class__.__name__ == "list":
         cv2.fillPoly(mask_bin, [np.array(contours, dtype=np.int32)], settings.colours["white"])
     elif contours[0].__class__.__name__ == "ndarray":
         for contour in contours:
@@ -1439,9 +1439,6 @@ def _load_yaml(filepath, typ="rt", pure=False, legacy=False):
         return
     
     
-    
-    isinstance(filepath, )
-
 def _show_yaml(odict, ret=False, typ="rt"):
     
     yaml =  YAML(typ=typ)

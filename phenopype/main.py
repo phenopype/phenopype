@@ -1126,6 +1126,7 @@ class Pype(object):
         if platform.system() == "Darwin":  # macOS
             subprocess.call(("open", self.config_path))
         elif platform.system() == "Windows":  # Windows
+            print(self.config_path)
             os.startfile(self.config_path)
         else:  # linux variants
             subprocess.call(("xdg-open", self.config_path))
