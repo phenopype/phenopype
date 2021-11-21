@@ -11,13 +11,18 @@ import pandas as pd
 import re
 from _ctypes import PyObj_FromPtr
 
-from phenopype.settings import confirm_options, _annotation_types
+from phenopype.settings import confirm_options, _annotation_types, flag_verbose
 from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _convert_arr_tup_list
 from phenopype.utils import save_image
 #%% settings   
     
 class NoIndent(object):
-    """ Value wrapper. """
+    """
+    
+    Marks objects to have no indent in JSON files.
+    
+    """
+    
     def __init__(self, value):
         if not isinstance(value, (list, tuple, dict)):
             raise TypeError('Only lists and tuples can be wrapped')
@@ -25,6 +30,12 @@ class NoIndent(object):
 
 
 class MyEncoder(json.JSONEncoder):
+    """
+    
+    Modified JSON-encoder to remove indents from lists, arrays, and tuples
+    
+    """
+    
     FORMAT_SPEC = '@@{}@@'  # Unique string pattern of NoIndent object ids.
     regex = re.compile(FORMAT_SPEC.format(r'(\d+)'))  # compile(r'@@(\d+)@@')
 
@@ -67,6 +78,25 @@ class MyEncoder(json.JSONEncoder):
 def load_annotation(filepath, 
                     annotation_type=None,
                     annotation_id=None):
+    """
+
+    Parameters
+    ----------
+    filepath : str
+        Path to JSON file containing annotations
+    annotation_type : str | list of str, optional
+        If file contains multiple annotation types, select one or more to 
+        load. None will load all types. The default is None.
+    annotation_id : str | list of str, optional
+        If file contains multiple annotation IDs, select one or more to 
+        load. None will load all IDs within a type. The default is None.
+
+    Returns
+    -------
+    dict
+        Loaded annotations.
+
+    """
     
     ## load annotation file
     if os.path.isfile(filepath):
@@ -138,14 +168,56 @@ def save_annotation(annotation,
                     filename="annotations.json",
                     overwrite=False, 
                     **kwargs):
+    """  
+    
+    Parameters
+    ----------
+    annotation : dict
+        Annotation dictionary formatted by phenopype specifications: 
+                {
+                    annotation_type = {
+                        annotation_id = annotation,
+                        annotation_id = annotation,
+                        ...
+                        },
+                    annotation_type = {
+                        annotation_id = annotation,
+                        annotation_id = annotation,
+                        ...
+                        },
+                    ...
+                }
+    annotation_id : str, optional
+        String ("a"-"z") specifying the annotation ID to be saved. None will 
+        save all IDs. The default is None.
+    dirpath : str, optional
+        Path to folder where annotation should be saved. None will save the 
+        annotation in the current Python working directory. The default is None.
+    filename : str, optional
+        Filename for JSON file containing annotation. The default is 
+        "annotations.json".
+    overwrite : bool, optional
+        Overwrite options should file or annotation entry in file exist:
+            False = Neither file or entry will be overwritten
+            "entry" | True  = A single entry will be overwritten
+            "file" = The whole will be overwritten. 
+        The default is False.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+    
+    """
     
     ## kwargs
     indent = kwargs.get("indent", 4)
         
     ## dirpath
     if dirpath.__class__.__name__ == "NoneType":
-        print('No save directory ("dirpath") specified - cannot save result.')
-        return
+        dirpath = os.getcwd()
+        print('No save directory ("dirpath") specified - using current working directory.')
     else:
         if not os.path.isdir(dirpath):
             q = input("Save folder {} does not exist - create?.".format(dirpath))
@@ -240,18 +312,49 @@ def save_annotation(annotation,
 
 def save_ROI(image,
              annotation,
-             dirpath,
              name,
+             dirpath=None,
              prefix=None,
              suffix="roi"): 
+    """
+
+    Parameters
+    ----------
+    image : ndarray
+        An image containing regions of interest (ROI).
+    annotation : dict
+        A phenopype annotation dict containing one or more contour coordinate
+        entries.
+    name : str
+        Name for ROI series (should reflect image content, not "ROI" or the like
+        which is specified with prefix or suffix arguments). The contour index
+        will be added as a numeric string at the end of the filename.
+    dirpath : str, optional
+        Path to folder where annotation should be saved. None will save the 
+        annotation in the current Python working directory. The default is None.
+    prefix : str, optional
+        Prefix to prepend to individual ROI filenames. The default is None.
+    suffix : str, optional
+        Suffix to append to individual ROI filenames. The default is "roi".
+
+    Returns
+    -------
+    None.
+
+    """
     
-    if not os.path.isdir(dirpath):
-        q = input("Save folder {} does not exist - create?.".format(dirpath))
-        if q in confirm_options:
-            os.makedirs(dirpath)
-        else:
-            print("Directory not created - aborting")
-            return
+    ## dirpath
+    if dirpath.__class__.__name__ == "NoneType":
+        dirpath = os.getcwd()
+        print('No save directory ("dirpath") specified - using current working directory.')
+    else:
+        if not os.path.isdir(dirpath):
+            q = input("Save folder {} does not exist - create?.".format(dirpath))
+            if q in confirm_options:
+                os.makedirs(dirpath)
+            else:
+                print("Directory not created - aborting")
+                return
         
     if prefix is None:
         prefix=""
@@ -285,8 +388,26 @@ def save_canvas(
         image,
         save_suffix,
         dirpath,
-        verbose=False,
         **kwargs):
+    """
+    
+
+    Parameters
+    ----------
+    image : ndarray
+        A canvas to be saved.
+    save_suffix : str
+        A suffix to be appended to the filename.
+    dirpath : str
+        Path to directory to save canvas.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
     
     extension = kwargs.get("extension", ".jpg")
     resize = kwargs.get("resize", 1)
@@ -302,84 +423,86 @@ def save_canvas(
                dirpath=dirpath,
                resize=resize,
                overwrite=overwrite,
-               verbose=verbose)
+               verbose=flag_verbose)
         
     
         
 
-def save_reference(annotation, 
-                   overwrite=True, 
-                   dirpath=None, 
-                   active_ref=None):
-    """
-    Save a created or detected reference to attributes.yaml
+# def save_reference(annotation, 
+#                    overwrite=True, 
+#                    dirpath=None, 
+#                    active_ref=None):
+#     """
     
-    Parameters
-    ----------
-    obj_input : DataFrame or container
-        input object
-    overwrite: bool optional
-        overwrite csv if it already exists
-    dirpath: str, optional
-        location to save df
-    """
+#     Save a created or detected reference to attributes.yaml
+    
+#     Parameters
+#     ----------
+#     annotation: dict
+#         A phenopype annotation dict.
+#     overwrite: bool optional
+#         Overwrite reference if it already exists
+#     dirpath: str, optional
+#         location to save df
+        
+#     """
    
-    ## load df
-    px_mm_ratio = annotation["reference"]["a"]["data"]["px_mm_ratio"]
+#     ## load df
+#     px_mm_ratio = annotation["reference"]["a"]["data"]["px_mm_ratio"]
 
 
-    ## dirpath
-    if dirpath.__class__.__name__ == "NoneType":
-        print('No save directory ("dirpath") specified - cannot save result.')
-        return
-    else:
-        if not os.path.isdir(dirpath):
-            q = input("Save folder {} does not exist - create?.".format(dirpath))
-            if q in ["True", "true", "y", "yes"]:
-                os.makedirs(dirpath)
-            else:
-                print("Directory not created - aborting")
-                return
+#     ## dirpath
+#     if dirpath.__class__.__name__ == "NoneType":
+#         print('No save directory ("dirpath") specified - cannot save result.')
+#         return
+#     else:
+#         if not os.path.isdir(dirpath):
+#             q = input("Save folder {} does not exist - create?.".format(dirpath))
+#             if q in ["True", "true", "y", "yes"]:
+#                 os.makedirs(dirpath)
+#             else:
+#                 print("Directory not created - aborting")
+#                 return
 
-    ## load attributes file        
-    attr_path = os.path.join(dirpath, "attributes.yaml")
-    if os.path.isfile(attr_path):
-        attr = _load_yaml(attr_path)
-        if not "reference" in attr:
-            attr["reference"] = {}      
-        if not "project_level" in attr["reference"]:
-            attr["reference"]["project_level"] = {}     
+#     ## load attributes file        
+#     attr_path = os.path.join(dirpath, "attributes.yaml")
+#     if os.path.isfile(attr_path):
+#         attr = _load_yaml(attr_path)
+#         if not "reference" in attr:
+#             attr["reference"] = {}      
+#         if not "project_level" in attr["reference"]:
+#             attr["reference"]["project_level"] = {}     
 
 
-    ## check if file exists
-    if not active_ref.__class__.__name__ == "NoneType":
-        while True:
-            if "reference_detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and overwrite == False:
-                print("- reference not saved (overwrite=False)")
-                break
-            elif "reference_detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and overwrite == True:
-                print("- save reference to attributes (overwriting)")
-                pass
-            else:
-                print("- save reference to attributes")
-                pass
-            attr["reference"]["project_level"][active_ref]["reference_detected_px_mm_ratio"] = px_mm_ratio
-            break
-        _save_yaml(attr, attr_path)
-    else: 
-        while True:
-            if "reference_manually_measured_px_mm_ratio" in attr["reference"] and overwrite == False:
-                print("- reference not saved (overwrite=False)")
-                break
-            elif "reference_manually_measured_px_mm_ratio" in attr["reference"] and overwrite == True:
-                print("- save reference to attributes (overwriting)")
-                pass
-            else:
-                print("- save reference to attributes")
-                pass
-            attr["reference"]["reference_manually_measured_px_mm_ratio"] = px_mm_ratio
-            break
-        _save_yaml(attr, attr_path)        
+#     ## check if file exists
+#     if not active_ref.__class__.__name__ == "NoneType":
+#         while True:
+#             if "reference_detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and overwrite == False:
+#                 print("- reference not saved (overwrite=False)")
+#                 break
+#             elif "reference_detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and overwrite == True:
+#                 print("- save reference to attributes (overwriting)")
+#                 pass
+#             else:
+#                 print("- save reference to attributes")
+#                 pass
+#             attr["reference"]["project_level"][active_ref]["reference_detected_px_mm_ratio"] = px_mm_ratio
+#             break
+#         _save_yaml(attr, attr_path)
+#     else: 
+#         while True:
+#             if "reference_manually_measured_px_mm_ratio" in attr["reference"] and overwrite == False:
+#                 print("- reference not saved (overwrite=False)")
+#                 break
+#             elif "reference_manually_measured_px_mm_ratio" in attr["reference"] and overwrite == True:
+#                 print("- save reference to attributes (overwriting)")
+#                 pass
+#             else:
+#                 print("- save reference to attributes")
+#                 pass
+#             attr["reference"]["reference_manually_measured_px_mm_ratio"] = px_mm_ratio
+#             break
+#         _save_yaml(attr, attr_path)        
 
 
 
