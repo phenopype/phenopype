@@ -643,7 +643,10 @@ def comment(
 
     ## retrieve update IV settings and data from previous annotations  
     IV_settings = {}     
-    if annotation_previous:       
+    if annotation_previous:    
+        
+        print(annotation_previous)
+        
         IV_settings["ImageViewer_previous"] =_load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [

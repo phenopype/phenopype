@@ -769,7 +769,7 @@ class Project:
 
             
         ## append name
-        print(search_string)
+        print("Search string: " + search_string)
 
         ## search
         found, duplicates = _file_walker(
