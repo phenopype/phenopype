@@ -201,7 +201,7 @@ class _ImageViewer:
             ## initialize comment tool
             self.field = kwargs.get("field", "")
             self.entry = ""
-                            
+            
         # =============================================================================
         # update self with parameters from previous instance
         # =============================================================================              
@@ -218,7 +218,6 @@ class _ImageViewer:
             
             self.__dict__.update(copy.deepcopy(prev_attr))
             
-
         # =============================================================================
         # generate canvas
         # =============================================================================
@@ -233,7 +232,7 @@ class _ImageViewer:
             self._canvas_draw(tool="line_bin", coord_list=self.point_list)
             self._canvas_blend()
             self._canvas_add_lines()
-        self._canvas_mount()
+        self._canvas_mount()                                   
 
         ## local control vars
         self.done = False
@@ -248,9 +247,8 @@ class _ImageViewer:
             
             self.done = True
             self.finished = True
-            
+                       
         else:
-            
             cv2.namedWindow(self.window_name, settings.opencv_window_flags[window_aspect])
             cv2.startWindowThread() 
             cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
@@ -727,7 +725,7 @@ class _ImageViewer:
         self.canvas_copy = copy.deepcopy(self.canvas)
         
         ## refresh canvas
-        if refresh:
+        if refresh and not self.flags.passive:
             cv2.imshow(self.window_name, self.canvas)
 
 
@@ -834,6 +832,7 @@ class _YamlFileMonitor:
         self.time_diff = 10
         
     def _on_update(self, event):
+               
         if not self.time_start.__class__.__name__ == "NoneType":
             self.time_end = timer()
             self.time_diff = self.time_end - self.time_start
@@ -1469,6 +1468,9 @@ def _update_settings(kwargs, local_settings, IV_settings=None):
             if IV_settings:
                 IV_settings[key] = value
             local_settings[key] = value
+    if "passive" in local_settings:
+        del local_settings["passive"]
+
 
 
 

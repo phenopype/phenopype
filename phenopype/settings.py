@@ -213,8 +213,8 @@ _annotation_functions = {
     "detect_contour": "contour",
     "edit_contour": "drawing",
     "comment": "comment",
-    "shape_features": "data",
-    "texture_features": "data",
+    "shape_features": "morphology",
+    "texture_features": "texture",
     "set_landmark": "landmark",
     "set_polyline": "line",
     "skeletonize": "line",
@@ -224,10 +224,11 @@ _annotation_types = {
     "comment": {},
     "contour": {},
     "drawing": {},
-    "data": {},
     "landmark": {},
     "line": {},
     "mask": {},
+    "morphology": {},
     "reference": {},
+    "texture": {},
     }
 

@@ -377,7 +377,7 @@ def shape_features(
     contour area and diameter are already provided by the find_contours function.
     https://docs.opencv.org/3.4.9/d3/dc0/group__imgproc__shape.html
 
-    Of the basic shape descriptors, all 10 are translational invariants, 8 are rotation 
+    Of the basic shape descriptors, all 12 are translational invariants, 8 are rotation 
     invariant (rect_height and rect_width are not) and  4 are also scale invariant 
     (circularity, compactness, roundness, solidity).
     https://en.wikipedia.org/wiki/Shape_factor_(image_analysis_and_microscopy)  
@@ -434,6 +434,8 @@ def shape_features(
     # =============================================================================
     # retain settings
     
+    contour_id = kwargs.get("contour_id")
+    
     # kwargs
     flags = make_dataclass(cls_name="flags", 
                            fields=[("basic", bool, basic),
@@ -486,7 +488,9 @@ def shape_features(
             compactness = math.sqrt(4 * cnt_area / np.pi) / cnt_diameter
             
             basic = {
+                'area': cnt_area,
                 'circularity': circularity, 
+                'diatmeter': cnt_diameter,
                 'compactness': compactness,
                 'min_rect_max': min_rect_max,
                 'min_rect_min': min_rect_min,
@@ -498,32 +502,32 @@ def shape_features(
                 'tri_area': tri_area,
                 }
             
-            shape_features[idx1]["basic"] = basic
-                                 
+            shape_features[idx1] = {**shape_features[idx1], **basic}
+                                             
         ## moments
         if flags.moments:
             moments = cv2.moments(coords)
-            shape_features[idx1]["moments"] = moments
+            shape_features[idx1] = {**shape_features[idx1], **moments}
+
 
         ## hu moments
         if flags.hu_moments:
             hu_moments = {}
             for idx2, mom in enumerate(cv2.HuMoments(moments)):
                 hu_moments["hu" + str(idx2 + 1)] = mom[0]
-            shape_features[idx1]["hu_moments"] = hu_moments
+            shape_features[idx1] = {**shape_features[idx1], **hu_moments}
 
-                
 	# =============================================================================
 	# return
         
     annotation = {
         "info": {
-            "annotation_type": "data", 
+            "annotation_type": "morphology", 
             "function": "shape_features",
             },
         "settings": local_settings,
         "data":{
-            "shape_features": shape_features,
+            "features": shape_features,
             }
         }
     
@@ -586,6 +590,8 @@ def texture_features(
     
     # =============================================================================
     # retain settings
+    
+    contour_id = kwargs.get("contour_id")
     
     ## retrieve settings from args
     local_settings  = _drop_dict_entries(
@@ -663,18 +669,17 @@ def texture_features(
                         
                 texture_features[channel][idx1] = output 
 
-
 	# =============================================================================
 	# return
         
     annotation = {
         "info": {
-            "annotation_type": "data", 
+            "annotation_type": "texture", 
             "function": "texture_features",
             },
         "settings": local_settings,
         "data":{
-            "texture_features": texture_features,
+            "features": texture_features,
             }
         }
     

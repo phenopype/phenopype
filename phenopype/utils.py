@@ -84,8 +84,7 @@ class Container(object):
             self.annotations.update(export.load_annotation(os.path.join(self.dirpath, annotations_filename)))
             
                                 
-            # if contours == False:
-            #     self.annotations["contour"] = {}
+            self.annotations["data"] = {}
             
             annotation_types_loaded = {}
             for annotation_type in self.annotations.keys():
@@ -102,17 +101,17 @@ class Container(object):
         attr_local_path = os.path.join(self.dirpath, "attributes.yaml")
         if os.path.isfile(attr_local_path):
 
-            attr_local = _load_yaml(attr_local_path)
+            self.image_attributes = _load_yaml(attr_local_path)
             
-            if "reference" in attr_local:
+            if "reference" in self.image_attributes:
                 
                 ## manually measured px-mm-ratio
-                if "reference_manually_measured_px_mm_ratio" in attr_local["reference"]:
-                    self.reference_manually_measured_px_mm_ratio = attr_local["reference"]["reference_manually_measured_px_mm_ratio"]
+                if "reference_manually_measured_px_mm_ratio" in self.image_attributes["reference"]:
+                    self.reference_manually_measured_px_mm_ratio = self.image_attributes["reference"]["reference_manually_measured_px_mm_ratio"]
                     loaded.append("manually measured local reference information loaded")
                     
                 ## project level template px-mm-ratio
-                if "project_level" in attr_local["reference"]:
+                if "project_level" in self.image_attributes["reference"]:
                     
                     ## load local (image specific) and global (project level) attributes 
                     attr_proj_path =  os.path.abspath(os.path.join(attr_local_path ,r"../../../","attributes.yaml"))
@@ -120,8 +119,8 @@ class Container(object):
                                         
                     ## find active project level references
                     n_active = 0
-                    for key, value in attr_local["reference"]["project_level"].items():
-                        if attr_local["reference"]["project_level"][key]["active"] == True:
+                    for key, value in self.image_attributes["reference"]["project_level"].items():
+                        if self.image_attributes["reference"]["project_level"][key]["active"] == True:
                             active_ref = key
                             n_active += 1
                     if n_active > 1:
@@ -131,8 +130,8 @@ class Container(object):
                     loaded.append("project level reference information loaded for " + active_ref)
                 
                     ## load previously detect px-mm-ratio
-                    if "reference_detected_px_mm_ratio" in attr_local["reference"]["project_level"][active_ref]:
-                        self.reference_detected_px_mm_ratio = attr_local["reference"]["project_level"][active_ref]["reference_detected_px_mm_ratio"]
+                    if "reference_detected_px_mm_ratio" in self.image_attributes["reference"]["project_level"][active_ref]:
+                        self.reference_detected_px_mm_ratio = self.image_attributes["reference"]["project_level"][active_ref]["reference_detected_px_mm_ratio"]
                         loaded.append("detected local reference information loaded for " + active_ref)
                         
                     ## load tempate image from project level attributes
@@ -142,9 +141,9 @@ class Container(object):
                 
         ## feedback
         if len(loaded) > 0:
-            print("=== AUTOLOAD ===\n- " + "\n- ".join(loaded))
+            print("\nAUTOLOAD\n- " + "\n- ".join(loaded))
         else:
-            print("AUTOLOAD off - nothing loaded.")
+            print("\nAUTOLOAD\n - nothing to autoload")
 
             
     def reset(self):
@@ -228,18 +227,6 @@ class Container(object):
         if fun == "decompose_image":
             self.image = preprocessing.decompose_image(self.image, **kwargs)
             
-        ## measurement
-        if fun == "set_landmark":
-            annotation = measurement.set_landmark(self.canvas, **kwargs)
-        if fun == "set_polyline":
-            annotation = measurement.set_polyline(self.canvas, **kwargs)
-        if fun == "skeletonize":
-            annotation = measurement.skeletonize(self.image, annotation=self.annotations, **kwargs)
-        if fun == "shape_features":
-            annotation = measurement.shape_features(annotation=self.annotations, **kwargs)
-        if fun == "texture_features":
-            annotation = measurement.texture_features(self.image_copy, annotation=self.annotations, **kwargs)
-            
         ## segmentation
         if fun == "threshold":
             if "mask" in self.annotations and len(self.annotations["mask"]) > 0 :
@@ -255,6 +242,18 @@ class Container(object):
         if fun == "edit_contour":
             image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
             self.image = image
+            
+        ## measurement
+        if fun == "set_landmark":
+            annotation = measurement.set_landmark(self.canvas, **kwargs)
+        if fun == "set_polyline":
+            annotation = measurement.set_polyline(self.canvas, **kwargs)
+        if fun == "skeletonize":
+            annotation = measurement.skeletonize(self.image, annotation=self.annotations, **kwargs)
+        if fun == "shape_features":
+            annotation = measurement.shape_features(annotation=self.annotations, **kwargs)
+        if fun == "texture_features":
+            annotation = measurement.texture_features(self.image_copy, annotation=self.annotations, **kwargs)
 
         ## visualization
         if fun == "select_canvas":
@@ -274,6 +273,11 @@ class Container(object):
             export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
         if fun == "save_canvas":
             export.save_canvas(self.canvas, dirpath=self.dirpath, save_suffix=self.save_suffix, **kwargs)
+        if fun == "export_csv":
+            export.export_csv(self.annotations, image_name=self.image_attributes["image_original"]["filename"],
+                               dirpath=self.dirpath, save_suffix=self.save_suffix, **kwargs)
+
+            
             
             
         ## save annotation to dict
@@ -299,37 +303,34 @@ class Container(object):
 
         ## kwargs
         flag_overwrite = overwrite
+        flag_autosave = False
 
         ## check dirpath
         if (
             dirpath.__class__.__name__ == "NoneType"
             and not self.dirpath.__class__.__name__ == "NoneType"
         ):
-            print("=== AUTOSAVE ===")
+            print("\nAUTOSAVE")
             dirpath = self.dirpath
-        if dirpath.__class__.__name__ == "NoneType":
-            print('No save directory ("dirpath") specified - cannot save files.')
-            return
-        if not os.path.isdir(dirpath):
-            print("Directory does not exist - cannot save files.")
-
-
-        # ## canvas
-        # if (
-        #     not self.canvas.__class__.__name__ == "NoneType"
-        #     and not "save_canvas" in export_list
-        # ):
-        #     print("save_canvas")
-        #     export.save_canvas(self, dirpath=dirpath)
+        
+        if hasattr(self, "canvas") and not "save_canvas" in export_list:
+            print("- save_canvas")
+            export.save_canvas(self.canvas, dirpath=self.dirpath, save_suffix=self.save_suffix, **kwargs)
+            flag_autosave = True
 
         if hasattr(self, "annotations") and not "save_annotation" in export_list:
             print("- save_annotation")
             filename = kwargs.get("filename", "annotations") + "_" + self.save_suffix + ".json"            
             export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
+            flag_autosave = True
 
         if "reference" in self.annotations and not len(self.annotations["reference"]) == 0 and not "reference" in export_list:
             print("- save reference")
             export.save_reference(self.annotations, dirpath=dirpath, overwrite=flag_overwrite, active_ref=self.reference_active)
+            flag_autosave = True
+
+        if not flag_autosave:
+            print("- nothing to autosave")
             
 
 #%% functions

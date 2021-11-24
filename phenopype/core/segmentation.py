@@ -268,7 +268,7 @@ def edit_contour(
                        left_colour=left_colour,
                        right_colour=right_colour,
                        **IV_settings)
-    
+        
     ## check if tasks completed successfully
     if not out.done:
         print("- didn't finish: redo contour editing!")

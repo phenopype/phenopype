@@ -75,6 +75,94 @@ class MyEncoder(json.JSONEncoder):
         
 #%% functions
 
+
+
+
+def export_csv(annotation, 
+               annotation_type=None,
+               image_name=None,
+               dirpath=None,
+               filename="annotations.csv",
+               save_suffix=None,
+               overwrite=False, 
+               **kwargs):
+
+            
+    ## dirpath
+    if dirpath.__class__.__name__ == "NoneType":
+        dirpath = os.getcwd()
+        print('No save directory ("dirpath") specified - using current working directory.')
+    else:
+        if not os.path.isdir(dirpath):
+            q = input("Save folder {} does not exist - create?.".format(dirpath))
+            if q in ["True", "true", "y", "yes"]:
+                os.makedirs(dirpath)
+            else:
+                print("Directory not created - aborting")
+                return
+        
+        if save_suffix:
+            save_suffix = "_" + save_suffix
+        else:
+            save_suffix = ""    
+    ## annotation copy
+    annotation = copy.deepcopy(annotation)
+    
+    ## filter by annotation type
+    if annotation_type.__class__.__name__ == "NoneType":
+        print("- no annotation_type selected - exporting all annotations")
+        annotation_types = list(_annotation_types.keys())
+    elif annotation_type.__class__.__name__ == "str":
+        annotation_types = [annotation_type]
+    elif annotation_type.__class__.__name__ in [ "list", "CommentedSeq"]:
+        annotation_types = annotation_type
+
+    for annotation_type in annotation_types:
+        
+        print("- " + annotation_type)
+    
+        list_flattened = []
+        
+        if annotation_type == "morphology":
+            for annotation_id in annotation[annotation_type].keys():    
+                for contour_idx in annotation[annotation_type][annotation_id]["data"]["features"]:
+                    list_flattened.append(
+                            pd.DataFrame({
+                                **{"image_name": image_name},
+                                **{"annotation_type": annotation_type},
+                                **{"annotation_id": annotation_id},
+                                **{"contour_id": annotation[annotation_type][annotation_id]["settings"]["contour_id"]},
+                                **{"contour_idx":contour_idx}, 
+                                **annotation[annotation_type][annotation_id]["data"]["features"][contour_idx]}, 
+                                index=[0])
+                        )
+                          
+        if annotation_type == "texture":
+            for annotation_id in annotation[annotation_type].keys():    
+                for channel in annotation[annotation_type][annotation_id]["data"]["features"]:
+                    for contour_idx in annotation[annotation_type][annotation_id]["data"]["features"][channel]:
+                        list_flattened.append(
+                                pd.DataFrame({
+                                    **{"image_name": image_name},
+                                    **{"annotation_type": annotation_type},
+                                    **{"annotation_id": annotation_id},
+                                    **{"channel": channel},
+                                    **{"contour_id": annotation[annotation_type][annotation_id]["settings"]["contour_id"]},
+                                    **{"contour_idx":contour_idx}, 
+                                    **annotation[annotation_type][annotation_id]["data"]["features"][channel][contour_idx]}, 
+                                    index=[0])
+                            )
+                          
+                        
+        df = pd.concat(list_flattened)    
+        filepath = os.path.join(dirpath, annotation_type + save_suffix + ".csv")
+        df.to_csv(filepath, index=False)
+    
+
+
+
+
+
 def load_annotation(filepath, 
                     annotation_type=None,
                     annotation_id=None):

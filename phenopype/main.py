@@ -729,11 +729,13 @@ class Project:
                 print("could not set active reference for " + dirname + \
                         " (overwrite=False/activate=False)")
 
-    def collect_canvas(self, 
+    def collect_results(self, 
                        name, 
-                       folder="canvas", 
+                       files,
+                       folder, 
                        overwrite=False, 
                        **kwargs):
+        
         
         """
         Collect canvas from each folder in the project tree. Search by 
@@ -754,10 +756,6 @@ class Project:
         flags = make_dataclass(cls_name="flags", 
                                fields=[("overwrite", bool, overwrite)])        
 
-        extension = kwargs.get("extension", ".jpg")
-        if "." not in extension:
-            extension = "." + extension
-
         results_path = os.path.join(self.root_dir, folder)
 
         if not os.path.isdir(results_path):
@@ -765,18 +763,27 @@ class Project:
             print("Created " + results_path)
 
         ## search string
-        search_string = "canvas_" + name + extension
-
+        if not files.__class__.__name__ == "NoneType":
+            if not files.__class__.__name__ == "list":
+                files = [files]
+            search_strings = []
+            for file in files:
+                if not name == "":
+                    search_strings.append(file + "_" + name)
+                else:
+                    search_strings.append(file)
+        else:
+            search_strings = name
             
         ## append name
-        print("Search string: " + search_string)
+        print("Search string: " + search_strings)
 
         ## search
         found, duplicates = _file_walker(
             os.path.join(self.root_dir,"data"),
             recursive=True,
-            include=search_string,
-            exclude=["pype_config", "attributes", "annotations"],
+            include=search_strings,
+            exclude=["pype_config"],
         )
 
         ## collect
@@ -1014,7 +1021,7 @@ class Pype(object):
                 if not self.config:
                     print("- STILL UPDATING CONFIG (no config)")
                     continue
-                
+                               
             ## run pype config in sequence
             self._iterate(config=self.config, 
                           annotations=self.container.annotations,
@@ -1025,7 +1032,8 @@ class Pype(object):
             ## terminate
             if self.flags.visualize:
                 if self.flags.terminate:
-                    self.YFM._stop()
+                    if hasattr(self, "YFM"):
+                        self.YFM._stop()
                     print("\n\nTERMINATE")         
                     break
             else:
@@ -1206,7 +1214,7 @@ class Pype(object):
                                        ("feedback", bool, feedback)])
 
         ## new iteration
-        if flags.feedback:
+        if flags.execute:
             print(
                 "\n\n------------+++ new pype iteration "
                 + datetime.today().strftime("%Y:%m:%d %H:%M:%S")
@@ -1240,7 +1248,8 @@ class Pype(object):
                 continue
                                             
             ## print current step
-            if flags.feedback:
+            if flags.execute:
+                print("\n")
                 print(step_name.upper())
                 
 
@@ -1251,7 +1260,7 @@ class Pype(object):
                 if not "select_canvas" in vis_list:
                     print("select_canvas (autoselect)")
                     self.container.run("select_canvas")
-                    
+                                        
             ## iterate through step list
             for method_idx, method in enumerate(method_list):
                 
@@ -1272,7 +1281,7 @@ class Pype(object):
                     method_args = {}
                     
                 ## feedback
-                if flags.feedback:
+                if flags.execute:
                     print(method_name)
                     
                 ## check if method exists
@@ -1288,7 +1297,7 @@ class Pype(object):
 
                 ## annotation params 
                 if method_name in _annotation_functions:
-                
+                    
                     annotation_counter[_annotation_functions[method_name]] += 1
                 
                     if "ANNOTATION" in method_args:
@@ -1303,7 +1312,7 @@ class Pype(object):
                     if not "id" in annotation_args:
                         annotation_args.update({"id": string.ascii_lowercase[annotation_counter[_annotation_functions[method_name]]]})
                     if not "edit" in annotation_args:
-                        annotation_args.update({"edit": "overwrite" if annotation_args["type"] in ["contour", "data"] else False})
+                        annotation_args.update({"edit": "overwrite" if annotation_args["type"] in ["contour", "morphology", "texture"] else False})
 
                     annotation_args =  _yaml_flow_style(annotation_args)
                     method_args_updated = {"ANNOTATION":annotation_args}
@@ -1318,6 +1327,10 @@ class Pype(object):
 
                 ## run method with error handling
                 if flags.execute:            
+                    
+                    if not flags.feedback:
+                        method_args["passive"] = True
+                                            
                     try:
                         
                         ## excecute 
@@ -1329,7 +1342,7 @@ class Pype(object):
                             )
                         ## feedback cleanup
                         _config.last_print_msg = ""
-                        
+                                                
                     except Exception as ex:
                         if self.flags.debug:
                             raise
@@ -1339,10 +1352,10 @@ class Pype(object):
                         )
                         print(location + " - " + str(ex))
                 
-                ## check for pype-restart after config change
-                if _config.pype_restart:
-                    print("BREAK")
-                    return
+                    ## check for pype-restart after config change
+                    if _config.pype_restart:
+                        print("BREAK")
+                        return
                         
         # =============================================================================
         # CONFIG-UPDATE; FEEDBACK; FINAL VISUALIZATION
@@ -1352,13 +1365,13 @@ class Pype(object):
             _save_yaml(self.config_updated, self.config_path)
             print("updating pype config file")
 
-        if flags.feedback:
+        if flags.execute:
             print(
                 "\n\n------------+++ finished pype iteration +++--------------\n" 
                     "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
                 )
-        
-        if flags.visualize: 
+    
+        if flags.visualize and flags.feedback: 
             try:
                 print("AUTOSHOW")
                 if self.container.canvas.__class__.__name__ == "NoneType":
@@ -1372,4 +1385,6 @@ class Pype(object):
                 print(
                     "visualisation: " + str(ex.__class__.__name__) + " - " + str(ex)
                 )
-
+        else:
+            if flags.execute:
+                self.flags.terminate = True
