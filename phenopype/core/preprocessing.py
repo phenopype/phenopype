@@ -633,20 +633,17 @@ def comment(
 	# setup 
     
     annotation_previous = kwargs.get("annotation_previous")
-    
+        
     # =============================================================================
     # retain settings
 
     ## retrieve settings from args
     local_settings  = _drop_dict_entries(locals(),
         drop=["image","kwargs","annotation_previous"])
-
+    
     ## retrieve update IV settings and data from previous annotations  
     IV_settings = {}     
     if annotation_previous:    
-        
-        print(annotation_previous)
-        
         IV_settings["ImageViewer_previous"] =_load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
@@ -654,7 +651,10 @@ def comment(
                 ("data","entry")
                 ])            
         
-
+    ## update local and IV settings from kwargs
+    if kwargs:
+        _update_settings(kwargs, local_settings, IV_settings)
+        
 	# =============================================================================
 	# execute
     

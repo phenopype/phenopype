@@ -255,7 +255,7 @@ def edit_contour(
     contours = _provide_annotation_data(annotation, "contour", "coord_list", kwargs)
 
     if not contours:
-        return {}
+        return image, {}
            
 	# =============================================================================
 	# execute

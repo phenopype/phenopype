@@ -185,7 +185,7 @@ class Container(object):
                 elif edit == False:
                     kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
                     print(print_msg + ": skipping (edit=False)")
-                    if annotation_type == "drawing":
+                    if annotation_type in ["drawing"]:
                         kwargs.update({"passive":True})                                             
                         self.image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
                     return

@@ -99,9 +99,7 @@ class _ImageViewer:
         
         self.flags = make_dataclass(cls_name="flags", 
                                     fields=[("passive", bool, kwargs.get("passive", False))])   
-     
-
-        
+             
         # =============================================================================
         # initialize variables
         # =============================================================================
@@ -1080,10 +1078,14 @@ def _file_walker(
         for filepath in filepaths2:
             if flag_include_all:
                 if all(inc in os.path.basename(filepath) for inc in include):
-                    filepaths3.append(filepath)
+                    filepaths3.append(filepath) 
             else:
-                if any(inc in os.path.basename(filepath) for inc in include):
-                    filepaths3.append(filepath)
+                if pype_mode:
+                    if any(inc in Path(filepath).stem for inc in include):
+                        filepaths3.append(filepath)
+                else:
+                    if any(inc in os.path.basename(filepath) for inc in include):
+                        filepaths3.append(filepath)
     else:
         filepaths3 = filepaths2
 
@@ -1291,7 +1293,7 @@ def _load_previous_annotation(annotation_previous, components, load_settings=Tru
     for item in components:
         field, data = item
         ImageViewer_previous[data] = annotation_previous[field][data]
-
+        
     return _DummyClass(ImageViewer_previous)
 
 

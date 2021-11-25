@@ -956,11 +956,12 @@ class Pype(object):
         ## kwargs
         global window_max_dim
         window_max_dim = kwargs.get("window_max_dim")
+        delay = kwargs.get("delay", 500)
+        sleep = kwargs.get("sleep", 0.2)
         
         ## flags
         self.flags = make_dataclass(cls_name="flags", 
                                     fields=[("debug",bool,debug),
-                                            ("skip", bool, skip), 
                                             ("autosave", bool, autosave),
                                             ("feedback", bool, feedback),
                                             ("visualize", bool, visualize),
@@ -973,9 +974,10 @@ class Pype(object):
         self._load_pype_config(name=name, config=config, template=template)
                
         ## check whether directory is skipped
-        if self.flags.skip == True:
-            dir_skip = self._check_directory_skip(name=name, dirpath=self.container.dirpath)
-            if dir_skip:
+        if skip:
+            if self._check_directory_skip(name=name, 
+                                          skip_pattern=skip,
+                                          dirpath=self.container.dirpath):
                 return
             
         ## load existing annotations through container
@@ -984,14 +986,14 @@ class Pype(object):
         ## check pype config for annotations
         self._iterate(config=self.config, annotations=self.container.annotations,
                       execute=False, visualize=False, feedback=False)
-        time.sleep(1)
+        time.sleep(sleep)
 
         ## final check before starting pype
         self._check_final()
     
         # open config file with system viewer
         if self.flags.feedback and self.flags.visualize:
-            self._start_file_monitor()
+            self._start_file_monitor(delay=delay)
 
         ## start log
         self.log = []
@@ -1131,7 +1133,7 @@ class Pype(object):
             self.config_path = config_path
             
             
-    def _start_file_monitor(self):
+    def _start_file_monitor(self, delay):
         
         if platform.system() == "Darwin":  # macOS
             subprocess.call(("open", self.config_path))
@@ -1141,7 +1143,7 @@ class Pype(object):
         else:  # linux variants
             subprocess.call(("xdg-open", self.config_path))
 
-        self.YFM = _YamlFileMonitor(self.config_path)
+        self.YFM = _YamlFileMonitor(self.config_path, delay)
             
         
     def _check_pype_name(self, name):
@@ -1157,18 +1159,30 @@ class Pype(object):
                 return
             
             
-    def _check_directory_skip(self, name, dirpath):
-        ## skip directories that already contain specified files
+    def _check_directory_skip(self, name, skip_pattern, dirpath):
         
+        ## skip directories that already contain specified files
+        if skip_pattern.__class__.__name__ == "str":
+            skip_pattern = [skip_pattern]
+        elif skip_pattern.__class__.__name__ in [ "list", "CommentedSeq"]:
+            skip_pattern = skip_pattern
+        
+        file_pattern = []
+        for pattern in skip_pattern:
+            file_pattern.append(pattern + "_" + name)       
+            
+
         filepaths, duplicates = _file_walker(
             dirpath,
-            include=name,
-            exclude=["pype_config"],
+            include=file_pattern,
+            include_all=False,
+            exclude=["pype_config", "attributes"],
             pype_mode=True,
         )
-        if len(filepaths) > 0:
+
+        if len(filepaths) == len(file_pattern):
             print(
-                '\nFound existing result files containing "' + name + '" - skipped\n'
+                '\nFound existing files "' + str(file_pattern) + '" - skipped\n'
             )
             return True
         else: 
