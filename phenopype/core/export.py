@@ -123,6 +123,19 @@ def export_csv(annotation,
     
         list_flattened = []
         
+        if annotation_type == "comment":
+            for annotation_id in annotation[annotation_type].keys():    
+                list_flattened.append(
+                        pd.DataFrame({
+                            **{"image_name": image_name},
+                            **{"annotation_type": annotation_type},
+                            **{"annotation_id": annotation_id},
+                            **{"field": annotation[annotation_type][annotation_id]["data"]["field"]},
+                            **{"entry": annotation[annotation_type][annotation_id]["data"]["entry"]},
+                            },index=[0])
+                    )
+                      
+        
         if annotation_type == "morphology":
             for annotation_id in annotation[annotation_type].keys():    
                 for contour_idx in annotation[annotation_type][annotation_id]["data"]["features"]:
