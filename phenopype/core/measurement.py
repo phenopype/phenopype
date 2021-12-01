@@ -490,7 +490,7 @@ def shape_features(
             basic = {
                 'area': cnt_area,
                 'circularity': circularity, 
-                'diatmeter': cnt_diameter,
+                'diameter': cnt_diameter,
                 'compactness': compactness,
                 'min_rect_max': min_rect_max,
                 'min_rect_min': min_rect_min,
