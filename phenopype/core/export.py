@@ -14,6 +14,8 @@ from _ctypes import PyObj_FromPtr
 from phenopype.settings import confirm_options, _annotation_types, flag_verbose
 from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _convert_arr_tup_list
 from phenopype.utils import save_image
+
+
 #%% settings   
     
 class NoIndent(object):
@@ -116,38 +118,70 @@ def export_csv(annotation,
         annotation_types = [annotation_type]
     elif annotation_type.__class__.__name__ in [ "list", "CommentedSeq"]:
         annotation_types = annotation_type
+        
+    ## dry run
+    annotation_types1 = []
+    for annotation_type in annotation_types:
+        if len(annotation[annotation_type].keys()) > 0:
+            annotation_types1.append(annotation_type)
+    annotation_types = annotation_types1
 
     for annotation_type in annotation_types:
         
-        print("- " + annotation_type)
-    
         list_flattened = []
         
         if annotation_type == "comment":
             for annotation_id in annotation[annotation_type].keys():    
                 list_flattened.append(
+                    pd.DataFrame({
+                        **{"image_name": image_name},
+                        **{"annotation_type": annotation_type},
+                        **{"annotation_id": annotation_id},
+                        **{"field": annotation[annotation_type][annotation_id]["data"]["field"]},
+                        **{"entry": annotation[annotation_type][annotation_id]["data"]["entry"]},
+                        },index=[0])
+                    )
+
+        if annotation_type == "contour":
+        
+            for annotation_id in annotation[annotation_type].keys():    
+
+                for coords, support in zip(
+                        annotation[annotation_type][annotation_id]["data"]["coord_list"],
+                        annotation[annotation_type][annotation_id]["data"]["support"],
+                        ):
+                    list_flattened.append(
+
+                        
+                    
+                                            # df_temp = pd.DataFrame(_convert_arr_tup_list(coords)[0], columns=["x","y"])
+
                         pd.DataFrame({
                             **{"image_name": image_name},
                             **{"annotation_type": annotation_type},
                             **{"annotation_id": annotation_id},
-                            **{"field": annotation[annotation_type][annotation_id]["data"]["field"]},
-                            **{"entry": annotation[annotation_type][annotation_id]["data"]["entry"]},
-                            },index=[0])
-                    )
-                      
+                            **{"center_x": support["center"][0]},
+                            **{"center_y": support["center"][1]}, 
+                            **{"area": support["area"]}, 
+                            **{"diameter": support["diameter"]}, 
+                            **{"hierarchy_level": support["hierarchy_level"]}, 
+                            **{"hierarchy_idx_child": support["hierarchy_idx_child"]}, 
+                            **{"hierarchy_idx_parent": support["hierarchy_idx_parent"]}
+                            }, index=[0])
+                        )
         
         if annotation_type == "morphology":
             for annotation_id in annotation[annotation_type].keys():    
                 for contour_idx in annotation[annotation_type][annotation_id]["data"]["features"]:
                     list_flattened.append(
-                            pd.DataFrame({
-                                **{"image_name": image_name},
-                                **{"annotation_type": annotation_type},
-                                **{"annotation_id": annotation_id},
-                                **{"contour_id": annotation[annotation_type][annotation_id]["settings"]["contour_id"]},
-                                **{"contour_idx":contour_idx}, 
-                                **annotation[annotation_type][annotation_id]["data"]["features"][contour_idx]}, 
-                                index=[0])
+                        pd.DataFrame({
+                            **{"image_name": image_name},
+                            **{"annotation_type": annotation_type},
+                            **{"annotation_id": annotation_id},
+                            **{"contour_id": annotation[annotation_type][annotation_id]["settings"]["contour_id"]},
+                            **{"contour_idx":contour_idx}, 
+                            **annotation[annotation_type][annotation_id]["data"]["features"][contour_idx]}, 
+                            index=[0])
                         )
                           
         if annotation_type == "texture":
@@ -155,21 +189,24 @@ def export_csv(annotation,
                 for channel in annotation[annotation_type][annotation_id]["data"]["features"]:
                     for contour_idx in annotation[annotation_type][annotation_id]["data"]["features"][channel]:
                         list_flattened.append(
-                                pd.DataFrame({
-                                    **{"image_name": image_name},
-                                    **{"annotation_type": annotation_type},
-                                    **{"annotation_id": annotation_id},
-                                    **{"channel": channel},
-                                    **{"contour_id": annotation[annotation_type][annotation_id]["settings"]["contour_id"]},
-                                    **{"contour_idx":contour_idx}, 
-                                    **annotation[annotation_type][annotation_id]["data"]["features"][channel][contour_idx]}, 
-                                    index=[0])
+                            pd.DataFrame({
+                                **{"image_name": image_name},
+                                **{"annotation_type": annotation_type},
+                                **{"annotation_id": annotation_id},
+                                **{"channel": channel},
+                                **{"contour_id": annotation[annotation_type][annotation_id]["settings"]["contour_id"]},
+                                **{"contour_idx":contour_idx}, 
+                                **annotation[annotation_type][annotation_id]["data"]["features"][channel][contour_idx]}, 
+                                index=[0])
                             )
                           
-                        
-        df = pd.concat(list_flattened)    
-        filepath = os.path.join(dirpath, annotation_type + save_suffix + ".csv")
-        df.to_csv(filepath, index=False)
+        if len(list_flattened) > 0:
+            print("- " + annotation_type)
+            df = pd.concat(list_flattened)    
+            filepath = os.path.join(dirpath, annotation_type + save_suffix + ".csv")
+            df.to_csv(filepath, index=False)
+        else:
+            print("- " + annotation_type + ": nothing to save")
     
 
 
