@@ -145,21 +145,20 @@ def export_csv(annotation,
         if annotation_type == "contour":
         
             for annotation_id in annotation[annotation_type].keys():    
-
+                idx = 0 
                 for coords, support in zip(
                         annotation[annotation_type][annotation_id]["data"]["coord_list"],
                         annotation[annotation_type][annotation_id]["data"]["support"],
                         ):
+                    idx += 1
                     list_flattened.append(
-
-                        
-                    
-                                            # df_temp = pd.DataFrame(_convert_arr_tup_list(coords)[0], columns=["x","y"])
+                        # df_temp = pd.DataFrame(_convert_arr_tup_list(coords)[0], columns=["x","y"])
 
                         pd.DataFrame({
                             **{"image_name": image_name},
                             **{"annotation_type": annotation_type},
                             **{"annotation_id": annotation_id},
+                            **{"contour_idx": idx},
                             **{"center_x": support["center"][0]},
                             **{"center_y": support["center"][1]}, 
                             **{"area": support["area"]}, 
