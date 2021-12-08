@@ -8,7 +8,7 @@ from dataclasses import make_dataclass
 from math import sqrt as _sqrt
 import numpy.ma as ma
 
-from phenopype.settings import AttrDict, colours, flag_verbose, _image_viewer_arg_list
+from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
 from phenopype.utils_lowlevel import (
     _auto_text_width, 
     _auto_text_size, 
@@ -51,8 +51,8 @@ def blur(
 
     Returns
     -------
-    image : array 
-
+    image : ndarray 
+        blurred image
     """
     
 	# =============================================================================
@@ -88,23 +88,21 @@ def create_mask(
     **kwargs
 ):           
     """
-    
+    Mask an area.
 
     Parameters
     ----------
-    image : TYPE
-        DESCRIPTION.
-    include : TYPE, optional
-        DESCRIPTION. The default is True.
-    tool : TYPE, optional
-        DESCRIPTION. The default is "rectangle".
-    **kwargs : TYPE
-        DESCRIPTION.
+    image: array 
+        input image
+    include : bool, optional
+        include or exclude area inside mask
+    tool : {"rectangle","polygon"} str, optional
+        Type of mask tool to be used. The default is "rectangle".
 
     Returns
     -------
-    annotation : TYPE
-        DESCRIPTION.
+    annotations: dict
+        phenopype annotation containing mask coordinates
 
     """
     
@@ -183,44 +181,53 @@ def detect_shape(
         "min_radius":0,
         "max_radius":0
         },
-    verbose=True,
     **kwargs
 ):
     """
-    Detect circles in grayscale image using Hough-Transform. Results can be 
-    returned either as mask or contour
+    
+    Detects geometric shapes in a single channel image (currently only circles 
+    are implemented) and converts boundary contours to a mask to include or exclude
+    parts of the image. Depending on the object type, different settings apply.
 
     Parameters
     ----------
-    image : TYPE
-        DESCRIPTION.
-    include : TYPE, optional
-        DESCRIPTION. The default is True.
-    shape : TYPE, optional
-        DESCRIPTION. The default is "circle".
-    resize : TYPE, optional
-        DESCRIPTION. The default is 1.
-    dp : TYPE, optional
-        DESCRIPTION. The default is 1.
-    min_dist : TYPE, optional
-        DESCRIPTION. The default is 50.
-    param1 : TYPE, optional
-        DESCRIPTION. The default is 200.
-    param2 : TYPE, optional
-        DESCRIPTION. The default is 100.
-    min_radius : TYPE, optional
-        DESCRIPTION. The default is 0.
-    max_radius : TYPE, optional
-        DESCRIPTION. The default is 0.
-    verbose : TYPE, optional
-        DESCRIPTION. The default is True.
-    **kwargs : TYPE
-        DESCRIPTION.
+    image : ndarray
+        input image (single channel).
+    include : bool, optional
+        should the resulting mask include or exclude areas. The default is True.
+    shape : str, optional
+        which geometric shape to be detected. The default is "circle".
+    resize : (0.1-1) float, optional
+        resize factor for image (some shape detection algorithms are slow if the 
+        image is very large). The default is 1.
+    circle_args : dict, optional
+        A set of options for circle detection (for details see
+        https://docs.opencv.org/3.4.9/dd/d1a/group__imgproc__feature.html ):
+            
+            - dp: inverse ratio of the accumulator resolution to the image ressolution
+            - minDist: minimum distance between the centers of the detected circles
+            - param1: higher threshold passed to the canny-edge detector
+            - param2: accumulator threshold - smaller = more false positives
+            - min_radius: minimum circle radius
+            - max_radius: maximum circle radius
+            
+        The default is:
+            
+        .. code-block:: python
+        
+            {
+                "dp":1,
+                 "min_dist":50,
+                 "param1":200,
+                 "param2":100,
+                 "min_radius":0,
+                 "max_radius":0
+                 }
 
     Returns
     -------
-    annotation : TYPE
-        DESCRIPTION.
+    annotations: dict
+        phenopype annotation containing mask coordinates
 
     """
 
@@ -279,10 +286,10 @@ def detect_shape(
                         axis=0
                         )
                     )
-            if verbose:
+            if flag_verbose:
                 print("Found {} circles".format(len(circles[0])))
         else:
-            if verbose:
+            if flag_verbose:
                 print("No circles detected")
             return None
         
@@ -318,38 +325,26 @@ def create_reference(
     """
     Measure a size or colour reference card. Minimum input interaction is 
     measuring a size reference: click on two points inside the provided image, 
-    and enter the distance - returns the pixel-to-mm-ratio as integer or 
-    inserts it into a provided DataFrame (df_image_data). In an optional second
-    step, drag a rectangle mask over the reference card to exclude it from any
-    subsequent image segementation. The mask is exported as new DataFrame, OR, 
-    if provided before, gets appended to an existing one (df_masks). The mask
-    can also be stored as a template for automatic reference detection with the
+    and enter the distance - returns the pixel-to-mm-ratio. 
+    
+    In an optional second step, drag a rectangle mask over the reference card 
+    to exclude it from anysubsequent image segementation. The mask can also be 
+    stored as a template for automatic reference detection with the
     "detect_reference" function.
 
     Parameters
     ----------
-    image: array 
+    image: ndarray 
         input image
     mask : bool, optional
-        mask a reference card inside the image (returns a mask DataFrame)
-    overwrite : bool, optional
-        if a container is supplied, or when working from the pype, should any 
-        exsting reference information (px-to-mm-ratio) or template be overwritten
-    template: bool, optional
-        should a template for reference detection be created. with an existing 
-        template, phenopype can try to find a reference card in a given image,
-        measure its dimensions, and adjust and colour space. automatically 
-        creates and returns a mask DataFrame that can be added to an existing
-        one
-    kwargs: optional
-        developer options
+        mask a reference card inside the image and return its coordinates as 
 
     Returns
     -------
-    px_mm_ratio: int or container
-        pixel to mm ratio - not returned if df_image_data is supplied
-    template: array or container
-        template for reference card detection
+    annotation_ref: dict
+        phenopype annotation containing mask coordinates pixel to mm ratio
+    annotation_mask: dict
+        phenopype annotation containing mask coordinates
 
     """
 
@@ -358,8 +353,8 @@ def create_reference(
     # =============================================================================
     # setup 
     
-    flags = AttrDict({"mask":mask})
-    
+    flags = make_dataclass(cls_name="flags", 
+                           fields=[("mask", bool, mask)])   
     # =============================================================================
     # retain settings
 
@@ -429,24 +424,18 @@ def detect_reference(
     """
     Find reference from a template created with "create_reference". Image registration 
     is run by the "AKAZE" algorithm. Future implementations will include more 
-    algorithms to select from. First, use "create_reference" with "template=True"
+    algorithms to select from. First, use "create_reference" with "mask=True"
     and pass the template to this function. This happends automatically in the 
-    low and high throughput workflow (i.e., when "obj_input" is a container, the 
-    template image is contained within. Use "equalize=True" to adjust the 
+    low and high throughput workflow. Use "equalize=True" to adjust the 
     histograms of all colour channels to the reference image.
     
     AKAZE: http://www.bmva.org/bmvc/2013/Papers/paper0013/abstract0013.pdf
 
     Parameters
     -----------
-    obj_input: array or container
-        input for processing
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata to add the reference 
-        information to (pixel-to-mm-ratio)
-    df_masks : DataFrame, optional
-        an existing DataFrame containing masks to add the detected mask to
-    template : array or container, optional
+    image: ndarray 
+        input image
+    image_template : array
         reference image of reference
     equalize : bool, optional
         should the provided image be colour corrected to match the template 
@@ -457,25 +446,22 @@ def detect_reference(
         resize image to speed up detection process. default: 0.5 for 
         images with diameter > 5000px (WARNING: too low values may 
         result in poor detection performance or even crashes)
-    overwrite : bool, optional
-        overwrite existing reference_detected_px_mm_ratio in container
-    px_mm_ratio_ref : int, optional
+    px_mm_ratio_template : int, optional
         pixel-to-mm-ratio of the template image
 
     Returns
     -------
-    reference_detected_px_mm_ratio: int or container
-        pixel to mm ratio of current image
-    image: array or container
-        if reference contains colour information, this is the corrected image
-    df_masks: DataFrame or container
-        contains mask coordinates to mask reference card within image from 
-        segmentation algorithms
+    annotation_ref: dict
+        phenopype annotation containing mask coordinates pixel to mm ratio
+    annotation_mask: dict
+        phenopype annotation containing mask coordinates
     """
 
     ## kwargs
-    flags = AttrDict({"mask":mask, "equalize": equalize}) 
-    
+    flags = make_dataclass(cls_name="flags", 
+                           fields=[("mask", bool, mask),
+                                   ("equalize",bool, equalize)])   
+         
     
     # =============================================================================
     # retain settings
@@ -611,21 +597,19 @@ def comment(
     **kwargs
 ):
     """
-    
+    Add a comment. 
 
     Parameters
     ----------
-    image : TYPE
-        DESCRIPTION.
-    field : TYPE, optional
-        DESCRIPTION. The default is "ID".
-    **kwargs : TYPE
-        DESCRIPTION.
+    image : ndarray
+        input image
+    field : str, optional
+        name the comment-field (useful for later processing). The default is "ID".
 
     Returns
     -------
-    annotation : TYPE
-        DESCRIPTION.
+    annotation_ref: dict
+        phenopype annotation containing comment
 
     """
 
@@ -696,17 +680,17 @@ def decompose_image(image,
 
     Parameters
     ----------
-    image : array
+    image : ndarray
         input image
-    channel : str, optional
+    channel : {"raw", "gray", "red", "green", "blue", "hue", "saturation", "value"} str, optional
         select specific image channel
     invert: false, bool
         invert all pixel intensities in image (e.g. 0 to 255 or 100 to 155)
         
     Returns
     -------
-    image : TYPE
-        DESCRIPTION.
+    image : ndarray
+        decomposed image.
 
     """
     

@@ -6,7 +6,7 @@ import math
 import string
 from dataclasses import make_dataclass
 
-from phenopype.settings import AttrDict, colours, _annotation_types
+from phenopype.settings import colours, _annotation_types
 from phenopype.utils_lowlevel import (
     _auto_line_width,
     _auto_point_size,
@@ -41,31 +41,20 @@ def draw_contour(
 ):
     """
     Draw contours and their labels onto a canvas. Can be filled or empty, offset
-    coordinates can be supplied. This will also draw the skeleton, if the argument
-    "skeleton=True" and the supplied "df_contour" contains a "skeleton_coords"
-    column.
+    coordinates can be supplied. 
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_contours : DataFrame, optional
-        contains the contours
+    image : ndarray
+        image used as canvas 
+    annotation: dict
+        phenopype annotation containing contours
     offset_coords : tuple, optional
         offset coordinates, will be added to all contours
-    compare: str or list, optional
-        draw previously detected contours as well (e.g. from other pype-run). 
-        string or list of strings with file-suffixes, has to be in the same 
-        directory.
     label : bool, optional
         draw contour label
     fill : float, optional
         background transparency for contour fill (0=no fill).
-    fill_colour : {"green", "red", "blue", "black", "white"} str, optional
-        contour fill colour - if not specified, defaults to line colour
-    mark_holes : bool, optional
-        contours located inside other contours (i.e. their holes) will be 
-        highlighted in red
     level : int, optional
         the default is 3.
     line_colour: {"green", "red", "blue", "black", "white"} str, optional
@@ -74,13 +63,10 @@ def draw_contour(
         contour line width
     label_colour : {"black", "white", "green", "red", "blue"} str, optional
         contour label colour.
-    label_size: int, optional
+    label_font_size: int, optional
         contour label font size (scaled to image)
-    label_width: int, optional
+    label_font_width: int, optional
         contour label font thickness 
-    watershed: bool, optional
-        indicates if a watershed-procedure has been performed. formats the
-        coordinate colours accordingly (excludes "mark_holes option")
     bounding_box: bool, optional
         draw bounding box around the contour
     bounding_box_ext: in, optional
@@ -92,8 +78,8 @@ def draw_contour(
         
     Returns
     -------
-    image: array or container
-        image with contours
+    image: ndarray
+        canvas with contours
 
     """
 	# =============================================================================
@@ -220,10 +206,10 @@ def draw_landmark(
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_landmarks: DataFrame, optional
-        should contain landmark coordinates as an array in a df cell
+    image : ndarray
+        image used as canvas 
+    annotation: dict
+        phenopype annotation containing landmarks
     label : bool, optional
         draw landmark label
     label_colour : {"black", "white", "green", "red", "blue"} str, optional
@@ -241,8 +227,8 @@ def draw_landmark(
 
     Returns
     -------
-    image: array or container
-        image with landmarks
+    image: ndarray
+        canvas with landmarks
 
     """
 
@@ -315,12 +301,10 @@ def draw_mask(
     
     Parameters
     ----------        
-    obj_input : array or container
-        input object
-    select: str or list
-        select a subset of masks to display
-    df_masks: DataFrame, optional
-        contains mask coordinates and label
+    image : ndarray
+        image used as canvas 
+    annotation: dict
+        phenopype annotation containing masks
     line_colour: {"blue", "red", "green", "black", "white"} str, optional
         mask line colour
     line_width: int, optional
@@ -334,8 +318,8 @@ def draw_mask(
 
     Returns
     -------
-    image: array or container
-        image with coord_list
+    image: ndarray
+        canvas with masks
     """
 	# =============================================================================
 	# setup 
@@ -401,12 +385,10 @@ def draw_polyline(
     
     Parameters
     ----------        
-    obj_input : array or container
-        input object
-    select: str or list
-        select a subset of masks to display
-    df_masks: DataFrame, optional
-        contains mask coordinates and label
+    image : ndarray
+        image used as canvas 
+    annotation: dict
+        phenopype annotation containing lines
     line_colour: {"blue", "red", "green", "black", "white"} str, optional
         mask line colour
     line_width: int, optional
@@ -420,8 +402,8 @@ def draw_polyline(
 
     Returns
     -------
-    image: array or container
-        image with coord_list
+    image: ndarray
+        canvas with lines
     """
 	# =============================================================================
 	# setup 
@@ -461,7 +443,8 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
 
     Parameters
     ----------
-
+    image : ndarray
+        image used as canvas 
     canvas : {"mod", "bin", "gray", "raw", "red", "green", "blue"} str, optional
         the type of canvas to be used for visual feedback. some types require a
         function to be run first, e.g. "bin" needs a segmentation algorithm to be
@@ -472,8 +455,8 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
 
     Returns
     -------
-    obj_input : container
-        canvas can be called with "obj_input.canvas".
+    canvas : ndarray
+        canvas for drawing
 
     """
 

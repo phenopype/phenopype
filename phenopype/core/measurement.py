@@ -50,18 +50,22 @@ def set_landmark(
     **kwargs
 ):
     """
-    Placing landmarks. It is possible to modify the appearance of points while 
-    while doing so. 
+    Place landmarks. Note that modifying the appearance of the points will only 
+    be effective for the placement, not for subsequent drawing, visualization, 
+    and export.
     
     Parameters
     ----------
-
-    point_colour: {"green", "red", "blue", "black", "white"} str, optional
-        landmark point colour
+    image : ndarray
+        input image
+    point_colour: str, optional
+        landmark point colour (for options see pp.colour)
     point_size: int, optional
         landmark point size in pixels
-    label_colour : {"black", "white", "green", "red", "blue"} str, optional
-        landmark label colour.
+    label : bool, optional
+        add text label
+    label_colour : str, optional
+        landmark label colour (for options see pp.colour)
     label_size: int, optional
         landmark label font size (scaled to image)
     label_width: int, optional
@@ -69,8 +73,8 @@ def set_landmark(
 
     Returns
     -------
-    df_masks: DataFrame or container
-        contains landmark coordiantes
+    annotations: dict
+        phenopype annotation containing landmarks
     """
 
 	# =============================================================================
@@ -164,25 +168,23 @@ def set_polyline(
     **kwargs
 ):
     """
-    Set points, draw a connected line between them, and measure its length. 
+    Set points, draw a connected line between them, and measure its length. Note 
+    that modifying the appearance of the lines will only be effective for the 
+    placement, not for subsequent drawing, visualization, and export.
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to
-        output DataFrame
-    overwrite: bool, optional
-        if working using a container, or from a phenopype project directory, 
-        should existing polylines be overwritten
+    image : ndarray
+        input image
     line_width: int, optional
         width of polyline
-
+    line_colour : str, optional
+        poly line colour (for options see pp.colour)
+        
     Returns
     -------
-    df_polylines : DataFrame or container
-        contains the drawn polylines
+    annotations: dict
+        phenopype annotation containing polylines
 
     """
 	# =============================================================================
@@ -274,20 +276,17 @@ def skeletonize(
 
     Parameters
     ----------
-    obj_input : array or container
-        input object (binary)
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to contour
-        output DataFrame
-    df_contours : DataFrame, optional
-        contains contours
+    image : ndarray
+        input image
+    annotation: dict
+        phenopype annotation containing contours
     thinning: {"zhangsuen", "guohall"} str, optional
         type of thinning algorithm to apply
-
+        
     Returns
     -------
-    image : array or container
-        thinned binary image
+    annotations: dict
+        phenopype annotation containing skeleton coords
     """
 
     # =============================================================================
@@ -366,9 +365,7 @@ def skeletonize(
 
 def shape_features(
     annotation,
-    basic=True,
-    moments=False, 
-    hu_moments=False,
+    features=["basic"],
     **kwargs
 ):
     """
@@ -392,42 +389,37 @@ def shape_features(
     http://www.sci.utah.edu/~gerig/CS7960-S2010/handouts/Hu.pdf
         
     Basic shape descriptors:
-        circularity = 4 * np.pi * contour_area / contour_perimeter_length^2
-        compactness = √(4 * contour_area / pi) / contour_diameter
-        min_rect_max = minimum bounding rectangle major axis
-        min_rect_min = minimum bounding rectangle minor axis
-        perimeter_length = total length of contour perimenter
-        rect_height = height of the bounding rectangle ("caliper dim 1")
-        rect_width = width of the bounding rectangle ("caliper dim 2")
-        roundness = (4 * contour_area) / pi * contour_perimeter_length^2
-        solidity = contour_area / convex_hull_area
-        tri_area = area of minimum bounding triangle
+        - circularity = 4 * np.pi * contour_area / contour_perimeter_length^2
+        - compactness = √(4 * contour_area / pi) / contour_diameter
+        - min_rect_max = minimum bounding rectangle major axis
+        - min_rect_min = minimum bounding rectangle minor axis
+        - perimeter_length = total length of contour perimenter
+        - rect_height = height of the bounding rectangle ("caliper dim 1")
+        - rect_width = width of the bounding rectangle ("caliper dim 2")
+        - roundness = (4 * contour_area) / pi * contour_perimeter_length^2
+        - solidity = contour_area / convex_hull_area
+        - tri_area = area of minimum bounding triangle
 
     Moments:
-        raw moments = m00, m10, m01, m20, m11, m02, m30, m21,  m12, m03
-        central moments = mu20, mu11, mu02, mu30, mu21, mu12, mu03,  
-        normalized central moments = nu20, nu11, nu02, nu30, nu21, nu12, nu03
+        - raw moments = m00, m10, m01, m20, m11, m02, m30, m21,  m12, m03
+        - central moments = mu20, mu11, mu02, mu30, mu21, mu12, mu03,  
+        - normalized central moments = nu20, nu11, nu02, nu30, nu21, nu12, nu03
 
     Hu moments:
-        hu moments = hu1, hu2, hu3, hu4, hu5, hu6, hu7
+        hu moments:
+            hu1 - hu7
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_contours : DataFrame, optional
-        contains the contours
-    return_basic: True, opational
-        append the basic shape descriptors to a provided contour DataFrame
-    return_moments: False, optional
-        append the basic shape descriptors to a provided contour DataFrame
-    return_hu_moments: False, optional
-        append the basic shape descriptors to a provided contour DataFrame
+    image : ndarray
+        input image
+    features: ["basic", "moments", "hu_moments"]    
+        type of shape features to extract
         
     Returns
     -------
-    df_contours : DataFrame or container
-        contains contours, and added features
+    annotations: dict
+        phenopype annotation containing shape features
 
     """
     
@@ -435,16 +427,10 @@ def shape_features(
     # retain settings
     
     contour_id = kwargs.get("contour_id")
-    
-    # kwargs
-    flags = make_dataclass(cls_name="flags", 
-                           fields=[("basic", bool, basic),
-                                   ("moments", bool, moments), 
-                                   ("hu_moments", bool, hu_moments)])
 
     ## retrieve settings from args
     local_settings  = _drop_dict_entries(
-        locals(), drop=["kwargs", "annotation", "flags"])
+        locals(), drop=["kwargs", "annotation"])
         
     ## update settings from kwargs
     if kwargs:
@@ -471,7 +457,7 @@ def shape_features(
         shape_features[idx1] = {}
         
         ## basic shape descriptors
-        if flags.basic:
+        if "basic" in features:
 
             ## retrieve area and diameter, needed for calculation
             cnt_diameter = support["diameter"]
@@ -505,13 +491,13 @@ def shape_features(
             shape_features[idx1] = {**shape_features[idx1], **basic}
                                              
         ## moments
-        if flags.moments:
+        if "moments" in features:
             moments = cv2.moments(coords)
             shape_features[idx1] = {**shape_features[idx1], **moments}
 
 
         ## hu moments
-        if flags.hu_moments:
+        if "hu_moments" in features:
             hu_moments = {}
             for idx2, mom in enumerate(cv2.HuMoments(moments)):
                 hu_moments["hu" + str(idx2 + 1)] = mom[0]
@@ -537,54 +523,48 @@ def shape_features(
 def texture_features(
     image,
     annotation,
-    channels=["gray"],
-    background=False,
-    background_ext=20,
-    min_diameter=5,
     features = ["firstorder"],
+    channels=["gray"],
+    min_diameter = 5,
     **kwargs
 ):
     """
     Collects 120 texture features using the pyradiomics feature extractor
-    (https://pyradiomics.readthedocs.io/en/latest/features.html): 
+    ( https://pyradiomics.readthedocs.io/en/latest/features.html ): 
     
-    - First Order Statistics (19 features)
-    - Shape-based (3D) (16 features)
-    - Shape-based (2D) (10 features)
-    - Gray Level Cooccurence Matrix (24 features)
-    - Gray Level Run Length Matrix (16 features)
-    - Gray Level Size Zone Matrix (16 features)
-    - Neighbouring Gray Tone Difference Matrix (5 features)
-    - Gray Level Dependence Matrix (14 features)
+    - firstorder: First Order Statistics (19 features)
+    - shape2d: Shape-based (2D) (16 features)
+    - glcm: Gray Level Cooccurence Matrix (24 features)
+    - gldm: Gray Level Dependence Matrix (14 features)
+    - glrm: Gray Level Run Length Matrix (16 features)
+    - glszm: Gray Level Size Zone Matrix (16 features)
+    - ngtdm: Neighbouring Gray Tone Difference Matrix (5 features)
     
-    Features are collected from EVERY contour that is supplied along with the raw
-    image. Not that this may result in very large dataframes. 
+    Features are collected from every contour that is supplied along with the raw
+    image. Depending on the amount of contours inside an image, this may result 
+    in very large dataframes. 
+
+    The specified channels correspond to the channels that can be selected in 
+    phenopype.core.preprocessing.decompose_image. 
+
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_image_data : DataFrame, optional
-        an existing DataFrame containing image metadata, will be added to
-        output DataFrame
-    df_contours : DataFrame, optional
-        contains the contours
-    channels : {"gray", "rgb"} str, optional
-        for which channels should pixel intensity be measured
-    background: bool, optional
-        measure the pixels of the background in an extended (background_ext) 
-        bounding box around the contour
-    background_ext: in, optional
-        value in pixels by which the bounding box should be extended
+    image : ndarray
+        input image
+    annotation: dict
+        phenopype annotation containing contours
+    features: ["firstorder", "shape", "glcm", "gldm", "glrlm", "glszm", "ngtdm"] list, optional
+        type of texture features to extract
+    channels : {"raw", "gray", "red", "green", "blue", "hue", "saturation", "value"}  str, optional
+        image channel to extract texture features from
     min_diameter: int, optional
-        minimum diameter of the contour
-    features: list, optional
-        firstorder, shape, glcm, gldm, glrlm, glszm, ngtdm]
-
+        minimum diameter of the contour (shouldn't be too small for sensible feature extraction')
+        
     Returns
     -------
-    df_textures : DataFrame or container
-        contains the pixel intensities 
+    annotations: dict
+        phenopype annotation containing texture features
 
     """
     

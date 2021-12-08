@@ -8,77 +8,17 @@ from dataclasses import make_dataclass
 import cv2
 import numpy as np
 import pandas as pd
-import re
-from _ctypes import PyObj_FromPtr
+
 
 from phenopype.settings import confirm_options, _annotation_types, flag_verbose
-from phenopype.utils_lowlevel import _save_yaml, _load_yaml, _convert_arr_tup_list
+from phenopype.utils_lowlevel import _NoIndent, _NoIndentEncoder, _save_yaml, _load_yaml, _convert_arr_tup_list
 from phenopype.utils import save_image
 
 
 #%% settings   
     
-class NoIndent(object):
-    """
-    
-    Marks objects to have no indent in JSON files.
-    
-    """
-    
-    def __init__(self, value):
-        if not isinstance(value, (list, tuple, dict)):
-            raise TypeError('Only lists and tuples can be wrapped')
-        self.value = value
-
-
-class MyEncoder(json.JSONEncoder):
-    """
-    
-    Modified JSON-encoder to remove indents from lists, arrays, and tuples
-    
-    """
-    
-    FORMAT_SPEC = '@@{}@@'  # Unique string pattern of NoIndent object ids.
-    regex = re.compile(FORMAT_SPEC.format(r'(\d+)'))  # compile(r'@@(\d+)@@')
-
-    def __init__(self, **kwargs):
-        # Keyword arguments to ignore when encoding NoIndent wrapped values.
-        ignore = {'cls', 'indent'}
-
-        # Save copy of any keyword argument values needed for use here.
-        self._kwargs = {k: v for k, v in kwargs.items() if k not in ignore}
-        super(MyEncoder, self).__init__(**kwargs)
-
-    def default(self, obj):
-        return (self.FORMAT_SPEC.format(id(obj)) if isinstance(obj, NoIndent)
-                    else super(MyEncoder, self).default(obj))
-
-    def iterencode(self, obj, **kwargs):
-        
-        if isinstance(obj, np.intc):
-            return int(obj)
-        
-        format_spec = self.FORMAT_SPEC  # Local var to expedite access.
-
-        # Replace any marked-up NoIndent wrapped values in the JSON repr
-        # with the json.dumps() of the corresponding wrapped Python object.
-        for encoded in super(MyEncoder, self).iterencode(obj, **kwargs):
-            match = self.regex.search(encoded)
-            if match:
-                id = int(match.group(1))
-                no_indent = PyObj_FromPtr(id)
-                json_repr = json.dumps(no_indent.value, **self._kwargs)
-                # Replace the matched id string with json formatted representation
-                # of the corresponding Python object.
-                encoded = encoded.replace(
-                            '"{}"'.format(format_spec.format(id)), json_repr)
-
-            yield encoded
         
 #%% functions
-
-
-
 
 def export_csv(annotation, 
                annotation_type=None,
@@ -311,19 +251,23 @@ def save_annotation(annotation,
     ----------
     annotation : dict
         Annotation dictionary formatted by phenopype specifications: 
-                {
-                    annotation_type = {
-                        annotation_id = annotation,
-                        annotation_id = annotation,
-                        ...
-                        },
-                    annotation_type = {
-                        annotation_id = annotation,
-                        annotation_id = annotation,
-                        ...
-                        },
+            
+        .. code-block:: python
+
+            {
+                annotation_type = {
+                    annotation_id = annotation,
+                    annotation_id = annotation,
                     ...
-                }
+                    },
+                annotation_type = {
+                    annotation_id = annotation,
+                    annotation_id = annotation,
+                    ...
+                    },
+                ...
+            }
+            
     annotation_id : str, optional
         String ("a"-"z") specifying the annotation ID to be saved. None will 
         save all IDs. The default is None.
@@ -335,12 +279,12 @@ def save_annotation(annotation,
         "annotations.json".
     overwrite : bool, optional
         Overwrite options should file or annotation entry in file exist:
-            False = Neither file or entry will be overwritten
-            "entry" | True  = A single entry will be overwritten
-            "file" = The whole will be overwritten. 
+            
+            - False = Neither file or entry will be overwritten
+            - True or "entry" = A single entry will be overwritten
+            - "file" = The whole will be overwritten. 
+            
         The default is False.
-    **kwargs : TYPE
-        DESCRIPTION.
 
     Returns
     -------
@@ -417,7 +361,7 @@ def save_annotation(annotation,
                       "\"{}\" to \"{}\"".format(
                           annotation_type, annotation_id, filename))  
     
-    ## NoIndent annotation arrays and lists
+    ## remove indents from annotation arrays and lists
     for annotation_type in annotation_file:
         for annotation_id in annotation_file[annotation_type]:    
             for section in annotation_file[annotation_type][annotation_id]:
@@ -427,13 +371,13 @@ def save_annotation(annotation,
                     if key in ["coord_list", "point_list", "points", "coords"]:
                         if len(value)>0 and not type(value[0]) in [list,tuple, int]:
                             value = [elem.tolist() for elem in value if not type(elem)==list] 
-                        value = [NoIndent(elem) for elem in value]   
+                        value = [_NoIndent(elem) for elem in value]   
                     elif key in ["offset_coords", "channels", "features"]:
-                        value = NoIndent(value)
+                        value = _NoIndent(value)
                     elif key in ["support"]:
                         value_new = []
                         for item in value:
-                            item["center"] = NoIndent(item["center"])
+                            item["center"] = _NoIndent(item["center"])
                             value_new.append(item) 
                         value = value_new
                     annotation_file[annotation_type][annotation_id][section][key] = value
@@ -443,7 +387,7 @@ def save_annotation(annotation,
         json.dump(annotation_file, 
                     file, 
                     indent=indent, 
-                    cls=MyEncoder)
+                    cls=_NoIndentEncoder)
         
         
 
@@ -537,8 +481,6 @@ def save_canvas(
         A suffix to be appended to the filename.
     dirpath : str
         Path to directory to save canvas.
-    **kwargs : TYPE
-        DESCRIPTION.
 
     Returns
     -------

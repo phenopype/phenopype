@@ -5,29 +5,12 @@ import os
 from importlib.resources import path
 from pathlib import Path, PurePath
 from pprint import PrettyPrinter
-from dataclasses import dataclass
 
 from phenopype import utils_lowlevel
 
 
 
-#%% helper-class
-
-## attribute dictionary
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-        
-        
-@dataclass
-class Flags:
-    def __repr__(self):
-        no_repr_items = []
-        dict_cleaned = {x: self.__dict__[x] for x in self.__dict__ if x not in no_repr_items}
-        attrs = "\n".join("pype_templates.{} ({} files)".format(k, v.n_templates) for k, v in dict_cleaned.items())
-        return "Default Pype-templates:\n\n{}".format(attrs)
-        
+#%% helper-class      
         
 ## create template browser
 class TemplateList:

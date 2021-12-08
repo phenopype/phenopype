@@ -48,14 +48,12 @@ def detect_contour(
         
     """
     Find objects in binarized image. The input image needs to be a binarized image
-    or a container on which a binarizing segmentation algorithm (e.g. threshold or 
-    watershed) has been performed. A flavor of different approximation algorithms 
-    and retrieval intstructions can be applied. The contours can also be filtered
-    for minimum area, diameter or nodes (= number of corners). 
+    A flavor of different approximation algorithms and retrieval intstructions can be applied. The contours can also be filtered for minimum area, diameter or nodes
+    (= number of corners). 
 
     Parameters
     ----------
-    image : array type
+    image : ndarray
         input image (binary)
     approximation : {"none", "simple", "L1", "KCOS"] str, optional
         contour approximation algorithm:
@@ -75,8 +73,6 @@ def detect_contour(
             - flood: flood-fill algorithm
     offset_coords : tuple, optional
         offset by which every contour point is shifted.
-    subset: {"parent", "child"} str, optional
-        retain only a subset of the parent-child order structure
     min_nodes : int, optional
         minimum number of coordinates
     max_nodes : int, optional
@@ -92,9 +88,8 @@ def detect_contour(
 
     Returns
     -------
-    df_contours : DataFrame or container
-        contains contours
-
+    annotation: dict
+        phenopype annotation containing contours
     """    
     
     
@@ -207,19 +202,27 @@ def edit_contour(
     **kwargs
 ):
     """
-    Set points, draw a connected line between them, and measure its length. 
+    Edit contours with a "paintbrush". The brush size can be controlled by pressing 
+    Tab and using the mousewhell. Right-click removes, and left-click adds areas to 
+    contours. Overlay colour, transparency (blend) and outline can be controlled.
 
     Parameters
     ----------
-    image : array
+    image : ndarray
         input image
-    annotation: dict
-        annotation-dictionary containing contours 
-
+    overlay_blend: float, optional
+        transparency / colour-mixing of the contour overlay 
+    overlay_line_width: int, optional
+        add outline to the contours. useful when overlay_blend == 0
+    left_colour: str, optional
+        overlay colour for left click (include). (for options see pp.colour)
+    right_colour: str, optional
+        overlay colour for right click (exclude). (for options see pp.colour)
+        
     Returns
     -------
-    (image_bin, annotation) : tuple
-        modified image and contour modifications saved to annotations dictionary
+    annotations: dict
+        phenopype annotation containing contours
 
     """
 	# =============================================================================
@@ -313,11 +316,10 @@ def morphology(image, kernel_size=5, shape="rect", operation="close", iterations
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
+    image : ndarray
+        input image (binary)
     kernel_size: int, optional
-        size of the morphology kernel (has to be odd - even numbers will be 
-        ceiled)
+        size of the morphology kernel (has to be odd - even numbers will be ceiled)
     shape : {"rect", "cross", "ellipse"} str, optional
         shape of the kernel
     operation : {erode, dilate, open, close, gradient, tophat, blackhat, hitmiss} str, optional
@@ -336,8 +338,8 @@ def morphology(image, kernel_size=5, shape="rect", operation="close", iterations
 
     Returns
     -------
-    image : array or container
-        processed image
+    image : ndarray
+        processed binary image
 
     """
 	# =============================================================================
@@ -377,23 +379,24 @@ def threshold(
     **kwargs,
 ):
     """
-    Applies a fixed-level threshold to create a binary image from a grayscale 
-    image or a multichannel image (gray, red, green or blue channel can be selected).
-    Three types of thresholding algorithms are supported. Binary mask coordinates
-    can be supplied to include or exclude areas.
+    Applies a threshold to create a binary image from a grayscale or a multichannel 
+    image (see phenopype.core.preprocessing.decompose_image for channel options).
+    
+    Three types of thresholding algorithms are supported: 
+        - otsu: use Otsu algorithm to choose the optimal threshold value
+        - adaptive: dynamic threshold values across image (uses arguments
+          "blocksize" and "constant")
+        - binary: fixed threshold value (uses argument "value")    
+        
+    Mask annotations can be supplied to include or exclude areas.
 
     Parameters
     ----------
-    obj_input : array or container
-        input object
-    df_masks : DataFrame, optional
-        contains mask coordinates
+    image : ndarray
+        input image
+
     method : {"otsu", "adaptive", "binary"} str, optional
-        type of thresholding algorithm:
-            - otsu: use Otsu algorithm to choose the optimal threshold value
-            - adaptive: dynamic threshold values across image (uses arguments
-              "blocksize" and "constant")
-            - binary: fixed threshold value (uses argument "value")
+        type of thresholding algorithm to be used
     blocksize: int, optional
         Size of a pixel neighborhood that is used to calculate a threshold 
         value for the pixel (has to be odd - even numbers will be ceiled; for
@@ -404,12 +407,10 @@ def threshold(
         thesholding value (for "binary" method)
     channel {"gray", "red", "green", "blue"}: str, optional
         which channel of the image to use for thresholding 
-    invert : bool, optional
-        invert all pixel values PRIOR to applying threshold values
 
     Returns
     -------
-    image : array or container
+    image : ndarray
         binary image
 
     """
@@ -505,10 +506,10 @@ def watershed(
 
     Parameters
     ----------
-    image : array
+    image : ndarray
         input image
-    image_thresh: array, optional
-        thresholded image n
+    image_thresh: array
+        binary image (e.g. from threshold)
     kernel_size: int, optional
         size of the diff-kernel (has to be odd - even numbers will be ceiled)
     iterations : int, optional
@@ -523,7 +524,7 @@ def watershed(
 
     Returns
     -------
-    image : array or container
+    image : ndarray
         binary image
 
     """

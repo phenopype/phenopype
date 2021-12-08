@@ -1,0 +1,15 @@
+Choosing a text editor
+-------------------------
+
+Phenopype's high throughout workflow currently requires a text editor to be installed that **does not lock the file** (`read about file locking here <https://superuser.com/a/855057/970488>`_).
+
+.. warning::
+
+	Your OS needs to know how to handle `.yaml` files. Make sure that the default app to open these files is set. Otherwise, phenopype will be unable to open YAML configuration files (this is a common error source).
+
+
+For Windows, `Notepad` works. However, I highly recommend `Notepad++`, which supports syntax highlighting and has many other useful features: https://notepad-plus-plus.org/downloads/.
+
+Another popular editor is `Atom <https://atom.io/>`_. `Atom` works across all platforms: https://flight-manual.atom.io/getting-started/sections/installing-atom/
+
+Regardless which editor you chose, you need to make sure that your OS "knows" how to open ".yaml" files. Check the following: create a file named `test.yaml`. When you try to open it but nothing happens, you need to select a text editor as the default application for the `.yaml` file ending.

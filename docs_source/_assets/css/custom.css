@@ -1,0 +1,9 @@
+.sd-card {
+  background-color: rgba(200, 200, 200, 0.125);
+  border: 3px solid rgba(200, 200, 200, 0.25);
+}
+
+.theme-toggle svg {
+    height: 1.5rem;
+    width: 1.5rem
+}

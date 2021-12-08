@@ -288,6 +288,7 @@ class Container(object):
     def save(self, dirpath=None, export_list=[], overwrite=False, **kwargs):
         """
         Autosave function for container. 
+        
         Parameters
         ----------
         dirpath: str, optional
@@ -299,6 +300,7 @@ class Container(object):
             has been saved so far, and will try 
         overwrite : bool, optional
             gloabl overwrite flag in case file exists
+            
         """
 
         ## kwargs
@@ -640,11 +642,6 @@ def show_image(
     ## load image
     if image.__class__.__name__ == "ndarray":
         pass
-    elif image.__class__.__name__ == "container":
-        if not image.canvas.__class__.__name__ == "NoneType":
-            image = copy.deepcopy(image.canvas)
-        else:
-            image = copy.deepcopy(image.image)
     elif image.__class__.__name__ == "list":
         pass
     else:

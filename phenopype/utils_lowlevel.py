@@ -1,10 +1,13 @@
 #%% modules
 
 import cv2, copy, os, sys, warnings
+import json
 import numpy as np
 import pandas as pd
 from dataclasses import make_dataclass
 import string
+import re
+from _ctypes import PyObj_FromPtr
 
 import time
 from timeit import default_timer as timer
@@ -21,7 +24,7 @@ from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
 # from phenopype.settings import settings.colours, confirm_options, pype_config_template_list, settings.opencv_interpolation_flags
-# from phenopype.settings import flag_verbose, settings.opencv_window_flags, AttrDict
+# from phenopype.settings import flag_verbose, settings.opencv_window_flags
 
 # import phenopype.settings as settings
 
@@ -39,6 +42,7 @@ from phenopype import settings
 Image.MAX_IMAGE_PIXELS = 999999999
 
 #%% classes
+
 
 # @_image_viewer_settings
 class _ImageViewer:
@@ -254,54 +258,57 @@ class _ImageViewer:
             cv2.imshow(self.window_name, self.canvas)
             self.keypress = None
         
-            while not any([self.finished, self.done]):
-                cv2.imshow(self.window_name, self.canvas)
-                if self.flags.passive == False:
-                    
-                    ## comment tool
-                    if self.tool == "comment":
-                        self.keypress = cv2.waitKey(1)
-                        self._comment_tool()
-                    else:
-                        self.keypress = cv2.waitKey(500)                 
-    
-                    ## Enter = close window and redo
-                    if self.keypress == 13:
-                        ## close unfinished polygon and append to polygon list
-                        if self.tool:
-                            if len(self.points) > 2 and not self.tool in ["point"]:
-                                self.points.append(self.points[0])
-                                self.coord_list.append(self.points)
-                        self.done = True
-                        cv2.destroyAllWindows()
+            if self.window_control == "internal":
+                while not any([self.finished, self.done]):
+                    if self.flags.passive == False:
                         
-                    ## Ctrl + Enter = close window and move on
-                    elif self.keypress == 10:
-                        self.done = True
-                        self.finished = True
-                        cv2.destroyAllWindows()
-                        print("finish")
+                        ## comment tool
+                        if self.tool == "comment":
+                            self.keypress = cv2.waitKey(1)
+                            self._comment_tool()
+                        else:
+                            self.keypress = cv2.waitKey(500)                 
+        
+                        ## Enter = close window and redo
+                        if self.keypress == 13:
+                            ## close unfinished polygon and append to polygon list
+                            if self.tool:
+                                if len(self.points) > 2 and not self.tool in ["point"]:
+                                    self.points.append(self.points[0])
+                                    self.coord_list.append(self.points)
+                            self.done = True
+                            cv2.destroyAllWindows()
+                            
+                        ## Ctrl + Enter = close window and move on
+                        elif self.keypress == 10:
+                            self.done = True
+                            self.finished = True
+                            cv2.destroyAllWindows()
+                            print("finish")
+                            
+                        ## Esc = close window and terminate
+                        elif self.keypress == 27:
+                            cv2.destroyAllWindows()
+                            sys.exit("\n\nTERMINATE (by user)")
+                            
+                        ## Ctrl + z = undo
+                        elif self.keypress == 26 and self.tool == "draw":
+                            self.point_list = self.point_list[:-1]
+                            self._canvas_renew()
+                            self._canvas_draw(tool="line_bin", coord_list=self.point_list)
+                            self._canvas_blend()
+                            self._canvas_add_lines()
+                            self._canvas_mount()
+                            
+                        ## external window close
+                        elif _config.window_close:
+                            self.done = True
+                            cv2.destroyAllWindows()
+            # else:
+            #     self.done = True
+            #     cv2.waitKey(0)
+            #     cv2.destroyAllWindows()
                         
-                    ## Esc = close window and terminate
-                    elif self.keypress == 27:
-                        cv2.destroyAllWindows()
-                        sys.exit("\n\nTERMINATE (by user)")
-                        
-                    ## Ctrl + z = undo
-                    elif self.keypress == 26 and self.tool == "draw":
-                        self.point_list = self.point_list[:-1]
-                        self._canvas_renew()
-                        self._canvas_draw(tool="line_bin", coord_list=self.point_list)
-                        self._canvas_blend()
-                        self._canvas_add_lines()
-                        self._canvas_mount()
-                        
-                    ## external window close
-                    elif _config.window_close:
-                        self.done = True
-                        cv2.destroyAllWindows()
-                    
-                    
     def _comment_tool(self):
                 
         if self.keypress > 0 and not self.keypress in [8, 13, 27]:
@@ -809,9 +816,58 @@ class _ImageViewer:
             )
         
         
+class _NoIndent(object):
+    
+    def __init__(self, value):
+        if not isinstance(value, (list, tuple, dict)):
+            raise TypeError('Only lists and tuples can be wrapped')
+        self.value = value
+
+
+class _NoIndentEncoder(json.JSONEncoder):
+    
+    FORMAT_SPEC = '@@{}@@'  # Unique string pattern of NoIndent object ids.
+    regex = re.compile(FORMAT_SPEC.format(r'(\d+)'))  # compile(r'@@(\d+)@@')
+
+    def __init__(self, **kwargs):
+        # Keyword arguments to ignore when encoding NoIndent wrapped values.
+        ignore = {'cls', 'indent'}
+
+        # Save copy of any keyword argument values needed for use here.
+        self._kwargs = {k: v for k, v in kwargs.items() if k not in ignore}
+        super(_NoIndentEncoder, self).__init__(**kwargs)
+
+    def default(self, obj):
+        return (self.FORMAT_SPEC.format(id(obj)) if isinstance(obj, _NoIndent)
+                    else super(_NoIndentEncoder, self).default(obj))
+
+    def iterencode(self, obj, **kwargs):
+        
+        if isinstance(obj, np.intc):
+            return int(obj)
+        
+        format_spec = self.FORMAT_SPEC  # Local var to expedite access.
+
+        # Replace any marked-up NoIndent wrapped values in the JSON repr
+        # with the json.dumps() of the corresponding wrapped Python object.
+        for encoded in super(_NoIndentEncoder, self).iterencode(obj, **kwargs):
+            match = self.regex.search(encoded)
+            if match:
+                id = int(match.group(1))
+                no_indent = PyObj_FromPtr(id)
+                json_repr = json.dumps(no_indent.value, **self._kwargs)
+                # Replace the matched id string with json formatted representation
+                # of the corresponding Python object.
+                encoded = encoded.replace(
+                            '"{}"'.format(format_spec.format(id)), json_repr)
+
+            yield encoded
+        
 
 class _YamlFileMonitor:
     def __init__(self, filepath, delay=500):
+
+        filepath = os.path.abspath(filepath)        
 
         ## file, location and event action
         self.dirpath = os.path.dirname(filepath)
@@ -1297,13 +1353,13 @@ def _load_previous_annotation(annotation_previous, components, load_settings=Tru
     return _DummyClass(ImageViewer_previous)
 
 
-def _load_image_data(obj_input, path_and_type=True, resize=1):
+def _load_image_data(image, path_and_type=True, resize=1):
     """
     Create a DataFreame with image information (e.g. dimensions).
 
     Parameters
     ----------
-    obj_input: str or ndarray
+    image: str or ndarray
         can be a path to an image stored on the harddrive OR an array already 
         loaded to Python.
     path_and_type: bool, optional
@@ -1315,25 +1371,25 @@ def _load_image_data(obj_input, path_and_type=True, resize=1):
         contains image data (+meta data, if selected)
 
     """
-    if obj_input.__class__.__name__ == "str":
-        if os.path.isfile(obj_input):
-            path = obj_input
+    if image.__class__.__name__ == "str":
+        if os.path.isfile(image):
+            path = image
         image = Image.open(path)
         width, height = image.size
         image.close()
         image_data = {
-            "filename": os.path.split(obj_input)[1],
+            "filename": os.path.split(image)[1],
             "width": width,
             "height": height,
         }
         
         if path_and_type: 
             image_data.update({
-                "filepath": obj_input,
-                "filetype": os.path.splitext(obj_input)[1]})
+                "filepath": image,
+                "filetype": os.path.splitext(image)[1]})
             
-    elif obj_input.__class__.__name__ == "ndarray":
-        image = obj_input
+    elif image.__class__.__name__ == "ndarray":
+        image = image
         width, height = image.shape[0:2]
         image_data = {
             "filename": "unknown",
@@ -1379,7 +1435,7 @@ def _resize_image(image, factor=1, interpolation="cubic"):
 
     Parameters
     ----------
-    obj_input: array 
+    image: array 
         image to be resized
     resize: float, optional
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
@@ -1390,7 +1446,7 @@ def _resize_image(image, factor=1, interpolation="cubic"):
 
     Returns
     -------
-    image : array or container
+    image : ndarray
         resized image
 
     """

@@ -9,7 +9,8 @@ import pprint
 from math import inf
 
 from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool, _load_image_data
-from phenopype.core.segmentation import blur, threshold, contours_detect
+from phenopype.core.preprocessing import blur
+from phenopype.core.segmentation import threshold, detect_contour
 from phenopype.settings import colours
 
 #%% classes
