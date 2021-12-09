@@ -134,7 +134,7 @@ def create_mask(
 
 	# =============================================================================
 	# execute
-    
+        
     out = _ImageViewer(image=image, 
                         tool=tool, 
                         **IV_settings)

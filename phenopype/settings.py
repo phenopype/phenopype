@@ -179,7 +179,7 @@ _image_viewer_arg_list = [
     "point_colour",
     "window_aspect", 
     "window_control", 
-    "win_max_dim", 
+    "window_max_dim",
     "zoom_magnification", 
     "zoom_mode", 
     "zoom_steps",

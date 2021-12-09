@@ -77,6 +77,7 @@ class _ImageViewer:
                 window_max_dim = _config.window_max_dim
         else:
             window_max_dim = _config.window_max_dim
+            
         
         ## args
         self.window_aspect = window_aspect
@@ -1520,10 +1521,10 @@ def _save_yaml(dictionary, filepath, typ="rt"):
 
 
 def _update_settings(kwargs, local_settings, IV_settings=None):
-    
+
     for key, value in kwargs.items():
         if key in settings._image_viewer_arg_list:
-            if IV_settings:
+            if not IV_settings.__class__.__name__ == "NoneType":
                 IV_settings[key] = value
             local_settings[key] = value
     if "passive" in local_settings:
