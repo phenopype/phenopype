@@ -83,6 +83,7 @@ def blur(
 
 def create_mask(
     image,
+    label="mask-1",
     include=True,
     tool="rectangle",
     **kwargs
@@ -110,7 +111,7 @@ def create_mask(
     # setup
     
     annotation_previous = kwargs.get("annotation_previous")
-    
+
     # =============================================================================
     # retain settings
 
@@ -148,7 +149,7 @@ def create_mask(
         
 	# =============================================================================
 	# assemble results
-    
+        
     annotation = {
         "info": {
             "annotation_type": "mask",
@@ -156,6 +157,7 @@ def create_mask(
         },
         "settings": local_settings,
         "data": {
+            "label":label,
             "include": include,
             "n_masks": len(out.coord_list),
             "coord_list": out.coord_list,

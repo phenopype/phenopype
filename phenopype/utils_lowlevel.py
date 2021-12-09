@@ -97,7 +97,7 @@ class _ImageViewer:
         self.zoom_magnification = zoom_magnification
         self.zoom_n_steps = zoom_steps
         self.wait_time = 100        
-        self.window_name = "phenopype"
+        self.window_name = kwargs.get("window_name", "phenopype")
                 
         ## needs cleaning
         
@@ -257,7 +257,7 @@ class _ImageViewer:
             cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
             cv2.imshow(self.window_name, self.canvas)
             self.keypress = None
-        
+                    
             if self.window_control == "internal":
                 while not any([self.finished, self.done]):
                     if self.flags.passive == False:

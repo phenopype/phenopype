@@ -291,7 +291,7 @@ def draw_mask(
     line_width="auto",
     label=False,
     label_size="auto",
-    label_colour="black",
+    label_colour="blue",
     label_width="auto",
     **kwargs
 ):
@@ -341,6 +341,7 @@ def draw_mask(
                
     ## extract annotation data     
     coord_list = _provide_annotation_data(annotation, "mask", "coord_list", kwargs)
+    label = _provide_annotation_data(annotation, "mask", "label", kwargs)
     if not coord_list:
         return image
     else:

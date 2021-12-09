@@ -668,6 +668,7 @@ def show_image(
             for i in image:
                 idx += 1
                 if i.__class__.__name__ == "ndarray":
+                    print("phenopype" + " - " + str(idx))
                     _ImageViewer(
                         i,
                         mode="",
