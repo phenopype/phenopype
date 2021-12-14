@@ -1107,7 +1107,7 @@ class Pype(object):
              
         ## 2) create new from template or, if already exists, load from file
         if all([config.__class__.__name__ == "NoneType",
-                template.__class__.__name__ == "Template"]):
+                template.__class__.__name__ in ["Template","str"]]):
             self.config_path = os.path.join(self.container.dirpath,
                                        "pype_config_" + name + ".yaml")
             if os.path.isfile(self.config_path):

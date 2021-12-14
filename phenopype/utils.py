@@ -17,7 +17,7 @@ import phenopype.core.visualization as visualization
 import phenopype.core.export as export
 
 from phenopype.settings import default_filetypes, flag_verbose, confirm_options, _annotation_types
-from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr,  _load_image_data, _load_yaml, _show_yaml
+from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr, _load_image_data, _load_yaml, _NoIndent, _NoIndentEncoder, _show_yaml
     
 from collections import defaultdict
 
@@ -92,9 +92,9 @@ class Container(object):
                 for annotation_id in self.annotations[annotation_type].keys():
                     id_list.append(annotation_id)
                 if len(id_list) > 0:
-                    annotation_types_loaded[annotation_type] = export.NoIndent(id_list)
+                    annotation_types_loaded[annotation_type] = _NoIndent(id_list)
                 
-            loaded.append("annotations loaded:\n{}".format(json.dumps(annotation_types_loaded, indent=0, cls=export.MyEncoder)))
+            loaded.append("annotations loaded:\n{}".format(json.dumps(annotation_types_loaded, indent=0, cls=_NoIndentEncoder)))
 
             
         ## load attributes
@@ -240,6 +240,8 @@ class Container(object):
         if fun == "detect_contour":
             annotation = segmentation.detect_contour(self.image, **kwargs)
         if fun == "edit_contour":
+            if not self.canvas:
+                visualization.select_canvas(self)
             image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
             self.image = image
             
