@@ -77,11 +77,12 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 #
 # html_theme = 'bootstrap'
+html_logo = "../phenopype_logo.png"
 html_theme = "furo"
 html_show_sourcelink = True
-html_last_updated_fmt = '%b %d, %Y, %X'
+html_last_updated_fmt = "%Y-%m-%d %H:%M:%S"
 html_title = "phenopype docs"
-html_static_path = ['_assets/css']
+html_static_path = ['_assets/css', "."]
 html_css_files = ['custom.css']
 templates_path = ["_templates"]
 # html_additional_pages = {
