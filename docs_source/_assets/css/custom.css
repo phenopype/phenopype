@@ -5,5 +5,9 @@
 
 .theme-toggle svg {
     height: 1.5rem;
-    width: 1.5rem
+    width: 1.5rem;
+	}
+
+.content-icon-container {
+    margin-top: 3.5;
 }
