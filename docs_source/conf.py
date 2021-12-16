@@ -82,9 +82,11 @@ html_theme = "furo"
 html_show_sourcelink = True
 html_last_updated_fmt = "%Y-%m-%d %H:%M:%S"
 html_title = "phenopype docs"
-html_static_path = ['_assets/css', "."]
+html_static_path = ['_assets/css','_assets/js']
 html_css_files = ['custom.css']
+html_js_files = ['custom.js',]
 templates_path = ["_templates"]
+
 # html_additional_pages = {
     # "index": "lander.html"
 # }

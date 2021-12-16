@@ -9,6 +9,11 @@ if "%*"=="-d" (
 	rmdir /Q /S docs
 )
 
+if "%*"=="-D" (
+	rmdir /Q /S docs _temp
+)
+
+
 sphinx-multibuild -c docs_source -i docs_source -i ../phenopype-tutorials\tutorials  -s _temp/docs -o docs -a -b dirhtml
 
 if "%*"=="-o" (
