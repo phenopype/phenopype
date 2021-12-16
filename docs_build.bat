@@ -1,8 +1,12 @@
 @echo off
 @echo .doctrees > docs/.gitignore
 
-if "%*"=="-d" (
+if "%*"=="-t" (
 	rmdir /Q /S _temp
+)
+
+if "%*"=="-d" (
+	rmdir /Q /S docs
 )
 
 sphinx-multibuild -c docs_source -i docs_source -i ../phenopype-tutorials\tutorials  -s _temp/docs -o docs -a -b dirhtml
