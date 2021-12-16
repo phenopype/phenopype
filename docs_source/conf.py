@@ -45,6 +45,7 @@ extensions = [
     'recommonmark',
     'nbsphinx',
     'sphinx_design',
+    "sphinx_copybutton"
 ]
 
 autodoc_member_order = 'bysource'

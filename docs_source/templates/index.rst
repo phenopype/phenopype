@@ -1,0 +1,8 @@
+Templates
+=========
+
+.. toctree::
+	
+	basic
+	gallery
+
