@@ -27,7 +27,7 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 	.. grid-item::
 
 		.. card::  Tutorial 1
-			:link: tutorial_1.html
+			:link: tutorial_1
 
 			A (very) brief python introduction
 
@@ -39,7 +39,7 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 	.. grid-item::
 
 		.. card::  Tutorial 2
-			:link: tutorial_2.html
+			:link: tutorial_2
 
 			Interacting with images in phenopype
 
@@ -53,7 +53,7 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 	.. grid-item::
 
 		.. card::  Tutorial 3
-			:link: tutorial_3.html
+			:link: tutorial_3
 
 			Image analysis workflow
 
@@ -63,7 +63,7 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 	.. grid-item::
 
 		.. card::  Tutorial 4
-			:link: tutorial_4.html
+			:link: tutorial_4
 
 			Setting up and managing projects	
 
@@ -78,7 +78,7 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 	.. grid-item::
 
 		.. card::  Tutorial 5
-			:link: tutorial_5.html
+			:link: tutorial_5
 
 			Creating and detecting a reference
 
@@ -87,7 +87,7 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 	.. grid-item::
 
 		.. card::  Tutorial 6
-			:link: tutorial_6.html
+			:link: tutorial_6
 
 			Video analysis
 

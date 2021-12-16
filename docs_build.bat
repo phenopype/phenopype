@@ -5,7 +5,7 @@ if "%*"=="-d" (
 	rmdir /Q /S _temp
 )
 
-sphinx-multibuild -c docs_source -i docs_source -i ../phenopype-tutorials\tutorials  -s _temp/docs -o docs -a
+sphinx-multibuild -c docs_source -i docs_source -i ../phenopype-tutorials\tutorials  -s _temp/docs -o docs -a -b dirhtml
 
 if "%*"=="-o" (
 	cd docs
