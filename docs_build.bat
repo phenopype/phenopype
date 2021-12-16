@@ -16,6 +16,8 @@ if "%*"=="-D" (
 
 sphinx-multibuild -c docs_source -i docs_source -i ../phenopype-tutorials  -s _temp/docs -o docs -a -b dirhtml
 
+robocopy docs_source docs README.md
+
 if "%*"=="-o" (
 	cd docs
 	rmdir ".git" /S /Q

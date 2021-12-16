@@ -57,6 +57,7 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 
 			Image analysis workflow
 
+			- Overview
 			- Low- vs High-throughput
 			- YAML-syntax
 
@@ -68,7 +69,6 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 			Setting up and managing projects	
 
 			- Project directories
-			- Saving and loading projects
 			- Adding images and configs
 			- collecting results
 
@@ -82,7 +82,8 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 
 			Creating and detecting a reference
 
-			- Project wide size references
+			- Setting project wide size references
+			- Detecting size references
 
 	.. grid-item::
 
@@ -98,9 +99,9 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 .. toctree::
 	:hidden:
 
-	tutorial_1
-	tutorial_2
-	tutorial_3
-	tutorial_4
-	tutorial_5
-	tutorial_6
+	tutorials/tutorial_1
+	tutorials/tutorial_2
+	tutorials/tutorial_3
+	tutorials/tutorial_4
+	tutorials/tutorial_5
+	tutorials/tutorial_6
