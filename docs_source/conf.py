@@ -65,7 +65,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['.ipynb_checkpoints/*.ipynb']
+exclude_patterns = ['.ipynb_checkpoints', "README.md", "conf.py", ".git"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'

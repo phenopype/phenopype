@@ -14,7 +14,7 @@ if "%*"=="-D" (
 )
 
 
-sphinx-multibuild -c docs_source -i docs_source -i ../phenopype-tutorials\tutorials  -s _temp/docs -o docs -a -b dirhtml
+sphinx-multibuild -c docs_source -i docs_source -i ../phenopype-tutorials  -s _temp/docs -o docs -a -b dirhtml
 
 if "%*"=="-o" (
 	cd docs
