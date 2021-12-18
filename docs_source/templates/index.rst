@@ -1,6 +1,8 @@
 Templates
 =========
 
+TEST
+
 .. toctree::
 	
 	basic

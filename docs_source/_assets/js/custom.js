@@ -4,24 +4,22 @@
   }
 }())
 
-
-function download_file(file_link){
-
-		var parts = arguments[0].split('/');
+ function download_file(filelink) {
+	 
+	 	var parts = filelink.split('/');
 		var filename = parts.pop() || parts.pop();  // handle potential trailing slash
-	
-		axios({
-				url:arguments[0],
-				method:'GET',
-				responseType: 'blob'
-})
-.then((response) => {
-			 const url = window.URL
-			 .createObjectURL(new Blob([response.data]));
-							const link = document.createElement('a');
-							link.href = url;
-							link.setAttribute('download', filename);
-							document.body.appendChild(link);
-							link.click();
-})
-}
+	 
+     var req = new XMLHttpRequest();
+     req.open("GET", filelink, true);
+     req.responseType = "blob";
+     req.onload = function (event) {
+         var blob = req.response;
+         var fileName = req.getResponseHeader("fileName") //if you have the fileName header available
+         var link=document.createElement('a');
+         link.href=window.URL.createObjectURL(blob);
+         link.download=filename;
+         link.click();
+     };
+
+     req.send();
+ }
