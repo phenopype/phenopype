@@ -9,6 +9,10 @@ import string
 from dataclasses import make_dataclass
 
 from pathlib import Path
+from datetime import datetime
+import io
+from contextlib import redirect_stdout
+import ruamel.yaml
 
 import phenopype.core.preprocessing as preprocessing
 import phenopype.core.segmentation as segmentation
@@ -16,8 +20,23 @@ import phenopype.core.measurement as measurement
 import phenopype.core.visualization as visualization
 import phenopype.core.export as export
 
-from phenopype.settings import default_filetypes, flag_verbose, confirm_options, _annotation_types
-from phenopype.utils_lowlevel import _ImageViewer, _convert_tup_list_arr, _load_image_data, _load_yaml, _NoIndent, _NoIndentEncoder, _show_yaml
+from phenopype.settings import (
+    default_filetypes,
+    flag_verbose, 
+    confirm_options, 
+    _annotation_types,
+    )
+from phenopype.utils_lowlevel import (
+    _ImageViewer, 
+    _NoIndent, 
+    _NoIndentEncoder, 
+    _convert_tup_list_arr, 
+    _load_image_data, 
+    _load_yaml, 
+    _show_yaml,
+    _save_yaml,
+    _yaml_recursive_delete_comments,
+    )
     
 from collections import defaultdict
 
@@ -81,9 +100,10 @@ class Container(object):
         ## load annotations
         annotations_filename = "annotations" + "_" + self.save_suffix + ".json"
         if annotations_filename in os.listdir(self.dirpath):
-            self.annotations.update(export.load_annotation(os.path.join(self.dirpath, annotations_filename)))
-            
-                                
+            annotations_loaded = export.load_annotation(os.path.join(self.dirpath, annotations_filename))
+            if annotations_loaded:
+                self.annotations.update(annotations_loaded)
+                                            
             self.annotations["data"] = {}
             
             annotation_types_loaded = {}
@@ -240,7 +260,7 @@ class Container(object):
         if fun == "detect_contour":
             annotation = segmentation.detect_contour(self.image, **kwargs)
         if fun == "edit_contour":
-            if not self.canvas:
+            if self.canvas.__class__.__name__ == "NoneType":
                 visualization.select_canvas(self)
             image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
             self.image = image
@@ -412,48 +432,48 @@ def load_image(
         print("Invalid input format - could not load image.")
         return
 
-    ## check dirpath
-    if flags.load_container == True:
-        if dirpath == "cwd":
-            dirpath = os.getcwd()
-            if flag_verbose:
-                print(
-                    "Setting directory to save phenopype-container output to current working directory:\n" \
-                    + os.path.abspath(dirpath)
-                )
-        elif dirpath.__class__.__name__ == "str":
-            if not os.path.isdir(dirpath):
-                user_input = input(
-                    "Provided directory to save phenopype-container output {} does not exist - create?.".format(
-                        os.path.abspath(dirpath)
-                    )
-                )
-                if user_input in confirm_options:
-                    os.makedirs(dirpath)
-                else:
-                    print("Directory not created - aborting")
-                    return
-            else:
-                if flag_verbose:
-                    print("Directory to save phenopype-container output set at - " + os.path.abspath(dirpath))
-        elif dirpath.__class__.__name__ == "NoneType":
-            if path.__class__.__name__ == "str":
-                if os.path.isfile(path):
-                    dirpath = os.path.dirname(os.path.abspath(path))
-                    if flag_verbose:
-                        print("Directory to save phenopype-container output set to parent folder of image:\n{}".format(dirpath))
-            # else: 
-            #     print(
-            #         "No directory provided to save phenopype-container output" +
-            #         " - provide dirpath or use dirpath==\"cwd\" to set save" +
-            #         " paths to current working directory - aborting."
-            #           )
-            #     return
+    # ## check dirpath
+    # if flags.load_container == True:
+    #     if dirpath == "cwd":
+    #         dirpath = os.getcwd()
+    #         if flag_verbose:
+    #             print(
+    #                 "Setting directory to save phenopype-container output to current working directory:\n" \
+    #                 + os.path.abspath(dirpath)
+    #             )
+    #     elif dirpath.__class__.__name__ == "str":
+    #         if not os.path.isdir(dirpath):
+    #             user_input = input(
+    #                 "Provided directory to save phenopype-container output {} does not exist - create?.".format(
+    #                     os.path.abspath(dirpath)
+    #                 )
+    #             )
+    #             if user_input in confirm_options:
+    #                 os.makedirs(dirpath)
+    #             else:
+    #                 print("Directory not created - aborting")
+    #                 return
+    #         else:
+    #             if flag_verbose:
+    #                 print("Directory to save phenopype-container output set at - " + os.path.abspath(dirpath))
+    #     elif dirpath.__class__.__name__ == "NoneType":
+    #         if path.__class__.__name__ == "str":
+    #             if os.path.isfile(path):
+    #                 dirpath = os.path.dirname(os.path.abspath(path))
+    #                 if flag_verbose:
+    #                     print("Directory to save phenopype-container output set to parent folder of image:\n{}".format(dirpath))
+    #         # else: 
+    #         #     print(
+    #         #         "No directory provided to save phenopype-container output" +
+    #         #         " - provide dirpath or use dirpath==\"cwd\" to set save" +
+    #         #         " paths to current working directory - aborting."
+    #         #           )
+    #         #     return
             
             
     ## create container
     if flags.load_container:
-        cont = copy.deepcopy(Container(image, dirpath=dirpath, save_suffix=save_suffix))
+        cont = copy.deepcopy(Container(image, save_suffix=save_suffix))
         return cont
     else:
         return image
@@ -519,6 +539,69 @@ def load_pp_directory(
     return load_image(image_path, load_container=flags.load_container, dirpath=dirpath, save_suffix=save_suffix)
     
 
+
+def load_template(
+        template,
+        name,
+        dirpath=os.getcwd(),
+        keep_comments=True,
+        ):
+   
+    ## create config from template
+    if template.__class__.__name__ == "str": 
+        if os.path.isfile(template):
+            template_path = template 
+            template_loaded = _load_yaml(template_path)
+    else:
+        return
+    
+    ## create config-layout
+    if name.__class__.__name__ == "NoneType":
+        config_name = "NA"
+    elif name.__class__.__name__ == "str":
+        config_name = "pype_config_" + name + ".yaml"
+    config_path = os.path.join(dirpath, config_name) 
+
+    ## strip template name
+    if "template" in template_loaded:
+        template_loaded.pop("template")
+
+    
+    config_info = {
+        "config_info": {
+            "config_name":config_name,
+            "date_created":datetime.today().strftime("%Y-%m-%d %H:%M:%S"),
+            "date_last_modified":None,
+            "template_name":os.path.basename(template_path),
+            "template_path":template_path,
+            }
+        }
+    
+    yaml = ruamel.yaml.YAML()
+    yaml.indent(mapping=4, sequence=4, offset=4)
+
+    if keep_comments == True:
+    
+        with io.StringIO() as buf, redirect_stdout(buf):
+            yaml.dump(config_info, sys.stdout)
+            output = buf.getvalue()
+            output = yaml.load(output)
+            
+        for key in reversed(output):  
+            template_loaded.insert(0, key, output[key])
+
+    else:
+        template_loaded = {**config_info, **template_loaded}
+        _yaml_recursive_delete_comments(template_loaded)
+        
+    with open(config_path, "wb") as yaml_file:
+        yaml.dump(template_loaded, yaml_file)
+
+            
+
+
+        
+        
 
 def save_image(
     image,

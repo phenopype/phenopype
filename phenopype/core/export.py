@@ -178,7 +178,13 @@ def load_annotation(filepath,
     ## load annotation file
     if os.path.isfile(filepath):
         with open(filepath) as file:
-            annotation_file = json.load(file)
+            try:
+                annotation_file = json.load(file)
+            except Exception as ex:
+                print(
+                    "load_annotation: " + str(ex.__class__.__name__) + " - " + str(ex)
+                )
+                return
         annotation_file = defaultdict(dict, annotation_file)        
     else:
         print("file not found")
@@ -317,8 +323,16 @@ def save_annotation(annotation,
         if os.path.isfile(filepath):
             if overwrite in [False,True,"entry"]:
                 with open(filepath) as file:
-                    annotation_file = json.load(file)
-                annotation_file = defaultdict(dict, annotation_file)           
+                    try:
+                        annotation_file = json.load(file)
+                        annotation_file = defaultdict(dict, annotation_file)
+                    except Exception as ex:
+                        print(
+                            "load_annotation: " + str(ex.__class__.__name__) + " - " + str(ex)
+                        )
+                        print("Could not read {} - creating new file.".format(filepath))
+                        annotation_file = defaultdict(dict, {})
+                          
                 print("- loading existing annotation file")
                 break
             elif overwrite == "file":

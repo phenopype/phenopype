@@ -34,10 +34,11 @@ from phenopype.settings import (
     pandas_max_rows,
     flag_verbose,
     _annotation_functions,
+    _annotation_types,
 )
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
-from phenopype.utils import load_image, load_pp_directory
+from phenopype.utils import load_image, load_pp_directory, Container
 from phenopype.utils_lowlevel import (
     _ImageViewer,
     _YamlFileMonitor,
@@ -45,7 +46,6 @@ from phenopype.utils_lowlevel import (
     _file_walker,
     _load_image_data,
     _load_yaml,
-    _provide_pype_config,
     _resize_image,
     _save_yaml,
     _yaml_flow_style,
@@ -939,10 +939,9 @@ class Pype(object):
 
     def __init__(
         self,
-        image,
-        name,
+        image=None,
+        name=None,
         config=None,
-        template=None,
         dirpath=None,
         debug=False,
         skip=False,
@@ -962,6 +961,11 @@ class Pype(object):
         delay = kwargs.get("delay", 500)
         sleep = kwargs.get("sleep", 0.2)
         
+        ## set up dirpath
+        if dirpath.__class__.__name__ == "NoneType":
+            dirpath = os.getcwd()
+        dirpath = os.path.abspath(dirpath)        
+
         ## flags
         self.flags = make_dataclass(cls_name="flags", 
                                     fields=[("debug",bool,debug),
@@ -969,101 +973,110 @@ class Pype(object):
                                             ("feedback", bool, feedback),
                                             ("visualize", bool, visualize),
                                             ("terminate", bool, False),
+                                            ("dry_run", bool, kwargs.get("dry_run", False))
                                             ])
         
         ## check name, load container and config
-        self._check_pype_name(name=name)
-        self._load_container(name=name, image=image, dirpath=dirpath)
-        self._load_pype_config(name=name, config=config, template=template)
-               
-        ## check whether directory is skipped
-        if skip:
-            if self._check_directory_skip(name=name, 
-                                          skip_pattern=skip,
-                                          dirpath=self.container.dirpath):
-                return
+        if self.flags.dry_run:   
+            self._load_pype_config(name=name, config=config)
+            self._iterate(config=self.config, annotations=copy.deepcopy(_annotation_types),
+                      execute=False, visualize=False, feedback=True)
+        else:
             
-        ## load existing annotations through container
-        self.container.load()
-
-        ## check pype config for annotations
-        self._iterate(config=self.config, annotations=self.container.annotations,
-                      execute=False, visualize=False, feedback=False)
-        time.sleep(sleep)
-
-        ## final check before starting pype
-        self._check_final()
+            ## check name, load container and config
+            self._check_pype_name(name=name)
+            self._load_container(name=name, image=image, dirpath=dirpath)
+            self._load_pype_config(name=name, config=config)
+                   
+            ## check whether directory is skipped
+            if skip:
+                if self._check_directory_skip(name=name, 
+                                              skip_pattern=skip,
+                                              dirpath=self.container.dirpath):
+                    return
+                
+            ## load existing annotations through container
+            self.container.load()
     
-        # open config file with system viewer
-        if self.flags.feedback and self.flags.visualize:
-            self._start_file_monitor(delay=delay)
-
-        ## start log
-        self.log = []
+            ## check pype config for annotations
+            self._iterate(config=self.config, annotations=self.container.annotations,
+                          execute=False, visualize=False, feedback=False)
+            time.sleep(sleep)
+    
+            ## final check before starting pype
+            self._check_final()
         
-        # =============================================================================
-        # PYPE LOOP   
-        # =============================================================================
-
-        ## run pype
-        while True:
-            
-            ## pype restart flag
-            _config.pype_restart = False
-
-            ## refresh config
+            # open config file with system viewer
             if self.flags.feedback and self.flags.visualize:
+                self._start_file_monitor(delay=delay)
+    
+            ## start log
+            self.log = []
             
-                ## to stop infinite loop without opening new window
-                if not self.YFM.content:
-                    print("- STILL UPDATING CONFIG (no content)")
-                    cv2.destroyWindow("phenopype")
-                    time.sleep(1)
-                    continue
-            
-                self.config = copy.deepcopy(self.YFM.content)
-            
-                if not self.config:
-                    print("- STILL UPDATING CONFIG (no config)")
-                    continue
-                               
-            ## run pype config in sequence
-            self._iterate(config=self.config, 
-                          annotations=self.container.annotations,
-                          feedback=self.flags.feedback,
-                          visualize=self.flags.visualize
-                          )
-            
-            ## terminate
-            if self.flags.visualize:
-                if self.flags.terminate:
-                    if hasattr(self, "YFM"):
-                        self.YFM._stop()
-                    print("\n\nTERMINATE")         
+            # =============================================================================
+            # PYPE LOOP   
+            # =============================================================================
+    
+            ## run pype
+            while True:
+                
+                ## pype restart flag
+                _config.pype_restart = False
+    
+                ## refresh config
+                if self.flags.feedback and self.flags.visualize:
+                
+                    ## to stop infinite loop without opening new window
+                    if not self.YFM.content:
+                        print("- STILL UPDATING CONFIG (no content)")
+                        cv2.destroyWindow("phenopype")
+                        time.sleep(1)
+                        continue
+                
+                    self.config = copy.deepcopy(self.YFM.content)
+                
+                    if not self.config:
+                        print("- STILL UPDATING CONFIG (no config)")
+                        continue
+                                   
+                ## run pype config in sequence
+                self._iterate(config=self.config, 
+                              annotations=self.container.annotations,
+                              feedback=self.flags.feedback,
+                              visualize=self.flags.visualize
+                              )
+                
+                ## terminate
+                if self.flags.visualize:
+                    if self.flags.terminate:
+                        if hasattr(self, "YFM"):
+                            self.YFM._stop()
+                        print("\n\nTERMINATE")         
+                        break
+                else:
                     break
-            else:
-                break
-        
-        if self.flags.autosave and self.flags.terminate:
-            if "export" not in self.config_parsed_flattened:
-                export_list = []
-            else:
-                export_list = self.config_parsed_flattened["export"]
-            self.container.save(export_list = export_list)
+            
+            if self.flags.autosave and self.flags.terminate:
+                if "export" not in self.config_parsed_flattened:
+                    export_list = []
+                else:
+                    export_list = self.config_parsed_flattened["export"]
+                self.container.save(export_list = export_list)
             
             
     def _load_container(self, name, image, dirpath):
 
+
         ## load image as cointainer from array, file, or directory
         if image.__class__.__name__ == "ndarray":
-            self.container = load_image(path=image, 
-                                        load_container=True, 
-                                        save_suffix=name)
+            self.container = Container(image=image, 
+                                       save_suffix=name,
+                                       dirpath=dirpath)
         elif image.__class__.__name__ == "str":
             if os.path.isfile(image):
-                self.container = load_image(path=image, 
-                                            load_container=True, 
-                                            save_suffix=name)
+                self.container = Container(image=load_image(image), 
+                                           save_suffix=name,
+                                           dirpath=dirpath)
             elif os.path.isdir(image):
                 self.container = load_pp_directory(path=image, 
                                                    dirpath=image, 
@@ -1078,63 +1091,32 @@ class Pype(object):
             print("Wrong input path or format - cannot run pype.")
             return
     
-        ## manually supply dirpath to save files (overwrites container dirpath)
-        if not dirpath.__class__.__name__ == "NoneType":
-            if dirpath == "cwd":
-                dirpath = os.getcwd()
-            elif not os.path.isdir(dirpath):
-                q = input("Save folder {} does not exist - create?.".format(dirpath))
-                if q in ["True", "true", "y", "yes"]:
-                    os.makedirs(dirpath)
-                else:
-                    print("Directory not created - aborting")
-                    return
-            self.container.dirpath = dirpath
+        # ## manually supply dirpath to save files (overwrites container dirpath)
+        # if not dirpath.__class__.__name__ == "NoneType":
+        #     if dirpath == "cwd":
+        #         dirpath = os.getcwd()
+        #     elif not os.path.isdir(dirpath):
+        #         q = input("Save folder {} does not exist - create?.".format(dirpath))
+        #         if q in ["True", "true", "y", "yes"]:
+        #             os.makedirs(dirpath)
+        #         else:
+        #             print("Directory not created - aborting")
+        #             return
+        #     self.container.dirpath = dirpath
            
             
-    def _load_pype_config(self, name, config, template):
+    def _load_pype_config(self, name, config):
 
-        ## load pype config (three contexts):
-        ## 1) load from existing file
-        if all([config.__class__.__name__ == "str",
-                template.__class__.__name__ == "NoneType"]):
-             self.config = _provide_pype_config(config=config, template=None, name=name)
+        if config.__class__.__name__ == "str":
+             self.config = _load_yaml(config)
              self.config_path = config       
-             if self.config.__class__.__name__ == "NoneType":
-                 self.config_path = os.path.join(self.container.dirpath, config)
-                 self.config = _provide_pype_config(config=self.config_path, template=None, name=name)
 
-             
-        ## 2) create new from template or, if already exists, load from file
-        if all([config.__class__.__name__ == "NoneType",
-                template.__class__.__name__ in ["Template","str"]]):
-            self.config_path = os.path.join(self.container.dirpath,
-                                       "pype_config_" + name + ".yaml")
-            if os.path.isfile(self.config_path):
-                q = input("pype_config_" + name + ".yaml already exists - overwrite?\n" + \
-                          "y: yes, file will be overwritten and loaded\n" + 
-                          "n: no, existing file will be loaded instead\n" + \
-                          "To load an existing file, use \"config\" instead of \"template\".")
-                if q in confirm_options:
-                    self.config = _provide_pype_config(config=None, template=template, name=name)
-                    self.config["config_info"]["config_path"] = self.config_path
-                    _save_yaml(self.config, self.config_path)
-                else: 
-                    self.config = _provide_pype_config(config=self.config_path, template=None)
-            else:
-                self.config = _provide_pype_config(config=None, template=template, name=name)
-                self.config["config_info"]["config_path"] = self.config_path
-                _save_yaml(self.config, self.config_path)
-
-                    
-        ## 3) check if config file exists in directory (for project directory)
-        if all([config.__class__.__name__ == "NoneType",
-                template.__class__.__name__ == "NoneType"]):
+        elif config.__class__.__name__ == "NoneType":
             config_path = os.path.join(self.container.dirpath,
-                                       "pype_config_" + name + ".yaml")
-            self.config = _provide_pype_config(config=config_path, template=None)
+                                        "pype_config_" + name + ".yaml")
+            self.config = _load_yaml(config_path)
             self.config_path = config_path
-            
+
             
     def _start_file_monitor(self, delay):
         
@@ -1238,7 +1220,8 @@ class Pype(object):
             )
 
         # reset values
-        self.container.reset()
+        if not self.flags.dry_run:
+            self.container.reset()
         annotation_counter = dict.fromkeys(annotations, -1)
 
         ## apply pype: loop through steps and contained methods

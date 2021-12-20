@@ -9,17 +9,18 @@ import string
 import re
 from _ctypes import PyObj_FromPtr
 
+
 import time
 from timeit import default_timer as timer
 import ruamel.yaml
 from ruamel.yaml.constructor import SafeConstructor
+from ruamel.yaml import YAML
 
 from datetime import datetime
 from math import cos
 from pathlib import Path
 from PIL import Image
 from stat import S_IWRITE
-from ruamel.yaml import YAML
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
@@ -1181,81 +1182,6 @@ def _file_walker(
 
 
 
-def _provide_pype_config(config=None, 
-                         template=None,
-                         name=None):
-    
-    ## kwargs and setup
-    step_names = ["preprocessing", 
-                  "segmentation", 
-                  "measurement",  
-                  "visualization", 
-                  "export"]
-    
-    ## load exiisting config file
-    if config.__class__.__name__ == "str":
-        if not config.endswith(".yaml"):
-            config = config + ".yaml"
-        if os.path.isfile(config):
-            config_name, config_path = os.path.basename(config), config
-            print("Succesfully loaded existing pype config ({}) from:\n{} ".format((config_name),(config_path)))
-            config = _load_yaml(config_path)
-            return config
-        else:    
-            print("No config file found under: {}".format(config))
-            return
-        
-    ## create config from template
-    elif config.__class__.__name__ == "NoneType": 
-        
-        ## phenopype template 
-        if isinstance(template, settings.Template):
-            config_steps, config_path = template.processing_steps, "NA"
-            template_name, template_path = template.name, template.path
-            
-        ## user template
-        elif os.path.isfile(template):
-            config_loaded = _load_yaml(template)
-            if config_loaded.__class__.__name__ in ["dict", 'CommentedMap']:
-                if "config_info" in config_loaded:
-                    config_loaded.pop('config_info', None)
-                    print("Removed existing \"config_info\" section")
-                if "processing_steps" in config_loaded:
-                    config_steps, config_path = config_loaded["processing_steps"], "NA"
-                else:
-                    print("Broken template - check for correct template structure")
-                    return
-            elif config_loaded.__class__.__name__ in ["list",'CommentedSeq'] and any(step in config_loaded[0] for step in step_names):
-                config_steps, config_path = config_loaded, "NA"
-            template_name, template_path = os.path.basename(template), os.path.abspath(template)
-
-        else:
-            print("Invalid template supplied - aborting.")
-            return
-    else:
-        print("Could not load config or template - pease check input.")
-        return 
-    
-    ## create config-layout
-    if name.__class__.__name__ == "NoneType":
-        config_name = "NA"
-    elif name.__class__.__name__ == "str":
-        config_name = "pype_config_" + name + ".yaml"
-    config_info = {"config_name":config_name,
-                   "config_path": config_path,
-                   "template_name":template_name,
-                   "template_path":template_path,
-                   "date_created":datetime.today().strftime("%Y%m%d%H%M%S"),
-                   "date_last_modified":None}
-    config = {"config_info":config_info,
-              "processing_steps":config_steps}
-            
-    ## return
-    return config
-
-
-
-
 def _provide_annotation_data(annotation, 
                              annotation_type, 
                              data_type, 
@@ -1428,6 +1354,22 @@ def _drop_dict_entries(dictionary, drop=[]):
             
     return new_dictionary
 
+def _yaml_recursive_delete_comments(d):
+    if isinstance(d, dict):
+        for k, v in d.items():
+            _yaml_recursive_delete_comments(k)
+            _yaml_recursive_delete_comments(v)
+    elif isinstance(d, list):
+        for elem in d:
+            _yaml_recursive_delete_comments(elem)
+    try:
+         # literal scalarstring might have comment associated with them
+         attr = 'comment' if isinstance(d, ruamel.yaml.scalarstring.ScalarString) \
+                  else ruamel.yaml.comments.Comment.attrib 
+         delattr(d, attr)
+    except AttributeError:
+        pass
+
 
 
 def _resize_image(image, factor=1, interpolation="cubic"):
@@ -1487,6 +1429,7 @@ def _load_yaml(filepath, typ="rt", pure=False, legacy=False):
         
     SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
     yaml = YAML(typ=typ, pure=pure)
+    yaml.indent(mapping=4, sequence=4, offset=4)
 
     if isinstance(filepath, (Path, str)):
         if Path(filepath).is_file():
@@ -1503,7 +1446,8 @@ def _load_yaml(filepath, typ="rt", pure=False, legacy=False):
 def _show_yaml(odict, ret=False, typ="rt"):
     
     yaml =  YAML(typ=typ)
-    
+    yaml.indent(mapping=4, sequence=4, offset=4)
+
     if ret:
         with io.StringIO() as buf, redirect_stdout(buf):
             yaml.dump(odict, sys.stdout)
@@ -1515,6 +1459,7 @@ def _show_yaml(odict, ret=False, typ="rt"):
 
 def _save_yaml(dictionary, filepath, typ="rt"):
     yaml = YAML(typ=typ)
+    yaml.indent(mapping=4, sequence=4, offset=4)
     with open(filepath, "w") as out:
         yaml.dump(dictionary, out)
 
