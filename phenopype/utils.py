@@ -60,7 +60,7 @@ class Container(object):
 
         ## attributes
         self.file_prefix = kwargs.get("file_prefix")
-        self.file_suffix = kwargs.get("file_sufix")
+        self.file_suffix = kwargs.get("file_suffix")
         self.dir_path = dir_path
         self.image_name = kwargs.get("image_name")
         ## annotations - primed from empty dict
@@ -429,10 +429,10 @@ def load_image(
                 raise OSError("Invalid file extension \"{}\" - could not load image:\n".format(ext))
                 return
         else:
-            raise OSError("Invalid image path - could not load image.")
-            return
+            raise FileNotFoundError("Invalid image path - could not load image.")
+            # return
     else:
-        raise OSError("Invalid input format - could not load image.")
+        raise FileNotFoundError("Invalid input format - could not load image.")
         return            
             
     return image
@@ -441,11 +441,12 @@ def load_image(
 
 def load_template(
         template_path,
-        image_path,
         tag = "v1",
         overwrite=False,
         keep_comments=True,
+        image_path=None,
         dir_path=None,
+        ret_path=False,
         ):
     
     flags = make_dataclass(cls_name="flags", 
@@ -455,18 +456,30 @@ def load_template(
     if template_path.__class__.__name__ == "str": 
         if os.path.isfile(template_path):
             template_loaded = utils_lowlevel._load_yaml(template_path)
+        else:
+            raise FileNotFoundError("Could not find template_path")
     else:
-        return
+        raise TypeError("Wrong input format for template_path")
     
     ## construct config-name
-    if dir_path.__class__.__name__ == "NoneType":    
+    if dir_path.__class__.__name__ == "NoneType" and image_path.__class__.__name__ == "NoneType":
+        raise AttributeError("Need to specify image_path or dir_path")
+    elif dir_path.__class__.__name__ == "str" and image_path.__class__.__name__ == "NoneType":
+        if os.path.isdir(dir_path):
+            prepend = ""
+        else:
+            raise FileNotFoundError("Could not find dir_path")
+    elif dir_path.__class__.__name__ == "NoneType":    
         dir_path = os.path.dirname(image_path)
         image_name_root = os.path.splitext(os.path.basename(image_path))[0]
         prepend = image_name_root + "_"
-    else:
-        prepend = ""
         
-    config_name = prepend + "pype_config_" + tag + ".yaml"
+    if tag.__class__.__name__ == "str":
+        suffix = "_" + tag
+    else:
+        suffix = ""
+        
+    config_name = prepend + "pype_config" + suffix + ".yaml"
     config_path = os.path.join(dir_path, config_name) 
 
     ## strip template name
@@ -501,9 +514,12 @@ def load_template(
         template_loaded = {**config_info, **template_loaded}
         utils_lowlevel._yaml_recursive_delete_comments(template_loaded)
                
-    if  utils_lowlevel._save_prompt("template",config_path, flags.overwrite):
+    if utils_lowlevel._save_prompt("template",config_path, flags.overwrite):
         with open(config_path, "wb") as yaml_file:
             yaml.dump(template_loaded, yaml_file)
+            
+    if ret_path:
+        return config_path
 
             
 

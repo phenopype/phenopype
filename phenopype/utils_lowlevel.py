@@ -1274,7 +1274,7 @@ def _load_previous_annotation(annotation_previous, components, load_settings=Tru
 
 
 
-def _load_project_image_directory(dir_path, tag, **kwargs):
+def _load_project_image_directory(dir_path, tag=None, **kwargs):
     """
     Parameters
     ----------
@@ -1316,13 +1316,14 @@ def _load_project_image_directory(dir_path, tag, **kwargs):
         image_path = attributes["image_original"]["filepath"]
     else:
         image_path = os.path.join(dir_path,attributes["image_phenopype"]["filename"])
-        
+    image = utils.load_image(image_path)
+
     ## return
-    return utils.Container(image_path=image_path, dir_path=dir_path, tag=tag)
+    return utils.Container(image=image, dir_path=dir_path, file_suffix=tag)
 
 
 
-def _load_image_data(image, path_and_type=True, resize=1):
+def _load_image_data(image_path, path_and_type=True, resize=1):
     """
     Create a DataFreame with image information (e.g. dimensions).
 
@@ -1340,35 +1341,25 @@ def _load_image_data(image, path_and_type=True, resize=1):
         contains image data (+meta data, if selected)
 
     """
-    if image.__class__.__name__ == "str":
-        if os.path.isfile(image):
-            path = image
-        image = Image.open(path)
-        width, height = image.size
-        image.close()
-        image_data = {
-            "filename": os.path.split(image)[1],
-            "width": width,
-            "height": height,
-        }
-        
-        if path_and_type: 
-            image_data.update({
-                "filepath": image,
-                "filetype": os.path.splitext(image)[1]})
+    if image_path.__class__.__name__ == "str":
+        if os.path.isfile(image_path):
+            image = Image.open(image_path)
+            width, height = image.size
+            image.close()
+            image_data = {
+                "filename": os.path.split(image_path)[1],
+                "width": width,
+                "height": height,
+            }
             
-    elif image.__class__.__name__ == "ndarray":
-        image = image
-        width, height = image.shape[0:2]
-        image_data = {
-            "filename": "unknown",
-            "filepath": "unknown",
-            "filetype": "ndarray",
-            "width": width,
-            "height": height,
-        }
+            if path_and_type: 
+                image_data.update({
+                    "filepath": image_path,
+                    "filetype": os.path.splitext(image_path)[1]})
+        else:
+            raise FileNotFoundError("Invalid image path - could not load image.")
     else:
-        warnings.warn("Not a valid image file - cannot read image data.")
+        raise TypeError("Not a valid image file - cannot read image data.")
 
     ## issue warnings for large images
     if width * height > 125000000:
