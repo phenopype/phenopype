@@ -14,6 +14,7 @@ import pprint
 import subprocess
 import sys
 import time
+from IPython.display import Markdown, display
 
 from shutil import copyfile
 
@@ -38,13 +39,14 @@ from phenopype.settings import (
 )
 from phenopype.core import preprocessing, segmentation, measurement, export, visualization
 
-from phenopype.utils import load_image, load_pp_directory, Container
+from phenopype.utils import load_image, Container
 from phenopype.utils_lowlevel import (
     _ImageViewer,
     _YamlFileMonitor,
     _del_rw,
     _file_walker,
     _load_image_data,
+    _load_project_image_directory,
     _load_yaml,
     _resize_image,
     _save_yaml,
@@ -52,6 +54,13 @@ from phenopype.utils_lowlevel import (
 )
 
 from phenopype import _config
+
+# from rich.traceback import install
+# install()
+
+
+import sys, traceback, logging
+
 
 #%% settings
 
@@ -140,9 +149,9 @@ class Project:
                     return
     
         ## read directories
-        dirnames, dirpaths = os.listdir(os.path.join(root_dir, "data")), []
+        dir_names, dir_paths = os.listdir(os.path.join(root_dir, "data")), []
         for filepath in os.listdir(os.path.join(root_dir, "data")):
-            dirpaths.append(os.path.join(root_dir, "data", filepath))
+            dir_paths.append(os.path.join(root_dir, "data", filepath))
 
         ## global project attributes
         if not os.path.isfile(os.path.join(root_dir, "attributes.yaml")):
@@ -155,10 +164,10 @@ class Project:
                 "project_data": None
                 }
             _save_yaml(project_attributes, os.path.join(root_dir, "attributes.yaml"))
-            print("\nProject \"{}\" successfully created.".format(os.path.basename(root_dir),len(dirpaths)))
+            print("\nProject \"{}\" successfully created.".format(os.path.basename(root_dir),len(dir_paths)))
         else:
-            if len(dirnames) > 0:
-                print("\nProject \"{}\" successfully loaded with {} images".format(os.path.basename(root_dir),len(dirpaths)))
+            if len(dir_names) > 0:
+                print("\nProject \"{}\" successfully loaded with {} images".format(os.path.basename(root_dir),len(dir_paths)))
             else:
                 print("\nProject \"{}\" successfully loaded, but it didn't contain any images!".format(os.path.basename(root_dir)))
                       
@@ -166,8 +175,8 @@ class Project:
             
         ## attach to instance
         self.root_dir = root_dir
-        self.dirnames = dirnames
-        self.dirpaths = dirpaths
+        self.dir_names = dir_names
+        self.dir_paths = dir_paths
 
 
     def add_files(
@@ -302,43 +311,43 @@ class Project:
             else:
                 subfolder_prefix = str(depth) + "__"
                 
-            dirname = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
-            dirpath = os.path.join(self.root_dir, "data", dirname)
+            dir_name = subfolder_prefix + os.path.splitext(os.path.basename(filepath))[0]
+            dir_path = os.path.join(self.root_dir, "data", dir_name)
 
             ## make image-specific directories
-            if os.path.isdir(dirpath): 
+            if os.path.isdir(dir_path): 
                 if flags.overwrite == False:
                     print(
                         "Found image "
                         + relpath
                         + " - "
-                        + dirname
+                        + dir_name
                         + " already exists (overwrite=False)"
                     )
                     continue
                 elif flags.overwrite == "files":
                     pass
                 elif flags.overwrite == "dir":
-                    rmtree(dirpath, ignore_errors=True, onerror=_del_rw)
+                    rmtree(dir_path, ignore_errors=True, onerror=_del_rw)
                     print(
                         "Found image "
                         + relpath
                         + " - "
                         + "phenopype-project folder "
-                        + dirname
+                        + dir_name
                         + " created (overwrite == \"dir\")"
                     )
-                    os.mkdir(dirpath)
+                    os.mkdir(dir_path)
             else:
                 print(
                     "Found image "
                     + relpath
                     + " - "
                     + "phenopype-project folder "
-                    + dirname
+                    + dir_name
                     + " created"
                 )
-                os.mkdir(dirpath)
+                os.mkdir(dir_path)
 
             ## load image, image-data, and image-meta-data
             image = load_image(filepath)
@@ -355,7 +364,7 @@ class Project:
                 image_phenopype_path = os.path.join(
                     self.root_dir,
                     "data",
-                    dirname,
+                    dir_name,
                     "copy_" + image_name,
                 )
                 copyfile(filepath, image_phenopype_path)
@@ -369,7 +378,7 @@ class Project:
                 image_phenopype_path = os.path.join(
                     self.root_dir,
                     "data",
-                    dirname,
+                    dir_name,
                     "mod_" + image_basename + extension,
                 )
                 if os.path.isfile(image_phenopype_path) and flags.overwrite=="file":
@@ -377,7 +386,7 @@ class Project:
                         "Found image "
                         + image_phenopype_path
                         + " in "
-                        + dirname
+                        + dir_name
                         + " - overwriting (overwrite == \"files\")"
                     )
                 cv2.imwrite(image_phenopype_path, image)
@@ -394,10 +403,10 @@ class Project:
             attributes = {
                 "image_original":image_data_original,
                 "image_phenopype":image_data_phenopype}
-            if os.path.isfile(os.path.join(dirpath, "attributes.yaml")) and flags.overwrite=="file":
+            if os.path.isfile(os.path.join(dir_path, "attributes.yaml")) and flags.overwrite=="file":
                 print("overwriting attributes")
             _save_yaml(
-                attributes, os.path.join(dirpath, "attributes.yaml")
+                attributes, os.path.join(dir_path, "attributes.yaml")
             )
 
         ## list dirs in data and add to project-attributes file in project root
@@ -408,12 +417,12 @@ class Project:
         )
         
         ## add dirlist to project object (always overwrite)
-        dirnames = os.listdir(os.path.join(self.root_dir, "data"))
-        dirpaths = []
-        for dirname in dirnames:
-            dirpaths.append(os.path.join(self.root_dir, "data", dirname))
-        self.dirnames = dirnames
-        self.dirpaths = dirpaths
+        dir_names = os.listdir(os.path.join(self.root_dir, "data"))
+        dir_paths = []
+        for dir_name in dir_names:
+            dir_paths.append(os.path.join(self.root_dir, "data", dir_name))
+        self.dir_names = dir_names
+        self.dir_paths = dir_paths
 
         print("\nFound {} files".format(len(filepaths)))
         print("--------------------------------------------")
@@ -422,7 +431,7 @@ class Project:
 
     def add_config(
         self,
-        name,
+        tag,
         template=None,
         interactive=False,
         interactive_image="first",
@@ -438,8 +447,8 @@ class Project:
         Parameters
         ----------
 
-        name: str
-            name of config-file. this gets appended to all files and serves as and
+        tag: str
+            tag of config-file. this gets appended to all files and serves as and
             identifier of a specific analysis pipeline
         template: str, optional
             can be either a path to a template or config-file in yaml-format
@@ -475,13 +484,13 @@ class Project:
         ## interactive template modification
         if flag_interactive:
             while True:
-                if len(self.dirpaths)>0:
+                if len(self.dir_paths)>0:
                     if interactive_image.__class__.__name__ == "str":
                         if interactive_image == "first":    
-                            image_location = self.dirpaths[0]
+                            image_location = self.dir_paths[0]
                             print_msg = "Entered interactive config mode using first image (" + \
                                 interactive_image + ")."
-                        elif interactive_image in self.dirnames:
+                        elif interactive_image in self.dir_names:
                             image_location = os.path.join(
                                 self.root_dir,
                                 "data",
@@ -492,9 +501,9 @@ class Project:
                             print_msg = "Could not enter interactive mode - did not find: " + interactive_image
                             break
                     elif interactive_image.__class__.__name__ == "int":
-                        image_location = self.dirpaths[interactive_image-1]
+                        image_location = self.dir_paths[interactive_image-1]
                         print_msg = "Entered interactive config mode using index {}".format(interactive_image) + \
-                            " ({})".format(self.dirnames[interactive_image])
+                            " ({})".format(self.dir_names[interactive_image])
                     else:
                         print_msg = "Could not enter interactive mode - wrong input."
                         break
@@ -504,20 +513,20 @@ class Project:
                 
                 if os.path.isdir(image_location):
                     interactive_container = load_pp_directory(image_location)
-                    interactive_container.dirpath = self.root_dir
+                    interactive_container.dir_path = self.root_dir
                 else: 
                     print_msg = "Could not enter interactive mode - invalid directory."
 
                 ## save under project root dir
                 config_path = os.path.join(
-                    self.root_dir, "pype_config_MOD_" + name + ".yaml"
+                    self.root_dir, "pype_config_MOD_" + tag + ".yaml"
                 )
                 _save_yaml(config, config_path)
                 
                 ## run pype 
                 p = Pype(
                     interactive_container,
-                    name=name,
+                    tag=tag,
                     config=config_path,
                     presetting=True,
                     test_params=test_params,
@@ -528,37 +537,37 @@ class Project:
 
 
         ## save config to each directory
-        for dirname in self.dirnames:
+        for dir_name in self.dir_names:
             
             ## save config
             config_path = os.path.join(
                 self.root_dir, 
                 "data",
-                dirname, 
-                "pype_config_" + name + ".yaml"
+                dir_name, 
+                "pype_config_" + tag + ".yaml"
             )
             if os.path.isfile(config_path) and flag_overwrite == False:
                 print(
                     "pype_"
-                    + name
+                    + tag
                     + ".yaml already exists in "
-                    + dirname
+                    + dir_name
                     + " (overwrite=False)"
                 )
                 continue
             elif os.path.isfile(config_path) and flag_overwrite == True:
-                print("pype_" + name + ".yaml created for " + dirname + " (overwritten)")
+                print("pype_" + tag + ".yaml created for " + dir_name + " (overwritten)")
                 config["config_info"]["config_path"] = config_path
                 _save_yaml(config, config_path)
             else:
-                print("pype_" + name + ".yaml created for " + dirname)
+                print("pype_" + tag + ".yaml created for " + dir_name)
                 config["config_info"]["config_path"] = config_path
                 _save_yaml(config, config_path)
 
 
     def add_reference(self, 
-                      name,
                       reference_image, 
+                      tag,
                       activate=True,
                       template=False,
                       overwrite=False,
@@ -591,7 +600,6 @@ class Project:
                                fields=[("overwrite", bool, overwrite), 
                                        ("activate", bool, activate)])                
 
-        reference_name = name
         print_save_msg = "== no msg =="
         
         ## load reference image
@@ -613,7 +621,7 @@ class Project:
             reference_image_path = "none (array-type)"
             pass
         elif reference_image.__class__.__name__ == "int":
-            reference_image_path = os.path.join(self.root_dir, "data", self.dirpaths[reference_image-1])
+            reference_image_path = os.path.join(self.root_dir, "data", self.dir_paths[reference_image-1])
             reference_image = load_pp_directory(
                reference_image_path
             )
@@ -630,7 +638,7 @@ class Project:
         while True:
             
             ## generate reference name and check if exists
-            reference_filename = "reference_" + reference_name + ".tif"
+            reference_filename = "reference_" + tag + ".tif"
             reference_path = os.path.join(self.root_dir, reference_filename)
             
             if os.path.isfile(reference_path) and flags.overwrite == False:
@@ -646,7 +654,7 @@ class Project:
             
             
             ## generate template name and check if exists
-            template_name = "reference_template_" + reference_name + ".tif"
+            template_name = "reference_template_" + tag + ".tif"
             template_path = os.path.join(self.root_dir, template_name)
 
             if os.path.isfile(template_path) and flags.overwrite == False:
@@ -687,7 +695,7 @@ class Project:
                 project_attributes.pop('project_data', None)
             if "reference" in project_attributes:
                 reference_dict = project_attributes["reference"]
-            reference_dict[reference_name] = reference_info
+            reference_dict[tag] = reference_info
             
             project_attributes["reference"] = reference_dict
             project_attributes["project_data"] = project_data
@@ -707,29 +715,29 @@ class Project:
         # =============================================================================
         
         ## set active reference information in file specific attributes
-        for dirname, dirpath in zip(self.dirnames, self.dirpaths):
-            attr = _load_yaml(os.path.join(dirpath, "attributes.yaml"))
+        for dir_name, dir_path in zip(self.dir_names, self.dir_paths):
+            attr = _load_yaml(os.path.join(dir_path, "attributes.yaml"))
             
             ## create nested dict
             if not "reference" in attr:
                 attr["reference"] = {}      
             if not "project_level" in attr["reference"]:
                 attr["reference"]["project_level"] = {}      
-            if not reference_name in attr["reference"]["project_level"]:
-                attr["reference"]["project_level"][reference_name] = {}
+            if not tag in attr["reference"]["project_level"]:
+                attr["reference"]["project_level"][tag] = {}
                 
             ## loop through entries and set active reference
             if flags.activate==True:
                 for key, value in attr["reference"]["project_level"].items():
-                    if key == reference_name:
+                    if key == tag:
                         attr["reference"]["project_level"][key]["active"] = True
                     else:
                         attr["reference"]["project_level"][key]["active"] = False
-                _save_yaml(attr, os.path.join(dirpath, "attributes.yaml"))
-                print("setting active reference to \"" + reference_name + "\" for " + \
-                        dirname + " (active=True)")
+                _save_yaml(attr, os.path.join(dir_path, "attributes.yaml"))
+                print("setting active reference to \"" + tag + "\" for " + \
+                        dir_name + " (active=True)")
             else:
-                print("could not set active reference for " + dirname + \
+                print("could not set active reference for " + dir_name + \
                         " (overwrite=False/activate=False)")
 
     def collect_results(self, 
@@ -795,10 +803,10 @@ class Project:
                 "Collected "
                 + os.path.basename(filepath)
                 + " from "
-                + os.path.basename(os.path.dirname(filepath))
+                + os.path.basename(os.path.dir_name(filepath))
             )
             filename = (
-                os.path.basename(os.path.dirname(filepath))
+                os.path.basename(os.path.dir_name(filepath))
                 + "_"
                 + os.path.basename(filepath)
             )
@@ -849,14 +857,14 @@ class Project:
         flag_checked = False
        
         ## go through project directories
-        for directory in self.dirpaths:
-            dirname = os.path.basename(directory)            
+        for directory in self.dir_paths:
+            dir_name = os.path.basename(directory)            
 
             ## get config path
             config_path = os.path.join(
                 self.root_dir, 
                 "data",
-                dirname, 
+                dir_name, 
                 "pype_config_" + name + ".yaml"
             )
             
@@ -881,7 +889,7 @@ class Project:
                 with open(config_path, "w") as config_text:
                     config_text.write(new_config_string)
                 
-                print("New config saved for " + dirname)
+                print("New config saved for " + dir_name)
             else:
                 print("User check failed - aborting.")
                 break 
@@ -925,7 +933,7 @@ class Pype(object):
     delay: int, optional
         time in ms to add between reload attemps of yaml monitor. increase this 
         value if saved changes in config file are not parsed in the first attempt.
-    dirpath: str, optional
+    dir_path: str, optional
         path to an existing directory where all output should be stored
     skip: bool, optional
         skip directories that already have "name" as a suffix in the filename
@@ -939,15 +947,14 @@ class Pype(object):
 
     def __init__(
         self,
-        image=None,
-        name=None,
-        config=None,
-        dirpath=None,
-        debug=False,
+        path,
+        tag="v1",
+        config_path=None,
         skip=False,
         autosave=True,
         feedback=True,
         visualize=True,
+        debug=False,
         **kwargs
     ):
 
@@ -960,162 +967,170 @@ class Pype(object):
         window_max_dim = kwargs.get("window_max_dim")
         delay = kwargs.get("delay", 500)
         sleep = kwargs.get("sleep", 0.2)
-        
-        ## set up dirpath
-        if dirpath.__class__.__name__ == "NoneType":
-            dirpath = os.getcwd()
-        dirpath = os.path.abspath(dirpath)        
 
         ## flags
         self.flags = make_dataclass(cls_name="flags", 
                                     fields=[("debug",bool,debug),
                                             ("autosave", bool, autosave),
                                             ("feedback", bool, feedback),
-                                            ("visualize", bool, visualize),
+                                            ("skip",bool, skip),
                                             ("terminate", bool, False),
-                                            ("dry_run", bool, kwargs.get("dry_run", False))
+                                            ("visualize", bool, visualize),
+                                            ("dry_run", bool, kwargs.get("dry_run", False)),
                                             ])
         
+        ## check version, load container and config
+        # if self.flags.dry_run:   
+        #     self._load_pype_config(tag, config)
+        #     self._iterate(config=self.config, annotations=copy.deepcopy(_annotation_types),
+        #               execute=False, visualize=False, feedback=True)
+        # else:
+            
         ## check name, load container and config
-        if self.flags.dry_run:   
-            self._load_pype_config(name=name, config=config)
-            self._iterate(config=self.config, annotations=copy.deepcopy(_annotation_types),
-                      execute=False, visualize=False, feedback=True)
-        else:
-            
-            ## check name, load container and config
-            self._check_pype_name(name=name)
-            self._load_container(name=name, image=image, dirpath=dirpath)
-            self._load_pype_config(name=name, config=config)
-                   
-            ## check whether directory is skipped
-            if skip:
-                if self._check_directory_skip(name=name, 
-                                              skip_pattern=skip,
-                                              dirpath=self.container.dirpath):
-                    return
-                
-            ## load existing annotations through container
-            self.container.load()
-    
-            ## check pype config for annotations
-            self._iterate(config=self.config, annotations=self.container.annotations,
-                          execute=False, visualize=False, feedback=False)
-            time.sleep(sleep)
-    
-            ## final check before starting pype
-            self._check_final()
-        
-            # open config file with system viewer
-            if self.flags.feedback and self.flags.visualize:
-                self._start_file_monitor(delay=delay)
-    
-            ## start log
-            self.log = []
-            
-            # =============================================================================
-            # PYPE LOOP   
-            # =============================================================================
-    
-            ## run pype
-            while True:
-                
-                ## pype restart flag
-                _config.pype_restart = False
-    
-                ## refresh config
-                if self.flags.feedback and self.flags.visualize:
-                
-                    ## to stop infinite loop without opening new window
-                    if not self.YFM.content:
-                        print("- STILL UPDATING CONFIG (no content)")
-                        cv2.destroyWindow("phenopype")
-                        time.sleep(1)
-                        continue
-                
-                    self.config = copy.deepcopy(self.YFM.content)
-                
-                    if not self.config:
-                        print("- STILL UPDATING CONFIG (no config)")
-                        continue
-                                   
-                ## run pype config in sequence
-                self._iterate(config=self.config, 
-                              annotations=self.container.annotations,
-                              feedback=self.flags.feedback,
-                              visualize=self.flags.visualize
-                              )
-                
-                ## terminate
-                if self.flags.visualize:
-                    if self.flags.terminate:
-                        if hasattr(self, "YFM"):
-                            self.YFM._stop()
-                        print("\n\nTERMINATE")         
-                        break
-                else:
-                    break
-            
-            if self.flags.autosave and self.flags.terminate:
-                if "export" not in self.config_parsed_flattened:
-                    export_list = []
-                else:
-                    export_list = self.config_parsed_flattened["export"]
-                self.container.save(export_list = export_list)
-            
-            
-    def _load_container(self, name, image, dirpath):
-
-
-        ## load image as cointainer from array, file, or directory
-        if image.__class__.__name__ == "ndarray":
-            self.container = Container(image=image, 
-                                       save_suffix=name,
-                                       dirpath=dirpath)
-        elif image.__class__.__name__ == "str":
-            if os.path.isfile(image):
-                self.container = Container(image=load_image(image), 
-                                           save_suffix=name,
-                                           dirpath=dirpath)
-            elif os.path.isdir(image):
-                self.container = load_pp_directory(path=image, 
-                                                   dirpath=image, 
-                                                   load_container=True, 
-                                                   save_suffix=name) 
-            else:
-                print("Invalid path - cannot run pype.")
-                return
-        elif image.__class__.__name__ == "Container":
-            self.container = image
-        else:
-            print("Wrong input path or format - cannot run pype.")
+        try:
+            self._check_pype_tag(tag)
+            self._load_container(path=path, tag=tag)
+            self._load_pype_config(path=path, tag=tag, config_path=config_path)
+        except OSError as ex:
+            self.err = ex
+            template = "{}: {}"
+            print(template.format(type(ex).__name__, ex.args[0]))
             return
+        
+        ## check whether directory is skipped
+        if self.flags.skip:
+            if self._check_directory_skip(tag=tag,
+                                          skip_pattern=skip,
+                                          dir_path=self.container.dir_path):
+                return
+
+        ## load existing annotations through container
+        self.container.load()
+
+        ## check pype config for annotations
+        self._iterate(config=self.config, 
+                      annotations=self.container.annotations,
+                      execute=False, 
+                      visualize=False, 
+                      feedback=False)
+        time.sleep(sleep)
+
+        ## final check before starting pype
+        self._check_final()
     
-        # ## manually supply dirpath to save files (overwrites container dirpath)
-        # if not dirpath.__class__.__name__ == "NoneType":
-        #     if dirpath == "cwd":
-        #         dirpath = os.getcwd()
-        #     elif not os.path.isdir(dirpath):
-        #         q = input("Save folder {} does not exist - create?.".format(dirpath))
-        #         if q in ["True", "true", "y", "yes"]:
-        #             os.makedirs(dirpath)
-        #         else:
-        #             print("Directory not created - aborting")
-        #             return
-        #     self.container.dirpath = dirpath
-           
+        # open config file with system viewer
+        if self.flags.feedback and self.flags.visualize:
+            self._start_file_monitor(delay=delay)
+
+        ## start log
+        self.log = []
+        
+        # =============================================================================
+        # PYPE LOOP   
+        # =============================================================================
+
+        ## run pype
+        while True:
             
-    def _load_pype_config(self, name, config):
+            ## pype restart flag
+            _config.pype_restart = False
 
-        if config.__class__.__name__ == "str":
-             self.config = _load_yaml(config)
-             self.config_path = config       
+            ## refresh config
+            if self.flags.feedback and self.flags.visualize:
+            
+                ## to stop infinite loop without opening new window
+                if not self.YFM.content:
+                    print("- STILL UPDATING CONFIG (no content)")
+                    cv2.destroyWindow("phenopype")
+                    time.sleep(1)
+                    continue
+            
+                self.config = copy.deepcopy(self.YFM.content)
+            
+                if not self.config:
+                    print("- STILL UPDATING CONFIG (no config)")
+                    continue
+                               
+            ## run pype config in sequence
+            self._iterate(config=self.config, 
+                          annotations=self.container.annotations,
+                          feedback=self.flags.feedback,
+                          visualize=self.flags.visualize
+                          )
+            
+            ## terminate
+            if self.flags.visualize:
+                if self.flags.terminate:
+                    if hasattr(self, "YFM"):
+                        self.YFM._stop()
+                    print("\n\nTERMINATE")         
+                    break
+            else:
+                break
+        
+        if self.flags.autosave and self.flags.terminate:
+            if "export" not in self.config_parsed_flattened:
+                export_list = []
+            else:
+                export_list = self.config_parsed_flattened["export"]
+            self.container.save(export_list = export_list)
+        
+    def _check_pype_tag(self, tag):
+        
+        ## pype name check
+        if "pype_config_" in tag:
+            tag = tag.replace("pype_config_", "")
+        elif ".yaml" in tag:
+            tag = tag.replace(".yaml", "")
+        for char in "[@_!#$%^&*()<>?/|}{~:]\\":
+            if char in tag:
+                print("No special characters allowed in pype tag - aborting.")
+                return        
+        
+    def _load_container(self, path, tag):
+        if path.__class__.__name__ == "str":
+            if os.path.isfile(path):
+                image = load_image(path)
+                dir_path = os.path.dirname(path)
+                self.container = Container(image=image, 
+                                           dir_path=dir_path, 
+                                           file_prefix=os.path.splitext(os.path.basename(path))[0],
+                                           file_suffix=tag,
+                                           image_name=os.path.basename(path))
+            elif os.path.isdir(path):
+                self.container = _load_project_image_directory(path=path, tag=tag) 
+            else:
+                raise OSError("Wrong path to image - need path to file or directory")
+        else:
+            raise OSError("Invalid input for image - need path to file or directory")
+            
+    def _load_pype_config(self, path, tag, config_path):
+        
+        ## auto-load config from filename prefix and tag OR from project directory
+        if config_path.__class__.__name__ == "NoneType":
+            if os.path.isfile(path):
+                image_name_root = os.path.splitext(os.path.basename(path))[0]
+                prepend = image_name_root + "_"
+            elif os.path.isdir(path):
+                prepend = ""
+            
+            config_name = prepend + "pype_config_" + tag + ".yaml"
+            config_path = os.path.join(self.container.dir_path, config_name) 
+            
+            if os.path.isfile(config_path):
+                self.config = _load_yaml(config_path)
+                self.config_path = config_path
+            else:
+                raise OSError("Did not find config file in directory / no config file specified - aborting")
 
-        elif config.__class__.__name__ == "NoneType":
-            config_path = os.path.join(self.container.dirpath,
-                                        "pype_config_" + name + ".yaml")
-            self.config = _load_yaml(config_path)
-            self.config_path = config_path
+        ## load config from config path
+        elif config_path.__class__.__name__ == "str":
+            if os.path.isfile(config_path):
+                self.config = _load_yaml(config_path)
+                self.config_path = config_path   
+            else:
+                raise OSError("Wrong path - could not load pype config")
+            
 
             
     def _start_file_monitor(self, delay):
@@ -1129,21 +1144,9 @@ class Pype(object):
 
         self.YFM = _YamlFileMonitor(self.config_path, delay)
             
-        
-    def _check_pype_name(self, name):
-        
-        ## pype name check
-        if "pype_config_" in name:
-            name = name.replace("pype_config_", "")
-        elif ".yaml" in name:
-            name = name.replace(".yaml", "")
-        for char in "[@_!#$%^&*()<>?/|}{~:]\\":
-            if char in name:
-                print("No special characters allowed in pype name - aborting.")
-                return
             
             
-    def _check_directory_skip(self, name, skip_pattern, dirpath):
+    def _check_directory_skip(self, tag, skip_pattern, dir_path):
         
         ## skip directories that already contain specified files
         if skip_pattern.__class__.__name__ == "str":
@@ -1153,11 +1156,11 @@ class Pype(object):
         
         file_pattern = []
         for pattern in skip_pattern:
-            file_pattern.append(pattern + "_" + name)       
+            file_pattern.append(pattern + "_" + tag)       
             
 
         filepaths, duplicates = _file_walker(
-            dirpath,
+            dir_path,
             include=file_pattern,
             include_all=False,
             exclude=["pype_config", "attributes"],
@@ -1183,10 +1186,10 @@ class Pype(object):
             print("Pype error - no image loaded.")
             return
         if (
-            not hasattr(self.container, "dirpath")
-            or self.container.dirpath.__class__.__name__ == "NoneType"
+            not hasattr(self.container, "dir_path")
+            or self.container.dir_path.__class__.__name__ == "NoneType"
         ):
-            print("Pype error - no dirpath provided.")
+            print("Pype error - could not determine directory path to save output.")
             return
         if (
             not hasattr(self, "config")

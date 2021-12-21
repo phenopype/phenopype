@@ -11,8 +11,8 @@ import pandas as pd
 
 
 from phenopype.settings import confirm_options, _annotation_types, flag_verbose
-from phenopype.utils_lowlevel import _NoIndent, _NoIndentEncoder, _save_yaml, _load_yaml, _convert_arr_tup_list
-from phenopype.utils import save_image
+from phenopype import utils_lowlevel 
+from phenopype import utils
 
 
 #%% settings   
@@ -23,30 +23,35 @@ from phenopype.utils import save_image
 def export_csv(annotation, 
                annotation_type=None,
                image_name=None,
-               dirpath=None,
-               filename="annotations.csv",
-               save_suffix=None,
+               dir_path=None,
                overwrite=False, 
                **kwargs):
 
             
     ## dirpath
-    if dirpath.__class__.__name__ == "NoneType":
-        dirpath = os.getcwd()
-        print('No save directory ("dirpath") specified - using current working directory.')
+    if dir_path.__class__.__name__ == "NoneType":
+        dir_path = os.getcwd()
+        print('No save directory ("dir_path") specified - using current working directory.')
     else:
-        if not os.path.isdir(dirpath):
-            q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if not os.path.isdir(dir_path):
+            q = input("Save folder {} does not exist - create?.".format(dir_path))
             if q in ["True", "true", "y", "yes"]:
-                os.makedirs(dirpath)
+                os.makedirs(dir_path)
             else:
                 print("Directory not created - aborting")
                 return
         
-        if save_suffix:
-            save_suffix = "_" + save_suffix
-        else:
-            save_suffix = ""    
+    ## file name formatting
+    if kwargs.get("save_prefix"):
+        save_prefix =  kwargs.get("save_prefix") + "_"
+    else:
+        save_prefix = ""    
+                
+    if kwargs.get("save_suffix"):
+        save_suffix = "_" +  kwargs.get("save_suffix")
+    else:
+        save_suffix = ""    
+            
     ## annotation copy
     annotation = copy.deepcopy(annotation)
     
@@ -92,7 +97,7 @@ def export_csv(annotation,
                         ):
                     idx += 1
                     list_flattened.append(
-                        # df_temp = pd.DataFrame(_convert_arr_tup_list(coords)[0], columns=["x","y"])
+                        # df_temp = pd.DataFrame(utils_lowlevel._convert_arr_tup_list(coords)[0], columns=["x","y"])
 
                         pd.DataFrame({
                             **{"image_name": image_name},
@@ -142,7 +147,7 @@ def export_csv(annotation,
         if len(list_flattened) > 0:
             print("- " + annotation_type)
             df = pd.concat(list_flattened)    
-            filepath = os.path.join(dirpath, annotation_type + save_suffix + ".csv")
+            filepath = os.path.join(dir_path, save_prefix + annotation_type + save_suffix + ".csv")
             df.to_csv(filepath, index=False)
         else:
             print("- " + annotation_type + ": nothing to save")
@@ -246,9 +251,9 @@ def load_annotation(filepath,
 
 
 def save_annotation(annotation, 
+                    file_name="annotations.json",
+                    dir_path=os.getcwd(),
                     annotation_id=None,
-                    dirpath=None,
-                    filename="annotations.json",
                     overwrite=False, 
                     **kwargs):
     """  
@@ -277,10 +282,10 @@ def save_annotation(annotation,
     annotation_id : str, optional
         String ("a"-"z") specifying the annotation ID to be saved. None will 
         save all IDs. The default is None.
-    dirpath : str, optional
+    dir_path : str, optional
         Path to folder where annotation should be saved. None will save the 
         annotation in the current Python working directory. The default is None.
-    filename : str, optional
+    file_name : str, optional
         Filename for JSON file containing annotation. The default is 
         "annotations.json".
     overwrite : bool, optional
@@ -302,20 +307,20 @@ def save_annotation(annotation,
     indent = kwargs.get("indent", 4)
         
     ## dirpath
-    if dirpath.__class__.__name__ == "NoneType":
-        dirpath = os.getcwd()
-        print('No save directory ("dirpath") specified - using current working directory.')
+    if dir_path.__class__.__name__ == "NoneType":
+        dir_path = os.getcwd()
+        print('No save directory ("dir_path") specified - using current working directory.')
     else:
-        if not os.path.isdir(dirpath):
-            q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if not os.path.isdir(dir_path):
+            q = input("Save folder {} does not exist - create?.".format(dir_path))
             if q in ["True", "true", "y", "yes"]:
-                os.makedirs(dirpath)
+                os.makedirs(dir_path)
             else:
                 print("Directory not created - aborting")
                 return
     
     ## filepath
-    filepath = os.path.join(dirpath, filename)
+    filepath = os.path.join(dir_path, file_name)
     annotation = copy.deepcopy(annotation)
                 
     ## open existing json or create new
@@ -364,16 +369,16 @@ def save_annotation(annotation,
                     annotation_file[annotation_type][annotation_id_new] = annotation[annotation_type][annotation_id]
                     print("- updating annotation of type \"{}\" with id "
                           "\"{}\" in \"{}\" (overwrite=\"entry\")".format(
-                              annotation_type, annotation_id, filename))
+                              annotation_type, annotation_id, file_name))
                 else:
                     print("- annotation of type \"{}\" with id \"{}\" already "
                           "exists in \"{}\" (overwrite=False)".format(
-                              annotation_type, annotation_id, filename))
+                              annotation_type, annotation_id, file_name))
             else:
                 annotation_file[annotation_type][annotation_id_new] = annotation[annotation_type][annotation_id]
                 print("- writing annotation of type \"{}\" with id "
                       "\"{}\" to \"{}\"".format(
-                          annotation_type, annotation_id, filename))  
+                          annotation_type, annotation_id, file_name))  
     
     ## remove indents from annotation arrays and lists
     for annotation_type in annotation_file:
@@ -385,13 +390,13 @@ def save_annotation(annotation,
                     if key in ["coord_list", "point_list", "points", "coords"]:
                         if len(value)>0 and not type(value[0]) in [list,tuple, int]:
                             value = [elem.tolist() for elem in value if not type(elem)==list] 
-                        value = [_NoIndent(elem) for elem in value]   
+                        value = [utils_lowlevel._NoIndent(elem) for elem in value]   
                     elif key in ["offset_coords", "channels", "features"]:
-                        value = _NoIndent(value)
+                        value = utils_lowlevel._NoIndent(value)
                     elif key in ["support"]:
                         value_new = []
                         for item in value:
-                            item["center"] = _NoIndent(item["center"])
+                            item["center"] = utils_lowlevel._NoIndent(item["center"])
                             value_new.append(item) 
                         value = value_new
                     annotation_file[annotation_type][annotation_id][section][key] = value
@@ -401,14 +406,14 @@ def save_annotation(annotation,
         json.dump(annotation_file, 
                     file, 
                     indent=indent, 
-                    cls=_NoIndentEncoder)
+                    cls=utils_lowlevel._NoIndentEncoder)
         
         
 
 def save_ROI(image,
              annotation,
-             name,
-             dirpath=None,
+             file_name,
+             dir_path=None,
              prefix=None,
              suffix="roi"): 
     """
@@ -424,7 +429,7 @@ def save_ROI(image,
         Name for ROI series (should reflect image content, not "ROI" or the like
         which is specified with prefix or suffix arguments). The contour index
         will be added as a numeric string at the end of the filename.
-    dirpath : str, optional
+    dir_path : str, optional
         Path to folder where annotation should be saved. None will save the 
         annotation in the current Python working directory. The default is None.
     prefix : str, optional
@@ -439,14 +444,14 @@ def save_ROI(image,
     """
     
     ## dirpath
-    if dirpath.__class__.__name__ == "NoneType":
-        dirpath = os.getcwd()
-        print('No save directory ("dirpath") specified - using current working directory.')
+    if dir_path.__class__.__name__ == "NoneType":
+        dir_path = os.getcwd()
+        print('No save directory ("dir_path") specified - using current working directory.')
     else:
-        if not os.path.isdir(dirpath):
-            q = input("Save folder {} does not exist - create?.".format(dirpath))
+        if not os.path.isdir(dir_path):
+            q = input("Save folder {} does not exist - create?.".format(dir_path))
             if q in confirm_options:
-                os.makedirs(dirpath)
+                os.makedirs(dir_path)
             else:
                 print("Directory not created - aborting")
                 return
@@ -467,9 +472,9 @@ def save_ROI(image,
         rx, ry, rw, rh = cv2.boundingRect(roi_coords)
         roi_rect=image[ry : ry + rh, rx : rx + rw]
                 
-        roi_name = prefix + name + suffix + "_" + str(idx).zfill(2) + ".tif"
+        roi_name = prefix + file_name + suffix + "_" + str(idx).zfill(2) + ".tif"
         
-        save_path = os.path.join(dirpath, roi_name)
+        save_path = os.path.join(dir_path, roi_name)
         cv2.imwrite(save_path, roi_rect)
         
         # roi_new_coords = []
@@ -481,8 +486,8 @@ def save_ROI(image,
         
 def save_canvas(
         image,
-        save_suffix,
-        dirpath,
+        file_name="canvas.jpg",
+        dir_path=os.getcwd(),
         **kwargs):
     """
     
@@ -493,7 +498,7 @@ def save_canvas(
         A canvas to be saved.
     save_suffix : str
         A suffix to be appended to the filename.
-    dirpath : str
+    dir_path : str
         Path to directory to save canvas.
 
     Returns
@@ -502,18 +507,14 @@ def save_canvas(
 
     """
     
-    extension = kwargs.get("extension", ".jpg")
+    ext = kwargs.get("ext", ".jpg")
     resize = kwargs.get("resize", 1)
     overwrite = kwargs.get("overwrite", True)
     
-    if "." not in extension:
-        extension = "." + extension
-    name = "canvas_" + save_suffix
-    
-    save_image(image=image,
-               name=name,
-               extension=extension,
-               dirpath=dirpath,
+    utils.save_image(image=image,
+               file_name=file_name,
+               ext=ext,
+               dir_path=dir_path,
                resize=resize,
                overwrite=overwrite,
                verbose=flag_verbose)
@@ -523,7 +524,7 @@ def save_canvas(
 
 # def save_reference(annotation, 
 #                    overwrite=True, 
-#                    dirpath=None, 
+#                    dir_path=None, 
 #                    active_ref=None):
 #     """
     
@@ -535,7 +536,7 @@ def save_canvas(
 #         A phenopype annotation dict.
 #     overwrite: bool optional
 #         Overwrite reference if it already exists
-#     dirpath: str, optional
+#     dir_path: str, optional
 #         location to save df
         
 #     """
@@ -544,8 +545,8 @@ def save_canvas(
 #     px_mm_ratio = annotation["reference"]["a"]["data"]["px_mm_ratio"]
 
 
-#     ## dirpath
-#     if dirpath.__class__.__name__ == "NoneType":
+#     ## dir_path
+#     if dir_path.__class__.__name__ == "NoneType":
 #         print('No save directory ("dirpath") specified - cannot save result.')
 #         return
 #     else:
@@ -560,7 +561,7 @@ def save_canvas(
 #     ## load attributes file        
 #     attr_path = os.path.join(dirpath, "attributes.yaml")
 #     if os.path.isfile(attr_path):
-#         attr = _load_yaml(attr_path)
+#         attr = utils_lowlevel._load_yaml(attr_path)
 #         if not "reference" in attr:
 #             attr["reference"] = {}      
 #         if not "project_level" in attr["reference"]:
@@ -581,7 +582,7 @@ def save_canvas(
 #                 pass
 #             attr["reference"]["project_level"][active_ref]["reference_detected_px_mm_ratio"] = px_mm_ratio
 #             break
-#         _save_yaml(attr, attr_path)
+#         utils_lowlevel._save_yaml(attr, attr_path)
 #     else: 
 #         while True:
 #             if "reference_manually_measured_px_mm_ratio" in attr["reference"] and overwrite == False:
@@ -595,7 +596,7 @@ def save_canvas(
 #                 pass
 #             attr["reference"]["reference_manually_measured_px_mm_ratio"] = px_mm_ratio
 #             break
-#         _save_yaml(attr, attr_path)        
+#         utils_lowlevel._save_yaml(attr, attr_path)        
 
 
 

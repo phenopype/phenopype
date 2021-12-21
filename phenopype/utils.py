@@ -26,18 +26,7 @@ from phenopype.settings import (
     confirm_options, 
     _annotation_types,
     )
-from phenopype.utils_lowlevel import (
-    _ImageViewer, 
-    _NoIndent, 
-    _NoIndentEncoder, 
-    _convert_tup_list_arr, 
-    _load_image_data, 
-    _load_yaml, 
-    _show_yaml,
-    _save_yaml,
-    _yaml_recursive_delete_comments,
-    )
-    
+from phenopype import utils_lowlevel 
 from collections import defaultdict
 
 #%% classes
@@ -54,43 +43,39 @@ class Container(object):
     
     Parameters
     ----------
-    image : ndarray
-        single or multi-channel iamge as an array (can be created using load_image 
-        or load_pp_directory).
-    df_image_data: DataFrame
-        a dataframe that contains meta-data of the provided image to be passed on
-        to all results-DataFrames
-    save_suffix : str, optional
-        suffix to append to filename of results files
+    image_path : ndarray
+        path to an image to build the container from. Image directory will be used
+        as the working-directory to store all Pype-output in
+    version : str, optional
+        suffix to append to filename of results files. The default is "v1".
 
     """
 
-    def __init__(self, image, dirpath=None, save_suffix=None):
+    def __init__(self, image, dir_path, **kwargs):
 
         ## images
         self.image = image
         self.image_copy = copy.deepcopy(self.image)
-        # self.image_bin = None
-        self.image_gray = None
         self.canvas = None
 
         ## attributes
-        self.dirpath = dirpath
-        self.save_suffix = save_suffix
-        
-        ## annotations
+        self.file_prefix = kwargs.get("file_prefix")
+        self.file_suffix = kwargs.get("file_sufix")
+        self.dir_path = dir_path
+        self.image_name = kwargs.get("image_name")
+        ## annotations - primed from empty dict
         self.annotations = copy.deepcopy(_annotation_types)
                 
         
     def load(self, contours=False,  **kwargs):
         """
-        Autoload function for container: loads results files with given save_suffix
+        Autoload function for container: loads results files with given file_suffix
         into the container. Can be used manually, but is typically used within the
         pype routine.
         
         Parameters
         ----------
-        save_suffix : str, optional
+        file_suffix : str, optional
             suffix to include when looking for files to load
 
         """
@@ -98,9 +83,11 @@ class Container(object):
         loaded = []        
 
         ## load annotations
-        annotations_filename = "annotations" + "_" + self.save_suffix + ".json"
-        if annotations_filename in os.listdir(self.dirpath):
-            annotations_loaded = export.load_annotation(os.path.join(self.dirpath, annotations_filename))
+        
+        annotations_file_name = self._construct_file_name("annotations",".json")
+
+        if annotations_file_name in os.listdir(self.dir_path):
+            annotations_loaded = export.load_annotation(os.path.join(self.dir_path, annotations_file_name))
             if annotations_loaded:
                 self.annotations.update(annotations_loaded)
                                             
@@ -112,16 +99,16 @@ class Container(object):
                 for annotation_id in self.annotations[annotation_type].keys():
                     id_list.append(annotation_id)
                 if len(id_list) > 0:
-                    annotation_types_loaded[annotation_type] = _NoIndent(id_list)
+                    annotation_types_loaded[annotation_type] = utils_lowlevel._NoIndent(id_list)
                 
-            loaded.append("annotations loaded:\n{}".format(json.dumps(annotation_types_loaded, indent=0, cls=_NoIndentEncoder)))
+            loaded.append("annotations loaded:\n{}".format(json.dumps(annotation_types_loaded, indent=0, cls=utils_lowlevel._NoIndentEncoder)))
 
             
         ## load attributes
-        attr_local_path = os.path.join(self.dirpath, "attributes.yaml")
+        attr_local_path = os.path.join(self.dir_path, "attributes.yaml")
         if os.path.isfile(attr_local_path):
 
-            self.image_attributes = _load_yaml(attr_local_path)
+            self.image_attributes = utils_lowlevel._load_yaml(attr_local_path)
             
             if "reference" in self.image_attributes:
                 
@@ -135,7 +122,7 @@ class Container(object):
                     
                     ## load local (image specific) and global (project level) attributes 
                     attr_proj_path =  os.path.abspath(os.path.join(attr_local_path ,r"../../../","attributes.yaml"))
-                    attr_proj = _load_yaml(attr_proj_path)
+                    attr_proj = utils_lowlevel._load_yaml(attr_proj_path)
                                         
                     ## find active project level references
                     n_active = 0
@@ -193,7 +180,15 @@ class Container(object):
         
         ## function kwargs
         kwargs = fun_kwargs
+        
+        
+        ## attributes
+        if hasattr(self, "image_attributes"):
+            image_name=self.image_attributes["image_original"]["filename"] 
+        elif self.image_name:
+            image_name = self.image_name
                 
+        ## edit handling
         if not all(
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
@@ -291,31 +286,37 @@ class Container(object):
             
         ## export
         if fun == "save_annotation":
-            filename = kwargs.get("filename", "annotations") + "_" + self.save_suffix + ".json"
-            export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
+            export.save_annotation(self.annotations, 
+                                   file_name=self._construct_file_name("annotations","json"), 
+                                   dir_path=self.dir_path, 
+                                   **kwargs)        
         if fun == "save_canvas":
-            export.save_canvas(self.canvas, dirpath=self.dirpath, save_suffix=self.save_suffix, **kwargs)
-        if fun == "export_csv":
-            export.export_csv(self.annotations, image_name=self.image_attributes["image_original"]["filename"],
-                               dirpath=self.dirpath, save_suffix=self.save_suffix, **kwargs)
-
-            
-            
+            export.save_canvas(self.canvas, 
+                               file_name=self._construct_file_name("canvas",kwargs.get("ext",".jpg")), 
+                               dir_path=self.dir_path, 
+                               **kwargs)
+        if fun == "export_csv":                
+            export.export_csv(self.annotations, 
+                              dir_path=self.dir_path, 
+                              save_prefix = self.file_prefix,
+                              save_suffix = self.file_suffix,
+                              image_name = image_name,
+                              **kwargs)           
             
         ## save annotation to dict
         if annotation:
             self.annotations[annotation_type][annotation_id] = annotation
 
             
-    def save(self, dirpath=None, export_list=[], overwrite=False, **kwargs):
+    def save(self, dir_path=None, export_list=[], overwrite=False, **kwargs):
         """
         Autosave function for container. 
         
         Parameters
         ----------
-        dirpath: str, optional
+        dir_path: str, optional
             provide a custom directory where files should be save - overwrites 
-            dirpath provided from container, if applicable
+            dir_path provided from container, if applicable
         export_list: list, optional
             used in pype rountine to check against already performed saving operations.
             running container.save() with an empty export_list will assumed that nothing
@@ -329,33 +330,50 @@ class Container(object):
         flag_overwrite = overwrite
         flag_autosave = False
 
-        ## check dirpath
-        if (
-            dirpath.__class__.__name__ == "NoneType"
-            and not self.dirpath.__class__.__name__ == "NoneType"
-        ):
-            print("\nAUTOSAVE")
-            dirpath = self.dirpath
+        ## check dir_path
+        print("\nAUTOSAVE")
         
         if hasattr(self, "canvas") and not "save_canvas" in export_list:
             print("- save_canvas")
-            export.save_canvas(self.canvas, dirpath=self.dirpath, save_suffix=self.save_suffix, **kwargs)
+            export.save_canvas(self.canvas, 
+                               dir_path=self.dir_path, 
+                               **kwargs)
             flag_autosave = True
 
         if hasattr(self, "annotations") and not "save_annotation" in export_list:
             print("- save_annotation")
-            filename = kwargs.get("filename", "annotations") + "_" + self.save_suffix + ".json"            
-            export.save_annotation(self.annotations, dirpath=self.dirpath, filename=filename, **kwargs)
+            export.save_annotation(self.annotations, 
+                                   file_name=self._construct_file_name("annotations","json"), 
+                                   dir_path=self.dir_path, 
+                                   **kwargs)
             flag_autosave = True
 
         if "reference" in self.annotations and not len(self.annotations["reference"]) == 0 and not "reference" in export_list:
             print("- save reference")
-            export.save_reference(self.annotations, dirpath=dirpath, overwrite=flag_overwrite, active_ref=self.reference_active)
+            export.save_reference(self.annotations, 
+                                  dir_path=dir_path, 
+                                  overwrite=flag_overwrite, 
+                                  active_ref=self.reference_active)
             flag_autosave = True
 
         if not flag_autosave:
             print("- nothing to autosave")
             
+    def _construct_file_name(self, stem, ext):
+        
+        if not ext.startswith("."):
+            ext = "." + ext
+         
+        if self.file_prefix:
+            prefix = self.file_prefix + "_"
+        else:
+            prefix = ""
+        if self.file_suffix:
+            suffix = "_" + self.file_suffix
+        else:
+            suffix = ""
+            
+        return prefix + stem + suffix + ext
 
 #%% functions
 
@@ -363,9 +381,6 @@ class Container(object):
 def load_image(
     path,
     mode="default",
-    load_container=False,
-    dirpath=None,
-    save_suffix=None,
     **kwargs
 ):
     """
@@ -380,14 +395,6 @@ def load_image(
             - default: load image as is
             - colour: convert image to 3-channel (BGR)
             - gray: convert image to single channel (grayscale)
-    load_container: bool, optional
-        should the loaded image (and DataFrame) be returned as a phenopype 
-        container
-    dirpath: str, optional
-        path to an existing directory where all output should be stored. default 
-        is the current working directory ("cwd") of the python session.
-    save_suffix : str, optional
-        suffix to append to filename of results files, if container is created
     kwargs: 
         developer options
 
@@ -405,8 +412,7 @@ def load_image(
     
     ## set flags
     flags = make_dataclass(cls_name="flags", 
-                           fields=[("mode", str, mode), 
-                                   ("load_container", bool, load_container)])   
+                           fields=[("mode", str, mode)])   
      
     ## load image
     if path.__class__.__name__ == "str":
@@ -420,147 +426,48 @@ def load_image(
                 elif flags.mode == "gray":
                     image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)     
             else:
-                print("Invalid file extension \"{}\" - could not load image:\n".format(ext) \
-                        + os.path.basename(path))
+                raise OSError("Invalid file extension \"{}\" - could not load image:\n".format(ext))
                 return
         else:
-            print("Invalid image path - could not load image.")
+            raise OSError("Invalid image path - could not load image.")
             return
-    elif path.__class__.__name__ == "ndarray":
-        image = path
     else:
-        print("Invalid input format - could not load image.")
-        return
-
-    # ## check dirpath
-    # if flags.load_container == True:
-    #     if dirpath == "cwd":
-    #         dirpath = os.getcwd()
-    #         if flag_verbose:
-    #             print(
-    #                 "Setting directory to save phenopype-container output to current working directory:\n" \
-    #                 + os.path.abspath(dirpath)
-    #             )
-    #     elif dirpath.__class__.__name__ == "str":
-    #         if not os.path.isdir(dirpath):
-    #             user_input = input(
-    #                 "Provided directory to save phenopype-container output {} does not exist - create?.".format(
-    #                     os.path.abspath(dirpath)
-    #                 )
-    #             )
-    #             if user_input in confirm_options:
-    #                 os.makedirs(dirpath)
-    #             else:
-    #                 print("Directory not created - aborting")
-    #                 return
-    #         else:
-    #             if flag_verbose:
-    #                 print("Directory to save phenopype-container output set at - " + os.path.abspath(dirpath))
-    #     elif dirpath.__class__.__name__ == "NoneType":
-    #         if path.__class__.__name__ == "str":
-    #             if os.path.isfile(path):
-    #                 dirpath = os.path.dirname(os.path.abspath(path))
-    #                 if flag_verbose:
-    #                     print("Directory to save phenopype-container output set to parent folder of image:\n{}".format(dirpath))
-    #         # else: 
-    #         #     print(
-    #         #         "No directory provided to save phenopype-container output" +
-    #         #         " - provide dirpath or use dirpath==\"cwd\" to set save" +
-    #         #         " paths to current working directory - aborting."
-    #         #           )
-    #         #     return
+        raise OSError("Invalid input format - could not load image.")
+        return            
             
-            
-    ## create container
-    if flags.load_container:
-        cont = copy.deepcopy(Container(image, save_suffix=save_suffix))
-        return cont
-    else:
-        return image
-
-
-def load_pp_directory(
-    dirpath, 
-    load_container=True, 
-    save_suffix=None, 
-    **kwargs
-):
-    """
-    Parameters
-    ----------
-    dirpath: str or ndarray
-        path to a phenopype project directory containing raw image, attributes 
-        file, masks files, results df, etc.
-    cont: bool, optional
-        should the loaded image (and DataFrame) be returned as a phenopype 
-        container
-    save_suffix : str, optional
-        suffix to append to filename of results files
-    kwargs: 
-        developer options
-        
-    Returns
-    -------
-    container
-        A phenopype container is a Python class where loaded images, 
-        dataframes, detected contours, intermediate output, etc. are stored 
-        so that they are available for inspection or storage at the end of 
-        the analysis. 
-
-    """
-    
-    ## set flags
-    flags = make_dataclass(cls_name="flags", 
-                           fields=[ ("load_container", bool, load_container)])   
-    ## check if directory
-    if not os.path.isdir(dirpath):
-        print("Not a valid phenoype directory - cannot load files.")
-        return
-    
-    ## check if attributes file and load otherwise
-    if not os.path.isfile(os.path.join(dirpath, "attributes.yaml")):
-        print("Attributes file missing - cannot load files.")
-        return
-    else:
-        attributes = _load_yaml(os.path.join(dirpath, "attributes.yaml"))
-    
-    ## check if requires info is contained in attributes and load image
-    if not "image_phenopype" in attributes or not "image_original" in attributes:
-        print("Attributes doesn't contain required meta-data - cannot load files.")
-        return 
-
-    ## load image
-    if attributes["image_phenopype"]["mode"] == "link":
-        image_path =  attributes["image_original"]["filepath"]
-    else:
-        image_path =  os.path.join(dirpath,attributes["image_phenopype"]["filename"])
-        
-    ## return
-    return load_image(image_path, load_container=flags.load_container, dirpath=dirpath, save_suffix=save_suffix)
-    
+    return image
+   
 
 
 def load_template(
-        template,
-        name,
-        dirpath=os.getcwd(),
+        template_path,
+        image_path,
+        tag = "v1",
+        overwrite=False,
         keep_comments=True,
+        dir_path=None,
         ):
+    
+    flags = make_dataclass(cls_name="flags", 
+                           fields=[("overwrite", bool, overwrite)])   
    
     ## create config from template
-    if template.__class__.__name__ == "str": 
-        if os.path.isfile(template):
-            template_path = template 
-            template_loaded = _load_yaml(template_path)
+    if template_path.__class__.__name__ == "str": 
+        if os.path.isfile(template_path):
+            template_loaded = utils_lowlevel._load_yaml(template_path)
     else:
         return
     
-    ## create config-layout
-    if name.__class__.__name__ == "NoneType":
-        config_name = "NA"
-    elif name.__class__.__name__ == "str":
-        config_name = "pype_config_" + name + ".yaml"
-    config_path = os.path.join(dirpath, config_name) 
+    ## construct config-name
+    if dir_path.__class__.__name__ == "NoneType":    
+        dir_path = os.path.dirname(image_path)
+        image_name_root = os.path.splitext(os.path.basename(image_path))[0]
+        prepend = image_name_root + "_"
+    else:
+        prepend = ""
+        
+    config_name = prepend + "pype_config_" + tag + ".yaml"
+    config_path = os.path.join(dir_path, config_name) 
 
     ## strip template name
     if "template" in template_loaded:
@@ -592,24 +499,20 @@ def load_template(
 
     else:
         template_loaded = {**config_info, **template_loaded}
-        _yaml_recursive_delete_comments(template_loaded)
-        
-    with open(config_path, "wb") as yaml_file:
-        yaml.dump(template_loaded, yaml_file)
+        utils_lowlevel._yaml_recursive_delete_comments(template_loaded)
+               
+    if  utils_lowlevel._save_prompt("template",config_path, flags.overwrite):
+        with open(config_path, "wb") as yaml_file:
+            yaml.dump(template_loaded, yaml_file)
 
             
 
-
-        
-        
-
 def save_image(
     image,
-    name,
-    dirpath,
+    file_name,
+    dir_path,
     resize=1,
-    append="",
-    extension="jpg",
+    ext="jpg",
     overwrite=False,
     verbose=True,
     **kwargs
@@ -644,14 +547,11 @@ def save_image(
     # if "." in name:
     #     warnings.warn("need name and extension specified separately")
     #     return
-    if append == "":
-        append = ""
-    else:
-        append = "_" + append
-    if "." not in extension:
-        extension = "." + extension
-    if not os.path.exists(dirpath):
-        os.makedirs(dirpath)
+
+    if "." not in ext:
+        ext = "." + ext
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
 
     ## resize
     if resize < 1:
@@ -661,11 +561,11 @@ def save_image(
 
     ## construct save path
     
-    if name.endswith(extension):
-        new_name = name
+    if file_name.endswith(ext):
+        new_name = file_name
     else:
-        new_name = name + append + extension
-    path = os.path.join(dirpath, new_name)
+        new_name = file_name + ext
+    path = os.path.join(dir_path, new_name)
 
     ## save
     while True:
@@ -754,7 +654,7 @@ def show_image(
                 idx += 1
                 if i.__class__.__name__ == "ndarray":
                     print("phenopype" + " - " + str(idx))
-                    _ImageViewer(
+                    utils_lowlevel._ImageViewer(
                         i,
                         mode="",
                         window_aspect=window_aspect,
@@ -774,7 +674,7 @@ def show_image(
             cv2.destroyAllWindows()
             break
         else:
-            _ImageViewer(
+            utils_lowlevel._ImageViewer(
                 image=image,
                 mode="",
                 window_aspect=window_aspect,

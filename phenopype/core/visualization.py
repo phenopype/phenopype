@@ -7,13 +7,7 @@ import string
 from dataclasses import make_dataclass
 
 from phenopype.settings import colours, _annotation_types
-from phenopype.utils_lowlevel import (
-    _auto_line_width,
-    _auto_point_size,
-    _auto_text_width,
-    _auto_text_size,
-    _provide_annotation_data,
-)
+from phenopype import utils_lowlevel
 
 #%% settings
 
@@ -107,18 +101,18 @@ def draw_contour(
     bounding_box_colour_sel = colours[bounding_box_colour]
     
     if line_width == "auto":
-        line_width = _auto_line_width(image)
+        line_width = utils_lowlevel._auto_line_width(image)
     if bounding_box_line_width == "auto":
-        bounding_box_line_width = _auto_line_width(image)
+        bounding_box_line_width = utils_lowlevel._auto_line_width(image)
     if label_font_size == "auto":
-        label_size = _auto_text_size(image)
+        label_size = utils_lowlevel._auto_text_size(image)
     if label_font_width == "auto":
-        label_width = _auto_text_width(image)
+        label_width = utils_lowlevel._auto_text_width(image)
 
 
     ## extract annotation data     
-    contours = _provide_annotation_data(annotation, "contour", "coord_list", kwargs)
-    contours_support = _provide_annotation_data(annotation, "contour", "support", kwargs)
+    contours = utils_lowlevel._provide_annotation_data(annotation, "contour", "coord_list", kwargs)
+    contours_support = utils_lowlevel._provide_annotation_data(annotation, "contour", "support", kwargs)
 
     if not contours or (not contours_support and flags.label):
         return image
@@ -244,14 +238,14 @@ def draw_landmark(
     label_col = colours[label_colour]
 
     if point_size == "auto":
-        point_size = _auto_point_size(image)
+        point_size = utils_lowlevel._auto_point_size(image)
     if label_size == "auto":
-        label_size = _auto_text_size(image)
+        label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
-        label_width = _auto_text_width(image)
+        label_width = utils_lowlevel._auto_text_width(image)
 
     ## extract annotation data     
-    points = _provide_annotation_data(annotation, "landmark", "points", kwargs)
+    points = utils_lowlevel._provide_annotation_data(annotation, "landmark", "points", kwargs)
 
     if not points:
         return image
@@ -333,15 +327,15 @@ def draw_mask(
     label_colour = colours[label_colour]
     
     if line_width == "auto":
-        line_width = _auto_line_width(image)
+        line_width = utils_lowlevel._auto_line_width(image)
     if label_size == "auto":
-        label_size = _auto_text_size(image)
+        label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
-        label_width = _auto_text_width(image)
+        label_width = utils_lowlevel._auto_text_width(image)
                
     ## extract annotation data     
-    coord_list = _provide_annotation_data(annotation, "mask", "coord_list", kwargs)
-    label = _provide_annotation_data(annotation, "mask", "label", kwargs)
+    coord_list = utils_lowlevel._provide_annotation_data(annotation, "mask", "coord_list", kwargs)
+    label = utils_lowlevel._provide_annotation_data(annotation, "mask", "label", kwargs)
     if not coord_list:
         return image
     else:
@@ -413,10 +407,10 @@ def draw_polyline(
     line_colour = colours[line_colour]
     
     if line_width == "auto":
-        line_width = _auto_line_width(image)
+        line_width = utils_lowlevel._auto_line_width(image)
 
     ## extract annotation data     
-    coord_list = _provide_annotation_data(annotation, "line", "coord_list", kwargs)
+    coord_list = utils_lowlevel._provide_annotation_data(annotation, "line", "coord_list", kwargs)
     if not coord_list:
         return image
     else:

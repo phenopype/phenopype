@@ -14,17 +14,8 @@ from tqdm import tqdm as _tqdm
 
 
 
-from phenopype.utils_lowlevel import (
-    _ImageViewer,
-    _auto_line_width,
-    _auto_point_size,
-    _auto_text_width,
-    _auto_text_size,
-    _drop_dict_entries,
-    _load_previous_annotation,
-    _provide_annotation_data,
-    _update_settings,
-)
+from phenopype import utils_lowlevel
+
 from phenopype.settings import (
     colours, 
     flag_verbose, 
@@ -33,7 +24,7 @@ from phenopype.settings import (
     opencv_skeletonize_flags,
     )
 
-from phenopype.core.preprocessing import decompose_image
+from phenopype.core import preprocessing 
 
 
 #%% methods
@@ -87,13 +78,13 @@ def set_landmark(
     # retain settings
 
     ## retrieve settings from args
-    local_settings  = _drop_dict_entries(locals(),
+    local_settings  = utils_lowlevel._drop_dict_entries(locals(),
         drop=["image","kwargs","annotation_previous"])
 
     ## retrieve update IV settings and data from previous annotations  
     IV_settings = {}     
     if annotation_previous:       
-        IV_settings["ImageViewer_previous"] =_load_previous_annotation(
+        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
                 ("data","points"),
@@ -101,7 +92,7 @@ def set_landmark(
         
     ## update local and IV settings from kwargs
     if kwargs:
-        _update_settings(kwargs, local_settings, IV_settings)
+        utils_lowlevel._update_settings(kwargs, local_settings, IV_settings)
         
         
 	# =============================================================================
@@ -109,17 +100,17 @@ def set_landmark(
 
     ## configure points
     if point_size == "auto":
-        point_size = _auto_point_size(image)
+        point_size = utils_lowlevel._auto_point_size(image)
     if label_size == "auto":
-        label_size = _auto_text_size(image)
+        label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
-        label_width = _auto_text_width(image)
+        label_width = utils_lowlevel._auto_text_width(image)
 
 
 	# =============================================================================
 	# execute
 
-    out = _ImageViewer(image=image, 
+    out = utils_lowlevel._ImageViewer(image=image, 
                        tool="point", 
                        flag_text_label=label,
                        point_size=point_size,
@@ -198,13 +189,13 @@ def set_polyline(
     # retain settings
 
     ## retrieve settings from args
-    local_settings  = _drop_dict_entries(locals(),
+    local_settings  = utils_lowlevel._drop_dict_entries(locals(),
         drop=["image","kwargs","annotation_previous"])
 
     ## retrieve update IV settings and data from previous annotations  
     IV_settings = {}     
     if annotation_previous:       
-        IV_settings["ImageViewer_previous"] =_load_previous_annotation(
+        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
                 ("data","coord_list"),
@@ -212,7 +203,7 @@ def set_polyline(
         
     ## update local and IV settings from kwargs
     if kwargs:
-        _update_settings(kwargs, local_settings, IV_settings)
+        utils_lowlevel._update_settings(kwargs, local_settings, IV_settings)
         
     print(kwargs)
 
@@ -220,11 +211,11 @@ def set_polyline(
 	# further prep
     
     if line_width == "auto":
-        line_width = _auto_line_width(image)
+        line_width = utils_lowlevel._auto_line_width(image)
 
 
     ## method
-    out = _ImageViewer(image=image,
+    out = utils_lowlevel._ImageViewer(image=image,
                        tool="polyline",
                        line_width=line_width,
                        line_colour=line_colour,
@@ -295,19 +286,19 @@ def skeletonize(
     padding = kwargs.get("padding", 1)
 
     ## retrieve settings from args
-    local_settings  = _drop_dict_entries(
+    local_settings  = utils_lowlevel._drop_dict_entries(
         locals(), drop=["image", "kwargs", "annotation"])
         
     ## update settings from kwargs
     if kwargs:
-        _update_settings(kwargs, local_settings)
+        utils_lowlevel._update_settings(kwargs, local_settings)
         
 
 	# =============================================================================
 	# setup 
 
     ## extract annotation data     
-    contours = _provide_annotation_data(annotation, 
+    contours = utils_lowlevel._provide_annotation_data(annotation, 
                                         "contour",
                                         "coord_list",
                                         kwargs)
@@ -429,19 +420,19 @@ def shape_features(
     contour_id = kwargs.get("contour_id")
 
     ## retrieve settings from args
-    local_settings  = _drop_dict_entries(
+    local_settings  = utils_lowlevel._drop_dict_entries(
         locals(), drop=["kwargs", "annotation"])
         
     ## update settings from kwargs
     if kwargs:
-        _update_settings(kwargs, local_settings)
+        utils_lowlevel._update_settings(kwargs, local_settings)
         
 
     # =============================================================================
     # setup             
 
-    contours = _provide_annotation_data(annotation, "contour", "coord_list", kwargs)
-    contours_support = _provide_annotation_data(annotation, "contour", "support", kwargs)
+    contours = utils_lowlevel._provide_annotation_data(annotation, "contour", "coord_list", kwargs)
+    contours_support = utils_lowlevel._provide_annotation_data(annotation, "contour", "support", kwargs)
     
     if not contours or not contours_support:
         return {}
@@ -574,12 +565,12 @@ def texture_features(
     contour_id = kwargs.get("contour_id")
     
     ## retrieve settings from args
-    local_settings  = _drop_dict_entries(
+    local_settings  = utils_lowlevel._drop_dict_entries(
         locals(), drop=["image","kwargs", "annotation"])
         
     ## update settings from kwargs
     if kwargs:
-        _update_settings(kwargs, local_settings)
+        utils_lowlevel._update_settings(kwargs, local_settings)
         
     if not isinstance(channels, list):
         channels = [channels]
@@ -593,8 +584,8 @@ def texture_features(
 	# =============================================================================
 	# setup 
        
-    contours = _provide_annotation_data(annotation, "contour", "coord_list", kwargs)
-    contours_support = _provide_annotation_data(annotation, "contour", "support", kwargs)
+    contours = utils_lowlevel._provide_annotation_data(annotation, "contour", "coord_list", kwargs)
+    contours_support = utils_lowlevel._provide_annotation_data(annotation, "contour", "support", kwargs)
     
     if not contours or not contours_support:
         return {}
@@ -618,7 +609,7 @@ def texture_features(
     
     for channel in channels:
 
-        image_slice = decompose_image(image, channel)
+        image_slice = preprocessing.decompose_image(image, channel)
         texture_features[channel] = {}
 
         for idx1, (coords, support) in _tqdm(

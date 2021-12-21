@@ -10,13 +10,11 @@ import re
 from _ctypes import PyObj_FromPtr
 
 
-import time
 from timeit import default_timer as timer
 import ruamel.yaml
 from ruamel.yaml.constructor import SafeConstructor
 from ruamel.yaml import YAML
 
-from datetime import datetime
 from math import cos
 from pathlib import Path
 from PIL import Image
@@ -24,18 +22,13 @@ from stat import S_IWRITE
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-# from phenopype.settings import settings.colours, confirm_options, pype_config_template_list, settings.opencv_interpolation_flags
-# from phenopype.settings import flag_verbose, settings.opencv_window_flags
-
-# import phenopype.settings as settings
-
-## capture yaml output - temp
 from contextlib import redirect_stdout
 import io
 
 from phenopype import _config
 from phenopype import main
 from phenopype import settings
+from phenopype import utils
 
 
 #%% settings
@@ -1280,6 +1273,55 @@ def _load_previous_annotation(annotation_previous, components, load_settings=Tru
     return _DummyClass(ImageViewer_previous)
 
 
+
+def _load_project_image_directory(dir_path, tag, **kwargs):
+    """
+    Parameters
+    ----------
+    dirpath: str
+        path to a phenopype project directory containing raw image, attributes 
+        file, masks files, results df, etc.
+    tag : str
+        pype suffix that is appended to all output
+        
+    Returns
+    -------
+    container
+        A phenopype container is a Python class where loaded images, 
+        dataframes, detected contours, intermediate output, etc. are stored 
+        so that they are available for inspection or storage at the end of 
+        the analysis. 
+
+    """
+    
+    ## check if directory
+    if not os.path.isdir(dir_path):
+        print("Not a valid phenoype directory - cannot load files.")
+        return
+    
+    ## check if attributes file and load otherwise
+    if not os.path.isfile(os.path.join(dir_path, "attributes.yaml")):
+        print("Attributes file missing - cannot load files.")
+        return
+    else:
+        attributes = _load_yaml(os.path.join(dir_path, "attributes.yaml"))
+    
+    ## check if requires info is contained in attributes and load image
+    if not "image_phenopype" in attributes or not "image_original" in attributes:
+        print("Attributes doesn't contain required meta-data - cannot load files.")
+        return 
+
+    ## load image
+    if attributes["image_phenopype"]["mode"] == "link":
+        image_path = attributes["image_original"]["filepath"]
+    else:
+        image_path = os.path.join(dir_path,attributes["image_phenopype"]["filename"])
+        
+    ## return
+    return utils.Container(image_path=image_path, dir_path=dir_path, tag=tag)
+
+
+
 def _load_image_data(image, path_and_type=True, resize=1):
     """
     Create a DataFreame with image information (e.g. dimensions).
@@ -1463,6 +1505,23 @@ def _save_yaml(dictionary, filepath, typ="rt"):
     with open(filepath, "w") as out:
         yaml.dump(dictionary, out)
 
+
+
+def _save_prompt(object_type, filepath, ow_flag):
+    
+    if os.path.isfile(filepath) and ow_flag == False:
+        print_msg = "- {} not saved - file already exists (overwrite=False)".format(object_type)
+        ret = False
+    elif os.path.isfile(filepath) and ow_flag == True:
+        print_msg =  "- {} saved under {} (overwritten)".format(object_type, filepath)
+        ret = True
+    elif not os.path.isfile(filepath):
+        print_msg =  "- {} saved under {}".format(object_type, filepath)
+        ret = True
+
+    print(print_msg)
+    return ret
+    
 
 
 def _update_settings(kwargs, local_settings, IV_settings=None):
