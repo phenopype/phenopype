@@ -8,7 +8,7 @@ import pprint
 
 from math import inf
 
-from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool, _load_image_data
+from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool, _load_image_data, _generate_bgr
 from phenopype.core.preprocessing import blur
 from phenopype.core.segmentation import threshold, detect_contour
 from phenopype.settings import colours
@@ -465,14 +465,14 @@ class motion_tracker(object):
                                         self.method_mask,
                                         [contour],
                                         0,
-                                        colours["white"],
+                                        _generate_bgr("white"),
                                         -1,
                                     )  # Draw filled contour in mask
                                 elif self.consecutive_shape == "ellipse":
                                     self.method_mask = cv2.ellipse(
                                         self.method_mask,
                                         cv2.fitEllipse(contour),
-                                        colours["white"],
+                                        _generate_bgr("white"),
                                         -1,
                                     )
                                 elif self.consecutive_shape in ["rect", "rectangle"]:
@@ -481,7 +481,7 @@ class motion_tracker(object):
                                         self.method_mask,
                                         (int(rx), int(ry)),
                                         (int(rx + rw), int(ry + rh)),
-                                        colours["white"],
+                                        _generate_bgr("white"),
                                         -1,
                                     )
                                 kernel = cv2.getStructuringElement(
@@ -614,7 +614,7 @@ class tracking_method:
         ## kwargs
         self.blur_kernel = blur
         self.label = label
-        self.overlay_colour = colours[overlay_colour]
+        self.overlay_colour = _generate_bgr(overlay_colour)
         self.min_length, self.max_length = min_length, max_length
         self.min_area, self.max_area = min_area, max_area
         self.mode = mode

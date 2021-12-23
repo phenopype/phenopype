@@ -9,6 +9,8 @@ import string
 import re
 from _ctypes import PyObj_FromPtr
 
+from colour import Color
+
 
 from timeit import default_timer as timer
 import ruamel.yaml
@@ -103,6 +105,9 @@ class _ImageViewer:
         # initialize variables
         # =============================================================================
 
+        if not image.__class__.__name__ == "ndarray": 
+            raise TypeError("GUI module did not receive array-type - aborting!")
+
         ## image
         self.image = copy.deepcopy(image)
         self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
@@ -180,7 +185,7 @@ class _ImageViewer:
             self.rect_start, self.drawing = None, False
             
             ## line properties
-            self.line_colour = settings.colours[kwargs.get("line_colour", "green")]
+            self.line_colour = _generate_bgr(kwargs.get("line_colour", "green"))
             self.line_width = kwargs.get("line_width", _auto_line_width(image))
             self.line_width_orig = copy.deepcopy(self.line_width)
             
@@ -318,7 +323,7 @@ class _ImageViewer:
             (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
             cv2.FONT_HERSHEY_SIMPLEX,
             self.text_size,
-            settings.colours[self.label_colour],
+            _generate_bgr(self.label_colour),
             self.text_width,
             cv2.LINE_AA,
         )
@@ -563,10 +568,10 @@ class _ImageViewer:
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
                 self.colour_current_bin = 255
-                self.colour_current = settings.colours[self.left_colour]
+                self.colour_current = _generate_bgr(self.left_colour)
             elif event == cv2.EVENT_RBUTTONDOWN:
                 self.colour_current_bin = 0
-                self.colour_current = settings.colours[self.right_colour]
+                self.colour_current = _generate_bgr(self.right_colour)
             
             ## start drawing and use current coords as start point
             self.canvas = copy.deepcopy(self.canvas_copy)
@@ -623,9 +628,9 @@ class _ImageViewer:
             self.line_width = int(
                 self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
             cv2.line(self.canvas, (x, y), (x, y),
-                     settings.colours["black"], self.line_width)
+                     _generate_bgr("black"), self.line_width)
             cv2.line(self.canvas, (x, y), (x, y),
-                     settings.colours["white"], max(self.line_width-5, 1))
+                     _generate_bgr("white"), max(self.line_width-5, 1))
             cv2.imshow(self.window_name, self.canvas)
             
     
@@ -643,7 +648,7 @@ class _ImageViewer:
                 contours=[contour],
                 contourIdx=0,
                 thickness=self.overlay_line_width,
-                color=settings.colours[self.left_colour],
+                color=_generate_bgr(self.left_colour),
                 maxLevel=3,
                 offset=None,
             )   
@@ -654,8 +659,8 @@ class _ImageViewer:
         ## create coloured overlay from binary image
         self.colour_mask = copy.deepcopy(self.image_bin_copy)
         self.colour_mask = cv2.cvtColor(self.colour_mask, cv2.COLOR_GRAY2BGR)
-        self.colour_mask[self.image_bin_copy == 0] = settings.colours[self.right_colour]
-        self.colour_mask[self.image_bin_copy == 255] = settings.colours[self.left_colour]
+        self.colour_mask[self.image_bin_copy == 0] = _generate_bgr(self.right_colour)
+        self.colour_mask[self.image_bin_copy == 255] = _generate_bgr(self.left_colour)
 
         ## blend two canvas layers
         self.image_copy = cv2.addWeighted(self.image_copy,
@@ -692,7 +697,7 @@ class _ImageViewer:
                     self.image_copy,
                     coords,
                     self.point_size,
-                    settings.colours[self.point_colour],
+                    _generate_bgr(self.point_colour),
                     -1,
                 )
                 if self.flag_text_label:
@@ -702,7 +707,7 @@ class _ImageViewer:
                         coords,
                         cv2.FONT_HERSHEY_SIMPLEX,
                         self.text_size,
-                        settings.colours[self.label_colour],
+                        _generate_bgr(self.label_colour),
                         self.text_width,
                         cv2.LINE_AA,
                     )
@@ -959,6 +964,16 @@ def _convert_arr_tup_list(arr_list):
     return tup_list
 
 
+def _generate_bgr(col_string):
+    col = Color(col_string)
+    rgb = col.get_rgb()
+    rgb_255 = []
+    for component in rgb:
+        rgb_255.append(int(component * 255))
+        
+    return tuple((rgb_255[2], rgb_255[1], rgb_255[0]))
+    
+
 def _convert_tup_list_arr(tup_list):
     array_list = []
     for points in tup_list:
@@ -972,10 +987,10 @@ def _convert_tup_list_arr(tup_list):
 def _create_mask_bin(image, contours):
     mask_bin = np.zeros(image.shape[0:2], np.uint8)
     if contours[0].__class__.__name__ == "list" or contours.__class__.__name__ == "list":
-        cv2.fillPoly(mask_bin, [np.array(contours, dtype=np.int32)], settings.colours["white"])
+        cv2.fillPoly(mask_bin, [np.array(contours, dtype=np.int32)], _generate_bgr("white"))
     elif contours[0].__class__.__name__ == "ndarray":
         for contour in contours:
-            cv2.fillPoly(mask_bin, [np.array(contour, dtype=np.int32)], settings.colours["white"])
+            cv2.fillPoly(mask_bin, [np.array(contour, dtype=np.int32)], _generate_bgr("white"))
     return mask_bin
 
 
@@ -1274,7 +1289,7 @@ def _load_previous_annotation(annotation_previous, components, load_settings=Tru
 
 
 
-def _load_project_image_directory(dir_path, tag=None, **kwargs):
+def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwargs):
     """
     Parameters
     ----------
@@ -1319,7 +1334,10 @@ def _load_project_image_directory(dir_path, tag=None, **kwargs):
     image = utils.load_image(image_path)
 
     ## return
-    return utils.Container(image=image, dir_path=dir_path, file_suffix=tag)
+    if as_container:
+        return utils.Container(image=image, dir_path=dir_path, file_suffix=tag)
+    else:
+        return image
 
 
 

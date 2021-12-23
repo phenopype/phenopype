@@ -7,14 +7,7 @@ from dataclasses import make_dataclass
 
 from math import inf
 
-from phenopype.settings import (
-    colours, 
-    flag_verbose, 
-    opencv_contour_flags,
-    opencv_distance_flags,
-    opencv_morphology_flags,
-    _annotation_types
-    )
+from phenopype import settings 
 from phenopype import utils_lowlevel
 
 import phenopype.core.preprocessing as preprocessing
@@ -111,8 +104,8 @@ def detect_contour(
     
     image, contours, hierarchies = cv2.findContours(
         image=image,
-        mode=opencv_contour_flags["retrieval"][retrieval],
-        method=opencv_contour_flags["approximation"][approximation],
+        mode=settings.opencv_contour_flags["retrieval"][retrieval],
+        method=settings.opencv_contour_flags["approximation"][approximation],
         offset=tuple(offset_coords),
     )
    
@@ -156,10 +149,10 @@ def detect_contour(
                             "hierarchy_idx_parent": int(hierarchy[3]),
                             })
 
-        if flag_verbose:
+        if settings.reference:
             print("- found " + str(len(coord_list)) + " contours that match criteria")
     else:
-        if flag_verbose:
+        if settings.reference:
             print("- no contours found")
 
 
@@ -345,9 +338,9 @@ def morphology(image, kernel_size=5, shape="rect", operation="close", iterations
 	# =============================================================================
 	# execute
         
-    kernel = cv2.getStructuringElement(opencv_morphology_flags["shape_list"][shape], 
+    kernel = cv2.getStructuringElement(settings.opencv_morphology_flags["shape_list"][shape], 
                                        (kernel_size, kernel_size))
-    operation = opencv_morphology_flags["operation_list"][operation]
+    operation = settings.opencv_morphology_flags["operation_list"][operation]
     
     image = cv2.morphologyEx(
         image, op=operation, kernel=kernel, iterations=iterations
@@ -370,6 +363,7 @@ def threshold(
     value=127,
     channel=None,
     mask=None,
+    reference=None,
     **kwargs,
 ):
     """
@@ -420,7 +414,7 @@ def threshold(
         image = preprocessing.decompose_image(image, channel)
             
     if blocksize % 2 == 0:
-        if flag_verbose:
+        if settings.reference:
             blocksize = blocksize + 1
             print("- even blocksize supplied, adding 1 to make odd")
 
@@ -473,7 +467,14 @@ def threshold(
             print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
         if include_idx>0:
             print("- including pixels from " + str(include_idx) + " drawn masks ")
-   
+    if not reference.__class__.__name__ == "NoneType":
+        if not list(mask.keys())[0] == "a":
+            mask = {"a": mask}
+        coord_list = value["data"]["coord_list"]
+        for coords in coord_list:
+            thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
+        print("- excluding pixels from reference")
+
 
 	# =============================================================================
 	# return
@@ -529,7 +530,6 @@ def watershed(
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
 
-
 	# =============================================================================
 	# execute
 
@@ -555,7 +555,7 @@ def watershed(
     
     ## distance transformation
     dist_transform = cv2.distanceTransform(
-        opened, opencv_distance_flags[distance_type], distance_mask
+        opened, settings.opencv_distance_flags[distance_type], distance_mask
     )
     dist_transform = cv2.normalize(
         dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX
@@ -602,7 +602,7 @@ def watershed(
                 contours=[coord],
                 contourIdx=0,
                 thickness=-1,
-                color=colours["white"],
+                color=utils_lowlevel._generate_bgr("white"),
                 maxLevel=3,
                 offset=None
                 )
@@ -611,7 +611,7 @@ def watershed(
                 contours=[coord],
                 contourIdx=0,
                 thickness=2,
-                color=colours["black"],
+                color=utils_lowlevel._generate_bgr("black"),
                 maxLevel=3,
                 offset=None
                 )

@@ -20,6 +20,8 @@ import phenopype.core.measurement as measurement
 import phenopype.core.visualization as visualization
 import phenopype.core.export as export
 
+from phenopype import settings
+
 from phenopype.settings import (
     default_filetypes,
     flag_verbose, 
@@ -53,16 +55,19 @@ class Container(object):
 
     def __init__(self, image, dir_path, **kwargs):
 
-        ## images
-        self.image = image
-        self.image_copy = copy.deepcopy(self.image)
-        self.canvas = None
+        ## set reference image
+        self.image_copy = image
+        
+        ## assign copies
+        self.image = copy.deepcopy(self.image_copy)
+        self.canvas = copy.deepcopy(self.image_copy)
 
         ## attributes
         self.file_prefix = kwargs.get("file_prefix")
         self.file_suffix = kwargs.get("file_suffix")
         self.dir_path = dir_path
         self.image_name = kwargs.get("image_name")
+        
         ## annotations - primed from empty dict
         self.annotations = copy.deepcopy(_annotation_types)
                 
@@ -110,42 +115,31 @@ class Container(object):
 
             self.image_attributes = utils_lowlevel._load_yaml(attr_local_path)
             
-            if "reference" in self.image_attributes:
+            if "reference_global" in self.image_attributes:
+
+                ## load local (image specific) and global (project level) attributes 
+                attr_proj_path =  os.path.abspath(os.path.join(attr_local_path ,r"../../../","attributes.yaml"))
+                attr_proj = utils_lowlevel._load_yaml(attr_proj_path)
+                                    
+                ## find active project level references
+                n_active = 0
+                for key, value in self.image_attributes["reference_global"].items():
+                    if self.image_attributes["reference_global"][key]["active"] == True:
+                        active_ref = key
+                        n_active += 1
+                if n_active > 1:
+                    print("WARNING: multiple active reference detected - fix with running add_reference again.")     
                 
-                ## manually measured px-mm-ratio
-                if "reference_manually_measured_px_mm_ratio" in self.image_attributes["reference"]:
-                    self.reference_manually_measured_px_mm_ratio = self.image_attributes["reference"]["reference_manually_measured_px_mm_ratio"]
-                    loaded.append("manually measured local reference information loaded")
+                self.reference_active = active_ref
                     
-                ## project level template px-mm-ratio
-                if "project_level" in self.image_attributes["reference"]:
-                    
-                    ## load local (image specific) and global (project level) attributes 
-                    attr_proj_path =  os.path.abspath(os.path.join(attr_local_path ,r"../../../","attributes.yaml"))
-                    attr_proj = utils_lowlevel._load_yaml(attr_proj_path)
-                                        
-                    ## find active project level references
-                    n_active = 0
-                    for key, value in self.image_attributes["reference"]["project_level"].items():
-                        if self.image_attributes["reference"]["project_level"][key]["active"] == True:
-                            active_ref = key
-                            n_active += 1
-                    if n_active > 1:
-                        print("WARNING: multiple active reference detected - fix with running add_reference again.")                            
-                    self.reference_active = active_ref
-                    self.reference_template_px_mm_ratio = attr_proj["reference"][active_ref]["template_px_mm_ratio"]
-                    loaded.append("project level reference information loaded for " + active_ref)
-                
-                    ## load previously detect px-mm-ratio
-                    if "reference_detected_px_mm_ratio" in self.image_attributes["reference"]["project_level"][active_ref]:
-                        self.reference_detected_px_mm_ratio = self.image_attributes["reference"]["project_level"][active_ref]["reference_detected_px_mm_ratio"]
-                        loaded.append("detected local reference information loaded for " + active_ref)
-                        
-                    ## load tempate image from project level attributes
-                    if "template_image" in attr_proj["reference"][active_ref]:
-                        self.reference_template_image = cv2.imread(str(Path(attr_local_path).parents[2] / attr_proj["reference"][active_ref]["template_image"]))
-                        loaded.append("reference template image loaded from root directory")       
-                
+                ## load tempate image from project level attributes
+                if "template_file_name" in attr_proj["reference"][active_ref]:
+                    self.reference_template_image = cv2.imread(str(Path(attr_local_path).parents[2] / "reference" / attr_proj["reference"][active_ref]["template_file_name"]))
+                    self.reference_template_px_ratio = attr_proj["reference"][active_ref]["template_px_ratio"]
+                    self.reference_unit = attr_proj["reference"][active_ref]["unit"]
+
+                    loaded.append("reference template image loaded from root directory")       
+            
         ## feedback
         if len(loaded) > 0:
             print("\nAUTOLOAD\n- " + "\n- ".join(loaded))
@@ -159,12 +153,10 @@ class Container(object):
         pype routine.
 
         """
-        ## images
+        
+        ## re-assign copies
         self.image = copy.deepcopy(self.image_copy)
-        # self.image_bin = None
-        self.image_gray = None
-        self.canvas = None
-        # self.annotations = None
+        self.canvas = copy.deepcopy(self.image_copy)
 
             
     def run(self, fun, fun_kwargs={}, annotation_kwargs={}, annotation_counter={}):
@@ -180,8 +172,7 @@ class Container(object):
         
         ## function kwargs
         kwargs = fun_kwargs
-        
-        
+            
         ## attributes
         if hasattr(self, "image_attributes"):
             image_name=self.image_attributes["image_original"]["filename"] 
@@ -213,32 +204,26 @@ class Container(object):
             self.image = preprocessing.blur(self.image, **kwargs)
         if fun == "create_mask":
             annotation = preprocessing.create_mask(self.image, **kwargs)
+        if fun == "create_reference":
+            annotation = preprocessing.create_reference(self.image, **kwargs)
         if fun == "detect_shape":
             annotation = preprocessing.detect_shape(self.image, **kwargs)
         if fun == "comment":
             annotation = preprocessing.comment(self.image, **kwargs)
         if fun == "detect_reference":
-            if not any(hasattr(self, reference) for reference in [
-                    "reference_detected_px_mm_ratio"
-                    ]):
-                if all(hasattr(self, template) for template in [
-                        "reference_template_px_mm_ratio", 
-                        "reference_template_image"
+                if all(hasattr(self, attr) for attr in [
+                        "reference_template_px_ratio", 
+                        "reference_template_image",
+                        "reference_unit"
                         ]):
                     annotation = preprocessing.detect_reference(
                         self.image, 
                         self.reference_template_image,
-                        self.reference_template_px_mm_ratio,
+                        self.reference_template_px_ratio,
+                        self.reference_unit,
                         **kwargs)
-                    if annotation.__class__.__name__ == "tuple":
-                        ref_mask_id = string.ascii_lowercase[len(self.annotations["mask"].keys())]
-                        self.annotations["mask"][ref_mask_id] = annotation[1]
-                        annotation = annotation[0]
-                    self.reference_as_detected = self.annotations[annotation_type][annotation_id]["data"]["px_mm_ratio"]
                 else:
                     print("- missing project level reference information, cannot detect")
-            else:
-                print("- reference already detected (current px-to-mm-ratio: {}).".format(self.reference_detected_px_mm_ratio)) 
         if fun == "decompose_image":
             self.image = preprocessing.decompose_image(self.image, **kwargs)
             
@@ -246,6 +231,8 @@ class Container(object):
         if fun == "threshold":
             if "mask" in self.annotations and len(self.annotations["mask"]) > 0 :
                 kwargs.update({"mask":self.annotations["mask"]})
+            if "reference" in self.annotations and len(self.annotations["reference"]) > 0 :
+                kwargs.update({"reference":self.annotations["reference"]})
             self.image = segmentation.threshold(self.image, **kwargs)
             # self.image_bin = copy.deepcopy(self.image)
         # if fun == "watershed":
@@ -283,6 +270,9 @@ class Container(object):
             self.canvas = visualization.draw_mask(self.canvas, annotation=self.annotations, **kwargs)
         if fun == "draw_polyline":
             self.canvas = visualization.draw_polyline(self.canvas, annotation=self.annotations, **kwargs)
+        if fun == "draw_reference":
+            self.canvas = visualization.draw_reference(self.canvas, annotation=self.annotations, **kwargs)
+            
             
         ## export
         if fun == "save_annotation":
@@ -336,6 +326,7 @@ class Container(object):
         if hasattr(self, "canvas") and not "save_canvas" in export_list:
             print("- save_canvas")
             export.save_canvas(self.canvas, 
+                               file_name=self._construct_file_name("canvas","jpg"),
                                dir_path=self.dir_path, 
                                **kwargs)
             flag_autosave = True
@@ -346,14 +337,6 @@ class Container(object):
                                    file_name=self._construct_file_name("annotations","json"), 
                                    dir_path=self.dir_path, 
                                    **kwargs)
-            flag_autosave = True
-
-        if "reference" in self.annotations and not len(self.annotations["reference"]) == 0 and not "reference" in export_list:
-            print("- save reference")
-            export.save_reference(self.annotations, 
-                                  dir_path=dir_path, 
-                                  overwrite=flag_overwrite, 
-                                  active_ref=self.reference_active)
             flag_autosave = True
 
         if not flag_autosave:
@@ -428,6 +411,8 @@ def load_image(
             else:
                 raise OSError("Invalid file extension \"{}\" - could not load image:\n".format(ext))
                 return
+        elif os.path.isdir(path):
+            image = utils_lowlevel._load_project_image_directory(path)
         else:
             raise FileNotFoundError("Invalid image path - could not load image.")
             # return
@@ -490,7 +475,7 @@ def load_template(
     config_info = {
         "config_info": {
             "config_name":config_name,
-            "date_created":datetime.today().strftime("%Y-%m-%d %H:%M:%S"),
+            "date_created":datetime.today().strftime(settings.strftime_format),
             "date_last_modified":None,
             "template_name":os.path.basename(template_path),
             "template_path":template_path,

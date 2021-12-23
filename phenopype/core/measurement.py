@@ -12,18 +12,8 @@ from radiomics import featureextractor
 import SimpleITK as sitk
 from tqdm import tqdm as _tqdm
 
-
-
 from phenopype import utils_lowlevel
-
-from phenopype.settings import (
-    colours, 
-    flag_verbose, 
-    _image_viewer_arg_list, 
-    _annotation_types,
-    opencv_skeletonize_flags,
-    )
-
+from phenopype import settings
 from phenopype.core import preprocessing 
 
 
@@ -110,15 +100,17 @@ def set_landmark(
 	# =============================================================================
 	# execute
 
-    out = utils_lowlevel._ImageViewer(image=image, 
-                       tool="point", 
-                       flag_text_label=label,
-                       point_size=point_size,
-                       point_colour=point_colour,
-                       label_size=label_size,
-                       label_width=label_width,
-                       label_colour=label_colour,                       
-                       **IV_settings)
+    out = utils_lowlevel._ImageViewer(
+        image=image, 
+        tool="point", 
+        flag_text_label=label,
+        point_size=point_size,
+        point_colour=point_colour,
+        label_size=label_size,
+        label_width=label_width,
+        label_colour=label_colour,                       
+        **IV_settings,
+        )
     
     ## checks
     if not out.done:
@@ -320,7 +312,7 @@ def skeletonize(
         mask = np.zeros(image_sub.shape[0:2], np.uint8)
         mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx + padding, -ry + padding))
 
-        skeleton = cv2.ximgproc.thinning(mask, thinningType=opencv_skeletonize_flags[thinning])
+        skeleton = cv2.ximgproc.thinning(mask, thinningType=settings.opencv_skeletonize_flags[thinning])
         skel_ret, skel_contour, skel_hierarchy = cv2.findContours(
             skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )

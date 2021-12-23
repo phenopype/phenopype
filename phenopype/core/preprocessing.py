@@ -1,26 +1,15 @@
 #%% modules
 
-import cv2, copy
+import cv2
 import numpy as np
-import pandas as pd
 from dataclasses import make_dataclass
 
 from math import sqrt as _sqrt
 import numpy.ma as ma
 
-from phenopype.settings import colours, flag_verbose, _image_viewer_arg_list
-from phenopype.utils_lowlevel import (
-    _auto_text_width, 
-    _auto_text_size, 
-    _convert_arr_tup_list, 
-    _equalize_histogram, 
-    _resize_image, 
-    _ImageViewer, 
-    _load_previous_annotation,
-    _drop_dict_entries,
-    _update_settings,
-    )
-import phenopype.core.segmentation as segmentation
+from phenopype import settings
+from phenopype import utils_lowlevel
+from phenopype.core import segmentation
 
 #%% functions
 
@@ -60,7 +49,7 @@ def blur(
     
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
-        if flag_verbose:
+        if settings.flag_verbose:
             print("- even kernel size supplied, adding 1 to make odd")
             
 	# =============================================================================
@@ -116,13 +105,13 @@ def create_mask(
     # retain settings
 
     ## retrieve settings from args
-    local_settings  = _drop_dict_entries(locals(),
+    local_settings  = utils_lowlevel._drop_dict_entries(locals(),
         drop=["image","kwargs","annotation_previous"])
 
     ## retrieve update IV settings and data from previous annotations  
     IV_settings = {}     
     if annotation_previous:       
-        IV_settings["ImageViewer_previous"] =_load_previous_annotation(
+        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
                 ("data","coord_list"),
@@ -130,12 +119,12 @@ def create_mask(
         
     ## update local and IV settings from kwargs
     if kwargs:
-        _update_settings(kwargs, local_settings, IV_settings)
+        utils_lowlevel._update_settings(kwargs, local_settings, IV_settings)
 
 	# =============================================================================
 	# execute
         
-    out = _ImageViewer(image=image, 
+    out = utils_lowlevel._ImageViewer(image=image, 
                         tool=tool, 
                         **IV_settings)
     
@@ -240,19 +229,19 @@ def detect_shape(
     
     if len(image.shape) == 3:
         image = decompose_image(image, "gray")
-    image_resized = _resize_image(image, resize)
+    image_resized = utils_lowlevel._resize_image(image, resize)
     
     
     # =============================================================================
     # retain settings
 
     ## retrieve settings from args
-    local_settings  = _drop_dict_entries(
+    local_settings  = utils_lowlevel._drop_dict_entries(
         locals(), drop=["image","kwargs", "image_resized"])
         
     ## update settings from kwargs
     if kwargs:
-        _update_settings(kwargs, local_settings)
+        utils_lowlevel._update_settings(kwargs, local_settings)
         
         
     # =============================================================================
@@ -288,10 +277,10 @@ def detect_shape(
                         axis=0
                         )
                     )
-            if flag_verbose:
+            if settings.flag_verbose:
                 print("Found {} circles".format(len(circles[0])))
         else:
-            if flag_verbose:
+            if settings.flag_verbose:
                 print("No circles detected")
             return None
         
@@ -321,7 +310,7 @@ def detect_shape(
 
 def create_reference(
     image,
-    mask=False,
+    unit="mm",
     **kwargs
 ):
     """
@@ -349,22 +338,38 @@ def create_reference(
         phenopype annotation containing mask coordinates
 
     """
-
-
-
-    # =============================================================================
-    # setup 
     
-    flags = make_dataclass(cls_name="flags", 
-                           fields=[("mask", bool, mask)])   
+    
+    # =============================================================================
+    # setup
+    
+    annotation_previous = kwargs.get("annotation_previous")
+  
     # =============================================================================
     # retain settings
 
+    ## retrieve settings from args
+    local_settings  = utils_lowlevel._drop_dict_entries(locals(),
+        drop=["image","kwargs","annotation_previous"])
+
+    ## retrieve update IV settings and data from previous annotations  
+    IV_settings = {}     
+    if annotation_previous:       
+        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
+            annotation_previous = annotation_previous, 
+            components = [
+                ("data","coord_list"),
+                ])            
+        
+    ## update local and IV settings from kwargs
+    if kwargs:
+        utils_lowlevel._update_settings(kwargs, local_settings, IV_settings)
     
     # =============================================================================
     # exectue
 
-    out = _ImageViewer(image, tool="reference")
+    ## measure length
+    out = utils_lowlevel._ImageViewer(image, tool="reference")
     
     ## enter length
     points = out.reference_coords
@@ -373,50 +378,38 @@ def create_reference(
             + ((points[0][1] - points[1][1]) ** 2)
         )
     
-    out = _ImageViewer(image, tool="comment", display="Enter distance in mm:")
+    ## enter distance
+    out = utils_lowlevel._ImageViewer(image, tool="comment", field="distance in {}".format(unit))
+    
+    ## output conversion
     entry = out.entry
-    distance_mm = float(entry)
-    px_mm_ratio = float(distance_px / distance_mm)
+    distance_measured = float(entry)
+    px_ratio = round(float(distance_px / distance_measured))
+
     
 	# =============================================================================
 	# assemble results
 
-    annotation_ref = {
+    annotation = {
         "info": {
             "annotation_type": "reference",
             "pp_function": "create_reference",
         },
         "data": {
-            "px_mm_ratio":px_mm_ratio
+            "px_ratio":px_ratio,
+            "unit": unit,
         }
     }
     
-    ## mask reference
-    if flags.mask:
-        out = _ImageViewer(image, tool="template")
-        
-        annotation_mask = {
-            "info": {
-                "annotation_type": "mask",
-                "pp_function": "create_reference",
-            },
-            "data": {
-                "include": False,
-                "n_masks": 1,
-                "coord_list": out.polygons   
-            }
-        }
-        
-        return annotation_ref, annotation_mask
-    else:
-        return annotation_ref
+    return annotation
 
 
 
 def detect_reference(
     image,
-    image_template,
-    px_mm_ratio_template,
+    template,
+    px_ratio,
+    unit,
     mask=True,
     equalize=False,
     min_matches=10,
@@ -437,7 +430,7 @@ def detect_reference(
     -----------
     image: ndarray 
         input image
-    image_template : array
+    template : array
         reference image of reference
     equalize : bool, optional
         should the provided image be colour corrected to match the template 
@@ -464,7 +457,8 @@ def detect_reference(
                            fields=[("mask", bool, mask),
                                    ("equalize",bool, equalize)])   
          
-    
+    px_ratio_template = px_ratio
+        
     # =============================================================================
     # retain settings
 
@@ -483,9 +477,9 @@ def detect_reference(
 
     # =============================================================================
     # exectue function
-    
+        
     akaze = cv2.AKAZE_create()
-    kp1, des1 = akaze.detectAndCompute(image_template, None)
+    kp1, des1 = akaze.detectAndCompute(template, None)
     kp2, des2 = akaze.detectAndCompute(image, None)
     matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
     matches = matcher.knnMatch(des1, des2, 2)
@@ -508,9 +502,9 @@ def detect_reference(
         rect_old = np.array(
             [
                 [[0, 0]],
-                [[0, image_template.shape[0]]],
-                [[image_template.shape[1], image_template.shape[0]]],
-                [[image_template.shape[1], 0]],
+                [[0, template.shape[0]]],
+                [[template.shape[1], template.shape[0]]],
+                [[template.shape[1], 0]],
             ],
             dtype=np.float32,
         )
@@ -526,20 +520,20 @@ def detect_reference(
 
         ## calculate ratios
         diameter_ratio = diameter_new / diameter_old
-        px_mm_ratio_detected = round(diameter_ratio * px_mm_ratio_template, 1)
+        px_ratio_detected = round(diameter_ratio * px_ratio_template, 3)
 
         ## feedback
         print("---------------------------------------------------")
-        print("Reference card found with %d keypoint matches:" % len(good))
-        print("template image has %s pixel per mm." % (px_mm_ratio_template))
-        print("current image has %s pixel per mm." % (px_mm_ratio_detected))
-        print("= %s %% of template image." % round(diameter_ratio * 100, 3))
+        print("Reference card found with {} keypoint matches:".format(len(good)))
+        print("template image has {} pixel per {}.".format(round(px_ratio_template,3), unit))
+        print("current image has {} pixel per mm.".format(round(px_ratio_detected,3)))
+        print("= {} %% of template image.".format(round(diameter_ratio * 100, 3)))
         print("---------------------------------------------------")
 
         ## create mask from new coordinates
         rect_new = rect_new.astype(int)
-        coords_list = _convert_arr_tup_list(rect_new)
-        coords_list[0].append(coords_list[0][0])
+        coord_list = utils_lowlevel._convert_arr_tup_list(rect_new)
+        coord_list[0].append(coord_list[0][0])
         
     else:
         ## feedback
@@ -547,19 +541,19 @@ def detect_reference(
         print("Reference card not found - %d keypoint matches:" % len(good))
         print('Setting "current reference" to None')
         print("---------------------------------------------------")
-        px_mm_ratio_detected = None
+        px_ratio_detected = None
         
 
     ## do histogram equalization
     if flags.equalize:
         detected_rect_mask = np.zeros(image.shape, np.uint8)
-        cv2.fillPoly(detected_rect_mask, [np.array(rect_new)], colours["white"])
+        cv2.fillPoly(detected_rect_mask, [np.array(rect_new)], utils_lowlevel._generate_bgr("white"))
         (rx, ry, rw, rh) = cv2.boundingRect(np.array(rect_new))
         detected_rect_mask = ma.array(
             data=image[ry : ry + rh, rx : rx + rw],
             mask=detected_rect_mask[ry : ry + rh, rx : rx + rw],
         )
-        image = _equalize_histogram(image, detected_rect_mask, image_template)
+        image = utils_lowlevel._equalize_histogram(image, detected_rect_mask, template)
         print("histograms equalized")
 
     annotation_ref = {
@@ -568,28 +562,17 @@ def detect_reference(
             "pp_function": "detect_reference",
         },
         "data": {
-            "px_mm_ratio":px_mm_ratio_detected
+            "px_ratio": px_ratio_detected,
+            "unit": unit,
         }
     }
     
 
     ## mask reference
     if flags.mask:
-        annotation_mask = {
-            "info": {
-                "annotation_type": "mask",
-                "pp_function": "detect_reference",
-            },
-            "data": {
-                "include": False,
-                "n_masks": 1,
-                "coord_list": coords_list
-            }
-        }
-        
-        return annotation_ref, annotation_mask
-    else:
-        return annotation_ref
+        annotation_ref["data"]["coord_list"] = coord_list
+
+    return annotation_ref
 
 
 
@@ -624,13 +607,13 @@ def comment(
     # retain settings
 
     ## retrieve settings from args
-    local_settings  = _drop_dict_entries(locals(),
+    local_settings  = utils_lowlevel._drop_dict_entries(locals(),
         drop=["image","kwargs","annotation_previous"])
     
     ## retrieve update IV settings and data from previous annotations  
     IV_settings = {}     
     if annotation_previous:    
-        IV_settings["ImageViewer_previous"] =_load_previous_annotation(
+        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
                 ("data","field"),
@@ -639,12 +622,12 @@ def comment(
         
     ## update local and IV settings from kwargs
     if kwargs:
-        _update_settings(kwargs, local_settings, IV_settings)
+        utils_lowlevel._update_settings(kwargs, local_settings, IV_settings)
         
 	# =============================================================================
 	# execute
     
-    out = _ImageViewer(image, 
+    out = utils_lowlevel._ImageViewer(image, 
                        tool="comment", 
                        field=field, 
                         **IV_settings)
@@ -726,7 +709,7 @@ def decompose_image(image,
             print("- don't know how to handle channel {}".format(channel))
             return 
             
-        if flag_verbose:
+        if settings.flag_verbose:
             print("- decompose image: using {} channel".format(str(channel)))
         
     if invert==True:

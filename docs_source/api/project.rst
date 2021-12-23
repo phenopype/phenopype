@@ -21,13 +21,12 @@ Above code creates a folder structure as follows:
 
 	my_project\
 	 data_raw
-	 phenopype\		# create phenopype project here with "pp.project"
+	 phenopype\		# create phenopype project here with "pp.Project"
 	  data\ 		# created automatically
-	   project.data		# created with "pp.project.save"
-	   file1\		# add files to project using "pp.project.add_files"
-	    raw.jpg			# created by "pp.project.add_files"
-	    attributes.yaml	# created by "pp.project.add_files"
-	    pype_config_v1.yaml	# added with "pp.project.add_config"
+	   file1\		# add files to project using "pp.Project.add_files"
+	    raw.jpg			# created by "pp.Project.add_files"
+	    attributes.yaml	# created by "pp.Project.add_files"
+	    pype_config_v1.yaml	# added with "pp.Project.add_config"
 	    results_v1.csv
 	   file2\
 	    ...

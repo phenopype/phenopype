@@ -58,14 +58,6 @@ auto_text_size_factor = 0.00025
 
 confirm_options = ["True", "true", "y", "yes"]
 
-colours = {
-    "green": (0, 255, 0),
-    "blue": (255, 0, 0),
-    "red": (0, 0, 255),
-    "black": (0, 0, 0),
-    "white": (255, 255, 255),
-}
-
 default_filetypes = ["jpg", "JPG", "jpeg", "JPEG", "tif", "png", "bmp"]
 default_meta_data_fields = [
     "DateTimeOriginal",
@@ -82,6 +74,7 @@ default_window_size = 1000
 pandas_max_rows = 10
 pretty = PrettyPrinter(width=30)
 
+strftime_format = "%Y-%m-%d %H:%M:%S"
 
 #%% flags
 
@@ -190,7 +183,7 @@ _image_viewer_arg_list = [
 
 _annotation_functions = {
     "create_mask": "mask",
-    "create_reference": "mask",
+    "create_reference": "reference",
     "detect_shape": "mask",
     "detect_reference": "reference",
     "detect_contour": "contour",

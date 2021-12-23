@@ -58,19 +58,19 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 			Image analysis workflow
 
 			- Overview
-			- Low- vs High-throughput
-			- YAML-syntax
-
+			- Low throughput
+			- High throughput
+			
 	.. grid-item::
 
 		.. card::  Tutorial 4
 			:link: tutorial_4
 
-			Setting up and managing projects	
+			The Pype class
 
-			- Project directories
-			- Adding images and configs
-			- collecting results
+			- Templates
+			- YAML-syntax
+			- Operation 
 
 
 .. grid:: 2
@@ -80,15 +80,29 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 		.. card::  Tutorial 5
 			:link: tutorial_5
 
-			Creating and detecting a reference
+			Setting up and managing projects	
 
-			- Setting project wide size references
-			- Detecting size references
+			- Project directories
+			- Adding images and configs
+			- collecting results
 
 	.. grid-item::
 
 		.. card::  Tutorial 6
 			:link: tutorial_6
+
+			Creating and detecting a reference
+
+			- Setting project wide size references
+			- Detecting size references
+			
+.. grid:: 2
+
+
+	.. grid-item::
+
+		.. card::  Tutorial 7
+			:link: tutorial_7
 
 			Video analysis
 
@@ -105,3 +119,4 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 	tutorials/tutorial_4
 	tutorials/tutorial_5
 	tutorials/tutorial_6
+	tutorials/tutorial_7

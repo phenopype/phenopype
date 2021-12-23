@@ -486,7 +486,7 @@ def save_ROI(image,
         
 def save_canvas(
         image,
-        file_name="canvas.jpg",
+        file_name="canvas",
         dir_path=os.getcwd(),
         **kwargs):
     """

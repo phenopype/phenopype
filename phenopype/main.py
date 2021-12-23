@@ -478,28 +478,29 @@ class Project:
                 tag=tag, 
                 overwrite=flag_overwrite,
                 )
-
-        q = input("Save modified template? ")
-        if q in settings.confirm_options:
-            template_dir = os.path.join(self.root_dir, "templates")
-            if not os.path.isdir(template_dir):   
-                os.mkdir(template_dir)
-            q = input("Enter template file name: ")
-            if q.endswith(".yaml"):
-                ext = ""
-            else:
-                ext = ".yaml"
-            template_file_name = q + ext
             
-            template_save_path = os.path.join(template_dir, template_file_name)
-            if utils_lowlevel._save_prompt("template",template_save_path, False):
-                utils_lowlevel._save_yaml(p.config, template_save_path)
-                    
+        if flag_interactive:
+            q = input("Save modified template? ")
+            if q in settings.confirm_options:
+                template_dir = os.path.join(self.root_dir, "templates")
+                if not os.path.isdir(template_dir):   
+                    os.mkdir(template_dir)
+                q = input("Enter template file name: ")
+                if q.endswith(".yaml"):
+                    ext = ""
+                else:
+                    ext = ".yaml"
+                template_file_name = q + ext
+                
+                template_save_path = os.path.join(template_dir, template_file_name)
+                if utils_lowlevel._save_prompt("template",template_save_path, False):
+                    utils_lowlevel._save_yaml(p.config, template_save_path)
+                        
 
 
     def add_reference(self, 
-                      reference_image, 
-                      tag,
+                      reference_image_path, 
+                      reference_tag,
                       activate=True,
                       template=False,
                       overwrite=False,
@@ -534,60 +535,40 @@ class Project:
 
         print_save_msg = "== no msg =="
         
+        reference_source_path = copy.deepcopy(reference_image_path)
+        
         ## load reference image
-        if reference_image.__class__.__name__ == "str":
-            if os.path.isfile(reference_image):
-                reference_image_path = reference_image
-                reference_image = cv2.imread(reference_image_path)
-                print("Reference image loaded from " + reference_image_path)
-            elif os.path.isdir(reference_image_path):
-                reference_image = load_pp_directory(
-                   reference_image_path
-                )
-                reference_image = reference_image.image
-                print("Reference image loaded from phenopype dir: \"" + os.path.basename(reference_image_path) + "\"")
-            else:
-                print("Wrong path - cannot load reference image")
-                return
-        elif reference_image.__class__.__name__ == "ndarray":
-            reference_image_path = "none (array-type)"
-            pass
-        elif reference_image.__class__.__name__ == "int":
-            reference_image_path = os.path.join(self.root_dir, "data", self.dir_paths[reference_image-1])
-            reference_image = load_pp_directory(
-               reference_image_path
-            )
-            reference_image = reference_image.image
-            print("Reference image loaded from phenopype dir: \"" +  os.path.basename(reference_image_path) + "\"")
-        else:
-            print("Cannot load reference image - check input")
-            return
+        if reference_source_path.__class__.__name__ == "str": 
+            reference_image = utils.load_image(reference_source_path)
         
         # =============================================================================
         # METHOD START
         # =============================================================================
-
+        reference_folder_path = os.path.join(self.root_dir, "reference")
+        if not os.path.isdir(reference_folder_path):   
+            os.mkdir(reference_folder_path)
+            
         while True:
             
             ## generate reference name and check if exists
-            reference_filename = "reference_" + tag + ".tif"
-            reference_path = os.path.join(self.root_dir, reference_filename)
+            reference_image_name = reference_tag + "_full_image.tif"
+            reference_image_path = os.path.join(self.root_dir,"reference", reference_image_name)
             
-            if os.path.isfile(reference_path) and flags.overwrite == False:
+            if os.path.isfile(reference_image_path) and flags.overwrite == False:
                 print_save_msg = "Reference image not saved, file already exists " + \
                  "- use \"overwrite==True\" or chose different name."
                 break
-            elif os.path.isfile(reference_path) and flags.overwrite == True:
-                print_save_msg = "Reference image saved under " + reference_path + " (overwritten)."
+            elif os.path.isfile(reference_image_path) and flags.overwrite == True:
+                print_save_msg = "Reference image saved under " + reference_image_path + " (overwritten)."
                 pass
-            elif not os.path.isfile(reference_path):
-                print_save_msg = "Reference image saved under " + reference_path
+            elif not os.path.isfile(reference_image_path):
+                print_save_msg = "Reference image saved under " + reference_image_path
                 pass
             
             
             ## generate template name and check if exists
-            template_name = "reference_template_" + tag + ".tif"
-            template_path = os.path.join(self.root_dir, template_name)
+            template_name = reference_tag + "_search_template.tif"
+            template_path = os.path.join(self.root_dir,"reference", template_name)
 
             if os.path.isfile(template_path) and flags.overwrite == False:
                 print_save_msg = "Reference template not saved, file already exists\
@@ -601,21 +582,21 @@ class Project:
                 pass
             
             ## measure reference
-            annotation_ref = preprocessing.create_reference(
-                reference_image, mask=True
-            )
+            annotation_ref = preprocessing.create_reference(reference_image)
+            annotation_mask = preprocessing.create_mask(reference_image)
 
             ## create template from mask coordinates
-            coords = annotation_ref["data"]["coord_list"][0]
+            coords = annotation_mask["data"]["coord_list"][0]
             template = reference_image[coords[0][1]:coords[2][1], coords[0][0]:coords[1][0]]
 
             ## create reference attributes
             reference_info = {
-                    "date_added":datetime.today().strftime("%Y%m%d%H%M%S"),
-                    "reference_image":reference_filename,
-                    "original_filepath":reference_image_path,
-                    "template_image":template_name,
-                    "template_px_mm_ratio": annotation_ref["data"]["px_mm_ratio"],
+                    "reference_source_path": reference_source_path,
+                    "reference_file_name": reference_image_name,
+                    "template_file_name": template_name,
+                    "template_px_ratio": annotation_ref["data"]["px_ratio"],
+                    "unit": annotation_ref["data"]["unit"],
+                    "date_added":datetime.today().strftime(settings.strftime_format),
                     }
                         
             ## load project attributes and temporarily drop project data list to 
@@ -627,13 +608,13 @@ class Project:
                 project_attributes.pop('project_data', None)
             if "reference" in project_attributes:
                 reference_dict = project_attributes["reference"]
-            reference_dict[tag] = reference_info
+            reference_dict[reference_tag] = reference_info
             
             project_attributes["reference"] = reference_dict
             project_attributes["project_data"] = project_data
 
             ## save all after successful completion of all method-steps 
-            cv2.imwrite(reference_path, reference_image)
+            cv2.imwrite(reference_image_path, reference_image)
             cv2.imwrite(template_path, template)
     
             utils_lowlevel._save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
@@ -651,25 +632,23 @@ class Project:
             attr = utils_lowlevel._load_yaml(os.path.join(dir_path, "attributes.yaml"))
             
             ## create nested dict
-            if not "reference" in attr:
-                attr["reference"] = {}      
-            if not "project_level" in attr["reference"]:
-                attr["reference"]["project_level"] = {}      
-            if not tag in attr["reference"]["project_level"]:
-                attr["reference"]["project_level"][tag] = {}
+            if not "reference_global" in attr:
+                attr["reference_global"] = {}       
+            if not reference_tag in attr["reference_global"]:
+                attr["reference_global"][reference_tag] = {}
                 
             ## loop through entries and set active reference
             if flags.activate==True:
-                for key, value in attr["reference"]["project_level"].items():
-                    if key == tag:
-                        attr["reference"]["project_level"][key]["active"] = True
+                for key, value in attr["reference_global"].items():
+                    if key == reference_tag:
+                        attr["reference_global"][key]["active"] = True
                     else:
-                        attr["reference"]["project_level"][key]["active"] = False
+                        attr["reference_global"][key]["active"] = False
                 utils_lowlevel._save_yaml(attr, os.path.join(dir_path, "attributes.yaml"))
-                print("setting active reference to \"" + tag + "\" for " + \
+                print("setting active global project reference to \"" + reference_tag + "\" for " + \
                         dir_name + " (active=True)")
             else:
-                print("could not set active reference for " + dir_name + \
+                print("could not set global project reference for " + dir_name + \
                         " (overwrite=False/activate=False)")
 
     def collect_results(self, 
@@ -917,6 +896,10 @@ class Pype(object):
         #     self._iterate(config=self.config, annotations=copy.deepcopy(settings._annotation_types),
         #               execute=False, visualize=False, feedback=True)
         # else:
+            
+        print("Format path to abspath")
+        if path.__class__.__name__ == "str":
+            path = os.path.abspath(path)
                    
         ## check name, load container and config
         self._check_pype_tag(tag)
@@ -969,6 +952,8 @@ class Pype(object):
                     print("- STILL UPDATING CONFIG (no content)")
                     cv2.destroyWindow("phenopype")
                     time.sleep(1)
+                    self.YFM._stop()
+                    self._start_file_monitor(delay=delay)
                     continue
             
                 self.config = copy.deepcopy(self.YFM.content)
