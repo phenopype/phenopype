@@ -25,6 +25,7 @@ setup(
     package_dir={"phenopype": "phenopype"},
     package_data={"phenopype": ["core/*.py", "templates/*.py", "templates/*.yaml"]},
     install_requires=[
+        "colour",
         "numpy==1.18.5",
         "opencv-contrib-python==3.4.9.33",
         "pandas==1.1.2",
