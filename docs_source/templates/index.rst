@@ -5,6 +5,6 @@ TEST
 
 .. toctree::
 	
-	basic
+	detection
 	gallery
 

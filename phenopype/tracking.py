@@ -6,12 +6,12 @@ import cv2
 import os
 import pprint
 
+from colour import Color
 from math import inf
 
 from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool, _load_image_data, _generate_bgr
 from phenopype.core.preprocessing import blur
 from phenopype.core.segmentation import threshold, detect_contour
-from phenopype.settings import colours
 
 #%% classes
 

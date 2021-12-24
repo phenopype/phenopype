@@ -972,6 +972,23 @@ def _generate_bgr(col_string):
         rgb_255.append(int(component * 255))
         
     return tuple((rgb_255[2], rgb_255[1], rgb_255[0]))
+
+
+def _check_pype_tag(tag):
+    
+    if tag.__class__.__name__ == "str":
+        ## pype name check
+        if "pype_config" in tag:
+            tag = tag.replace("pype_config", "")
+            print("Do not add \"pype_config\", only a short tag")
+        if ".yaml" in tag:
+            tag = tag.replace(".yaml", "")
+            print("Do not add extension, only a short tag")
+        if "_" in tag:
+            raise SyntaxError("Underscore not allowed in pype tag - aborting.")
+        for char in "[@!#$%^&*()<>?/|}{~:]\\":
+            if char in tag:
+                raise SyntaxError("No special characters allowed in pype tag - aborting.")
     
 
 def _convert_tup_list_arr(tup_list):
@@ -1402,7 +1419,7 @@ def _drop_dict_entries(dictionary, drop=[]):
     for key, value in dictionary.items():
         if not key in drop:
             new_dictionary[key] = value
-            
+        
     return new_dictionary
 
 def _yaml_recursive_delete_comments(d):
@@ -1420,7 +1437,6 @@ def _yaml_recursive_delete_comments(d):
          delattr(d, attr)
     except AttributeError:
         pass
-
 
 
 def _resize_image(image, factor=1, interpolation="cubic"):

@@ -5,7 +5,7 @@ Computer vision (CV) is an interdisciplinary field concerned with the automatic 
 
 A preprint version of the paper is available under https://ecoevorxiv.org/98cuw/
 
-.. image:: /_assets/images/computer_vision_luerig_et_al_2021.png
+.. image:: /_assets/images/luerig_et_al_2021_figure2.png
    :scale: 50 %
    :target: https://ecoevorxiv.org/98cuw/
    :align: center

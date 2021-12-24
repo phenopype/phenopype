@@ -112,8 +112,8 @@ def detect_contour(
 
 	# =============================================================================
 	# process
-    
-    if contours is not None:
+        
+    if len(contours) > 0:
         coord_list, support = [], []
         for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
             
@@ -149,11 +149,10 @@ def detect_contour(
                             "hierarchy_idx_parent": int(hierarchy[3]),
                             })
 
-        if settings.reference:
-            print("- found " + str(len(coord_list)) + " contours that match criteria")
+        print("- found " + str(len(coord_list)) + " contours that match criteria")
     else:
-        if settings.reference:
-            print("- no contours found")
+        print("- did not find contours that match criteria")
+        return
 
 
 	# =============================================================================
@@ -182,7 +181,7 @@ def detect_contour(
 def edit_contour(
     image,
     annotation,
-    overlay_blend=0.5,
+    overlay_blend=0.2,
     overlay_line_width=1,
     left_colour="green",
     right_colour="red",

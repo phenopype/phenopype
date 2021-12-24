@@ -434,6 +434,8 @@ class Project:
         flag_interactive = interactive
         flag_overwrite = overwrite
         
+        utils_lowlevel._check_pype_tag(tag)
+        
         ## interactive template modification
         if flag_interactive:
             if len(self.dir_paths)>0:
@@ -902,7 +904,7 @@ class Pype(object):
             path = os.path.abspath(path)
                    
         ## check name, load container and config
-        self._check_pype_tag(tag)
+        utils_lowlevel._check_pype_tag(tag)
         self._load_container(path=path, tag=tag)
         self._load_pype_config(path=path, tag=tag, config_path=config_path)
         
@@ -986,18 +988,6 @@ class Pype(object):
                 export_list = self.config_parsed_flattened["export"]
             self.container.save(export_list = export_list)
         
-    def _check_pype_tag(self, tag):
-        
-        if tag.__class__.__name__ == "str":
-            ## pype name check
-            if "pype_config" in tag:
-                tag = tag.replace("pype_config", "")
-            elif ".yaml" in tag:
-                tag = tag.replace(".yaml", "")
-            for char in "[@_!#$%^&*()<>?/|}{~:]\\":
-                if char in tag:
-                    raise SyntaxError("No special characters allowed in pype tag - aborting.")
-                        
     def _load_container(self, path, tag):
         if path.__class__.__name__ == "str":
             if os.path.isfile(path):
