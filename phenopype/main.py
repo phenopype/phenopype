@@ -745,7 +745,7 @@ class Project:
 
     def edit_config(
         self,
-        name,
+        tag,
         target,
         replacement, 
         **kwargs
@@ -758,8 +758,8 @@ class Project:
         Parameters
         ----------
 
-        name: str
-            name (suffix) of config-file (e.g. "v1" in "pype_config_v1.yaml")
+        tag: str
+            tag (suffix) of config-file (e.g. "v1" in "pype_config_v1.yaml")
         target: str
             string pattern to be replaced. should be in triple-quotes to be exact
         replacement: str
@@ -778,7 +778,7 @@ class Project:
                 self.root_dir, 
                 "data",
                 dir_name, 
-                "pype_config_" + name + ".yaml"
+                "pype_config_" + tag + ".yaml"
             )
             
             ## open config-file
@@ -786,7 +786,7 @@ class Project:
                 with open(config_path, "r") as config_text:
                     config_string = config_text.read()
             else:
-                print("Did not find config file to edit - check provided name/suffix.")
+                print("Did not find config file to edit - check provided tag/suffix.")
                 return
             ## string replacement
             new_config_string = config_string.replace(target, replacement)

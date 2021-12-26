@@ -72,6 +72,8 @@ def blur(
 
 def create_mask(
     image,
+    annotation_id="a",
+    annotation=None,
     label="mask-1",
     include=True,
     tool="rectangle",
@@ -111,7 +113,7 @@ def create_mask(
     ## retrieve update IV settings and data from previous annotations  
     IV_settings = {}     
     if annotation_previous:       
-        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
+        IV_settings["ImageViewer_previous"] = utils_lowlevel._load_previous_annotation(
             annotation_previous = annotation_previous, 
             components = [
                 ("data","coord_list"),
