@@ -86,12 +86,12 @@ class _GUI:
             cls_name="settings", 
             fields=[
                 ("label", bool, kwargs.get("label", False)),
-                ("label_colour", tuple,  _get_bgr(kwargs.get("label_colour", settings._default_label_colour))),
+                ("label_colour", tuple,  kwargs.get("label_colour", settings._default_label_colour)),
                 ("label_size", int, kwargs.get("label_size", _auto_text_size(image))),
                 ("label_width", int, kwargs.get("label_width", _auto_text_width(image))),
-                ("line_colour", tuple,  _get_bgr(kwargs.get("line_colour", settings._default_line_colour))),
+                ("line_colour", tuple,  kwargs.get("line_colour", settings._default_line_colour)),
                 ("line_width", int, kwargs.get("line_width", _auto_line_width(image))),
-                ("point_colour", tuple,  _get_bgr(kwargs.get("point_colour", settings._default_point_colour))),
+                ("point_colour", tuple,  kwargs.get("point_colour", settings._default_point_colour)),
                 ("point_size", int, kwargs.get("point_size", _auto_point_size(image))),
                 ("overlay_colour_left", tuple, kwargs.get("overlay_colour_left", settings._default_overlay_left)),
                 ("overlay_colour_right", tuple, kwargs.get("overlay_colour_right", settings._default_overlay_right)),
@@ -112,6 +112,34 @@ class _GUI:
             fields=[
                 ]) 
         
+        
+        ## collect interactions and set flags
+        self.line_width_orig = copy.deepcopy(self.settings.line_width)
+        
+        self.data = {
+            "contours":[],
+            "points": [],
+            "polygons":[],
+            "sequences":[],
+            "field": kwargs.get("field", ""),
+            "entry": "",
+            }
+        
+        data = kwargs.get("data", {})
+        self.data.update(data)
+        
+
+
+        self.flags = make_dataclass(
+            cls_name="flags", 
+            fields=[
+                ("end", bool, False),
+                ("end_pype", bool, False),
+                ("drawing",bool, False),
+                ("rect_start", tuple, None)
+                ])   
+        
+
 
         # =============================================================================
         # initialize variables
@@ -125,10 +153,7 @@ class _GUI:
         self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
         
         ## binary image (for blending)
-        if "contours" in kwargs and self.tool == "draw":
-            
-            ## get contours to create colour mask
-            contours = kwargs.get("contours")
+        if len(self.data["contours"]) > 0 and self.tool == "draw":
 
             ## coerce to multi channel image for colour mask
             if len(self.image.shape) == 2:
@@ -138,8 +163,8 @@ class _GUI:
             self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
             
             ## draw contours onto overlay
-            for contour in contours:
-                cv2.drawcontours(
+            for contour in self.data["contours"]:
+                cv2.drawContours(
                     image=self.image_bin,
                     contours=[contour],
                     contourIdx=0,
@@ -186,56 +211,26 @@ class _GUI:
                 mag * self.zoom_step_y,
             )
 
-        # =============================================================================
-        # configure tools
-        # =============================================================================
-                        
-        self.data = {
-            "points": [],
-            "polygons":[],
-            "sequences":[],
-            "field": kwargs.get("field", ""),
-            "entry": "",
-            }
         
         
-        ## collect interactions and set flags
-        self.line_width_orig = copy.deepcopy(self.settings.line_width)
-        
-        # =============================================================================
-        # update self with parameters from previous instance
-        # =============================================================================       
-        
-        data = kwargs.get("data", {})
-        self.data.update(data)
 
         
-        ## update from previous call
-        if kwargs.get("ImageViewer_previous"):
-            prev_attr = kwargs.get("ImageViewer_previous").__dict__
-            prev_attr = {
-                i: prev_attr[i] for i in prev_attr 
+        # ## update from previous call
+        # if kwargs.get("ImageViewer_previous"):
+        #     prev_attr = kwargs.get("ImageViewer_previous").__dict__
+        #     prev_attr = {
+        #         i: prev_attr[i] for i in prev_attr 
                 
-                ## don't update arrays or provided kwargs
-                if i not in ["canvas_copy", "canvas", "image_copy", "image", "image_bin"] + list(kwargs.keys())
-            }
+        #         ## don't update arrays or provided kwargs
+        #         if i not in ["canvas_copy", "canvas", "image_copy", "image", "image_bin"] + list(kwargs.keys())
+        #     }
             
-            self.__dict__.update(copy.deepcopy(prev_attr))
+        #     self.__dict__.update(copy.deepcopy(prev_attr))
             
         # =============================================================================
         # generate canvas
         # =============================================================================
-        
-        
-        self.flags = make_dataclass(
-            cls_name="flags", 
-            fields=[
-                ("end", bool, False),
-                ("end_pype", bool, False),
-                ("drawing",bool, False),
-                ("rect_start", tuple, None)
-                ])   
-        
+
         ## initialize canvas
         self._canvas_renew()
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
@@ -248,8 +243,10 @@ class _GUI:
             self._canvas_add_lines()
         self._canvas_mount()                                   
 
+
         ## local control vars
         _config.window_close = False
+        
         
         # =============================================================================
         # window control
@@ -328,9 +325,9 @@ class _GUI:
             "Enter " + self.data["field"] + ": " + self.data["entry"],
             (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
             cv2.FONT_HERSHEY_SIMPLEX,
-            self.flags.label_size,
-            _get_bgr(self.flags.label_colour),
-            self.text_width,
+            self.settings.label_size,
+            _get_bgr(self.settings.label_colour),
+            self.settings.label_width,
             cv2.LINE_AA,
         )
         cv2.imshow(self.settings.window_name, self.canvas)
@@ -423,7 +420,7 @@ class _GUI:
                     self.canvas,
                     self.coords_prev,
                     (x, y),
-                    self.settings.line_colour,
+                    _get_bgr(self.settings.line_colour),
                     self.settings.line_width,
                 )
                 
@@ -456,7 +453,7 @@ class _GUI:
             ## if in reference mode, append to ref coords
             if reference and len(self.data["points"]) == 2:
                 print("Reference set")
-                self.reference_coords = self.data["points"]
+                self.data["reference_coords"] = self.data["points"]
                                                 
         if event == cv2.EVENT_RBUTTONDOWN:
             
@@ -562,7 +559,7 @@ class _GUI:
                     self.canvas,
                     self.rect_minpos,
                     self.rect_maxpos,
-                    self.settings.line_colour,
+                    _get_bgr(self.settings.line_colour),
                     self.settings.line_width,
                 )
                 cv2.imshow(self.settings.window_name, self.canvas)
@@ -574,10 +571,10 @@ class _GUI:
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
                 self.colour_current_bin = 255
-                self.colour_current = _get_bgr(self.flags.overlay_colour_left)
+                self.colour_current = _get_bgr(self.settings.overlay_colour_left)
             elif event == cv2.EVENT_RBUTTONDOWN:
                 self.colour_current_bin = 0
-                self.colour_current = _get_bgr(self.flags.overlay_colour_right)
+                self.colour_current = _get_bgr(self.settings.overlay_colour_right)
             
             ## start drawing and use current coords as start point
             self.canvas = copy.deepcopy(self.canvas_copy)
@@ -642,19 +639,19 @@ class _GUI:
     
     def _canvas_add_lines(self):
         
-        _ , self.contours, self.hierarchies = cv2.findcontours(
+        _ , self.contours, self.hierarchies = cv2.findContours(
             image=self.image_bin_copy,
             mode=cv2.RETR_CCOMP,
             method=cv2.CHAIN_APPROX_SIMPLE,
         )
         
         for contour in self.contours:
-            cv2.drawcontours(
+            cv2.drawContours(
                 image=self.image_copy,
                 contours=[contour],
                 contourIdx=0,
                 thickness=self.settings.overlay_line_width,
-                color=_get_bgr(self.flags.overlay_colour_left),
+                color=_get_bgr(self.settings.overlay_colour_left),
                 maxLevel=3,
                 offset=None,
             )   
@@ -665,8 +662,8 @@ class _GUI:
         ## create coloured overlay from binary image
         self.colour_mask = copy.deepcopy(self.image_bin_copy)
         self.colour_mask = cv2.cvtColor(self.colour_mask, cv2.COLOR_GRAY2BGR)
-        self.colour_mask[self.image_bin_copy == 0] = _get_bgr(self.flags.overlay_colour_right)
-        self.colour_mask[self.image_bin_copy == 255] = _get_bgr(self.flags.overlay_colour_left)
+        self.colour_mask[self.image_bin_copy == 0] = _get_bgr(self.settings.overlay_colour_right)
+        self.colour_mask[self.image_bin_copy == 255] = _get_bgr(self.settings.overlay_colour_left)
 
         ## blend two canvas layers
         self.image_copy = cv2.addWeighted(self.image_copy,
@@ -687,7 +684,7 @@ class _GUI:
                     self.image_copy,
                     np.array([coords]),
                     False,
-                    self.settings.line_colour,
+                    _get_bgr(self.settings.line_colour),
                     self.settings.line_width,
                 )
             elif tool == "line_bin":
@@ -702,8 +699,8 @@ class _GUI:
                 cv2.circle(
                     self.image_copy,
                     coords,
-                    self.flags.point_size,
-                    _get_bgr(self.flags.point_colour),
+                    self.settings.point_size,
+                    _get_bgr(self.settings.point_colour),
                     -1,
                 )
                 if self.settings.label:
@@ -712,9 +709,9 @@ class _GUI:
                         str(idx+1),
                         coords,
                         cv2.FONT_HERSHEY_SIMPLEX,
-                        self.flags.label_size,
-                        _get_bgr(self.flags.label_colour),
-                        self.text_width,
+                        self.settings.label_size,
+                        _get_bgr(self.settings.label_colour),
+                        self.settings.label_width,
                         cv2.LINE_AA,
                     )
         

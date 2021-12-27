@@ -84,8 +84,8 @@ strftime_format = "%Y-%m-%d %H:%M:%S"
 _default_label_colour = "black"
 _default_line_colour = "aqua"
 _default_point_colour = "aqua"
-_default_overlay_left = "red"
-_default_overlay_right = "green"
+_default_overlay_left = "green"
+_default_overlay_right = "red"
 
 
 #%% flags

@@ -3,12 +3,9 @@
 import cv2
 import numpy as np
 from dataclasses import make_dataclass
-from collections import defaultdict
 
 from math import sqrt as _sqrt
 import numpy.ma as ma
-import string
-
 
 from phenopype import __version__
 from phenopype import settings
@@ -47,7 +44,7 @@ def blur(
     image : ndarray 
         blurred image
     """
-    
+        
 	# =============================================================================
 	# setup 
     
@@ -111,13 +108,9 @@ def create_mask(
     annotation_type = "mask"
         
     # =============================================================================
-    # retrieve annotation from kwargs
+    # retrieve attributes
     
-    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)
-    
-    # =============================================================================
-    # retrieve GUI attributes from annotation
-    
+    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)   
     gui_data = utils_lowlevel._get_GUI_data(annotation)
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
     
@@ -154,6 +147,7 @@ def create_mask(
         "data": {
             "label":label,
             "include":include,
+            "n_polygons": len(gui.data["polygons"]),
             "polygons": gui.data["polygons"],
             }
     }
@@ -174,22 +168,21 @@ def create_mask(
 
     
 def detect_shape(
-    image,
-    annotation=None,
-    annotation_id=None,
-    include=True,
-    shape="circle",
-    resize=1,
-    circle_args={
-        "dp":1,
-        "min_dist":50,
-        "param1":200,
-        "param2":100,
-        "min_radius":0,
-        "max_radius":0
-        },
-    **kwargs
-):
+        image,
+        label="mask-1",
+        include=True,
+        shape="circle",
+        resize=1,
+        circle_args={
+            "dp":1,
+            "min_dist":50,
+            "param1":200,
+            "param2":100,
+            "min_radius":0,
+            "max_radius":0
+            },
+        **kwargs
+        ):
     """
     
     Detects geometric shapes in a single channel image (currently only circles 
@@ -277,7 +270,7 @@ def detect_shape(
     
         ## output conversion
         if circles is not None:
-            coords = []
+            polygons = []
             for idx, circle in enumerate(circles[0]):
                 x,y,radius = circle/resize
                 mask = np.zeros(image.shape[:2], dtype=np.uint8)
@@ -288,10 +281,11 @@ def detect_shape(
                     approximation="KCOS", 
                     verbose=False,
                     )
-                coords.append(
+                print(mask_contours)
+                polygons.append(
                     np.append(
-                        mask_contours["data"]["coord_list"][0],
-                        [mask_contours["data"]["coord_list"][0][0]],
+                        mask_contours["contour"]["a"]["data"]["coord_list"][0],
+                        [mask_contours["contour"]["a"]["data"]["coord_list"][0][0]],
                         axis=0
                         )
                     )
@@ -308,8 +302,9 @@ def detect_shape(
     
     annotation = {
         "info": {
-            "annotation_type": "mask",
-            "pp_function": "mask_detect",
+            "annotation_type": annotation_type,
+            "phenopype_function": "detect_shape",
+            "phenopype_version": __version__,
             },
         "settings": {
             "shape": shape,
@@ -318,32 +313,29 @@ def detect_shape(
             },
         "data": {
             "include": include,
-            "n_masks": len(coords),
-            "coord_list": coords,
+            "label": label,
+            "n_polygons": len(polygons),
+            "polygons": polygons,
             }
         }
     
 	# =============================================================================
 	# return
     
-    if annotation_id.__class__.__name__ == "NoneType":
-        if "annotation_counter" in kwargs:
-            annotation_counter = kwargs.get("annotation_counter")
-            annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
-        else:
-            annotation_id = "a"
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
     
-    return {annotation_type: {annotation_id: annotation} }
-        
+    return annotations
     
 
 def create_reference(
-    image,
-    annotation=None,
-    annotation_id=None,
-    unit="mm",
-    **kwargs
-):
+        image,
+        unit="mm",
+        **kwargs
+    ):
     """
     Measure a size or colour reference card. Minimum input interaction is 
     measuring a size reference: click on two points inside the provided image, 
@@ -377,39 +369,30 @@ def create_reference(
     annotation_type = "reference"
         
     # =============================================================================
-    # retrieve annotation
+    # retrieve attributes
     
-    annotation = utils_lowlevel._get_annotation(
-        annotation=annotation, 
-        annotation_type=annotation_type,
-        annotation_id=annotation_id,
-        kwargs=kwargs)
-
-    # =============================================================================
-    # retrieved GUI attributes
-    
+    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
-    
-    
+        
     # =============================================================================
     # exectue
 
     ## measure length
-    out = utils_lowlevel._GUI(
+    gui = utils_lowlevel._GUI(
         image, 
         tool="reference",
         **gui_settings,
         )
     
     ## enter length
-    points = out.reference_coords
+    points = gui.data["reference_coords"]
     distance_px = _sqrt(
             ((points[0][0] - points[1][0]) ** 2)
             + ((points[0][1] - points[1][1]) ** 2)
         )
     
     ## enter distance
-    out = utils_lowlevel._GUI(
+    gui = utils_lowlevel._GUI(
         image, 
         tool="comment", 
         field="distance in {}".format(unit),
@@ -417,7 +400,7 @@ def create_reference(
         )
     
     ## output conversion
-    entry = out.entry
+    entry = gui.data["entry"]
     distance_measured = float(entry)
     px_ratio = round(float(distance_px / distance_measured))
 
@@ -427,39 +410,42 @@ def create_reference(
 
     annotation = {
         "info": {
-            "annotation_type": "reference",
-            "pp_function": "create_reference",
+            "annotation_type": annotation_type,
+            "phenopype_function": "create_reference",
+            "phenopype_version": __version__,
         },
-        "settings": {
-            "GUI": gui_settings,
-            },
+        "settings": {},
         "data": {
             "px_ratio":px_ratio,
             "unit": unit,
         }
     }
     
-    if annotation_id.__class__.__name__ == "NoneType":
-        if "annotation_counter" in kwargs:
-            annotation_counter = kwargs.get("annotation_counter")
-            annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
-        else:
-            annotation_id = "a"
+    if len(gui_settings) > 0:
+        annotation["settings"]["GUI"] = gui_settings
     
-    return {annotation_type: {annotation_id: annotation} }
-
+	# =============================================================================
+	# return
+        
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+            
+    return annotations
 
 def detect_reference(
-    image,
-    template,
-    px_ratio,
-    unit,
-    mask=True,
-    equalize=False,
-    min_matches=10,
-    resize=1,
-    **kwargs,
-):
+        image,
+        template,
+        px_ratio,
+        unit,
+        mask=True,
+        equalize=False,
+        min_matches=10,
+        resize=1,
+        **kwargs,
+    ):
     """
     Find reference from a template created with "create_reference". Image registration 
     is run by the "AKAZE" algorithm. Future implementations will include more 
@@ -496,6 +482,11 @@ def detect_reference(
         phenopype annotation containing mask coordinates
     """
 
+    # =============================================================================
+    # settings
+    
+    annotation_type = "reference"
+    
     ## kwargs
     flags = make_dataclass(cls_name="flags", 
                            fields=[("mask", bool, mask),
@@ -504,8 +495,7 @@ def detect_reference(
     px_ratio_template = px_ratio
         
     # =============================================================================
-    # retain settings
-
+    # prep
 
     ## if image diameter bigger than 5000 px, then automatically resize
     if (image.shape[0] + image.shape[1]) / 2 > 5000 and resize == 1:
@@ -520,7 +510,7 @@ def detect_reference(
     image = cv2.resize(image, (0, 0), fx=1 * resize_factor, fy=1 * resize_factor)
 
     # =============================================================================
-    # exectue function
+    # execute function
         
     akaze = cv2.AKAZE_create()
     kp1, des1 = akaze.detectAndCompute(template, None)
@@ -599,32 +589,47 @@ def detect_reference(
         )
         image = utils_lowlevel._equalize_histogram(image, detected_rect_mask, template)
         print("histograms equalized")
+        
 
-    annotation_ref = {
+    annotation = {
         "info": {
-            "annotation_type": "reference",
-            "pp_function": "detect_reference",
+            "annotation_type": annotation_type,
+            "phenopype_function": "detect_reference",
+            "phenopype_version": __version__,
         },
+        "settings": {
+            "mask": mask,
+            "equalize": equalize,
+            "min_matches": min_matches,
+            "resize": resize,
+            },
         "data": {
             "px_ratio": px_ratio_detected,
             "unit": unit,
         }
-    }
-    
+    }  
 
-    ## mask reference
     if flags.mask:
-        annotation_ref["data"]["coord_list"] = coord_list
+        annotation["data"]["polygons"] = coord_list
+        
 
-    return annotation_ref
+	# =============================================================================
+	# return
+    
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+    
+    return annotations
 
 
-
-def comment(
-    image,
-    field="ID",
-    **kwargs
-):
+def write_comment(
+        image,
+        field="ID",
+        **kwargs
+    ):
     """
     Add a comment. 
 
@@ -642,39 +647,28 @@ def comment(
 
     """
 
-	# =============================================================================
-	# setup 
+    # =============================================================================
+    # settings
     
-    annotation_previous = kwargs.get("annotation_previous")
+    annotation_type = "comment"
         
     # =============================================================================
-    # retain settings
-
-    ## retrieve settings from args
-    local_settings  = utils_lowlevel._drop_dict_entries(locals(),
-        drop=["image","kwargs","annotation_previous"])
+    # retrieve attributes
     
-    ## retrieve update IV settings and data from previous annotations  
-    IV_settings = {}     
-    if annotation_previous:    
-        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
-            annotation_previous = annotation_previous, 
-            components = [
-                ("data","field"),
-                ("data","entry")
-                ])            
-        
-    ## update local and IV settings from kwargs
-    if kwargs:
-        utils_lowlevel._update_settings(kwargs, local_settings, IV_settings)
-        
+    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)    
+    gui_data = utils_lowlevel._get_GUI_data(annotation)
+    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+                
 	# =============================================================================
 	# execute
     
-    gui = utils_lowlevel._GUI(image, 
-                       tool="comment", 
-                       field=field, 
-                        **IV_settings)
+    gui = utils_lowlevel._GUI(
+        image, 
+        tool="comment", 
+        field=field, 
+        data=gui_data,
+         **gui_settings
+         )
     
 
 	# =============================================================================
@@ -682,27 +676,39 @@ def comment(
 
     annotation = {
         "info": {
-            "annotation_type": "comment",
-            "pp_function": "comment",
+            "annotation_type": annotation_type,
+            "phenopype_function": "write_comment",
+            "phenopype_version": __version__,
         },
-        "settings": local_settings,
+        "settings": {},
         "data": {
             "field": gui.data["field"],
             "entry": gui.data["entry"],
         }
     }
     
+    if len(gui_settings) > 0:
+        annotation["settings"]["GUI"] = gui_settings
     
 	# =============================================================================
 	# return
+    
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+    
+    return annotations
 
-    return annotation
 
 
 
-def decompose_image(image, 
-                    channel="gray", 
-                    invert=False):
+def decompose_image(
+        image, 
+        channel="gray", 
+        invert=False,
+    ):
     
     """
     Extract single channel from multi-channel array.

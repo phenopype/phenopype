@@ -191,8 +191,8 @@ class Container(object):
             annotation = preprocessing.create_reference(self.image, **kwargs)
         if fun == "detect_shape":
             annotation = preprocessing.detect_shape(self.image, **kwargs)
-        if fun == "comment":
-            annotation = preprocessing.comment(self.image, **kwargs)
+        if fun == "write_comment":
+            annotation = preprocessing.write_comment(self.image, **kwargs)
         if fun == "detect_reference":
                 if all(hasattr(self, attr) for attr in [
                         "reference_template_px_ratio", 
@@ -228,6 +228,9 @@ class Container(object):
             if self.canvas.__class__.__name__ == "NoneType":
                 visualization.select_canvas(self)
             image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
+            
+            DRAW CONTOURS
+            
             self.image = image
             
         ## measurement

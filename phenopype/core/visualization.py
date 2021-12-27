@@ -341,6 +341,7 @@ def draw_mask(
           
     polygons = annotation["data"]["polygons"]
     label = annotation["data"]["label"]
+    
 
 	# =============================================================================
 	# execute
@@ -355,11 +356,20 @@ def draw_mask(
             line_colour, 
             line_width,
             )
+                
         if flags.label:
+            
+            if coords[0].__class__.__name__ == "list":
+                label_coords = tuple(coords[0])
+            elif coords[0].__class__.__name__ == "ndarray":
+                label_coords = tuple(coords[0][0])
+            elif coords[0].__class__.__name__ == "tuple":
+                label_coords = coords[0]            
+            
             cv2.putText(
                 canvas,
                 label,
-                coords[0],
+                label_coords,
                 cv2.FONT_HERSHEY_SIMPLEX,
                 label_size,
                 label_colour,

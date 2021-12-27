@@ -1,37 +1,31 @@
 #%% modules
-import cv2, copy, os, sys, warnings
+
+import cv2
 import numpy as np
-import pandas as pd
-import string
-from dataclasses import make_dataclass
 
 from math import inf
 
+from phenopype import __version__
 from phenopype import settings 
 from phenopype import utils_lowlevel
-
-import phenopype.core.preprocessing as preprocessing
+from phenopype.core import preprocessing
 
 
 #%% functions
 
-
-
-# pp.show_image(image)
-
 def detect_contour(
-    image,
-    approximation="simple",
-    retrieval="ext",
-    offset_coords=[0,0],       
-    min_nodes=3,
-    max_nodes=inf,
-    min_area=0,
-    max_area=inf,
-    min_diameter=0,
-    max_diameter=inf,
-    **kwargs,
-    ):
+        image,
+        approximation="simple",
+        retrieval="ext",
+        offset_coords=[0,0],       
+        min_nodes=3,
+        max_nodes=inf,
+        min_area=0,
+        max_area=inf,
+        min_diameter=0,
+        max_diameter=inf,
+        **kwargs,
+        ):
         
     """
     Find objects in binarized image. The input image needs to be a binarized image
@@ -83,22 +77,12 @@ def detect_contour(
 	# =============================================================================
 	# setup
     
+    annotation_type = "contour"
+    
     if len(image.shape) > 2:
         print("Multi-channel array supplied - need binary array.")
         return 
-    
-    # =============================================================================
-    # retain settings
-
-    ## retrieve settings from args
-    local_settings  = utils_lowlevel._drop_dict_entries(
-        locals(), drop=["image","kwargs", "image_resized"])
-        
-    ## update settings from kwargs
-    if kwargs:
-        utils_lowlevel._update_settings(kwargs, local_settings)
-        
-        
+              
 	# =============================================================================
 	# execute
     
@@ -158,15 +142,25 @@ def detect_contour(
 	# =============================================================================
 	# assemble results
 
-    ret = {
+    annotation = {
     "info":{
         "annotation_type": "contour", 
         "pp_function": "detect_contour",
         },
-    "settings": local_settings,
+    "settings": {
+        "approximation":approximation,
+        "retrieval":retrieval,
+        "offset_coords":offset_coords,       
+        "min_nodes":min_nodes,
+        "max_nodes":max_nodes,
+        "min_area":min_area,
+        "max_area":max_area,
+        "min_diameter":min_diameter,
+        "max_diameter":max_diameter,
+        },
     "data":{
         "n_contours": len(coord_list),
-        "coord_list": coord_list,
+        "contours": coord_list,
         "support": support,
         }
     }
@@ -175,12 +169,18 @@ def detect_contour(
 	# =============================================================================
 	# return
     
-    return ret
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+    
+    return annotations
 
 
 def edit_contour(
     image,
-    annotation,
+    annotations,
     overlay_blend=0.2,
     overlay_line_width=1,
     left_colour="green",
@@ -214,86 +214,82 @@ def edit_contour(
 	# =============================================================================
 	# setup 
 
-    contour_id = kwargs.get("contour_id")
-    annotation_previous = kwargs.get("annotation_previous")
-    
-    # =============================================================================
-    # retain settings
-
-    ## retrieve settings from args
-    local_settings  = utils_lowlevel._drop_dict_entries(locals(),
-        drop=["image","annotation","kwargs","annotation_previous"])
-
-    ## retrieve update IV settings and data from previous annotations  
-    IV_settings = {}     
-    if annotation_previous:       
-        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
-            annotation_previous = annotation_previous, 
-            components = [
-                ("data","point_list"),
-                ])            
+    annotation_type = "drawing"
         
-    ## update local and IV settings from kwargs
-    if kwargs:
-        utils_lowlevel._update_settings(kwargs, local_settings, IV_settings)
+    # =============================================================================
+    # retrieve attributes
+    
+    annotation = utils_lowlevel._get_annotation(kwargs, "contour", annotations=annotations)   
+    gui_data = utils_lowlevel._get_GUI_data(annotation)
+    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
         
   	# =============================================================================
   	# setup       
-              
-    ## extract annotation data     
-    contours = utils_lowlevel._provide_annotation_data(annotation, "contour", "coord_list", kwargs)
-
-    if not contours:
-        return image, {}
            
 	# =============================================================================
 	# execute
     
-    out = utils_lowlevel._ImageViewer(image=image, 
-                       contours=contours,
-                       tool="draw", 
-                       overlay_blend=overlay_blend,
-                       overlay_line_width=overlay_line_width,
-                       left_colour=left_colour,
-                       right_colour=right_colour,
-                       **IV_settings)
+    gui = utils_lowlevel._GUI(
+        image=image, 
+        tool="draw", 
+        overlay_blend=overlay_blend,
+        overlay_line_width=overlay_line_width,
+        left_colour=left_colour,
+        right_colour=right_colour,
+        data=gui_data,
+        **gui_settings
+        )
         
     ## check if tasks completed successfully
-    if not out.done:
+    if not gui.flags.done:
         print("- didn't finish: redo contour editing!")
         # return 
-    if not out.point_list:
+    if not gui.data["sequences"]:
         print("- zero coordinates: did you draw anything?")
         # return 
                 
-	# =============================================================================
-	# process
-    
-    image_bin = out.image_bin_copy
-        
 	# =============================================================================
 	# assemble results
 
     annotation = {
         "info": {
-            "annotation_type": "drawing", 
-            "function": "contour_modify",
+            "annotation_type": annotation_type,
+            "phenopype_function": "edit_contour",
+            "phenopype_version": __version__,
             },
-        "settings": local_settings,
+        "settings": {
+            "overlay_blend": overlay_blend,
+            "overlay_line_width": overlay_line_width,
+            "left_colour": left_colour,
+            "right_colour": right_colour,
+            },
         "data":{
-            "point_list": out.point_list,
+            "drawing": gui.data["sequence"],
             }
         }
+    
     
 	# =============================================================================
 	# return
         
-    return image_bin, annotation
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+            
+    return annotations
 
 
 
-def morphology(image, kernel_size=5, shape="rect", operation="close", iterations=1,
-    **kwargs):
+def morphology(
+        image, 
+        kernel_size=5, 
+        shape="rect", 
+        operation="close", 
+        iterations=1,
+        **kwargs
+        ):
     """
     Performs advanced morphological transformations using erosion and dilation 
     as basic operations. Provides different kernel shapes and a suite of operation
@@ -361,8 +357,6 @@ def threshold(
     blocksize=99,
     value=127,
     channel=None,
-    mask=None,
-    reference=None,
     **kwargs,
 ):
     """
@@ -447,30 +441,35 @@ def threshold(
 	# =============================================================================
 	# process
 
-    if not mask.__class__.__name__ == "NoneType":
-        if not list(mask.keys())[0] == "a":
-            mask = {"a": mask}
+    mask = utils_lowlevel._get_annotation(kwargs, "mask")   
+    print(kwargs)
+
+    if len(mask) > 0:
         mask_bool, include_idx, exclude_idx = np.zeros(thresh.shape, dtype=bool), 0,0
-        for key, value in mask.items():
-            coord_list, include = value["data"]["coord_list"], value["data"]["include"]
-            if include == True:
-                for coords in coord_list:
-                    mask_bool = np.logical_or(mask_bool, utils_lowlevel._create_mask_bool(thresh, coords))
-                    include_idx += 1
-                thresh[mask_bool == False] = 0
-            elif include == False:
-                for coords in coord_list:
-                    thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
-                    exclude_idx += 1
+        
+        polygons = mask["data"]["polygons"]
+        include = mask["data"]["include"]
+
+        if include == True:
+            for coords in polygons:
+                mask_bool = np.logical_or(mask_bool, utils_lowlevel._create_mask_bool(thresh, coords))
+                include_idx += 1
+            thresh[mask_bool == False] = 0
+        elif include == False:
+            for coords in polygons:
+                thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
+                exclude_idx += 1
+                
         if exclude_idx>0:
             print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
         if include_idx>0:
             print("- including pixels from " + str(include_idx) + " drawn masks ")
-    if not reference.__class__.__name__ == "NoneType":
-        if not list(mask.keys())[0] == "a":
-            mask = {"a": mask}
-        coord_list = value["data"]["coord_list"]
-        for coords in coord_list:
+            
+    reference = utils_lowlevel._get_annotation(kwargs, "reference")   
+            
+    if len(reference) > 0:
+        polygons = value["data"]["polygons"]
+        for coords in polygons:
             thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
         print("- excluding pixels from reference")
 
