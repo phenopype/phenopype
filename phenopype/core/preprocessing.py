@@ -77,23 +77,27 @@ def blur(
 def create_mask(
         image,
         tool="rectangle",
-        label="mask-1",
         include=True,
+        label="mask-1",
         **kwargs,
     ):
            
-    """
+    """    
     Mask an area.
+    
+    ANNOTATION FUNCTION    
 
     Parameters
     ----------
     image: array 
         input image
-    include : bool, optional
-        include or exclude area inside mask
     tool : {"rectangle","polygon"} str, optional
         Type of mask tool to be used. The default is "rectangle".
-
+    include : bool, optional
+        include or exclude area inside mask
+    label : str, optional
+        text label for this mask and all its components
+        
     Returns
     -------
     annotations: dict
@@ -107,12 +111,12 @@ def create_mask(
     annotation_type = "mask"
         
     # =============================================================================
-    # retrieve annotation
+    # retrieve annotation from kwargs
     
     annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)
     
     # =============================================================================
-    # retrieved GUI attributes
+    # retrieve GUI attributes from annotation
     
     gui_data = utils_lowlevel._get_GUI_data(annotation)
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
@@ -260,14 +264,16 @@ def detect_shape(
     # execute 
     
     if shape=="circle":
-        circles = cv2.HoughCircles(image_resized, 
-                                   cv2.HOUGH_GRADIENT, 
-                                   dp=max(int(circle_args_exec["dp"]*resize),1), 
-                                   minDist=int(circle_args_exec["min_dist"]*resize),
-                                   param1=int(circle_args_exec["param1"]*resize), 
-                                   param2=int(circle_args_exec["param2"]*resize),
-                                   minRadius=int(circle_args_exec["min_radius"]*resize), 
-                                   maxRadius=int(circle_args_exec["max_radius"]*resize))
+        circles = cv2.HoughCircles(
+            image_resized, 
+            cv2.HOUGH_GRADIENT, 
+            dp=max(int(circle_args_exec["dp"]*resize),1), 
+            minDist=int(circle_args_exec["min_dist"]*resize),
+            param1=int(circle_args_exec["param1"]*resize), 
+            param2=int(circle_args_exec["param2"]*resize),
+            minRadius=int(circle_args_exec["min_radius"]*resize), 
+            maxRadius=int(circle_args_exec["max_radius"]*resize)
+            )
     
         ## output conversion
         if circles is not None:
@@ -665,7 +671,7 @@ def comment(
 	# =============================================================================
 	# execute
     
-    out = utils_lowlevel._ImageViewer(image, 
+    gui = utils_lowlevel._GUI(image, 
                        tool="comment", 
                        field=field, 
                         **IV_settings)
@@ -681,8 +687,8 @@ def comment(
         },
         "settings": local_settings,
         "data": {
-            "field": out.field,
-            "entry": out.entry
+            "field": gui.data["field"],
+            "entry": gui.data["entry"],
         }
     }
     

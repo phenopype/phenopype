@@ -100,7 +100,7 @@ def set_landmark(
 	# =============================================================================
 	# execute
 
-    out = utils_lowlevel._ImageViewer(
+    out = utils_lowlevel._GUI(
         image=image, 
         tool="point", 
         flag_text_label=label,

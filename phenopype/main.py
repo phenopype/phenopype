@@ -1174,7 +1174,7 @@ class Pype(object):
                 
                 ## check if canvas is selected, and otherwise execute with default values
                 vis_list = [list(dict(i).keys())[0] if not isinstance(i, str) else i for i in method_list]
-                if not "select_canvas" in vis_list:
+                if self.container.canvas.__class__.__name__ == "NoneType" and  not "select_canvas" in vis_list:
                     print("select_canvas (autoselect)")
                     self.container.run("select_canvas")
                                         

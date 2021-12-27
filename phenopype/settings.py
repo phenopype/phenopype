@@ -81,7 +81,12 @@ strftime_format = "%Y-%m-%d %H:%M:%S"
 
 #%% defaults
 
+_default_label_colour = "black"
 _default_line_colour = "aqua"
+_default_point_colour = "aqua"
+_default_overlay_left = "red"
+_default_overlay_right = "green"
+
 
 #%% flags
 
@@ -169,28 +174,6 @@ cv2.waitKey(1)
 cv2.destroyAllWindows()
 _GUI_settings_args = list(g.settings.__dict__)
 _GUI_data_args = list(g.data.keys())
-
-
-_image_viewer_arg_list = [
-    # "overlay_blend",
-    # "overlay_line_width"
-    "label_size",
-    "label_width",
-    "label_colour",
-    "left_colour",
-    "right_colour",
-    "line_colour",
-    "line_width",
-    "passive",
-    "point_size",
-    "point_colour",
-    "window_aspect", 
-    "window_control", 
-    "window_max_dim",
-    "zoom_magnification", 
-    "zoom_mode", 
-    "zoom_steps",
-    ]
 
 
 #%% annotation functions

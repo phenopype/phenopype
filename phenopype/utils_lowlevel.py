@@ -33,11 +33,6 @@ from phenopype import main
 from phenopype import settings
 from phenopype import utils
 
-
-#%% settings
-
-Image.MAX_IMAGE_PIXELS = 999999999
-
 #%% classes
 
 
@@ -82,17 +77,24 @@ class _GUI:
         
         self.__dict__.update(kwargs)
 
-        ## set class arguments
+        ## basic settings
         self.tool = tool
-                
-        ## needs cleaning
+        self.passive = passive
+        
+        ## GUI settings 
         self.settings = make_dataclass(
             cls_name="settings", 
             fields=[
                 ("label", bool, kwargs.get("label", False)),
-                ("line_width", int, kwargs.get("line_width", _auto_line_width(image))),
+                ("label_colour", tuple,  _get_bgr(kwargs.get("label_colour", settings._default_label_colour))),
+                ("label_size", int, kwargs.get("label_size", _auto_text_size(image))),
+                ("label_width", int, kwargs.get("label_width", _auto_text_width(image))),
                 ("line_colour", tuple,  _get_bgr(kwargs.get("line_colour", settings._default_line_colour))),
-                ("passive", bool, passive),
+                ("line_width", int, kwargs.get("line_width", _auto_line_width(image))),
+                ("point_colour", tuple,  _get_bgr(kwargs.get("point_colour", settings._default_point_colour))),
+                ("point_size", int, kwargs.get("point_size", _auto_point_size(image))),
+                ("overlay_colour_left", tuple, kwargs.get("overlay_colour_left", settings._default_overlay_left)),
+                ("overlay_colour_right", tuple, kwargs.get("overlay_colour_right", settings._default_overlay_right)),
                 ("overlay_blend", float, kwargs.get("overlay_blend", 0.5)),
                 ("overlay_line_width", int, kwargs.get("overlay_line_width", 1)),
                 ("zoom_mode", str, zoom_mode),
@@ -104,8 +106,7 @@ class _GUI:
                 ("window_max_dim", str, window_max_dim),
                 ("window_name", str, window_name),
                 ])   
-        
-            
+                    
         self.locals = make_dataclass(
             cls_name="locals", 
             fields=[
@@ -193,29 +194,13 @@ class _GUI:
             "points": [],
             "polygons":[],
             "sequences":[],
+            "field": kwargs.get("field", ""),
+            "entry": "",
             }
         
         
         ## collect interactions and set flags
-        self.rect_start = None
-        
-
         self.line_width_orig = copy.deepcopy(self.settings.line_width)
-        
-        ## point properties
-        self.point_size = kwargs.get("point_size", _auto_point_size(image))
-        self.point_colour = kwargs.get("point_colour", "red")
-        self.text_size = kwargs.get("label_size", _auto_text_size(image))
-        self.text_width = kwargs.get("label_size", _auto_text_width(image))
-        self.label_colour = kwargs.get("label_colour", "black")
-        
-        ## for contour edit tool
-        self.left_colour = kwargs.get("left_colour", "green")
-        self.right_colour = kwargs.get("right_colour", "red")
-        
-        ## initialize comment tool
-        self.field = kwargs.get("field", "")
-        self.entry = ""
         
         # =============================================================================
         # update self with parameters from previous instance
@@ -248,8 +233,8 @@ class _GUI:
                 ("end", bool, False),
                 ("end_pype", bool, False),
                 ("drawing",bool, False),
+                ("rect_start", tuple, None)
                 ])   
-        
         
         ## initialize canvas
         self._canvas_renew()
@@ -270,7 +255,7 @@ class _GUI:
         # window control
         # =============================================================================
         
-        if self.settings.passive == True:
+        if self.passive == True:
             
             self.flags.end = True
             self.flags.end_pype= True
@@ -285,7 +270,7 @@ class _GUI:
                     
             if self.settings.window_control == "internal":
                 while not any([self.flags.end, self.flags.end_pype]):
-                    if self.settings.passive == False:
+                    if self.passive == False:
                         
                         ## comment tool
                         if self.tool == "comment":
@@ -333,18 +318,18 @@ class _GUI:
     def _comment_tool(self):
                 
         if self.keypress > 0 and not self.keypress in [8, 13, 27]:
-            self.entry = self.entry + chr(self.keypress)
+            self.data["entry"] = self.data["entry"] + chr(self.keypress)
         elif self.keypress == 8:
-            self.entry = self.entry[0 : len(self.entry) - 1]
+            self.data["entry"] = self.data["entry"][0 : len(self.data["entry"]) - 1]
 
         self.canvas = copy.deepcopy(self.canvas_copy)
         cv2.putText(
             self.canvas,
-            "Enter " + self.field + ": " + self.entry,
+            "Enter " + self.data["field"] + ": " + self.data["entry"],
             (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
             cv2.FONT_HERSHEY_SIMPLEX,
-            self.text_size,
-            _get_bgr(self.label_colour),
+            self.flags.label_size,
+            _get_bgr(self.flags.label_colour),
             self.text_width,
             cv2.LINE_AA,
         )
@@ -518,7 +503,7 @@ class _GUI:
                 return
             
             ## start drawing temporary rectangle 
-            self.rect_start = x, y
+            self.flags.rect_start = x, y
             self.canvas_copy = copy.deepcopy(self.canvas)
             
         if event == cv2.EVENT_LBUTTONUP:
@@ -529,7 +514,7 @@ class _GUI:
                 return
             
             ## end drawing temporary rectangle
-            self.rect_start = None
+            self.flags.rect_start = None
 
             ## convert rectangle to polygon coords
             self.rect = [
@@ -568,11 +553,11 @@ class _GUI:
 
                 
         ## draw temporary rectangle
-        elif self.rect_start:
+        elif self.flags.rect_start:
             if flags & cv2.EVENT_FLAG_LBUTTON:        
                 self.canvas = copy.deepcopy(self.canvas_copy)
-                self.rect_minpos = min(self.rect_start[0], x), min(self.rect_start[1], y)
-                self.rect_maxpos = max(self.rect_start[0], x), max(self.rect_start[1], y)
+                self.rect_minpos = min(self.flags.rect_start[0], x), min(self.flags.rect_start[1], y)
+                self.rect_maxpos = max(self.flags.rect_start[0], x), max(self.flags.rect_start[1], y)
                 cv2.rectangle(
                     self.canvas,
                     self.rect_minpos,
@@ -589,10 +574,10 @@ class _GUI:
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
                 self.colour_current_bin = 255
-                self.colour_current = _get_bgr(self.left_colour)
+                self.colour_current = _get_bgr(self.flags.overlay_colour_left)
             elif event == cv2.EVENT_RBUTTONDOWN:
                 self.colour_current_bin = 0
-                self.colour_current = _get_bgr(self.right_colour)
+                self.colour_current = _get_bgr(self.flags.overlay_colour_right)
             
             ## start drawing and use current coords as start point
             self.canvas = copy.deepcopy(self.canvas_copy)
@@ -669,7 +654,7 @@ class _GUI:
                 contours=[contour],
                 contourIdx=0,
                 thickness=self.settings.overlay_line_width,
-                color=_get_bgr(self.left_colour),
+                color=_get_bgr(self.flags.overlay_colour_left),
                 maxLevel=3,
                 offset=None,
             )   
@@ -680,8 +665,8 @@ class _GUI:
         ## create coloured overlay from binary image
         self.colour_mask = copy.deepcopy(self.image_bin_copy)
         self.colour_mask = cv2.cvtColor(self.colour_mask, cv2.COLOR_GRAY2BGR)
-        self.colour_mask[self.image_bin_copy == 0] = _get_bgr(self.right_colour)
-        self.colour_mask[self.image_bin_copy == 255] = _get_bgr(self.left_colour)
+        self.colour_mask[self.image_bin_copy == 0] = _get_bgr(self.flags.overlay_colour_right)
+        self.colour_mask[self.image_bin_copy == 255] = _get_bgr(self.flags.overlay_colour_left)
 
         ## blend two canvas layers
         self.image_copy = cv2.addWeighted(self.image_copy,
@@ -717,8 +702,8 @@ class _GUI:
                 cv2.circle(
                     self.image_copy,
                     coords,
-                    self.point_size,
-                    _get_bgr(self.point_colour),
+                    self.flags.point_size,
+                    _get_bgr(self.flags.point_colour),
                     -1,
                 )
                 if self.settings.label:
@@ -727,8 +712,8 @@ class _GUI:
                         str(idx+1),
                         coords,
                         cv2.FONT_HERSHEY_SIMPLEX,
-                        self.text_size,
-                        _get_bgr(self.label_colour),
+                        self.flags.label_size,
+                        _get_bgr(self.flags.label_colour),
                         self.text_width,
                         cv2.LINE_AA,
                     )
@@ -751,7 +736,7 @@ class _GUI:
         self.canvas_copy = copy.deepcopy(self.canvas)
         
         ## refresh canvas
-        if refresh and not self.settings.passive:
+        if refresh and not self.passive:
             cv2.imshow(self.settings.window_name, self.canvas)
 
 
@@ -925,14 +910,141 @@ class _YamlFileMonitor:
     def _stop(self):
         self.observer.stop()
         self.observer.join()
+        
+        
+#%% functions - ANNOTATION helpers
+
+def _get_annotation(
+        kwargs, 
+        annotation_type,
+        annotations=None,
+        reduce_counter=False
+        ):
+    
+    ## setup
+    annotations = copy.deepcopy(kwargs.get("annotations", annotations))
+    annotation_id = kwargs.get("annotation_id", None)    
+    
+    if not annotation_type.__class__.__name__ == "NoneType":
+        annotation_id_str = annotation_type + "_id"
+        print_msg = None
+    else:
+        return {}
+    
+    ## get non-generic id for plotting
+    if annotation_id_str in kwargs:
+        annotation_id = kwargs.get(annotation_id_str)
+
+        
+    if annotations.__class__.__name__ in ["dict", "defaultdict"]:
+        
+        ## get ID from last used annotation function of that type
+        if annotation_id.__class__.__name__ == "NoneType":
+            if kwargs.get("annotation_counter"):
+                print_msg = "- \"{}\" not provided: ".format(annotation_id_str)
+                annotation_counter = kwargs.get("annotation_counter")
+                annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
+                if annotation_id == "z":
+                    print_msg = print_msg + "no precursing annotations of type \"{}\" found - check your config file".format(annotation_type)
+                    annotation_id = None
+                else:
+                    if reduce_counter:
+                        annotation_id =  chr(ord(annotation_id) - 1)
+                    print_msg = print_msg + "using last annotation of type \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
+            else:
+                if annotation_type in annotations:
+                    annotation_id = max(list(annotations[annotation_type].keys()))
+                    print_msg = "\"{}\" not specified - using endmost in provided annotations: \"{}\"".format(annotation_id_str, annotation_id)
+
+                else:
+                    annotation = {}
+                    print_msg = "\"{}\" not specified and annotation type not found".format(annotation_id_str)
+
+        ## check if type is given
+        if annotation_type in annotations:
+                                
+            ## extract item
+            if annotation_id:
+                if annotation_id in annotations[annotation_type]:
+                    
+                    annotation = annotations[annotation_type][annotation_id]
+                   
+                else:
+                    print_msg = "- could not find \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
+                    annotation = {}
+            else:
+                annotation = {}
+        else:
+            print_msg = "- incompatible annotation type supplied - need \"{}\"  type".format(annotation_type)
+            annotation = {}
+            
+        ## cleaned feedback (skip identical messages)
+        if print_msg:          
+            if not print_msg == _config.last_print_msg:
+                _config.last_print_msg = print_msg
+                print(print_msg)
+    else:
+        annotation = {}
+                
+    return annotation
+              		
+
+def _get_GUI_data(annotation):
+    
+    GUI_data = {}    
+        
+    if annotation:
+        if "data" in annotation:
+            for key, value in annotation["data"].items():
+                if key in settings._GUI_data_args:
+                    GUI_data[key] = value
+    
+    return GUI_data
+
+
+def _get_GUI_settings(kwargs, annotation=None):
+    
+    GUI_settings = {}
+    
+    if annotation:
+        if "settings" in annotation:
+            if "GUI" in annotation["settings"]:
+                for key, value in annotation["settings"]["GUI"].items():
+                    GUI_settings[key] = value
+        
+    if kwargs:
+        for key, value in kwargs.items():
+            if key in settings._GUI_settings_args:
+                GUI_settings[key] = value
+    
+    return GUI_settings
+
+
+def _update_annotations(kwargs, annotation, annotation_type):
+    
+    ## setup
+    annotations = copy.deepcopy(kwargs.get("annotations"))
+    annotation_id = kwargs.get("annotation_id")    
+        
+    if annotations.__class__.__name__ == "NoneType":
+        annotations = {}
+
+    if annotation_id.__class__.__name__ == "NoneType":
+                
+        if "annotation_counter" in kwargs:
+            annotation_counter = kwargs.get("annotation_counter")
+            annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
+        else:
+            annotation_id = "a"
+            
+    annotations = defaultdict(dict, annotations)
+    annotations[annotation_type].update({annotation_id: annotation})
+    
+    return annotations
 
 
 
-class _DummyClass:
-    def __init__(self, kwargs):
-        self.__dict__.update(kwargs)
-
-#%% functions
+#%% functions - GUI helpers
 
 
 def _auto_line_width(image, **kwargs):
@@ -971,14 +1083,99 @@ def _auto_text_size(image, **kwargs):
     return text_size
 
 
-def _calc_circle_perimeter(center_x, center_y, radius):
-    coordinate_list=[]
-    for i in range(360):
-        y = center_x + radius * cos(i)
-        x = center_y + radius * cos(i)
-        coordinate_list.append((int(x),int(y)))
+def _get_bgr(col_string):
+    col = Color(col_string)
+    rgb = col.get_rgb()
+    rgb_255 = []
+    for component in rgb:
+        rgb_255.append(int(component * 255))
         
-    return coordinate_list
+    return tuple((rgb_255[2], rgb_255[1], rgb_255[0]))
+
+
+#%% functions - YAML helpers
+
+def _load_yaml(filepath, typ="rt", pure=False, legacy=False):
+        
+    ## this can read phenopype < 2.0 style config yaml files
+    if legacy==True:
+        def _construct_yaml_map(self, node):
+            data = []
+            yield data
+            for key_node, value_node in node.value:
+                key = self.construct_object(key_node, deep=True)
+                val = self.construct_object(value_node, deep=True)
+                data.append((key, val))
+    else:
+        def _construct_yaml_map(self, node):
+            data = self.yaml_base_dict_type()
+            yield data
+            value = self.construct_mapping(node)
+            data.update(value) 
+        
+    SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
+    yaml = YAML(typ=typ, pure=pure)
+    yaml.indent(mapping=4, sequence=4, offset=4)
+
+    if isinstance(filepath, (Path, str)):
+        if Path(filepath).is_file():
+            with open(filepath, "r") as file:
+                return yaml.load(file)
+            
+        else:
+            print("Cannot load config from specified filepath")
+    else:
+        print("Not a valid path - couldn't load yaml.")
+        return
+    
+    
+def _show_yaml(odict, ret=False, typ="rt"):
+    
+    yaml =  YAML(typ=typ)
+    yaml.indent(mapping=4, sequence=4, offset=4)
+
+    if ret:
+        with io.StringIO() as buf, redirect_stdout(buf):
+            yaml.dump(odict, sys.stdout)
+            return buf.getvalue()
+    else:
+        yaml.dump(odict, sys.stdout)
+    
+
+
+def _save_yaml(dictionary, filepath, typ="rt"):
+    yaml = YAML(typ=typ)
+    yaml.indent(mapping=4, sequence=4, offset=4)
+    with open(filepath, "w") as out:
+        yaml.dump(dictionary, out)
+
+
+def _yaml_flow_style(dictionary):
+   ret = ruamel.yaml.comments.CommentedMap(dictionary)
+   ret.fa.set_flow_style()
+   return ret   
+
+
+def _yaml_recursive_delete_comments(d):
+    if isinstance(d, dict):
+        for k, v in d.items():
+            _yaml_recursive_delete_comments(k)
+            _yaml_recursive_delete_comments(v)
+    elif isinstance(d, list):
+        for elem in d:
+            _yaml_recursive_delete_comments(elem)
+    try:
+         # literal scalarstring might have comment associated with them
+         attr = 'comment' if isinstance(d, ruamel.yaml.scalarstring.ScalarString) \
+                  else ruamel.yaml.comments.Comment.attrib 
+         delattr(d, attr)
+    except AttributeError:
+        pass
+
+
+#%% functions - VARIOUS
+
+
 
 
 
@@ -1048,39 +1245,7 @@ def _decode_fourcc(cc):
 def _del_rw(action, name, exc):
     os.chmod(name, S_IWRITE)
     os.remove(name)
-    
-    
-def _df_overwrite_checker(df, 
-                          annotation, 
-                          label,
-                          flag_overwrite, 
-                          flag_edit):
-
-    if df.__class__.__name__ == "NoneType":
-        df = pd.DataFrame()
-        print("- creating new {}".format(annotation))
-        return df, None
-    elif df.__class__.__name__ == "DataFrame":
-        if label in df["mask"].values:
-            if flag_overwrite == False and flag_edit == False:
-                print("- {} with label \"{}\" already created (edit/overwrite=False)".format(annotation,label))
-                return None, None
-            elif flag_overwrite == True and flag_edit == False:
-                df = df.drop(df[df["mask"]==label].index)
-                print("- creating {} (overwriting)".format(annotation))
-                return df, None
-            elif flag_edit == True:
-                edit_params = df[df["mask"]==label].to_dict("records")[0]
-                df = df.drop(df[df["mask"]==label].index)
-                print("- creating {} (editing)".format(annotation))
-                return df, edit_params  
-        else:
-            print("- creating another {}".format(annotation))
-            return df, None    
-    else:
-        print("- wrong df supplied to edit {}".format(annotation))
-
-        
+          
     
     
 def _equalize_histogram(image, detected_rect_mask, template):
@@ -1232,161 +1397,8 @@ def _file_walker(
 
 
 
-def _get_annotation(
-        kwargs, 
-        annotation_type,
-        annotations=None,
-        reduce_counter=False
-        ):
-    
-    ## setup
-    annotations = copy.deepcopy(kwargs.get("annotations", annotations))
-    annotation_id = kwargs.get("annotation_id", None)    
-    
-    if not annotation_type.__class__.__name__ == "NoneType":
-        annotation_id_str = annotation_type + "_id"
-        print_msg = None
-    else:
-        return {}
-    
-    ## get non-generic id for plotting
-    if annotation_id_str in kwargs:
-        annotation_id = kwargs.get(annotation_id_str)
-
-        
-    if annotations.__class__.__name__ in ["dict", "defaultdict"]:
-        
-        ## get ID from last used annotation function of that type
-        if annotation_id.__class__.__name__ == "NoneType":
-            if kwargs.get("annotation_counter"):
-                print_msg = "- \"{}\" not provided: ".format(annotation_id_str)
-                annotation_counter = kwargs.get("annotation_counter")
-                annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
-                if annotation_id == "z":
-                    print_msg = print_msg + "no precursing annotations of type \"{}\" found - check your config file".format(annotation_type)
-                    annotation_id = None
-                else:
-                    if reduce_counter:
-                        annotation_id =  chr(ord(annotation_id) - 1)
-                    print_msg = print_msg + "using last annotation of type \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
-            else:
-                if annotation_type in annotations:
-                    annotation_id = max(list(annotations[annotation_type].keys()))
-                    print_msg = "\"{}\" not specified - using endmost in provided annotations: \"{}\"".format(annotation_id_str, annotation_id)
-
-                else:
-                    annotation = {}
-                    print_msg = "\"{}\" not specified and annotation type not found".format(annotation_id_str)
-
-        ## check if type is given
-        if annotation_type in annotations:
-                                
-            ## extract item
-            if annotation_id:
-                if annotation_id in annotations[annotation_type]:
-                    
-                    annotation = annotations[annotation_type][annotation_id]
-                   
-                else:
-                    print_msg = "- could not find \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
-                    annotation = {}
-            else:
-                annotation = {}
-        else:
-            print_msg = "- incompatible annotation type supplied - need \"{}\"  type".format(annotation_type)
-            annotation = {}
-            
-        ## cleaned feedback (skip identical messages)
-        if print_msg:          
-            if not print_msg == _config.last_print_msg:
-                _config.last_print_msg = print_msg
-                print(print_msg)
-    else:
-        annotation = {}
-                
-    return annotation
-        
-        
-    #     annotation_attribute,
-    #     items, 
-        
-    #     if items.__class__.__name__ == "str":
-    #         items = [items]
-    #     ret = []    
-        
-    # if ret.__class__.__name__ == "NoneType":
-    #     ret = []
-    #     for item in range(len(items)):
-    #         ret.append(None)
-    
-    # if len(ret) == 1:
-    #     return ret[0]
-    # else:
-    #     return tuple(ret)
-    
-    
-    # for item in items:
-    #     if item in annotation[annotation_type][annotation_id][annotation_attribute]:
-    #         ret.append(annotation[annotation_type][annotation_id][annotation_attribute][item])
-    #     else:
-    #         print_msg = "- \"{}\" not found in annotation of type \"{}\" with ID \"{}\"".format(item, annotation_type, annotation_id)
-    #         ret.append(None)
-    
-    
-    
-def _get_bgr(col_string):
-    col = Color(col_string)
-    rgb = col.get_rgb()
-    rgb_255 = []
-    for component in rgb:
-        rgb_255.append(int(component * 255))
-        
-    return tuple((rgb_255[2], rgb_255[1], rgb_255[0]))
-
-		
-
-def _get_GUI_data(annotation):
-    
-    GUI_data = {}    
-        
-    if annotation:
-        if "data" in annotation:
-            for key, value in annotation["data"].items():
-                if key in settings._GUI_data_args:
-                    GUI_data[key] = value
-    
-    return GUI_data
 
 
-
-def _get_GUI_settings(kwargs, annotation=None):
-    
-    GUI_settings = {}
-    
-    if annotation:
-        if "settings" in annotation:
-            if "GUI" in annotation["settings"]:
-                for key, value in annotation["settings"]["GUI"].items():
-                    GUI_settings[key] = value
-        
-    if kwargs:
-        for key, value in kwargs.items():
-            if key in settings._GUI_settings_args:
-                GUI_settings[key] = value
-    
-    return GUI_settings
-
-
-
-def _load_previous_annotation(annotation_previous, components, load_settings=True):
-    ImageViewer_previous = {}    
-    if load_settings:
-        ImageViewer_previous.update(annotation_previous["settings"])
-    for item in components:
-        field, data = item
-        ImageViewer_previous[data] = annotation_previous[field][data]
-        
-    return _DummyClass(ImageViewer_previous)
 
 
 
@@ -1460,6 +1472,8 @@ def _load_image_data(image_path, path_and_type=True, resize=1):
         contains image data (+meta data, if selected)
 
     """
+    
+    
     if image_path.__class__.__name__ == "str":
         if os.path.isfile(image_path):
             image = Image.open(image_path)
@@ -1480,6 +1494,8 @@ def _load_image_data(image_path, path_and_type=True, resize=1):
     else:
         raise TypeError("Not a valid image file - cannot read image data.")
 
+    # Image.MAX_IMAGE_PIXELS = 999999999
+
     ## issue warnings for large images
     if width * height > 125000000:
         warnings.warn(
@@ -1496,31 +1512,6 @@ def _load_image_data(image_path, path_and_type=True, resize=1):
 
 
 
-def _drop_dict_entries(dictionary, drop=[]):
-    
-    new_dictionary = {}
-    
-    for key, value in dictionary.items():
-        if not key in drop:
-            new_dictionary[key] = value
-        
-    return new_dictionary
-
-def _yaml_recursive_delete_comments(d):
-    if isinstance(d, dict):
-        for k, v in d.items():
-            _yaml_recursive_delete_comments(k)
-            _yaml_recursive_delete_comments(v)
-    elif isinstance(d, list):
-        for elem in d:
-            _yaml_recursive_delete_comments(elem)
-    try:
-         # literal scalarstring might have comment associated with them
-         attr = 'comment' if isinstance(d, ruamel.yaml.scalarstring.ScalarString) \
-                  else ruamel.yaml.comments.Comment.attrib 
-         delattr(d, attr)
-    except AttributeError:
-        pass
 
 
 def _resize_image(image, factor=1, interpolation="cubic"):
@@ -1560,61 +1551,6 @@ def _resize_image(image, factor=1, interpolation="cubic"):
     ## return results
     return image
 
-def _load_yaml(filepath, typ="rt", pure=False, legacy=False):
-        
-    ## this can read phenopype < 2.0 style config yaml files
-    if legacy==True:
-        def _construct_yaml_map(self, node):
-            data = []
-            yield data
-            for key_node, value_node in node.value:
-                key = self.construct_object(key_node, deep=True)
-                val = self.construct_object(value_node, deep=True)
-                data.append((key, val))
-    else:
-        def _construct_yaml_map(self, node):
-            data = self.yaml_base_dict_type()
-            yield data
-            value = self.construct_mapping(node)
-            data.update(value) 
-        
-    SafeConstructor.add_constructor(u'tag:yaml.org,2002:map', _construct_yaml_map)
-    yaml = YAML(typ=typ, pure=pure)
-    yaml.indent(mapping=4, sequence=4, offset=4)
-
-    if isinstance(filepath, (Path, str)):
-        if Path(filepath).is_file():
-            with open(filepath, "r") as file:
-                return yaml.load(file)
-            
-        else:
-            print("Cannot load config from specified filepath")
-    else:
-        print("Not a valid path - couldn't load yaml.")
-        return
-    
-    
-def _show_yaml(odict, ret=False, typ="rt"):
-    
-    yaml =  YAML(typ=typ)
-    yaml.indent(mapping=4, sequence=4, offset=4)
-
-    if ret:
-        with io.StringIO() as buf, redirect_stdout(buf):
-            yaml.dump(odict, sys.stdout)
-            return buf.getvalue()
-    else:
-        yaml.dump(odict, sys.stdout)
-    
-
-
-def _save_yaml(dictionary, filepath, typ="rt"):
-    yaml = YAML(typ=typ)
-    yaml.indent(mapping=4, sequence=4, offset=4)
-    with open(filepath, "w") as out:
-        yaml.dump(dictionary, out)
-
-
 
 def _save_prompt(object_type, filepath, ow_flag):
     
@@ -1632,6 +1568,13 @@ def _save_prompt(object_type, filepath, ow_flag):
     return ret
     
 
+#%% obsolete?
+
+
+class _DummyClass:
+    def __init__(self, kwargs):
+        self.__dict__.update(kwargs)
+        
 
 def _update_settings(kwargs, local_settings, IV_settings=None):
 
@@ -1644,34 +1587,69 @@ def _update_settings(kwargs, local_settings, IV_settings=None):
         del local_settings["passive"]
 
 
-def _update_annotations(kwargs, annotation, annotation_type):
-    
-        
-    ## setup
-    annotations = copy.deepcopy(kwargs.get("annotations"))
-    annotation_id = kwargs.get("annotation_id")    
-        
-    if annotations.__class__.__name__ == "NoneType":
-        annotations = {}
 
-    if annotation_id.__class__.__name__ == "NoneType":
-                
-        if "annotation_counter" in kwargs:
-            annotation_counter = kwargs.get("annotation_counter")
-            annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
+def _drop_dict_entries(dictionary, drop=[]):
+    
+    new_dictionary = {}
+    
+    for key, value in dictionary.items():
+        if not key in drop:
+            new_dictionary[key] = value
+        
+    return new_dictionary
+
+
+def _load_previous_annotation(annotation_previous, components, load_settings=True):
+    ImageViewer_previous = {}    
+    if load_settings:
+        ImageViewer_previous.update(annotation_previous["settings"])
+    for item in components:
+        field, data = item
+        ImageViewer_previous[data] = annotation_previous[field][data]
+        
+    return _DummyClass(ImageViewer_previous)
+
+
+def _calc_circle_perimeter(center_x, center_y, radius):
+    coordinate_list=[]
+    for i in range(360):
+        y = center_x + radius * cos(i)
+        x = center_y + radius * cos(i)
+        coordinate_list.append((int(x),int(y)))
+        
+    return coordinate_list
+
+
+def _df_overwrite_checker(df, 
+                          annotation, 
+                          label,
+                          flag_overwrite, 
+                          flag_edit):
+
+    if df.__class__.__name__ == "NoneType":
+        df = pd.DataFrame()
+        print("- creating new {}".format(annotation))
+        return df, None
+    elif df.__class__.__name__ == "DataFrame":
+        if label in df["mask"].values:
+            if flag_overwrite == False and flag_edit == False:
+                print("- {} with label \"{}\" already created (edit/overwrite=False)".format(annotation,label))
+                return None, None
+            elif flag_overwrite == True and flag_edit == False:
+                df = df.drop(df[df["mask"]==label].index)
+                print("- creating {} (overwriting)".format(annotation))
+                return df, None
+            elif flag_edit == True:
+                edit_params = df[df["mask"]==label].to_dict("records")[0]
+                df = df.drop(df[df["mask"]==label].index)
+                print("- creating {} (editing)".format(annotation))
+                return df, edit_params  
         else:
-            annotation_id = "a"
-            
-    annotations = defaultdict(dict, annotations)
-    annotations[annotation_type].update({annotation_id: annotation})
-    
-    return annotations
+            print("- creating another {}".format(annotation))
+            return df, None    
+    else:
+        print("- wrong df supplied to edit {}".format(annotation))
 
-
-def _yaml_flow_style(dictionary):
-   ret = ruamel.yaml.comments.CommentedMap(dictionary)
-   ret.fa.set_flow_style()
-   return ret   
 
 # def _timestamp():
 #     return datetime.today().strftime("%Y:%m:%d %H:%M:%S")
