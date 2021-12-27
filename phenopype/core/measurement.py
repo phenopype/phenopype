@@ -116,11 +116,10 @@ def set_landmark(
     if not out.done:
         print("- didn't finish: redo landmarks")
         return 
-    elif len(out.points) == 0:
+    elif len(out.data["points"]) == 0:
         print("- zero coordinates: redo landmarks")
         return 
-    else:
-        points = out.points
+
         
         
 	# =============================================================================
@@ -133,7 +132,7 @@ def set_landmark(
             },
         "settings": local_settings,
         "data":{
-            "points": points,
+            "points": out.data["points"],
             }
         }
     
@@ -313,7 +312,7 @@ def skeletonize(
         mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx + padding, -ry + padding))
 
         skeleton = cv2.ximgproc.thinning(mask, thinningType=settings.opencv_skeletonize_flags[thinning])
-        skel_ret, skel_contour, skel_hierarchy = cv2.findContours(
+        skel_ret, skel_contour, skel_hierarchy = cv2.findcontours(
             skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 

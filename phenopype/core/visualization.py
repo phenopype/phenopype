@@ -6,7 +6,6 @@ import math
 import string
 from dataclasses import make_dataclass
 
-from phenopype.settings import _annotation_types
 from phenopype import utils_lowlevel
 
 #%% settings
@@ -92,13 +91,13 @@ def draw_contour(
     ## filling and line settings
     if fill > 0:
         flags.fill = True
-        fill_colour = utils_lowlevel._generate_bgr(fill_colour)
+        fill_colour = utils_lowlevel._get_bgr(fill_colour)
     else:
         flags.fill = False
 
-    line_colour = utils_lowlevel._generate_bgr(line_colour)
-    label_colour = utils_lowlevel._generate_bgr(label_colour)
-    bounding_box_colour_sel = utils_lowlevel._generate_bgr(bounding_box_colour)
+    line_colour = utils_lowlevel._get_bgr(line_colour)
+    label_colour = utils_lowlevel._get_bgr(label_colour)
+    bounding_box_colour_sel = utils_lowlevel._get_bgr(bounding_box_colour)
     
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
@@ -126,7 +125,7 @@ def draw_contour(
     if flags.fill:
         colour_mask = copy.deepcopy(canvas)
         for contour in contours:
-            cv2.drawContours(
+            cv2.drawcontours(
                 image=canvas,
                 contours=[contour],
                 contourIdx=0,
@@ -139,7 +138,7 @@ def draw_contour(
 
     ## 2) contour lines
     for contour in contours:
-        cv2.drawContours(
+        cv2.drawcontours(
             image=canvas,
             contours=[contour],
             contourIdx=0,
@@ -234,8 +233,8 @@ def draw_landmark(
                             fields=[("label", bool, label)])
     
     ## point and label settings
-    point_colour = utils_lowlevel._generate_bgr(point_colour)
-    label_col = utils_lowlevel._generate_bgr(label_colour)
+    point_colour = utils_lowlevel._get_bgr(point_colour)
+    label_col = utils_lowlevel._get_bgr(label_colour)
 
     if point_size == "auto":
         point_size = utils_lowlevel._auto_point_size(image)
@@ -280,7 +279,7 @@ def draw_landmark(
 
 def draw_mask(
         image,
-        annotation,
+        annotations,
         line_colour="blue",
         line_width="auto",
         label=False,
@@ -317,14 +316,16 @@ def draw_mask(
     """
  	# =============================================================================
 	# setup 
+    
+    annotation_type = "mask"
 
     ## flags
     flags = make_dataclass(cls_name="flags", 
                             fields=[("label", bool, label)])
 
     ## filling and line settings
-    line_colour = utils_lowlevel._generate_bgr(line_colour)
-    label_colour = utils_lowlevel._generate_bgr(label_colour)
+    line_colour = utils_lowlevel._get_bgr(line_colour)
+    label_colour = utils_lowlevel._get_bgr(label_colour)
     
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
@@ -333,20 +334,27 @@ def draw_mask(
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
                
-    ## extract annotation data     
-    coord_list = utils_lowlevel._provide_annotation_data(annotation, "mask", "coord_list", kwargs)
-    label = utils_lowlevel._provide_annotation_data(annotation, "mask", "label", kwargs)
-    if not coord_list:
-        return image
-    else:
-        canvas = copy.deepcopy(image)
+    # =============================================================================
+    # retrieve annotation
+    
+    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type, annotations)
+          
+    polygons = annotation["data"]["polygons"]
+    label = annotation["data"]["label"]
 
 	# =============================================================================
 	# execute
     
-    ## draw masks
-    for coords in coord_list:
-        cv2.polylines(canvas, np.array([coords]), False, line_colour, line_width)
+    canvas = copy.deepcopy(image)
+    
+    for coords in polygons:
+        cv2.polylines(
+            canvas, 
+            np.array([coords]), 
+            False, 
+            line_colour, 
+            line_width,
+            )
         if flags.label:
             cv2.putText(
                 canvas,
@@ -357,7 +365,8 @@ def draw_mask(
                 label_colour,
                 label_width,
                 cv2.LINE_AA,
-            )
+                )
+
 
 
 	# =============================================================================
@@ -404,7 +413,7 @@ def draw_polyline(
 	# setup 
 
     ## line settings
-    line_colour = utils_lowlevel._generate_bgr(line_colour)
+    line_colour = utils_lowlevel._get_bgr(line_colour)
     
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
@@ -453,8 +462,8 @@ def draw_reference(
                             fields=[("scale", bool, scale)])
 
     ## filling and line settings
-    line_colour = utils_lowlevel._generate_bgr(line_colour)
-    label_colour = utils_lowlevel._generate_bgr(label_colour)
+    line_colour = utils_lowlevel._get_bgr(line_colour)
+    label_colour = utils_lowlevel._get_bgr(label_colour)
    
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
@@ -497,7 +506,7 @@ def draw_reference(
 
         cv2.fillPoly(canvas,
                       np.array([scale_box]), 
-                      utils_lowlevel._generate_bgr("lightgrey")
+                      utils_lowlevel._get_bgr("lightgrey")
                       )
                              
         scale_box_inner = [
@@ -515,7 +524,7 @@ def draw_reference(
         cv2.polylines(canvas, 
                       np.array([scale_box_inner]), 
                       False, 
-                      utils_lowlevel._generate_bgr("black"), 
+                      utils_lowlevel._get_bgr("black"), 
                       utils_lowlevel._auto_line_width(canvas)
                       )
 
@@ -526,7 +535,7 @@ def draw_reference(
             (int(wp * 6), int(wp * 5)),
             cv2.FONT_HERSHEY_SIMPLEX,
             utils_lowlevel._auto_text_size(canvas),
-            utils_lowlevel._generate_bgr("black"), 
+            utils_lowlevel._get_bgr("black"), 
             label_width*2,
             cv2.LINE_AA,
         )

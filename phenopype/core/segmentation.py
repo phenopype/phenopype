@@ -596,21 +596,21 @@ def watershed(
 
     for coord, supp in zip(contours["data"]["coords"], contours["data"]["support"]):
         if supp["hierarchy_level"] == "child":
-            cv2.drawContours(
+            cv2.drawcontours(
                 image=image_watershed,
                 contours=[coord],
                 contourIdx=0,
                 thickness=-1,
-                color=utils_lowlevel._generate_bgr("white"),
+                color=utils_lowlevel._get_bgr("white"),
                 maxLevel=3,
                 offset=None
                 )
-            cv2.drawContours(
+            cv2.drawcontours(
                 image=image_watershed,
                 contours=[coord],
                 contourIdx=0,
                 thickness=2,
-                color=utils_lowlevel._generate_bgr("black"),
+                color=utils_lowlevel._get_bgr("black"),
                 maxLevel=3,
                 offset=None
                 )

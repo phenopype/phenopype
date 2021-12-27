@@ -4,6 +4,7 @@ import cv2, copy, os, sys, warnings
 import json
 import numpy as np
 import pandas as pd
+from collections import defaultdict
 from dataclasses import make_dataclass
 import string
 import re
@@ -41,16 +42,21 @@ Image.MAX_IMAGE_PIXELS = 999999999
 
 
 # @_image_viewer_settings
-class _ImageViewer:
-    def __init__(self, 
-                 image, 
-                 tool=None,
-                 window_aspect='normal', 
-                 window_control='internal', 
-                 zoom_magnification=0.5, 
-                 zoom_mode='continuous', 
-                 zoom_steps=20,
-                 **kwargs):
+class _GUI:
+    def __init__(
+            self, 
+            image, 
+            tool=None,
+            passive=False,
+            wait_time=500,
+            window_aspect='normal', 
+            window_control='internal', 
+            window_name="phenopype",
+            zoom_magnification=0.5, 
+            zoom_mode='continuous', 
+            zoom_n_steps=20,
+            **kwargs
+            ):
         
         """
         Low level interactive image function.
@@ -62,8 +68,7 @@ class _ImageViewer:
         ----------
 
         """
-        ## kwargs (FUTURE => use dictionary from config)
-        
+        ## kwargs (improve: use dictionary from config)
         if kwargs.get("window_max_dim"):
             window_max_dim = kwargs.get("window_max_dim")
         elif hasattr(main, "window_max_dim"):
@@ -75,32 +80,38 @@ class _ImageViewer:
             window_max_dim = _config.window_max_dim
             
         
-        ## args
-        self.window_aspect = window_aspect
-        self.window_control = window_control
-        self.zoom_magnification = zoom_magnification
-        self.zoom_mod = zoom_mode
-        self.zoom_steps = zoom_steps
-
-        self.flag_text_label = kwargs.get("flag_text_label", False)
-        self.overlay_blend = kwargs.get("overlay_blend", 0.5)
-        self.overlay_line_width = kwargs.get("overlay_line_width", 1)
-
         self.__dict__.update(kwargs)
 
         ## set class arguments
         self.tool = tool
-        self.flag_zoom_mode = zoom_mode       
-        self.zoom_magnification = zoom_magnification
-        self.zoom_n_steps = zoom_steps
-        self.wait_time = 100        
-        self.window_name = kwargs.get("window_name", "phenopype")
                 
         ## needs cleaning
+        self.settings = make_dataclass(
+            cls_name="settings", 
+            fields=[
+                ("label", bool, kwargs.get("label", False)),
+                ("line_width", int, kwargs.get("line_width", _auto_line_width(image))),
+                ("line_colour", tuple,  _get_bgr(kwargs.get("line_colour", settings._default_line_colour))),
+                ("passive", bool, passive),
+                ("overlay_blend", float, kwargs.get("overlay_blend", 0.5)),
+                ("overlay_line_width", int, kwargs.get("overlay_line_width", 1)),
+                ("zoom_mode", str, zoom_mode),
+                ("zoom_magnification", float, zoom_magnification),
+                ("zoom_n_steps", int, zoom_n_steps),
+                ("wait_time", int, wait_time),
+                ("window_aspect", str, window_aspect),
+                ("window_control", str, window_control),
+                ("window_max_dim", str, window_max_dim),
+                ("window_name", str, window_name),
+                ])   
         
-        self.flags = make_dataclass(cls_name="flags", 
-                                    fields=[("passive", bool, kwargs.get("passive", False))])   
-             
+            
+        self.locals = make_dataclass(
+            cls_name="locals", 
+            fields=[
+                ]) 
+        
+
         # =============================================================================
         # initialize variables
         # =============================================================================
@@ -127,7 +138,7 @@ class _ImageViewer:
             
             ## draw contours onto overlay
             for contour in contours:
-                cv2.drawContours(
+                cv2.drawcontours(
                     image=self.image_bin,
                     contours=[contour],
                     contourIdx=0,
@@ -164,11 +175,11 @@ class _ImageViewer:
         )
         self.flag_zoom, self.zoom_idx = -1, 1
         self.zoom_step_x, self.zoom_step_y = (
-            int(self.image_width / self.zoom_n_steps),
-            int(self.image_height / self.zoom_n_steps),
+            int(self.image_width / self.settings.zoom_n_steps),
+            int(self.image_height / self.settings.zoom_n_steps),
         )
-        if self.flag_zoom_mode == "fixed":
-            mag = int(self.zoom_magnification * self.zoom_n_steps)
+        if self.settings.zoom_mode == "fixed":
+            mag = int(self.settings.zoom_magnification * self.settings.zoom_n_steps)
             self.zoom_step_x, self.zoom_step_y = (
                 mag * self.zoom_step_x,
                 mag * self.zoom_step_y,
@@ -177,36 +188,42 @@ class _ImageViewer:
         # =============================================================================
         # configure tools
         # =============================================================================
+                        
+        self.data = {
+            "points": [],
+            "polygons":[],
+            "sequences":[],
+            }
         
-        if self.tool:
-            
-            ## collect interactions and set flags
-            self.points, self.point_list, self.coord_list = [], [], []
-            self.rect_start, self.drawing = None, False
-            
-            ## line properties
-            self.line_colour = _generate_bgr(kwargs.get("line_colour", "green"))
-            self.line_width = kwargs.get("line_width", _auto_line_width(image))
-            self.line_width_orig = copy.deepcopy(self.line_width)
-            
-            ## point properties
-            self.point_size = kwargs.get("point_size", _auto_point_size(image))
-            self.point_colour = kwargs.get("point_colour", "red")
-            self.text_size = kwargs.get("label_size", _auto_text_size(image))
-            self.text_width = kwargs.get("label_size", _auto_text_width(image))
-            self.label_colour = kwargs.get("label_colour", "black")
-            
-            ## for contour edit tool
-            self.left_colour = kwargs.get("left_colour", "green")
-            self.right_colour = kwargs.get("right_colour", "red")
-            
-            ## initialize comment tool
-            self.field = kwargs.get("field", "")
-            self.entry = ""
-            
+        
+        ## collect interactions and set flags
+        self.rect_start = None
+        
+
+        self.line_width_orig = copy.deepcopy(self.settings.line_width)
+        
+        ## point properties
+        self.point_size = kwargs.get("point_size", _auto_point_size(image))
+        self.point_colour = kwargs.get("point_colour", "red")
+        self.text_size = kwargs.get("label_size", _auto_text_size(image))
+        self.text_width = kwargs.get("label_size", _auto_text_width(image))
+        self.label_colour = kwargs.get("label_colour", "black")
+        
+        ## for contour edit tool
+        self.left_colour = kwargs.get("left_colour", "green")
+        self.right_colour = kwargs.get("right_colour", "red")
+        
+        ## initialize comment tool
+        self.field = kwargs.get("field", "")
+        self.entry = ""
+        
         # =============================================================================
         # update self with parameters from previous instance
-        # =============================================================================              
+        # =============================================================================       
+        
+        data = kwargs.get("data", {})
+        self.data.update(data)
+
         
         ## update from previous call
         if kwargs.get("ImageViewer_previous"):
@@ -224,67 +241,74 @@ class _ImageViewer:
         # generate canvas
         # =============================================================================
         
+        
+        self.flags = make_dataclass(
+            cls_name="flags", 
+            fields=[
+                ("end", bool, False),
+                ("end_pype", bool, False),
+                ("drawing",bool, False),
+                ])   
+        
+        
         ## initialize canvas
         self._canvas_renew()
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
-            self._canvas_draw(tool="line", coord_list=self.coord_list)
+            self._canvas_draw(tool="line", coord_list=self.data["polygons"])
         if self.tool in ["point"]:
-            self._canvas_draw(tool="point", coord_list=self.points)
+            self._canvas_draw(tool="point", coord_list=self.data["points"])
         if self.tool in ["draw"]:
-            self._canvas_draw(tool="line_bin", coord_list=self.point_list)
+            self._canvas_draw(tool="line_bin", coord_list=self.data["sequences"])
             self._canvas_blend()
             self._canvas_add_lines()
         self._canvas_mount()                                   
 
         ## local control vars
-        self.done = False
-        self.finished = False
         _config.window_close = False
         
         # =============================================================================
         # window control
         # =============================================================================
         
-        if self.flags.passive == True:
+        if self.settings.passive == True:
             
-            self.done = True
-            self.finished = True
+            self.flags.end = True
+            self.flags.end_pype= True
                        
         else:
-            cv2.namedWindow(self.window_name, settings.opencv_window_flags[window_aspect])
+            cv2.namedWindow(self.settings.window_name, settings.opencv_window_flags[window_aspect])
             cv2.startWindowThread() 
-            cv2.setMouseCallback(self.window_name, self._on_mouse_plain)
-            cv2.resizeWindow(self.window_name, self.canvas_width, self.canvas_height)
-            cv2.imshow(self.window_name, self.canvas)
+            cv2.setMouseCallback(self.settings.window_name, self._on_mouse_plain)
+            cv2.resizeWindow(self.settings.window_name, self.canvas_width, self.canvas_height)
+            cv2.imshow(self.settings.window_name, self.canvas)
             self.keypress = None
                     
-            if self.window_control == "internal":
-                while not any([self.finished, self.done]):
-                    if self.flags.passive == False:
+            if self.settings.window_control == "internal":
+                while not any([self.flags.end, self.flags.end_pype]):
+                    if self.settings.passive == False:
                         
                         ## comment tool
                         if self.tool == "comment":
                             self.keypress = cv2.waitKey(1)
                             self._comment_tool()
                         else:
-                            self.keypress = cv2.waitKey(500)                 
+                            self.keypress = cv2.waitKey(self.settings.wait_time)                 
         
                         ## Enter = close window and redo
                         if self.keypress == 13:
                             ## close unfinished polygon and append to polygon list
                             if self.tool:
-                                if len(self.points) > 2 and not self.tool in ["point"]:
-                                    self.points.append(self.points[0])
-                                    self.coord_list.append(self.points)
-                            self.done = True
+                                if len(self.data["points"]) > 2 and not self.tool in ["point"]:
+                                    self.data["points"].append(self.data["points"][0])
+                                    self.data["polygons"].append(self.data["points"])
+                            self.flags.end = True
                             cv2.destroyAllWindows()
                             
                         ## Ctrl + Enter = close window and move on
                         elif self.keypress == 10:
-                            self.done = True
-                            self.finished = True
+                            self.flags.end = True
+                            self.flags.end_pype = True
                             cv2.destroyAllWindows()
-                            print("finish")
                             
                         ## Esc = close window and terminate
                         elif self.keypress == 27:
@@ -293,21 +317,18 @@ class _ImageViewer:
                             
                         ## Ctrl + z = undo
                         elif self.keypress == 26 and self.tool == "draw":
-                            self.point_list = self.point_list[:-1]
+                            self.data["sequences"] = self.data["sequences"][:-1]
                             self._canvas_renew()
-                            self._canvas_draw(tool="line_bin", coord_list=self.point_list)
+                            self._canvas_draw(tool="line_bin", coord_list=self.data["sequences"])
                             self._canvas_blend()
                             self._canvas_add_lines()
                             self._canvas_mount()
                             
                         ## external window close
                         elif _config.window_close:
-                            self.done = True
+                            self.flags.end = True
                             cv2.destroyAllWindows()
-            # else:
-            #     self.done = True
-            #     cv2.waitKey(0)
-            #     cv2.destroyAllWindows()
+
                         
     def _comment_tool(self):
                 
@@ -323,33 +344,33 @@ class _ImageViewer:
             (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
             cv2.FONT_HERSHEY_SIMPLEX,
             self.text_size,
-            _generate_bgr(self.label_colour),
+            _get_bgr(self.label_colour),
             self.text_width,
             cv2.LINE_AA,
         )
-        cv2.imshow(self.window_name, self.canvas)
+        cv2.imshow(self.settings.window_name, self.canvas)
                     
     def _on_mouse_plain(self, event, x, y, flags, params):
         if event == cv2.EVENT_MOUSEWHEEL and not self.keypress == 9:
             self.keypress = None
             if flags > 0:
-                if self.zoom_idx < self.zoom_n_steps:
+                if self.zoom_idx < self.settings.zoom_n_steps:
                     self.flag_zoom = 1
                     self.zoom_idx += 1
-                    if self.flag_zoom_mode == "continuous" or (
-                        self.flag_zoom_mode == "fixed" and self.zoom_idx == 2
+                    if self.settings.zoom_mode == "continuous" or (
+                        self.settings.zoom_mode == "fixed" and self.zoom_idx == 2
                     ):
                         self._zoom_fun(x, y)
             if flags < 0:
                 if self.zoom_idx > 1:
                     self.flag_zoom = -1
                     self.zoom_idx -= 1
-                    if self.flag_zoom_mode == "continuous" or (
-                        self.flag_zoom_mode == "fixed" and self.zoom_idx == 1
+                    if self.settings.zoom_mode == "continuous" or (
+                        self.settings.zoom_mode == "fixed" and self.zoom_idx == 1
                     ):
                         self._zoom_fun(x, y)
             self.x, self.y = x, y
-            cv2.imshow(self.window_name, self.canvas)
+            cv2.imshow(self.settings.window_name, self.canvas)
 
         if self.tool:
             if self.tool == "draw":
@@ -376,22 +397,22 @@ class _ImageViewer:
             self._zoom_coords_orig(x,y)
             
             ## append points to point list
-            self.points.append(self.coords_original)
+            self.data["points"].append(self.coords_original)
                        
             ## apply tool and refresh canvas
             self._canvas_renew()
-            self._canvas_draw(tool="point", coord_list=self.points)
+            self._canvas_draw(tool="point", coord_list=self.data["points"])
             self._canvas_mount()
             
         if event == cv2.EVENT_RBUTTONDOWN:
             
             ## remove points from list, if any are left
-            if len(self.points) > 0:
-                self.points = self.points[:-1]
+            if len(self.data["points"]) > 0:
+                self.data["points"] = self.data["points"][:-1]
                 
             ## apply tool and refresh canvas
             self._canvas_renew()
-            self._canvas_draw(tool="point", coord_list=self.points)
+            self._canvas_draw(tool="point", coord_list=self.data["points"])
             self._canvas_mount()
                 
 
@@ -403,35 +424,35 @@ class _ImageViewer:
         flag_draw = kwargs.get("draw", False)
 
         if event == cv2.EVENT_MOUSEMOVE:
-            if (reference or flag_draw) and self.tool == "line" and len(self.points) == 2:
+            if (reference or flag_draw) and self.tool == "line" and len(self.data["points"]) == 2:
                 return
             
             ## draw line between current cursor coords and last polygon node
-            if len(self.points) > 0:
+            if len(self.data["points"]) > 0:
                 self.coords_prev = (
-                    int((self.points[-1][0] - self.zoom_x1) / self.global_fx),
-                    int((self.points[-1][1] - self.zoom_y1) // self.global_fy),
+                    int((self.data["points"][-1][0] - self.zoom_x1) / self.global_fx),
+                    int((self.data["points"][-1][1] - self.zoom_y1) // self.global_fy),
                 )
                 self.canvas = copy.deepcopy(self.canvas_copy)
                 cv2.line(
                     self.canvas,
                     self.coords_prev,
                     (x, y),
-                    self.line_colour,
-                    self.line_width,
+                    self.settings.line_colour,
+                    self.settings.line_width,
                 )
                 
             ## if in reference mode, don't connect
-            elif (reference or flag_draw) and self.tool == "line" and len(self.points) > 2:
+            elif (reference or flag_draw) and self.tool == "line" and len(self.data["points"]) > 2:
                 pass
             
             ## pump updates
-            cv2.imshow(self.window_name, self.canvas)
+            cv2.imshow(self.settings.window_name, self.canvas)
             
         if event == cv2.EVENT_LBUTTONDOWN:  
         
             ## skip if in reference mode
-            if reference and len(self.points) == 2:
+            if reference and len(self.data["points"]) == 2:
                 print("already two points selected")
                 return
             
@@ -439,49 +460,49 @@ class _ImageViewer:
             self._zoom_coords_orig(x,y)
             
             ## append points to point list
-            self.points.append(self.coords_original)
+            self.data["points"].append(self.coords_original)
             
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.coord_list + [self.points])
+                tool="line", coord_list=self.data["polygons"] + [self.data["points"]])
             self._canvas_mount()
             
             ## if in reference mode, append to ref coords
-            if reference and len(self.points) == 2:
+            if reference and len(self.data["points"]) == 2:
                 print("Reference set")
-                self.reference_coords = self.points
+                self.reference_coords = self.data["points"]
                                                 
         if event == cv2.EVENT_RBUTTONDOWN:
             
             ## remove points and update canvas
-            if len(self.points) > 0:
-                self.points = self.points[:-1]
+            if len(self.data["points"]) > 0:
+                self.data["points"] = self.data["points"][:-1]
             else:
-                self.coord_list = self.coord_list[:-1]
+                self.data["polygons"] = self.data["polygons"][:-1]
                 
             ## apply tool and refresh canvas
             print("remove")
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.coord_list + [self.points])
+                tool="line", coord_list=self.data["polygons"] + [self.data["points"]])
             self._canvas_mount()
 
-        if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.points) > 2:
+        if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.data["points"]) > 2:
 
             ## close polygon
             if not polyline:
-                self.points.append(self.points[0])
+                self.data["points"].append(self.data["points"][0])
                 
             ## add current points to polygon and empyt point list
             print("poly")
-            self.coord_list.append(self.points)
-            self.points = []
+            self.data["polygons"].append(self.data["points"])
+            self.data["points"] = []
 
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.coord_list + [self.points])
+                tool="line", coord_list=self.data["polygons"] + [self.data["points"]])
             self._canvas_mount()
 
 
@@ -493,7 +514,7 @@ class _ImageViewer:
         if event == cv2.EVENT_LBUTTONDOWN:  
             
             ## end after one set of points if creating a template
-            if template == True and len(self.coord_list) == 1:
+            if template == True and len(self.data["polygons"]) == 1:
                 return
             
             ## start drawing temporary rectangle 
@@ -503,7 +524,7 @@ class _ImageViewer:
         if event == cv2.EVENT_LBUTTONUP:
             
             ## end after one set of points if creating a template
-            if template == True and len(self.coord_list) == 1:
+            if template == True and len(self.data["polygons"]) == 1:
                 print("Template selected")
                 return
             
@@ -517,7 +538,7 @@ class _ImageViewer:
                 int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])),
                 int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1])),
                 ]
-            self.coord_list.append(
+            self.data["polygons"].append(
                 [
                     (self.rect[0], self.rect[1]), 
                     (self.rect[2], self.rect[1]),
@@ -530,19 +551,19 @@ class _ImageViewer:
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.coord_list)
+                tool="line", coord_list=self.data["polygons"])
             self._canvas_mount(refresh=False)
             
         if event == cv2.EVENT_RBUTTONDOWN:
             
             ## remove polygons and update canvas
-            if len(self.coord_list) > 0:
-                self.coord_list = self.coord_list[:-1]
+            if len(self.data["polygons"]) > 0:
+                self.data["polygons"] = self.data["polygons"][:-1]
                 
                 ## apply tool and refresh canvas
                 self._canvas_renew()
                 self._canvas_draw(
-                    tool="line", coord_list=self.coord_list)
+                    tool="line", coord_list=self.data["polygons"])
                 self._canvas_mount()
 
                 
@@ -556,10 +577,10 @@ class _ImageViewer:
                     self.canvas,
                     self.rect_minpos,
                     self.rect_maxpos,
-                    self.line_colour,
-                    self.line_width,
+                    self.settings.line_colour,
+                    self.settings.line_width,
                 )
-                cv2.imshow(self.window_name, self.canvas)
+                cv2.imshow(self.settings.window_name, self.canvas)
                 
                 
     def _on_mouse_draw(self, event, x, y, flags):     
@@ -568,10 +589,10 @@ class _ImageViewer:
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
                 self.colour_current_bin = 255
-                self.colour_current = _generate_bgr(self.left_colour)
+                self.colour_current = _get_bgr(self.left_colour)
             elif event == cv2.EVENT_RBUTTONDOWN:
                 self.colour_current_bin = 0
-                self.colour_current = _generate_bgr(self.right_colour)
+                self.colour_current = _get_bgr(self.right_colour)
             
             ## start drawing and use current coords as start point
             self.canvas = copy.deepcopy(self.canvas_copy)
@@ -582,41 +603,41 @@ class _ImageViewer:
                 int(self.zoom_x1 + (self.ix * self.global_fx)),
                 int(self.zoom_y1 + (self.iy * self.global_fy)),
             )
-            self.points.append(self.coords_original_i)
-            self.drawing=True
+            self.data["points"].append(self.coords_original_i)
+            self.flags.drawing=True
 
         ## finish drawing and update image_copy
         if event==cv2.EVENT_LBUTTONUP or event==cv2.EVENT_RBUTTONUP:
-            self.drawing=False
+            self.flags.drawing=False
             self.canvas = copy.deepcopy(self.canvas_copy)
-            self.point_list.append([
-                self.points,
+            self.data["sequences"].append([
+                self.data["points"],
                 self.colour_current_bin, 
-                int(self.line_width*self.global_fx),
+                int(self.settings.line_width*self.global_fx),
                 ])
-            self.points = []
+            self.data["points"] = []
             
             ## draw all segments
             self._canvas_renew()
-            self._canvas_draw(tool="line_bin", coord_list=self.point_list)
+            self._canvas_draw(tool="line_bin", coord_list=self.data["sequences"])
             self._canvas_blend()
             self._canvas_add_lines()
             self._canvas_mount()
                 
         ## drawing mode
-        elif self.drawing:
+        elif self.flags.drawing:
 
             ## convert cursor coords from zoomed canvas to original coordinate space
             self._zoom_coords_orig(x,y)
             
             ## add points, colour, and line width to point list
-            self.points.append(self.coords_original)
+            self.data["points"].append(self.coords_original)
             
             ## draw onto canvas for immediate feedback
             cv2.line(self.canvas,(self.ix,self.iy),(x,y), 
-                     self.colour_current, self.line_width) 
+                     self.colour_current, self.settings.line_width) 
             self.ix,self.iy = x,y
-            cv2.imshow(self.window_name, self.canvas)  
+            cv2.imshow(self.settings.window_name, self.canvas)  
                         
         if self.keypress == 9 and event == cv2.EVENT_MOUSEWHEEL:
             if flags > 1:
@@ -625,30 +646,30 @@ class _ImageViewer:
                 self.line_width_orig -= 1
 
             self.canvas = copy.deepcopy(self.canvas_copy)
-            self.line_width = int(
+            self.settings.line_width = int(
                 self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
             cv2.line(self.canvas, (x, y), (x, y),
-                     _generate_bgr("black"), self.line_width)
+                     _get_bgr("black"), self.settings.line_width)
             cv2.line(self.canvas, (x, y), (x, y),
-                     _generate_bgr("white"), max(self.line_width-5, 1))
-            cv2.imshow(self.window_name, self.canvas)
+                     _get_bgr("white"), max(self.settings.line_width-5, 1))
+            cv2.imshow(self.settings.window_name, self.canvas)
             
     
     def _canvas_add_lines(self):
         
-        _ , self.contours, self.hierarchies = cv2.findContours(
+        _ , self.contours, self.hierarchies = cv2.findcontours(
             image=self.image_bin_copy,
             mode=cv2.RETR_CCOMP,
             method=cv2.CHAIN_APPROX_SIMPLE,
         )
         
         for contour in self.contours:
-            cv2.drawContours(
+            cv2.drawcontours(
                 image=self.image_copy,
                 contours=[contour],
                 contourIdx=0,
-                thickness=self.overlay_line_width,
-                color=_generate_bgr(self.left_colour),
+                thickness=self.settings.overlay_line_width,
+                color=_get_bgr(self.left_colour),
                 maxLevel=3,
                 offset=None,
             )   
@@ -659,14 +680,14 @@ class _ImageViewer:
         ## create coloured overlay from binary image
         self.colour_mask = copy.deepcopy(self.image_bin_copy)
         self.colour_mask = cv2.cvtColor(self.colour_mask, cv2.COLOR_GRAY2BGR)
-        self.colour_mask[self.image_bin_copy == 0] = _generate_bgr(self.right_colour)
-        self.colour_mask[self.image_bin_copy == 255] = _generate_bgr(self.left_colour)
+        self.colour_mask[self.image_bin_copy == 0] = _get_bgr(self.right_colour)
+        self.colour_mask[self.image_bin_copy == 255] = _get_bgr(self.left_colour)
 
         ## blend two canvas layers
         self.image_copy = cv2.addWeighted(self.image_copy,
-                                          1 - self.overlay_blend,
+                                          1 - self.settings.overlay_blend,
                                           self.colour_mask,
-                                          self.overlay_blend,
+                                          self.settings.overlay_blend,
                                           0)           
         
         
@@ -681,8 +702,8 @@ class _ImageViewer:
                     self.image_copy,
                     np.array([coords]),
                     False,
-                    self.line_colour,
-                    self.line_width,
+                    self.settings.line_colour,
+                    self.settings.line_width,
                 )
             elif tool == "line_bin":
                 cv2.polylines(
@@ -697,17 +718,17 @@ class _ImageViewer:
                     self.image_copy,
                     coords,
                     self.point_size,
-                    _generate_bgr(self.point_colour),
+                    _get_bgr(self.point_colour),
                     -1,
                 )
-                if self.flag_text_label:
+                if self.settings.label:
                     cv2.putText(
                         self.image_copy,
                         str(idx+1),
                         coords,
                         cv2.FONT_HERSHEY_SIMPLEX,
                         self.text_size,
-                        _generate_bgr(self.label_colour),
+                        _get_bgr(self.label_colour),
                         self.text_width,
                         cv2.LINE_AA,
                     )
@@ -730,8 +751,8 @@ class _ImageViewer:
         self.canvas_copy = copy.deepcopy(self.canvas)
         
         ## refresh canvas
-        if refresh and not self.flags.passive:
-            cv2.imshow(self.window_name, self.canvas)
+        if refresh and not self.settings.passive:
+            cv2.imshow(self.settings.window_name, self.canvas)
 
 
     def _canvas_renew(self):
@@ -806,7 +827,7 @@ class _ImageViewer:
         
         ## adjust brush size
         if self.tool == "draw":
-            self.line_width = int(self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
+            self.settings.line_width = int(self.line_width_orig / ((self.zoom_x2 - self.zoom_x1) / self.image_width))
 
 
     def _zoom_coords_orig(self, x, y):
@@ -950,6 +971,17 @@ def _auto_text_size(image, **kwargs):
     return text_size
 
 
+def _calc_circle_perimeter(center_x, center_y, radius):
+    coordinate_list=[]
+    for i in range(360):
+        y = center_x + radius * cos(i)
+        x = center_y + radius * cos(i)
+        coordinate_list.append((int(x),int(y)))
+        
+    return coordinate_list
+
+
+
 def _convert_arr_tup_list(arr_list):
     
     if not arr_list.__class__.__name__ == "list":
@@ -961,22 +993,15 @@ def _convert_arr_tup_list(arr_list):
         for point in array:
             point_list.append(tuple((int(point[0][0]),int(point[0][1]))))
         tup_list.append(point_list)
+        
     return tup_list
 
-
-def _generate_bgr(col_string):
-    col = Color(col_string)
-    rgb = col.get_rgb()
-    rgb_255 = []
-    for component in rgb:
-        rgb_255.append(int(component * 255))
-        
-    return tuple((rgb_255[2], rgb_255[1], rgb_255[0]))
 
 
 def _check_pype_tag(tag):
     
     if tag.__class__.__name__ == "str":
+        
         ## pype name check
         if "pype_config" in tag:
             tag = tag.replace("pype_config", "")
@@ -1004,10 +1029,10 @@ def _convert_tup_list_arr(tup_list):
 def _create_mask_bin(image, contours):
     mask_bin = np.zeros(image.shape[0:2], np.uint8)
     if contours[0].__class__.__name__ == "list" or contours.__class__.__name__ == "list":
-        cv2.fillPoly(mask_bin, [np.array(contours, dtype=np.int32)], _generate_bgr("white"))
+        cv2.fillPoly(mask_bin, [np.array(contours, dtype=np.int32)], _get_bgr("white"))
     elif contours[0].__class__.__name__ == "ndarray":
         for contour in contours:
-            cv2.fillPoly(mask_bin, [np.array(contour, dtype=np.int32)], _generate_bgr("white"))
+            cv2.fillPoly(mask_bin, [np.array(contour, dtype=np.int32)], _get_bgr("white"))
     return mask_bin
 
 
@@ -1086,15 +1111,15 @@ def _equalize_histogram(image, detected_rect_mask, template):
 
 
 def _file_walker(
-    directory,
-    filetypes=[],
-    include=[],
-    include_all=True,
-    exclude=[],
-    recursive=False,
-    unique="path",
-    **kwargs
-):
+        directory,
+        filetypes=[],
+        include=[],
+        include_all=True,
+        exclude=[],
+        recursive=False,
+        unique="path",
+        **kwargs
+    ):
     """
     
     Parameters
@@ -1207,34 +1232,32 @@ def _file_walker(
 
 
 
-def _provide_annotation_data(annotation, 
-                             annotation_type, 
-                             data_type, 
-                             kwargs, 
-                             reduce_counter=False):
+def _get_annotation(
+        kwargs, 
+        annotation_type,
+        annotations=None,
+        reduce_counter=False
+        ):
     
     ## setup
-    annotation = copy.deepcopy(annotation)
-    annotation_id_str = annotation_type + "_id"
-    print_msg = None
+    annotations = copy.deepcopy(kwargs.get("annotations", annotations))
+    annotation_id = kwargs.get("annotation_id", None)    
     
-    ## low-throughput annotation structure without multiple types or IDs
-    if list(annotation.keys())[0] == "info":
-        if annotation["info"]["annotation_type"] == annotation_type:
-            data = annotation["data"][data_type]
-        else:
-            print_msg = "- incompatible data type supplied - need annotation of type \"{}\"".format(annotation_type)
-            data = None
-            
-    ## high-throughput annotation structure needs an annotation ID
+    if not annotation_type.__class__.__name__ == "NoneType":
+        annotation_id_str = annotation_type + "_id"
+        print_msg = None
     else:
+        return {}
+    
+    ## get non-generic id for plotting
+    if annotation_id_str in kwargs:
+        annotation_id = kwargs.get(annotation_id_str)
+
         
-        ## get ID from user provided kwargs
-        if kwargs.get(annotation_id_str):
-            annotation_id = kwargs.get(annotation_id_str)
-            
+    if annotations.__class__.__name__ in ["dict", "defaultdict"]:
+        
         ## get ID from last used annotation function of that type
-        elif not kwargs.get(annotation_id_str):
+        if annotation_id.__class__.__name__ == "NoneType":
             if kwargs.get("annotation_counter"):
                 print_msg = "- \"{}\" not provided: ".format(annotation_id_str)
                 annotation_counter = kwargs.get("annotation_counter")
@@ -1246,51 +1269,112 @@ def _provide_annotation_data(annotation,
                     if reduce_counter:
                         annotation_id =  chr(ord(annotation_id) - 1)
                     print_msg = print_msg + "using last annotation of type \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
-                    pass
             else:
-                print_msg = "\"{}\" not specified or available through precursing annotations".format(annotation_id_str)
-                annotation_id = None
-        
+                if annotation_type in annotations:
+                    annotation_id = max(list(annotations[annotation_type].keys()))
+                    print_msg = "\"{}\" not specified - using endmost in provided annotations: \"{}\"".format(annotation_id_str, annotation_id)
+
+                else:
+                    annotation = {}
+                    print_msg = "\"{}\" not specified and annotation type not found".format(annotation_id_str)
+
         ## check if type is given
-        if annotation_type in annotation:
-            
-            ## convert local annotation structure for extraction
-            if list(annotation.keys())[0] in settings._annotation_types.keys():
-                annotation = annotation[annotation_type] 
-        
-            ## extract data
+        if annotation_type in annotations:
+                                
+            ## extract item
             if annotation_id:
-                if annotation_id in annotation:
-                    if data_type in annotation[annotation_id]["data"]:
-                        data = annotation[annotation_id]["data"][data_type]
-                    else:
-                        print_msg = "- \"{}\" not found in precursing annotation of type \"{}\" with ID \"{}\"".format(data_type, annotation_type, annotation_id)
-                        data = None
+                if annotation_id in annotations[annotation_type]:
+                    
+                    annotation = annotations[annotation_type][annotation_id]
+                   
                 else:
                     print_msg = "- could not find \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
-                    data = None
+                    annotation = {}
             else:
-                data = None
+                annotation = {}
         else:
-            print_msg = "- incompatible data type supplied - need annotation of type \"{}\"".format(annotation_type)
-            data = None
+            print_msg = "- incompatible annotation type supplied - need \"{}\"  type".format(annotation_type)
+            annotation = {}
             
-    ## cleaned feedback (skip identical messages)
-    if print_msg:          
-        if not print_msg == _config.last_print_msg:
-            _config.last_print_msg = print_msg
-            print(print_msg)
-            
-    return data
+        ## cleaned feedback (skip identical messages)
+        if print_msg:          
+            if not print_msg == _config.last_print_msg:
+                _config.last_print_msg = print_msg
+                print(print_msg)
+    else:
+        annotation = {}
+                
+    return annotation
+        
+        
+    #     annotation_attribute,
+    #     items, 
+        
+    #     if items.__class__.__name__ == "str":
+    #         items = [items]
+    #     ret = []    
+        
+    # if ret.__class__.__name__ == "NoneType":
+    #     ret = []
+    #     for item in range(len(items)):
+    #         ret.append(None)
+    
+    # if len(ret) == 1:
+    #     return ret[0]
+    # else:
+    #     return tuple(ret)
+    
+    
+    # for item in items:
+    #     if item in annotation[annotation_type][annotation_id][annotation_attribute]:
+    #         ret.append(annotation[annotation_type][annotation_id][annotation_attribute][item])
+    #     else:
+    #         print_msg = "- \"{}\" not found in annotation of type \"{}\" with ID \"{}\"".format(item, annotation_type, annotation_id)
+    #         ret.append(None)
+    
+    
+    
+def _get_bgr(col_string):
+    col = Color(col_string)
+    rgb = col.get_rgb()
+    rgb_255 = []
+    for component in rgb:
+        rgb_255.append(int(component * 255))
+        
+    return tuple((rgb_255[2], rgb_255[1], rgb_255[0]))
+
 		
 
-def _get_circle_perimeter(center_x, center_y, radius):
-    coordinate_list=[]
-    for i in range(360):
-        y = center_x + radius * cos(i)
-        x = center_y + radius * cos(i)
-        coordinate_list.append((int(x),int(y)))
-    return coordinate_list
+def _get_GUI_data(annotation):
+    
+    GUI_data = {}    
+        
+    if annotation:
+        if "data" in annotation:
+            for key, value in annotation["data"].items():
+                if key in settings._GUI_data_args:
+                    GUI_data[key] = value
+    
+    return GUI_data
+
+
+
+def _get_GUI_settings(kwargs, annotation=None):
+    
+    GUI_settings = {}
+    
+    if annotation:
+        if "settings" in annotation:
+            if "GUI" in annotation["settings"]:
+                for key, value in annotation["settings"]["GUI"].items():
+                    GUI_settings[key] = value
+        
+    if kwargs:
+        for key, value in kwargs.items():
+            if key in settings._GUI_settings_args:
+                GUI_settings[key] = value
+    
+    return GUI_settings
 
 
 
@@ -1560,6 +1644,28 @@ def _update_settings(kwargs, local_settings, IV_settings=None):
         del local_settings["passive"]
 
 
+def _update_annotations(kwargs, annotation, annotation_type):
+    
+        
+    ## setup
+    annotations = copy.deepcopy(kwargs.get("annotations"))
+    annotation_id = kwargs.get("annotation_id")    
+        
+    if annotations.__class__.__name__ == "NoneType":
+        annotations = {}
+
+    if annotation_id.__class__.__name__ == "NoneType":
+                
+        if "annotation_counter" in kwargs:
+            annotation_counter = kwargs.get("annotation_counter")
+            annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
+        else:
+            annotation_id = "a"
+            
+    annotations = defaultdict(dict, annotations)
+    annotations[annotation_type].update({annotation_id: annotation})
+    
+    return annotations
 
 
 def _yaml_flow_style(dictionary):

@@ -2,11 +2,13 @@
 
 import cv2
 import os
-from importlib.resources import path
-from pathlib import Path, PurePath
+import numpy as np
+
+# from importlib.resources import path
+# from pathlib import Path, PurePath
 from pprint import PrettyPrinter
 
-# from phenopype import utils_lowlevel
+from phenopype import utils_lowlevel
 
 
 
@@ -75,6 +77,11 @@ pandas_max_rows = 10
 pretty = PrettyPrinter(width=30)
 
 strftime_format = "%Y-%m-%d %H:%M:%S"
+
+
+#%% defaults
+
+_default_line_colour = "aqua"
 
 #%% flags
 
@@ -156,6 +163,13 @@ opencv_window_flags={
     "GUInorm": cv2.WINDOW_GUI_NORMAL,
     } 
 #%% image viewer
+
+g = utils_lowlevel._GUI(np.zeros((1, 1, 1), dtype = "uint8"), window_control="external")
+cv2.waitKey(1)
+cv2.destroyAllWindows()
+_GUI_settings_args = list(g.settings.__dict__)
+_GUI_data_args = list(g.data.keys())
+
 
 _image_viewer_arg_list = [
     # "overlay_blend",

@@ -9,7 +9,7 @@ import pprint
 from colour import Color
 from math import inf
 
-from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool, _load_image_data, _generate_bgr
+from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool, _load_image_data, _get_bgr
 from phenopype.core.preprocessing import blur
 from phenopype.core.segmentation import threshold, detect_contour
 
@@ -461,18 +461,18 @@ class motion_tracker(object):
                             self.method_mask = np.zeros_like(fgmask_copy)
                             for contour in self.method_contours:
                                 if self.consecutive_shape == "contour":
-                                    self.method_mask = cv2.drawContours(
+                                    self.method_mask = cv2.drawcontours(
                                         self.method_mask,
                                         [contour],
                                         0,
-                                        _generate_bgr("white"),
+                                        _get_bgr("white"),
                                         -1,
                                     )  # Draw filled contour in mask
                                 elif self.consecutive_shape == "ellipse":
                                     self.method_mask = cv2.ellipse(
                                         self.method_mask,
                                         cv2.fitEllipse(contour),
-                                        _generate_bgr("white"),
+                                        _get_bgr("white"),
                                         -1,
                                     )
                                 elif self.consecutive_shape in ["rect", "rectangle"]:
@@ -481,7 +481,7 @@ class motion_tracker(object):
                                         self.method_mask,
                                         (int(rx), int(ry)),
                                         (int(rx + rw), int(ry + rh)),
-                                        _generate_bgr("white"),
+                                        _get_bgr("white"),
                                         -1,
                                     )
                                 kernel = cv2.getStructuringElement(
@@ -614,7 +614,7 @@ class tracking_method:
         ## kwargs
         self.blur_kernel = blur
         self.label = label
-        self.overlay_colour = _generate_bgr(overlay_colour)
+        self.overlay_colour = _get_bgr(overlay_colour)
         self.min_length, self.max_length = min_length, max_length
         self.min_area, self.max_area = min_area, max_area
         self.mode = mode
@@ -671,7 +671,7 @@ class tracking_method:
         )
 
         ## find contours
-        ret, contours, hierarchy = cv2.findContours(
+        ret, contours, hierarchy = cv2.findcontours(
             fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 
@@ -770,7 +770,7 @@ class tracking_method:
                         list_r.append(int(np.mean(r)))
 
                     # drawing
-                    self.overlay = cv2.drawContours(
+                    self.overlay = cv2.drawcontours(
                         self.overlay, [contour], 0, self.overlay_colour, -1
                     )  # Draw filled contour in mask
                     self.overlay = cv2.putText(

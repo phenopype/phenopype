@@ -860,11 +860,12 @@ class Pype(object):
 
     def __init__(
         self,
-        path,
-        tag="v1",
+        image_path,
         config_path=None,
+        tag="v1",
         skip=False,
         autosave=True,
+        autoload=True,
         feedback=True,
         visualize=True,
         debug=False,
@@ -885,6 +886,7 @@ class Pype(object):
         self.flags = make_dataclass(cls_name="flags", 
                                     fields=[("debug",bool,debug),
                                             ("autosave", bool, autosave),
+                                            ("autoload", bool, autoload),
                                             ("feedback", bool, feedback),
                                             ("skip",bool, skip),
                                             ("terminate", bool, False),
@@ -900,13 +902,13 @@ class Pype(object):
         # else:
             
         print("Format path to abspath")
-        if path.__class__.__name__ == "str":
-            path = os.path.abspath(path)
+        if image_path.__class__.__name__ == "str":
+            image_path = os.path.abspath(image_path)
                    
         ## check name, load container and config
         utils_lowlevel._check_pype_tag(tag)
-        self._load_container(path=path, tag=tag)
-        self._load_pype_config(path=path, tag=tag, config_path=config_path)
+        self._load_container(image_path=image_path, tag=tag)
+        self._load_pype_config(image_path=image_path, tag=tag, config_path=config_path)
         
         ## check whether directory is skipped
         if self.flags.skip:
@@ -916,7 +918,8 @@ class Pype(object):
                 return
 
         ## load existing annotations through container
-        self.container.load()
+        if self.flags.autoload:
+            self.container.load()
 
         ## check pype config for annotations
         self._iterate(config=self.config, 
@@ -988,32 +991,32 @@ class Pype(object):
                 export_list = self.config_parsed_flattened["export"]
             self.container.save(export_list = export_list)
         
-    def _load_container(self, path, tag):
-        if path.__class__.__name__ == "str":
-            if os.path.isfile(path):
-                image = utils.load_image(path)
-                dir_path = os.path.dirname(path)
+    def _load_container(self, image_path, tag):
+        if image_path.__class__.__name__ == "str":
+            if os.path.isfile(image_path):
+                image = utils.load_image(image_path)
+                dir_path = os.path.dirname(image_path)
                 self.container = utils.Container(
                     image=image,
                     dir_path=dir_path,
-                    file_prefix=os.path.splitext(os.path.basename(path))[0],
+                    file_prefix=os.path.splitext(os.path.basename(image_path))[0],
                     file_suffix=tag,
-                    image_name=os.path.basename(path),
+                    image_name=os.path.basename(image_path),
                     )
-            elif os.path.isdir(path):
+            elif os.path.isdir(image_path):
                 self.container = utils_lowlevel._load_project_image_directory(
-                    dir_path=path,
+                    dir_path=image_path,
                     tag=tag,
                     )
             else:
                 raise FileNotFoundError(
-                    "Could not find image or image directory: \"{}\"".format(os.path.dirname(path)))
-        elif path.__class__.__name__ == "Container":
-            self.container = copy.deepcopy(path)
+                    "Could not find image or image directory: \"{}\"".format(os.path.dirname(image_path)))
+        elif image_path.__class__.__name__ == "Container":
+            self.container = copy.deepcopy(image_path)
         else:
             raise TypeError("Invalid input for image path (str required)")
 
-    def _load_pype_config(self, path, tag, config_path):
+    def _load_pype_config(self, image_path, tag, config_path):
         
         ## load config from config path
         if config_path.__class__.__name__ == "str":
@@ -1024,12 +1027,13 @@ class Pype(object):
             else:
                 raise FileNotFoundError(
                     "Could not read config file from specified config_path: \"{}\"".format(config_path))
+                
         ## auto-load config from filename prefix and tag OR from project directory
         elif config_path.__class__.__name__ == "NoneType":
-            if os.path.isfile(path):
-                image_name_root = os.path.splitext(os.path.basename(path))[0]
+            if os.path.isfile(image_path):
+                image_name_root = os.path.splitext(os.path.basename(image_path))[0]
                 prepend = image_name_root + "_"
-            elif os.path.isdir(path):
+            elif os.path.isdir(image_path):
                 prepend = ""
             
             config_name = prepend + "pype_config_" + tag + ".yaml"
@@ -1040,7 +1044,7 @@ class Pype(object):
                 self.config_path = config_path
             else:
                 raise FileNotFoundError(
-                    "Could not find config file \"{}\" in image directory: \"{}\"".format(config_name, os.path.dirname(path)))
+                    "Could not find config file \"{}\" in image directory: \"{}\"".format(config_name, os.path.dirname(image_path)))
         else:
             raise TypeError("Invalid input for config_path (str required)")
             
@@ -1291,8 +1295,8 @@ class Pype(object):
                     self.container.run(fun="select_canvas")
                     print("- autoselect canvas")
                     
-                self.IV = utils_lowlevel._ImageViewer(self.container.canvas)
-                self.flags.terminate = self.IV.finished
+                self.gui = utils_lowlevel._GUI(self.container.canvas)
+                self.flags.terminate = self.gui.flags.end_pype
                 
             except Exception as ex:
                 print(

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 
-from phenopype.settings import confirm_options, _annotation_types, flag_verbose
+from phenopype import settings
 from phenopype import utils_lowlevel 
 from phenopype import utils
 
@@ -58,7 +58,7 @@ def export_csv(annotation,
     ## filter by annotation type
     if annotation_type.__class__.__name__ == "NoneType":
         print("- no annotation_type selected - exporting all annotations")
-        annotation_types = list(_annotation_types.keys())
+        annotation_types = list(settings._annotation_types.keys())
     elif annotation_type.__class__.__name__ == "str":
         annotation_types = [annotation_type]
     elif annotation_type.__class__.__name__ in [ "list", "CommentedSeq"]:
@@ -350,7 +350,7 @@ def save_annotation(annotation,
         break
     
     ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] in _annotation_types.keys():
+    if list(annotation.keys())[0] in settings._annotation_types.keys():
         annotation = defaultdict(dict, annotation)
     elif list(annotation.keys())[0] == "info":
         if annotation_id.__class__.__name__ == "NoneType":
@@ -387,7 +387,7 @@ def save_annotation(annotation,
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
                     
                     ## unindent entries for better legibility
-                    if key in ["coord_list", "point_list", "points", "coords"]:
+                    if key in ["coord_list", "point_list", "points", "coords", "polygons"]:
                         if len(value)>0 and not type(value[0]) in [list,tuple, int]:
                             value = [elem.tolist() for elem in value if not type(elem)==list] 
                         value = [utils_lowlevel._NoIndent(elem) for elem in value]   
@@ -450,7 +450,7 @@ def save_ROI(image,
     else:
         if not os.path.isdir(dir_path):
             q = input("Save folder {} does not exist - create?.".format(dir_path))
-            if q in confirm_options:
+            if q in settings.confirm_options:
                 os.makedirs(dir_path)
             else:
                 print("Directory not created - aborting")
@@ -517,7 +517,7 @@ def save_canvas(
                dir_path=dir_path,
                resize=resize,
                overwrite=overwrite,
-               verbose=flag_verbose)
+               verbose=settings.flag_verbose)
         
     
         

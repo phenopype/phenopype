@@ -1,12 +1,8 @@
 #%% modules
 import ast, cv2, copy, os, sys, warnings
 import json
-import numpy as np
-import glob
-import pandas as pd
-import pkgutil
-import string
 from dataclasses import make_dataclass
+from collections import defaultdict
 
 from pathlib import Path
 from datetime import datetime
@@ -14,22 +10,11 @@ import io
 from contextlib import redirect_stdout
 import ruamel.yaml
 
-import phenopype.core.preprocessing as preprocessing
-import phenopype.core.segmentation as segmentation
-import phenopype.core.measurement as measurement
-import phenopype.core.visualization as visualization
-import phenopype.core.export as export
-
 from phenopype import settings
-
-from phenopype.settings import (
-    default_filetypes,
-    flag_verbose, 
-    confirm_options, 
-    _annotation_types,
-    )
 from phenopype import utils_lowlevel 
-from collections import defaultdict
+
+from phenopype.core import preprocessing, segmentation, measurement, export, visualization
+
 
 #%% classes
 
@@ -69,8 +54,7 @@ class Container(object):
         self.image_name = kwargs.get("image_name")
         
         ## annotations - primed from empty dict
-        self.annotations = copy.deepcopy(_annotation_types)
-                
+        self.annotations = defaultdict(dict, copy.deepcopy(settings._annotation_types))
         
     def load(self, contours=False,  **kwargs):
         """
@@ -166,7 +150,7 @@ class Container(object):
         annotation_id = annotation_kwargs.get("id") 
         annotation_type = annotation_kwargs.get("type")
         edit = annotation_kwargs.get("edit", False)
-        
+                
         ## annotation_counter
         fun_kwargs["annotation_counter"] = annotation_counter
         
@@ -178,7 +162,7 @@ class Container(object):
             image_name=self.image_attributes["image_original"]["filename"] 
         elif self.image_name:
             image_name = self.image_name
-                
+                        
         ## edit handling
         if not all(
                 [annotation_id.__class__.__name__ == "NoneType",
@@ -186,10 +170,9 @@ class Container(object):
             if annotation_id in self.annotations[annotation_type]:
                 print_msg = "- loaded existing annotation of type \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
                 if edit == True:
-                    kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
+                    kwargs.update({"annotations": self.annotations})
                     print(print_msg + ": editing (edit=True)")
                 elif edit == False:
-                    kwargs.update({"annotation_previous":self.annotations[annotation_type][annotation_id]})
                     print(print_msg + ": skipping (edit=False)")
                     if annotation_type in ["drawing"]:
                         kwargs.update({"passive":True})                                             
@@ -267,7 +250,7 @@ class Container(object):
         if fun == "draw_landmark":
             self.canvas = visualization.draw_landmark(self.canvas, annotation=self.annotations, **kwargs)
         if fun == "draw_mask":
-            self.canvas = visualization.draw_mask(self.canvas, annotation=self.annotations, **kwargs)
+            self.canvas = visualization.draw_mask(self.canvas, annotations=self.annotations, **kwargs)
         if fun == "draw_polyline":
             self.canvas = visualization.draw_polyline(self.canvas, annotation=self.annotations, **kwargs)
         if fun == "draw_reference":
@@ -295,7 +278,7 @@ class Container(object):
             
         ## save annotation to dict
         if annotation:
-            self.annotations[annotation_type][annotation_id] = annotation
+            self.annotations[annotation_type].update(annotation[annotation_type])
 
             
     def save(self, dir_path=None, export_list=[], overwrite=False, **kwargs):
@@ -317,7 +300,6 @@ class Container(object):
         """
 
         ## kwargs
-        flag_overwrite = overwrite
         flag_autosave = False
 
         ## check dir_path
@@ -401,7 +383,7 @@ def load_image(
     if path.__class__.__name__ == "str":
         if os.path.isfile(path):
             ext = os.path.splitext(path)[1]
-            if ext.replace(".", "") in default_filetypes:
+            if ext.replace(".", "") in settings.default_filetypes:
                 if flags.mode == "default":
                     image = cv2.imread(path)
                 elif flags.mode == "colour":
@@ -591,7 +573,6 @@ def save_image(
 
 def show_image(
     image,
-    window_max_dim=1200,
     position_reset=True,
     position_offset=25,
     window_aspect="normal",
@@ -655,13 +636,13 @@ def show_image(
                 idx += 1
                 if i.__class__.__name__ == "ndarray":
                     print("phenopype" + " - " + str(idx))
-                    utils_lowlevel._ImageViewer(
+                    utils_lowlevel._GUI(
                         i,
                         mode="",
                         window_aspect=window_aspect,
                         window_name="phenopype" + " - " + str(idx),
                         window_control="external",
-                        window_max_dim=window_max_dim,
+                        **kwargs,
                     )
                     if position_reset == True:
                         cv2.moveWindow(
@@ -675,14 +656,13 @@ def show_image(
             cv2.destroyAllWindows()
             break
         else:
-            utils_lowlevel._ImageViewer(
+            utils_lowlevel._GUI(
                 image=image,
                 mode="",
                 window_aspect=window_aspect,
                 window_name="phenopype",
                 window_control="internal",
-                window_max_dim=window_max_dim,
-                # window_max_dim=window_max_dim,
+                **kwargs,
             )
             cv2.waitKey(0)
             cv2.destroyAllWindows()
