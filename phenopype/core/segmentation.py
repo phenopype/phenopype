@@ -442,8 +442,6 @@ def threshold(
 	# process
 
     mask = utils_lowlevel._get_annotation(kwargs, "mask")   
-    print(kwargs)
-
     if len(mask) > 0:
         mask_bool, include_idx, exclude_idx = np.zeros(thresh.shape, dtype=bool), 0,0
         
@@ -466,7 +464,6 @@ def threshold(
             print("- including pixels from " + str(include_idx) + " drawn masks ")
             
     reference = utils_lowlevel._get_annotation(kwargs, "reference")   
-            
     if len(reference) > 0:
         polygons = value["data"]["polygons"]
         for coords in polygons:

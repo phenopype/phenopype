@@ -1,18 +1,16 @@
 #%% load modules
 
 import cv2
-import os
 import numpy as np
 
-# from importlib.resources import path
-# from pathlib import Path, PurePath
 from pprint import PrettyPrinter
-
 from phenopype import utils_lowlevel
 
 
-
 #%% helper-class      
+
+# from importlib.resources import path
+# from pathlib import Path, PurePath
         
 # ## create template browser
 # class TemplateList:
@@ -53,12 +51,19 @@ from phenopype import utils_lowlevel
     
 #%% scalars and definitions
 
-auto_line_width_factor = 0.002
-auto_point_size_factor = 0.002
+auto_line_width_factor = 0.005
+auto_point_size_factor = 0.005
 auto_text_width_factor = 0.0005
 auto_text_size_factor = 0.00025
 
 confirm_options = ["True", "true", "y", "yes"]
+
+_default_label_colour = "black"
+_default_line_colour = "lime"
+_default_point_colour = "lime"
+_default_overlay_left = "green"
+_default_overlay_right = "red"
+
 
 default_filetypes = ["jpg", "JPG", "jpeg", "JPEG", "tif", "png", "bmp"]
 default_meta_data_fields = [
@@ -78,14 +83,6 @@ pretty = PrettyPrinter(width=30)
 
 strftime_format = "%Y-%m-%d %H:%M:%S"
 
-
-#%% defaults
-
-_default_label_colour = "black"
-_default_line_colour = "aqua"
-_default_point_colour = "aqua"
-_default_overlay_left = "green"
-_default_overlay_right = "red"
 
 
 #%% flags

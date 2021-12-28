@@ -1044,8 +1044,8 @@ def _update_annotations(kwargs, annotation, annotation_type):
 #%% functions - GUI helpers
 
 
-def _auto_line_width(image, **kwargs):
-    factor = kwargs.get("factor", 0.001)
+def _auto_line_width(image):
+    factor = settings.auto_line_width_factor
     image_height, image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) / 2
     line_width = max(int(factor * image_diagonal), 1)
@@ -1053,8 +1053,8 @@ def _auto_line_width(image, **kwargs):
     return line_width
 
 
-def _auto_point_size(image, **kwargs):
-    factor = kwargs.get("factor", 0.002)
+def _auto_point_size(image):
+    factor = settings.auto_point_size_factor
     image_height, image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) / 2
     point_size = max(int(factor * image_diagonal), 1)
@@ -1062,8 +1062,8 @@ def _auto_point_size(image, **kwargs):
     return point_size
 
 
-def _auto_text_width(image, **kwargs):
-    factor = kwargs.get("factor", 0.0005)
+def _auto_text_width(image):
+    factor = settings.auto_text_width_factor
     image_height, image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) / 2
     text_width = max(int(factor * image_diagonal), 1)
@@ -1071,8 +1071,8 @@ def _auto_text_width(image, **kwargs):
     return text_width
 
 
-def _auto_text_size(image, **kwargs):
-    factor = kwargs.get("factor", 0.00025)
+def _auto_text_size(image):
+    factor = settings.auto_text_size_factor
     image_height, image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) / 2
     text_size = max(int(factor * image_diagonal), 1)

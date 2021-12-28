@@ -22,10 +22,10 @@ from phenopype.core import preprocessing
 
 def set_landmark(
     image,
-    point_colour="green",
+    point_colour="default",
     point_size="auto",
     label=True,
-    label_colour="black",
+    label_colour="default",
     label_size="auto",
     label_width="auto",
     **kwargs
@@ -60,30 +60,15 @@ def set_landmark(
 
 	# =============================================================================
 	# setup 
-    
-    annotation_previous = kwargs.get("annotation_previous", None)
-
-
+       
+    annotation_type = "landmark"
+        
     # =============================================================================
-    # retain settings
-
-    ## retrieve settings from args
-    local_settings  = utils_lowlevel._drop_dict_entries(locals(),
-        drop=["image","kwargs","annotation_previous"])
-
-    ## retrieve update IV settings and data from previous annotations  
-    IV_settings = {}     
-    if annotation_previous:       
-        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
-            annotation_previous = annotation_previous, 
-            components = [
-                ("data","points"),
-                ])            
-        
-    ## update local and IV settings from kwargs
-    if kwargs:
-        utils_lowlevel._update_settings(kwargs, local_settings, IV_settings)
-        
+    # retrieve attributes
+    
+    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)   
+    gui_data = utils_lowlevel._get_GUI_data(annotation)
+    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
         
 	# =============================================================================
 	# further prep
@@ -95,12 +80,15 @@ def set_landmark(
         label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
-
+    if point_colour == "default":
+        point_colour = settings._default_point_colour
+    if label_colour == "default":
+        label_width = settings._default_label_colour
 
 	# =============================================================================
 	# execute
 
-    out = utils_lowlevel._GUI(
+    gui = utils_lowlevel._GUI(
         image=image, 
         tool="point", 
         flag_text_label=label,
@@ -108,20 +96,19 @@ def set_landmark(
         point_colour=point_colour,
         label_size=label_size,
         label_width=label_width,
-        label_colour=label_colour,                       
-        **IV_settings,
+        label_colour=label_colour,     
+        data=gui_data,                  
+        **gui_settings,
         )
     
-    ## checks
-    if not out.done:
-        print("- didn't finish: redo landmarks")
+    ## check if tasks completed successfully
+    if not gui.flags.end:
+        print("- didn't finish: redo mask")
         return 
-    elif len(out.data["points"]) == 0:
+    if len(gui.data["points"]) == 0:
         print("- zero coordinates: redo landmarks")
         return 
-
-        
-        
+           
 	# =============================================================================
 	# assemble results
 
@@ -130,17 +117,31 @@ def set_landmark(
             "annotation_type": "landmark", 
             "function": "set_landmark",
             },
-        "settings": local_settings,
+        "settings": {
+            "point_size":point_size,
+            "point_colour":point_colour,
+            "label":label,
+            "label_size":label_size,
+            "label_width":label_width,
+            "label_colour":label_colour,     
+            },
         "data":{
-            "points": out.data["points"],
+            "points": gui.data["points"],
             }
         }
-    
+
     
 	# =============================================================================
 	# return
     
-    return annotation
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+            
+    return annotations
+
 
 
 def set_polyline(
