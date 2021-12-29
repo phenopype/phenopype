@@ -86,7 +86,7 @@ def detect_contour(
 	# =============================================================================
 	# execute
     
-    image, contours, hierarchies = cv2.findContours(
+    _ , contours_det, hierarchies_det = cv2.findContours(
         image=image,
         mode=settings.opencv_contour_flags["retrieval"][retrieval],
         method=settings.opencv_contour_flags["approximation"][approximation],
@@ -97,9 +97,9 @@ def detect_contour(
 	# =============================================================================
 	# process
         
-    if len(contours) > 0:
-        coord_list, support = [], []
-        for idx, (contour, hierarchy) in enumerate(zip(contours, hierarchies[0])):
+    if len(contours_det) > 0:
+        contours, support = [], []
+        for idx, (contour, hierarchy) in enumerate(zip(contours_det, hierarchies_det[0])):
             
             ## number of contour nodes
             if len(contour) > min_nodes and len(contour) < max_nodes:
@@ -123,7 +123,7 @@ def detect_contour(
                             ]):
                 
                     ## populate data lists
-                    coord_list.append(contour)
+                    contours.append(contour)
                     support.append({
                             "center": center,
                             "area": area,
@@ -133,7 +133,7 @@ def detect_contour(
                             "hierarchy_idx_parent": int(hierarchy[3]),
                             })
 
-        print("- found " + str(len(coord_list)) + " contours that match criteria")
+        print("- found " + str(len(contours)) + " contours that match criteria")
     else:
         print("- did not find contours that match criteria")
         return
@@ -143,27 +143,28 @@ def detect_contour(
 	# assemble results
 
     annotation = {
-    "info":{
-        "annotation_type": "contour", 
-        "pp_function": "detect_contour",
-        },
-    "settings": {
-        "approximation":approximation,
-        "retrieval":retrieval,
-        "offset_coords":offset_coords,       
-        "min_nodes":min_nodes,
-        "max_nodes":max_nodes,
-        "min_area":min_area,
-        "max_area":max_area,
-        "min_diameter":min_diameter,
-        "max_diameter":max_diameter,
-        },
-    "data":{
-        "n_contours": len(coord_list),
-        "contours": coord_list,
-        "support": support,
+        "info":{
+            "annotation_type": annotation_type,
+            "phenopype_function": "detect_contour",
+            "phenopype_version": __version__,
+            },
+        "settings": {
+            "approximation":approximation,
+            "retrieval":retrieval,
+            "offset_coords":offset_coords,       
+            "min_nodes":min_nodes,
+            "max_nodes":max_nodes,
+            "min_area":min_area,
+            "max_area":max_area,
+            "min_diameter":min_diameter,
+            "max_diameter":max_diameter,
+            },
+        "data":{
+            "n_contours": len(contours),
+            "contours": contours,
+            "support": support,
+            }
         }
-    }
     
     
 	# =============================================================================
@@ -241,7 +242,7 @@ def edit_contour(
         )
         
     ## check if tasks completed successfully
-    if not gui.flags.done:
+    if not gui.flags.end:
         print("- didn't finish: redo contour editing!")
         # return 
     if not gui.data["sequences"]:

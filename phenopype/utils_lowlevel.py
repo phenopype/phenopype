@@ -4,15 +4,11 @@ import cv2, copy, os, sys, warnings
 import json
 import numpy as np
 import pandas as pd
-from collections import defaultdict
 from dataclasses import make_dataclass
 import string
 import re
 from _ctypes import PyObj_FromPtr
-
 from colour import Color
-
-
 from timeit import default_timer as timer
 import ruamel.yaml
 from ruamel.yaml.constructor import SafeConstructor
@@ -80,31 +76,49 @@ class _GUI:
         ## basic settings
         self.tool = tool
         self.passive = passive
-        
+        self.label = kwargs.get("label")
+
+        ## data collector
+        self.data = {
+            "contours":[],
+            "polygons":[],
+            "points":[],
+            "sequences":[]
+            }
+        self.data.update(kwargs.get("data", {}))
+
         ## GUI settings 
         self.settings = make_dataclass(
             cls_name="settings", 
             fields=[
-                ("label", bool, kwargs.get("label", False)),
+                
+                ("show_label", bool, kwargs.get("show_label", False)),
                 ("label_colour", tuple,  kwargs.get("label_colour", settings._default_label_colour)),
                 ("label_size", int, kwargs.get("label_size", _auto_text_size(image))),
                 ("label_width", int, kwargs.get("label_width", _auto_text_width(image))),
+                
                 ("line_colour", tuple,  kwargs.get("line_colour", settings._default_line_colour)),
                 ("line_width", int, kwargs.get("line_width", _auto_line_width(image))),
+                
                 ("point_colour", tuple,  kwargs.get("point_colour", settings._default_point_colour)),
                 ("point_size", int, kwargs.get("point_size", _auto_point_size(image))),
+                
                 ("overlay_colour_left", tuple, kwargs.get("overlay_colour_left", settings._default_overlay_left)),
                 ("overlay_colour_right", tuple, kwargs.get("overlay_colour_right", settings._default_overlay_right)),
                 ("overlay_blend", float, kwargs.get("overlay_blend", 0.5)),
                 ("overlay_line_width", int, kwargs.get("overlay_line_width", 1)),
+                
                 ("zoom_mode", str, zoom_mode),
                 ("zoom_magnification", float, zoom_magnification),
                 ("zoom_n_steps", int, zoom_n_steps),
+                
                 ("wait_time", int, wait_time),
+                
                 ("window_aspect", str, window_aspect),
                 ("window_control", str, window_control),
                 ("window_max_dim", str, window_max_dim),
                 ("window_name", str, window_name),
+                
                 ])   
                     
         self.locals = make_dataclass(
@@ -114,20 +128,7 @@ class _GUI:
         
         
         ## collect interactions and set flags
-        self.line_width_orig = copy.deepcopy(self.settings.line_width)
-        
-        self.data = {
-            "contours":[],
-            "points": [],
-            "polygons":[],
-            "sequences":[],
-            "field": kwargs.get("field", ""),
-            "entry": "",
-            }
-        
-        data = kwargs.get("data", {})
-        self.data.update(data)
-        
+        self.line_width_orig = copy.deepcopy(self.settings.line_width)        
 
 
         self.flags = make_dataclass(
@@ -210,9 +211,6 @@ class _GUI:
                 mag * self.zoom_step_x,
                 mag * self.zoom_step_y,
             )
-
-        
-        
 
         
         # ## update from previous call
@@ -703,7 +701,7 @@ class _GUI:
                     _get_bgr(self.settings.point_colour),
                     -1,
                 )
-                if self.settings.label:
+                if self.settings.label:                    
                     cv2.putText(
                         self.image_copy,
                         str(idx+1),
@@ -911,16 +909,30 @@ class _YamlFileMonitor:
         
 #%% functions - ANNOTATION helpers
 
+def _create_annotation_type_collector(typ):
+    
+    if typ =="dict":
+        typ_ret = {}
+    elif typ == "list":
+        typ_ret = []
+    
+    s = set(settings._annotation_functions.values())
+    
+    return dict.fromkeys(sorted(s), typ_ret)
+
+
+
 def _get_annotation(
-        kwargs, 
+        annotations, 
         annotation_type,
-        annotations=None,
-        reduce_counter=False
+        annotation_id,
+        kwargs,
+        reduce_counter=False,
+        feedback=False,
         ):
     
     ## setup
-    annotations = copy.deepcopy(kwargs.get("annotations", annotations))
-    annotation_id = kwargs.get("annotation_id", None)    
+    annotations = copy.deepcopy(annotations)
     
     if not annotation_type.__class__.__name__ == "NoneType":
         annotation_id_str = annotation_type + "_id"
@@ -931,10 +943,9 @@ def _get_annotation(
     ## get non-generic id for plotting
     if annotation_id_str in kwargs:
         annotation_id = kwargs.get(annotation_id_str)
-
         
     if annotations.__class__.__name__ in ["dict", "defaultdict"]:
-        
+                
         ## get ID from last used annotation function of that type
         if annotation_id.__class__.__name__ == "NoneType":
             if kwargs.get("annotation_counter"):
@@ -959,7 +970,7 @@ def _get_annotation(
 
         ## check if type is given
         if annotation_type in annotations:
-                                
+                                            
             ## extract item
             if annotation_id:
                 if annotation_id in annotations[annotation_type]:
@@ -972,11 +983,11 @@ def _get_annotation(
             else:
                 annotation = {}
         else:
-            print_msg = "- incompatible annotation type supplied - need \"{}\"  type".format(annotation_type)
+            print_msg = "- incompatible annotation type supplied - need \"{}\" type".format(annotation_type)
             annotation = {}
             
         ## cleaned feedback (skip identical messages)
-        if print_msg:          
+        if print_msg and feedback:          
             if not print_msg == _config.last_print_msg:
                 _config.last_print_msg = print_msg
                 print(print_msg)
@@ -986,15 +997,20 @@ def _get_annotation(
     return annotation
               		
 
+def _get_annotation_type(fun_name):
+    
+    return settings._annotation_functions[fun_name]
+
+
 def _get_GUI_data(annotation):
     
     GUI_data = {}    
         
     if annotation:
+        if "info" in annotation:
+            annotation_type = annotation["info"]["annotation_type"]
         if "data" in annotation:
-            for key, value in annotation["data"].items():
-                if key in settings._GUI_data_args:
-                    GUI_data[key] = value
+            GUI_data = annotation["data"][annotation_type]
     
     return GUI_data
 
@@ -1017,26 +1033,26 @@ def _get_GUI_settings(kwargs, annotation=None):
     return GUI_settings
 
 
-def _update_annotations(kwargs, annotation, annotation_type):
-    
-    ## setup
-    annotations = copy.deepcopy(kwargs.get("annotations"))
-    annotation_id = kwargs.get("annotation_id")    
-        
-    if annotations.__class__.__name__ == "NoneType":
-        annotations = {}
-
-    if annotation_id.__class__.__name__ == "NoneType":
+def _update_annotations(
+        annotations, 
+        annotation,
+        annotation_type,
+        annotation_id,
+        kwargs,
+        ):
                 
+    if not annotation_type in annotations:
+        annotations[annotation_type] = {}
+        
+    if annotation_id.__class__.__name__ == "NoneType": 
         if "annotation_counter" in kwargs:
             annotation_counter = kwargs.get("annotation_counter")
             annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
         else:
             annotation_id = "a"
             
-    annotations = defaultdict(dict, annotations)
     annotations[annotation_type].update({annotation_id: annotation})
-    
+                    
     return annotations
 
 

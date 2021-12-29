@@ -1,17 +1,14 @@
 #%% modules
-import cv2, copy
+import cv2
 import math
 import numpy as np
-import numpy.ma as ma
-import pandas as pd
-from dataclasses import make_dataclass
-import string 
 
 import logging
 from radiomics import featureextractor
 import SimpleITK as sitk
 from tqdm import tqdm as _tqdm
 
+from phenopype import __version__
 from phenopype import utils_lowlevel
 from phenopype import settings
 from phenopype.core import preprocessing 
@@ -83,7 +80,7 @@ def set_landmark(
     if point_colour == "default":
         point_colour = settings._default_point_colour
     if label_colour == "default":
-        label_width = settings._default_label_colour
+        label_colour = settings._default_label_colour
 
 	# =============================================================================
 	# execute
@@ -91,7 +88,7 @@ def set_landmark(
     gui = utils_lowlevel._GUI(
         image=image, 
         tool="point", 
-        flag_text_label=label,
+        label=label,
         point_size=point_size,
         point_colour=point_colour,
         label_size=label_size,
@@ -114,8 +111,9 @@ def set_landmark(
 
     annotation = {
         "info": {
-            "annotation_type": "landmark", 
-            "function": "set_landmark",
+            "annotation_type": annotation_type,
+            "phenopype_function": "set_landmark",
+            "phenopype_version": __version__,
             },
         "settings": {
             "point_size":point_size,
@@ -130,6 +128,8 @@ def set_landmark(
             }
         }
 
+    if len(gui_settings) > 0:
+        annotation["settings"]["GUI"] = gui_settings
     
 	# =============================================================================
 	# return
@@ -145,11 +145,11 @@ def set_landmark(
 
 
 def set_polyline(
-    image,
-    line_width="auto",
-    line_colour="green",
-    **kwargs
-):
+        image,
+        line_width="auto",
+        line_colour="default",
+        **kwargs
+    ):
     """
     Set points, draw a connected line between them, and measure its length. Note 
     that modifying the appearance of the lines will only be effective for the 
@@ -172,85 +172,82 @@ def set_polyline(
     """
 	# =============================================================================
 	# setup 
-    
-    ## kwargs
-    annotation_previous = kwargs.get("annotation_previous", None)
-    
-
+       
+    annotation_type = "line"
+        
     # =============================================================================
-    # retain settings
-
-    ## retrieve settings from args
-    local_settings  = utils_lowlevel._drop_dict_entries(locals(),
-        drop=["image","kwargs","annotation_previous"])
-
-    ## retrieve update IV settings and data from previous annotations  
-    IV_settings = {}     
-    if annotation_previous:       
-        IV_settings["ImageViewer_previous"] =utils_lowlevel._load_previous_annotation(
-            annotation_previous = annotation_previous, 
-            components = [
-                ("data","coord_list"),
-                ])            
+    # retrieve attributes
+    
+    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)   
+    gui_data = utils_lowlevel._get_GUI_data(annotation)
+    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
         
-    ## update local and IV settings from kwargs
-    if kwargs:
-        utils_lowlevel._update_settings(kwargs, local_settings, IV_settings)
-        
-    print(kwargs)
-
 	# =============================================================================
 	# further prep
     
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
-
+    if line_colour == "default":
+        line_colour = settings._default_line_colour
 
     ## method
-    out = utils_lowlevel._ImageViewer(image=image,
-                       tool="polyline",
-                       line_width=line_width,
-                       line_colour=line_colour,
-                       **IV_settings)
+    gui = utils_lowlevel._GUI(
+        image=image,
+        tool="polyline",
+        line_width=line_width,
+        line_colour=line_colour,
+        data=gui_data,
+        **gui_settings
+        )
     
-    ## checks
-    if not out.done:
-        print("- didn't finish: redo landmarks")
+    ## check if tasks completed successfully
+    if not gui.flags.end:
+        print("- didn't finish: redo mask")
         return 
-    elif len(out.coord_list) == 0:
-        print("- zero coordinates: redo landmarks")
+    if len(gui.data["polygons"]) == 0:
+        print("- zero coordinates: redo polyline")
         return 
-    else:
-        coord_list = out.coord_list
-        
 
 	# =============================================================================
 	# assemble results
     
     annotation = {
         "info": {
-            "annotation_type": "line", 
-            "function": "set_polyline",
+            "annotation_type": annotation_type,
+            "phenopype_function": "set_polyline",
+            "phenopype_version": __version__,
             },
-        "settings": local_settings,
+        "settings": {
+            "line_width": line_width,
+            "line_colour": line_colour,            
+            },
         "data":{
-            "coord_list": coord_list,
+            "polygons": gui.data["polygons"],
             }
         }
+    
+    if len(gui_settings) > 0:
+        annotation["settings"]["GUI"] = gui_settings
     
 	# =============================================================================
 	# return
     
-    return annotation
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+            
+    return annotations
 
 
 
 def skeletonize(
-    image, 
-    annotation, 
-    thinning="zhangsuen", 
-    **kwargs,
-):
+        image, 
+        annotations, 
+        thinning="zhangsuen", 
+        **kwargs,
+    ):
     """
     Applies a binary blob thinning operation, to achieve a skeletization of 
     the input image using the technique, i.e. retrieve the topological skeleton
@@ -273,35 +270,21 @@ def skeletonize(
     """
 
     # =============================================================================
-    # retain settings
+    # setuo
     
     padding = kwargs.get("padding", 1)
-
-    ## retrieve settings from args
-    local_settings  = utils_lowlevel._drop_dict_entries(
-        locals(), drop=["image", "kwargs", "annotation"])
-        
-    ## update settings from kwargs
-    if kwargs:
-        utils_lowlevel._update_settings(kwargs, local_settings)
-        
+    annotation_type = "line"
 
 	# =============================================================================
-	# setup 
+    # retrieve attributes
 
-    ## extract annotation data     
-    contours = utils_lowlevel._provide_annotation_data(annotation, 
-                                        "contour",
-                                        "coord_list",
-                                        kwargs)
-
-    if not contours:
-        return {}
+    annotation = utils_lowlevel._get_annotation(kwargs, "contour", annotations)
+    contours = annotation["data"]["contours"]
         
 	# =============================================================================
 	# execute
     
-    coord_list = []
+    polygons = []
     
     for coords in contours:
         rx, ry, rw, rh = cv2.boundingRect(coords)
@@ -313,7 +296,7 @@ def skeletonize(
         mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx + padding, -ry + padding))
 
         skeleton = cv2.ximgproc.thinning(mask, thinningType=settings.opencv_skeletonize_flags[thinning])
-        skel_ret, skel_contour, skel_hierarchy = cv2.findcontours(
+        skel_ret, skel_contour, skel_hierarchy = cv2.findContours(
             skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 
@@ -321,7 +304,7 @@ def skeletonize(
         skel_contour[:, :, 0] = skel_contour[:, :, 0] + rx - padding
         skel_contour[:, :, 1] = skel_contour[:, :, 1] + ry - padding
                 
-        coord_list.append(skel_contour)
+        polygons.append(skel_contour)
                
         
 	# =============================================================================
@@ -329,12 +312,13 @@ def skeletonize(
     
     annotation = {
         "info": {
-            "annotation_type": "line", 
-            "function": "skeletonize",
+            "annotation_type": annotation_type,
+            "phenopype_function": "skeletonize",
+            "phenopype_version": __version__,
             },
-        "settings": local_settings,
+        "settings": {},
         "data":{
-            "coord_list": coord_list,
+            "polygons": polygons,
             }
         }
     
@@ -342,12 +326,18 @@ def skeletonize(
 	# =============================================================================
 	# return
     
-    return annotation
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+            
+    return annotations
     
 
 
 def shape_features(
-    annotation,
+    annotations,
     features=["basic"],
     **kwargs
 ):
@@ -407,27 +397,20 @@ def shape_features(
     """
     
     # =============================================================================
-    # retain settings
+    # setup
     
-    contour_id = kwargs.get("contour_id")
-
-    ## retrieve settings from args
-    local_settings  = utils_lowlevel._drop_dict_entries(
-        locals(), drop=["kwargs", "annotation"])
-        
-    ## update settings from kwargs
-    if kwargs:
-        utils_lowlevel._update_settings(kwargs, local_settings)
-        
+    annotation_type = "shapes"      
+    # annotations, annotation_id = [kwargs.get(key) for key in ["annotations","annotation_id"]]
 
     # =============================================================================
-    # setup             
+    # retrieve attributes
 
-    contours = utils_lowlevel._provide_annotation_data(annotation, "contour", "coord_list", kwargs)
-    contours_support = utils_lowlevel._provide_annotation_data(annotation, "contour", "support", kwargs)
+    annotation = utils_lowlevel._get_annotation(kwargs, "contour")
     
-    if not contours or not contours_support:
-        return {}
+    contours = annotation["data"]["contours"]
+    contours_support = annotation["data"]["support"]
+    
+    
 
     # =============================================================================
     # execute
@@ -491,21 +474,35 @@ def shape_features(
         
     annotation = {
         "info": {
-            "annotation_type": "morphology", 
-            "function": "shape_features",
+            "annotation_type": annotation_type,
+            "phenopype_function": "shape_features",
+            "phenopype_version": __version__,
             },
-        "settings": local_settings,
+        "settings": {
+            "features": features
+            },
         "data":{
             "features": shape_features,
             }
         }
     
-    return annotation
+	# =============================================================================
+	# return
+        
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+    
+            
+    return annotations
+
 
 
 def texture_features(
     image,
-    annotation,
+    annotations,
     features = ["firstorder"],
     channels=["gray"],
     min_diameter = 5,
@@ -551,19 +548,12 @@ def texture_features(
 
     """
     
+    
     # =============================================================================
-    # retain settings
+    # setup
     
-    contour_id = kwargs.get("contour_id")
-    
-    ## retrieve settings from args
-    local_settings  = utils_lowlevel._drop_dict_entries(
-        locals(), drop=["image","kwargs", "annotation"])
-        
-    ## update settings from kwargs
-    if kwargs:
-        utils_lowlevel._update_settings(kwargs, local_settings)
-        
+    annotation_type = "textures"      
+
     if not isinstance(channels, list):
         channels = [channels]
 
@@ -571,18 +561,16 @@ def texture_features(
     for feature in features:
         feature_activation[feature] = []
         
-        
 
-	# =============================================================================
-	# setup 
-       
-    contours = utils_lowlevel._provide_annotation_data(annotation, "contour", "coord_list", kwargs)
-    contours_support = utils_lowlevel._provide_annotation_data(annotation, "contour", "support", kwargs)
-    
-    if not contours or not contours_support:
-        return {}
-    
-    
+    # =============================================================================
+    # retain settings             
+
+    annotation = utils_lowlevel._get_annotation(kwargs, "contour", annotations)
+        
+    contours = annotation["data"]["contours"]
+    contours_support = annotation["data"]["support"]
+
+        
 	# =============================================================================
 	# execute
 
@@ -637,13 +625,27 @@ def texture_features(
         
     annotation = {
         "info": {
-            "annotation_type": "texture", 
-            "function": "texture_features",
+            "annotation_type": annotation_type,
+            "phenopype_function": "texture_features",
+            "phenopype_version": __version__,
             },
-        "settings": local_settings,
+        "settings": {
+            "features": features,
+            "channels": channels,
+            "min_diameter": min_diameter,
+            },
         "data":{
             "features": texture_features,
             }
         }
     
-    return annotation
+	# =============================================================================
+	# return
+    
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+            
+    return annotations

@@ -58,7 +58,7 @@ auto_text_size_factor = 0.00025
 
 confirm_options = ["True", "true", "y", "yes"]
 
-_default_label_colour = "black"
+_default_label_colour = "lime"
 _default_line_colour = "lime"
 _default_point_colour = "lime"
 _default_overlay_left = "green"
@@ -176,29 +176,36 @@ _GUI_data_args = list(g.data.keys())
 #%% annotation functions
 
 _annotation_functions = {
-    "create_mask": "mask",
-    "create_reference": "reference",
-    "detect_shape": "mask",
-    "detect_reference": "reference",
+    
+    ## comments
+    "write_comment": "comment",
+    
+    ## contours
     "detect_contour": "contour",
+
+    ## drawings
     "edit_contour": "drawing",
-    "comment": "comment",
-    "shape_features": "morphology",
-    "texture_features": "texture",
+    
+    ## landmarks
     "set_landmark": "landmark",
+    
+    ## lines
     "set_polyline": "line",
     "skeletonize": "line",
-    }
+    
+    ## masks 
+    "create_mask": "mask",
+    "detect_shape": "mask",
 
-_annotation_types = {
-    "comment": {},
-    "contour": {},
-    "drawing": {},
-    "landmark": {},
-    "line": {},
-    "mask": {},
-    "morphology": {},
-    "reference": {},
-    "texture": {},
+    ## reference
+    "create_reference": "reference",
+    "detect_reference": "reference",
+    
+    ## shape_features
+    "compute_shape_features": "shape_features",
+    
+    ## texture_features
+    "compute_texture_features": "texture_features",   
+
     }
 

@@ -2,6 +2,8 @@
 
 import cv2
 import numpy as np
+import sys
+
 from dataclasses import make_dataclass
 
 from math import sqrt as _sqrt
@@ -103,19 +105,23 @@ def create_mask(
     """
             
     # =============================================================================
-    # settings
-    
-    annotation_type = "mask"
+    # setup
+    fun_name = sys._getframe().f_code.co_name
+
+    annotations = kwargs.get("annotations", {})
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotations_id", None)
         
     # =============================================================================
     # retrieve attributes
-    
-    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)   
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations, annotation_type, annotation_id, kwargs)
     gui_data = utils_lowlevel._get_GUI_data(annotation)
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
-    
-	# =============================================================================
-	# execute
+
+# =============================================================================
+	# execute function
         
     gui = utils_lowlevel._GUI(
         image=image, 
@@ -123,23 +129,15 @@ def create_mask(
         data=gui_data,
         **gui_settings
         )
-    
-    ## check if tasks completed successfully
-    if not gui.flags.end:
-        print("- didn't finish: redo mask")
-        return 
-    if len(gui.data["polygons"]) == 0:
-        print("- zero coordinates: redo mask")
-        return 
-        
+            
 	# =============================================================================
 	# assemble results
         
     annotation = {
         "info": {
-            "annotation_type": annotation_type,
-            "phenopype_function": "create_mask",
+            "phenopype_function": fun_name,
             "phenopype_version": __version__,
+            "annotation_type": annotation_type,
             },
         "settings": {
             "tool":tool,
@@ -147,8 +145,8 @@ def create_mask(
         "data": {
             "label":label,
             "include":include,
-            "n_polygons": len(gui.data["polygons"]),
-            "polygons": gui.data["polygons"],
+            "n": len(gui.data["polygons"]),
+            annotation_type: gui.data["polygons"],
             }
     }
     
@@ -157,14 +155,13 @@ def create_mask(
     
 	# =============================================================================
 	# return
+    
+    print(annotations)
         
-    annotations = utils_lowlevel._update_annotations(
-        kwargs, 
-        annotation, 
-        annotation_type
-        )
-            
-    return annotations
+    return utils_lowlevel._update_annotations( 
+        annotations, annotation, annotation_type, annotation_id, kwargs,
+    )
+
 
     
 def detect_shape(
@@ -281,11 +278,10 @@ def detect_shape(
                     approximation="KCOS", 
                     verbose=False,
                     )
-                print(mask_contours)
                 polygons.append(
                     np.append(
-                        mask_contours["contour"]["a"]["data"]["coord_list"][0],
-                        [mask_contours["contour"]["a"]["data"]["coord_list"][0][0]],
+                        mask_contours["contour"]["a"]["data"]["contour"][0],
+                        [mask_contours["contour"]["a"]["data"]["contour"][0][0]],
                         axis=0
                         )
                     )
@@ -625,81 +621,6 @@ def detect_reference(
     return annotations
 
 
-def write_comment(
-        image,
-        field="ID",
-        **kwargs
-    ):
-    """
-    Add a comment. 
-
-    Parameters
-    ----------
-    image : ndarray
-        input image
-    field : str, optional
-        name the comment-field (useful for later processing). The default is "ID".
-
-    Returns
-    -------
-    annotation_ref: dict
-        phenopype annotation containing comment
-
-    """
-
-    # =============================================================================
-    # settings
-    
-    annotation_type = "comment"
-        
-    # =============================================================================
-    # retrieve attributes
-    
-    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)    
-    gui_data = utils_lowlevel._get_GUI_data(annotation)
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
-                
-	# =============================================================================
-	# execute
-    
-    gui = utils_lowlevel._GUI(
-        image, 
-        tool="comment", 
-        field=field, 
-        data=gui_data,
-         **gui_settings
-         )
-    
-
-	# =============================================================================
-	# assemble results
-
-    annotation = {
-        "info": {
-            "annotation_type": annotation_type,
-            "phenopype_function": "write_comment",
-            "phenopype_version": __version__,
-        },
-        "settings": {},
-        "data": {
-            "field": gui.data["field"],
-            "entry": gui.data["entry"],
-        }
-    }
-    
-    if len(gui_settings) > 0:
-        annotation["settings"]["GUI"] = gui_settings
-    
-	# =============================================================================
-	# return
-    
-    annotations = utils_lowlevel._update_annotations(
-        kwargs, 
-        annotation, 
-        annotation_type
-        )
-    
-    return annotations
 
 
 
@@ -772,4 +693,81 @@ def decompose_image(
         
     return image
 
+
+
+def write_comment(
+        image,
+        field="ID",
+        **kwargs
+    ):
+    """
+    Add a comment. 
+
+    Parameters
+    ----------
+    image : ndarray
+        input image
+    field : str, optional
+        name the comment-field (useful for later processing). The default is "ID".
+
+    Returns
+    -------
+    annotation_ref: dict
+        phenopype annotation containing comment
+
+    """
+
+    # =============================================================================
+    # settings
+    
+    annotation_type = "comment"
+        
+    # =============================================================================
+    # retrieve attributes
+    
+    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)    
+    gui_data = utils_lowlevel._get_GUI_data(annotation)
+    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+                
+	# =============================================================================
+	# execute
+    
+    gui = utils_lowlevel._GUI(
+        image, 
+        tool="comment", 
+        field=field, 
+        data=gui_data,
+         **gui_settings
+         )
+    
+
+	# =============================================================================
+	# assemble results
+
+    annotation = {
+        "info": {
+            "annotation_type": annotation_type,
+            "phenopype_function": "write_comment",
+            "phenopype_version": __version__,
+        },
+        "settings": {},
+        "data": {
+            "label": gui.data["field"],
+            "entry": gui.data["entry"],
+        }
+    }
+    
+    if len(gui_settings) > 0:
+        annotation["settings"]["GUI"] = gui_settings
+    
+	# =============================================================================
+	# return
+    
+    annotations = utils_lowlevel._update_annotations(
+        kwargs, 
+        annotation, 
+        annotation_type
+        )
+    
+    return annotations
 

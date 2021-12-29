@@ -1,12 +1,12 @@
 #%% modules
-import ast, cv2, copy, os
+import cv2, copy
 import numpy as np
-import pandas as pd
 import math
-import string
 from dataclasses import make_dataclass
 
+from phenopype import settings
 from phenopype import utils_lowlevel
+
 
 #%% settings
 
@@ -280,11 +280,11 @@ def draw_landmark(
 def draw_mask(
         image,
         annotations,
-        line_colour="blue",
+        line_colour="default",
         line_width="auto",
         label=False,
         label_size="auto",
-        label_colour="blue",
+        label_colour="default",
         label_width="auto",
         **kwargs
     ):
@@ -322,10 +322,6 @@ def draw_mask(
     ## flags
     flags = make_dataclass(cls_name="flags", 
                             fields=[("label", bool, label)])
-
-    ## filling and line settings
-    line_colour = utils_lowlevel._get_bgr(line_colour)
-    label_colour = utils_lowlevel._get_bgr(label_colour)
     
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
@@ -333,11 +329,15 @@ def draw_mask(
         label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
-               
+    if line_colour == "default":
+        line_colour = utils_lowlevel._get_bgr(settings._default_line_colour)     
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
+        
     # =============================================================================
     # retrieve annotation
     
-    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type, annotations)
+    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)
           
     polygons = annotation["data"]["polygons"]
     label = annotation["data"]["label"]
@@ -388,8 +388,8 @@ def draw_mask(
 
 def draw_polyline(
         image,
-        annotation,
-        line_colour="blue",
+        annotations,
+        line_colour="default",
         line_width="auto",
         **kwargs
         ):
@@ -421,16 +421,26 @@ def draw_polyline(
     """
 	# =============================================================================
 	# setup 
+    
+    annotation_type = "line"
 
+    # =============================================================================
+    # retrieve annotation
+    
+    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type, annotations)
+          
+    polygons = annotation["data"]["polygons"]
+    
+    
+    
     ## line settings
-    line_colour = utils_lowlevel._get_bgr(line_colour)
     
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
+    if line_colour == "default":
+        line_colour = utils_lowlevel._get_bgr(settings._default_line_colour)    
 
-    ## extract annotation data     
-    coord_list = utils_lowlevel._provide_annotation_data(annotation, "line", "coord_list", kwargs)
-    if not coord_list:
+    if not polygons:
         return image
     else:
         canvas = copy.deepcopy(image)
@@ -440,7 +450,7 @@ def draw_polyline(
 	# execute
     
     ## draw lines
-    for coords in coord_list:
+    for coords in polygons:
         cv2.polylines(canvas, np.array([coords]), False, line_colour, line_width)
 
 
