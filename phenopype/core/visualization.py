@@ -1,5 +1,5 @@
 #%% modules
-import cv2, copy
+import cv2, copy, sys
 import numpy as np
 import math
 from dataclasses import make_dataclass
@@ -17,7 +17,7 @@ inf = math.inf
 
 def draw_contour(
         image,
-        annotation,
+        annotations,
         offset_coords=None,
         line_colour="green",
         line_width="auto",
@@ -75,10 +75,9 @@ def draw_contour(
         canvas with contours
 
     """
-	# =============================================================================
-	# setup 
-
-    ## kwargs
+    # =============================================================================
+	# setup
+    
     level = kwargs.get("level",3)
     fill_colour = kwargs.get("fill_colour", line_colour)
     
@@ -87,6 +86,23 @@ def draw_contour(
                             fields=[("bounding_box", bool, bounding_box), 
                                     ("label", str, label),
                                     ])
+    
+    # =============================================================================
+    # annotation management
+
+    annotation_type = settings._contour_type
+    annotation_id = kwargs.get("annotations_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations, annotation_type, annotation_id, kwargs)
+
+    contours = annotation["data"][annotation_type]
+    contours_support = annotation["data"]["support"]
+        
+    # =============================================================================
+	# setup
+    
+    canvas = copy.deepcopy(image)
     
     ## filling and line settings
     if fill > 0:
@@ -107,16 +123,6 @@ def draw_contour(
         label_size = utils_lowlevel._auto_text_size(image)
     if label_font_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
-
-
-    ## extract annotation data     
-    contours = utils_lowlevel._provide_annotation_data(annotation, "contour", "coord_list", kwargs)
-    contours_support = utils_lowlevel._provide_annotation_data(annotation, "contour", "support", kwargs)
-
-    if not contours or (not contours_support and flags.label):
-        return image
-    else:
-        canvas = copy.deepcopy(image)
        
 	# =============================================================================
 	# execute
@@ -125,7 +131,7 @@ def draw_contour(
     if flags.fill:
         colour_mask = copy.deepcopy(canvas)
         for contour in contours:
-            cv2.drawcontours(
+            cv2.drawContours(
                 image=canvas,
                 contours=[contour],
                 contourIdx=0,
@@ -138,7 +144,7 @@ def draw_contour(
 
     ## 2) contour lines
     for contour in contours:
-        cv2.drawcontours(
+        cv2.drawContours(
             image=canvas,
             contours=[contour],
             contourIdx=0,

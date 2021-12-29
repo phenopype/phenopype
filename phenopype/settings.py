@@ -164,7 +164,7 @@ opencv_window_flags={
     "GUIexp": cv2.WINDOW_GUI_EXPANDED, 
     "GUInorm": cv2.WINDOW_GUI_NORMAL,
     } 
-#%% image viewer
+#%% GUI definitions
 
 g = utils_lowlevel._GUI(np.zeros((1, 1, 1), dtype = "uint8"), window_control="external")
 cv2.waitKey(1)
@@ -172,8 +172,15 @@ cv2.destroyAllWindows()
 _GUI_settings_args = list(g.settings.__dict__)
 _GUI_data_args = list(g.data.keys())
 
+_coord_type = "points"
+_coord_list_type = "polygons"
+_sequence_type = "drawings"
 
-#%% annotation functions
+
+#%% annotation definitions
+
+_contour_type = "contour"
+_drawing_type = "drawing"
 
 _annotation_functions = {
     
@@ -181,10 +188,10 @@ _annotation_functions = {
     "write_comment": "comment",
     
     ## contours
-    "detect_contour": "contour",
+    "detect_contour": _contour_type,
 
     ## drawings
-    "edit_contour": "drawing",
+    "edit_contour": _drawing_type,
     
     ## landmarks
     "set_landmark": "landmark",

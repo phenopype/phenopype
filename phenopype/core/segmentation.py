@@ -171,8 +171,8 @@ def detect_contour(
             "max_diameter":max_diameter,
             },
         "data":{
-            "n_contours": len(contours),
-            "contours": contours,
+            "n": len(contours),
+            annotation_type: contours,
             "support": support,
             }
         }
@@ -219,24 +219,34 @@ def edit_contour(
         phenopype annotation containing contours
 
     """
-	# =============================================================================
-	# setup 
-
-    annotation_type = "drawing"
-        
     # =============================================================================
-    # retrieve attributes
+    # annotation management
     
-    annotation = utils_lowlevel._get_annotation(kwargs, "contour", annotations=annotations)   
-    gui_data = utils_lowlevel._get_GUI_data(annotation)
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    ## get contours
+    annotation_type = settings._contour_type
+    annotation_id = kwargs.get("annotations_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations, annotation_type, annotation_id, kwargs, feedback=True)
+    
+    gui_data = {annotation_type: utils_lowlevel._get_GUI_data(annotation)}
         
-  	# =============================================================================
-  	# setup       
-           
+    
+    ## get previous drawing
+    fun_name = sys._getframe().f_code.co_name
+
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotations_id", None)
+    
+    annotation = utils_lowlevel._get_annotation(
+        annotations, annotation_type, annotation_id, kwargs)
+    
+    gui_data.update({"sequences": utils_lowlevel._get_GUI_data(annotation)})
+    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    
 	# =============================================================================
 	# execute
-    
+        
     gui = utils_lowlevel._GUI(
         image=image, 
         tool="draw", 
@@ -245,24 +255,16 @@ def edit_contour(
         left_colour=left_colour,
         right_colour=right_colour,
         data=gui_data,
-        **gui_settings
+        **gui_settings,
         )
         
-    ## check if tasks completed successfully
-    if not gui.flags.end:
-        print("- didn't finish: redo contour editing!")
-        # return 
-    if not gui.data["sequences"]:
-        print("- zero coordinates: did you draw anything?")
-        # return 
-                
 	# =============================================================================
 	# assemble results
 
     annotation = {
         "info": {
             "annotation_type": annotation_type,
-            "phenopype_function": "edit_contour",
+            "phenopype_function": fun_name,
             "phenopype_version": __version__,
             },
         "settings": {
@@ -272,21 +274,17 @@ def edit_contour(
             "right_colour": right_colour,
             },
         "data":{
-            "drawing": gui.data["sequence"],
+            annotation_type: gui.data["sequences"],
             }
         }
     
     
 	# =============================================================================
 	# return
-        
-    annotations = utils_lowlevel._update_annotations(
-        kwargs, 
-        annotation, 
-        annotation_type
-        )
             
-    return annotations
+    return utils_lowlevel._update_annotations( 
+        annotations, annotation, annotation_type, annotation_id, kwargs,
+    )
 
 
 

@@ -115,9 +115,10 @@ def create_mask(
 
     annotation = utils_lowlevel._get_annotation(
         annotations, annotation_type, annotation_id, kwargs)
-    
+            
     gui_data = utils_lowlevel._get_GUI_data(annotation)
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+
 
     # =============================================================================
 	# execute function
@@ -144,8 +145,8 @@ def create_mask(
         "data": {
             "label":label,
             "include":include,
-            "n": len(gui.data["polygons"]),
-            annotation_type: gui.data["polygons"],
+            "n": len(gui.data[settings._coord_list_type]),
+            annotation_type: gui.data[settings._coord_list_type],
             }
     }
     

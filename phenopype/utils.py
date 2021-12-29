@@ -228,9 +228,7 @@ class Container(object):
             if self.canvas.__class__.__name__ == "NoneType":
                 visualization.select_canvas(self)
             image, annotation = segmentation.edit_contour(self.canvas, annotation=self.annotations, **kwargs)
-            
-            DRAW CONTOURS
-            
+                        
             self.image = image
             
         ## measurement

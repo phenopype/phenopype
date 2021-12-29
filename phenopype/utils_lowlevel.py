@@ -80,7 +80,7 @@ class _GUI:
 
         ## data collector
         self.data = {
-            "contours":[],
+            settings._contour_type:[],
             "polygons":[],
             "points":[],
             "sequences":[]
@@ -154,7 +154,7 @@ class _GUI:
         self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
         
         ## binary image (for blending)
-        if len(self.data["contours"]) > 0 and self.tool == "draw":
+        if len(self.data[settings._contour_type]) > 0 and self.tool == "draw":
 
             ## coerce to multi channel image for colour mask
             if len(self.image.shape) == 2:
@@ -164,7 +164,7 @@ class _GUI:
             self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
             
             ## draw contours onto overlay
-            for contour in self.data["contours"]:
+            for contour in self.data[settings._contour_type]:
                 cv2.drawContours(
                     image=self.image_bin,
                     contours=[contour],
@@ -925,10 +925,10 @@ def _create_annotation_type_collector(typ):
 def _get_annotation(
         annotations, 
         annotation_type,
-        annotation_id,
-        kwargs,
+        annotation_id=None,
         reduce_counter=False,
         feedback=False,
+        **kwargs,
         ):
     
     ## setup
@@ -1004,15 +1004,16 @@ def _get_annotation_type(fun_name):
 
 def _get_GUI_data(annotation):
     
-    GUI_data = {}    
-        
+    data = []
+            
     if annotation:
         if "info" in annotation:
             annotation_type = annotation["info"]["annotation_type"]
         if "data" in annotation:
-            GUI_data = annotation["data"][annotation_type]
+            data = annotation["data"][annotation_type]
     
-    return GUI_data
+    
+    return data
 
 
 def _get_GUI_settings(kwargs, annotation=None):
