@@ -105,22 +105,21 @@ def create_mask(
     """
             
     # =============================================================================
-    # setup
+    # annotation management
+    
     fun_name = sys._getframe().f_code.co_name
 
     annotations = kwargs.get("annotations", {})
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotations_id", None)
-        
-    # =============================================================================
-    # retrieve attributes
 
     annotation = utils_lowlevel._get_annotation(
         annotations, annotation_type, annotation_id, kwargs)
+    
     gui_data = utils_lowlevel._get_GUI_data(annotation)
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
 
-# =============================================================================
+    # =============================================================================
 	# execute function
         
     gui = utils_lowlevel._GUI(
@@ -155,9 +154,7 @@ def create_mask(
     
 	# =============================================================================
 	# return
-    
-    print(annotations)
-        
+            
     return utils_lowlevel._update_annotations( 
         annotations, annotation, annotation_type, annotation_id, kwargs,
     )
@@ -231,9 +228,19 @@ def detect_shape(
     
 
     # =============================================================================
-    # setup
+    # annotation management
     
-    annotation_type = "mask"
+    fun_name = sys._getframe().f_code.co_name
+
+    annotations = kwargs.get("annotations", {})
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotations_id", None)
+    
+    annotation = utils_lowlevel._get_annotation(
+        annotations, annotation_type, annotation_id, kwargs)
+
+    # =============================================================================
+    # setup
     
     if len(image.shape) == 3:
         image = decompose_image(image, "gray")
@@ -267,7 +274,7 @@ def detect_shape(
     
         ## output conversion
         if circles is not None:
-            polygons = []
+            circle_contours = []
             for idx, circle in enumerate(circles[0]):
                 x,y,radius = circle/resize
                 mask = np.zeros(image.shape[:2], dtype=np.uint8)
@@ -278,10 +285,10 @@ def detect_shape(
                     approximation="KCOS", 
                     verbose=False,
                     )
-                polygons.append(
+                circle_contours.append(
                     np.append(
-                        mask_contours["contour"]["a"]["data"]["contour"][0],
-                        [mask_contours["contour"]["a"]["data"]["contour"][0][0]],
+                        mask_contours["contour"]["a"]["data"]["contours"][0],
+                        [mask_contours["contour"]["a"]["data"]["contours"][0][0]],
                         axis=0
                         )
                     )
@@ -298,9 +305,9 @@ def detect_shape(
     
     annotation = {
         "info": {
-            "annotation_type": annotation_type,
-            "phenopype_function": "detect_shape",
+            "phenopype_function": fun_name,
             "phenopype_version": __version__,
+            "annotation_type": annotation_type,
             },
         "settings": {
             "shape": shape,
@@ -308,23 +315,20 @@ def detect_shape(
             "circle_args": circle_args_exec,
             },
         "data": {
-            "include": include,
-            "label": label,
-            "n_polygons": len(polygons),
-            "polygons": polygons,
+
+            "label":label,
+            "include":include,
+            "n": len(circle_contours),
+            annotation_type: circle_contours,
             }
         }
     
 	# =============================================================================
 	# return
-    
-    annotations = utils_lowlevel._update_annotations(
-        kwargs, 
-        annotation, 
-        annotation_type
-        )
-    
-    return annotations
+            
+    return utils_lowlevel._update_annotations( 
+        annotations, annotation, annotation_type, annotation_id, kwargs,
+    )
     
 
 def create_reference(

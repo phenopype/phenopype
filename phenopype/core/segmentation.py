@@ -2,6 +2,7 @@
 
 import cv2
 import numpy as np
+import sys
 
 from math import inf
 
@@ -74,11 +75,21 @@ def detect_contour(
     """    
     
     
-	# =============================================================================
-	# setup
+    # =============================================================================
+    # annotation management
     
-    annotation_type = "contour"
+    fun_name = sys._getframe().f_code.co_name
+
+    annotations = kwargs.get("annotations", {})
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotations_id", None)
     
+    annotation = utils_lowlevel._get_annotation(
+        annotations, annotation_type, annotation_id, kwargs)
+    
+    # =============================================================================
+    # setup
+
     if len(image.shape) > 2:
         print("Multi-channel array supplied - need binary array.")
         return 
@@ -169,15 +180,11 @@ def detect_contour(
     
 	# =============================================================================
 	# return
+            
+    return utils_lowlevel._update_annotations( 
+        annotations, annotation, annotation_type, annotation_id, kwargs,
+    )
     
-    annotations = utils_lowlevel._update_annotations(
-        kwargs, 
-        annotation, 
-        annotation_type
-        )
-    
-    return annotations
-
 
 def edit_contour(
     image,
@@ -439,15 +446,20 @@ def threshold(
             cv2.THRESH_BINARY_INV
             )
         
-	# =============================================================================
-	# process
+    # =============================================================================
+    # annotation management
+    
+    annotations = kwargs.get("annotations", {})
+    
+    ## masks 
+    annotation = utils_lowlevel._get_annotation(
+        annotations, "mask", None, kwargs)
 
-    mask = utils_lowlevel._get_annotation(kwargs, "mask")   
-    if len(mask) > 0:
+    if len(annotation) > 0:
         mask_bool, include_idx, exclude_idx = np.zeros(thresh.shape, dtype=bool), 0,0
         
-        polygons = mask["data"]["polygons"]
-        include = mask["data"]["include"]
+        polygons = annotation["data"]["mask"]
+        include = annotation["data"]["include"]
 
         if include == True:
             for coords in polygons:
@@ -464,9 +476,12 @@ def threshold(
         if include_idx>0:
             print("- including pixels from " + str(include_idx) + " drawn masks ")
             
-    reference = utils_lowlevel._get_annotation(kwargs, "reference")   
-    if len(reference) > 0:
-        polygons = value["data"]["polygons"]
+    ## references
+    annotation = utils_lowlevel._get_annotation(
+        annotations, "reference", None, kwargs)
+
+    if len(annotation) > 0:
+        polygons = annotation["data"]["polygons"]
         for coords in polygons:
             thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
         print("- excluding pixels from reference")
