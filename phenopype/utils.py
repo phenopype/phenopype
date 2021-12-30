@@ -58,15 +58,15 @@ class Container(object):
         
         ## annotations
         self.annotations = {
-            settings._comment_type: {},
-            settings._contour_type: {},
-            settings._drawing_type: {},
-            settings._landmark_type: {},
-            settings._line_type: {},
-            settings._mask_type: {},
-            settings._reference_type: {},
-            settings._shape_feature_type: {},
-            settings._texture_feature_type: {},
+            # settings._comment_type: {},
+            # settings._contour_type: {},
+            # settings._drawing_type: {},
+            # settings._landmark_type: {},
+            # settings._line_type: {},
+            # settings._mask_type: {},
+            # settings._reference_type: {},
+            # settings._shape_feature_type: {},
+            # settings._texture_feature_type: {},
             }
 
         
@@ -161,17 +161,19 @@ class Container(object):
         
         ## annotation kwargs
         annotations = copy.deepcopy(self.annotations)
-        annotation_id = annotation_kwargs.get("id") 
         annotation_type = annotation_kwargs.get("type")
-        edit = annotation_kwargs.get("edit", False)
-        annotations_updated = None
-                
-        ## annotation_counter
-        fun_kwargs["annotation_counter"] = annotation_counter
+        annotation_id = annotation_kwargs.get("id") 
         
+        flag_edit = annotation_kwargs.get("edit", False)
+        annotations_updated = None
+                        
         ## function kwargs
         kwargs = fun_kwargs
-            
+        kwargs["annotations"] = annotations
+        kwargs["annotation_type"] = annotation_type
+        kwargs["annotation_id"] = annotation_id
+        kwargs["annotation_counter"] = annotation_counter
+
         ## attributes
         if hasattr(self, "image_attributes"):
             image_name=self.image_attributes["image_original"]["filename"] 
@@ -182,20 +184,21 @@ class Container(object):
         if not all(
                 [annotation_id.__class__.__name__ == "NoneType",
                  annotation_type.__class__.__name__ == "NoneType"]):
-            if annotation_id in annotations[annotation_type]:
-                print_msg = "- loaded existing annotation of type \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
-                if edit == True:
-                    kwargs.update({"annotations":  annotations})
-                    print(print_msg + ": editing (edit=True)")
-                elif edit == False:
-                    print(print_msg + ": skipping (edit=False)")
-                    if annotation_type in ["drawing"]:
-                        kwargs.update({"passive":True})                                             
-                        self.image, annotation = segmentation.edit_contour(self.canvas, annotations=annotations, **kwargs)
-                    return
-                elif edit == "overwrite":
-                    print(print_msg + ": overwriting (edit=overwrite)")
-                    pass
+            if annotation_type in annotations:
+                if annotation_id in annotations[annotation_type]:
+                    print_msg = "- loaded existing annotation of type \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
+                    if flag_edit == True:
+                        print(print_msg + ": editing (edit=True)")
+                    elif flag_edit == False:
+                        print(print_msg + ": skipping (edit=False)")
+                        if annotation_type in ["drawing"]:
+                            kwargs["passive"] = True                                             
+                            annotations_updated = segmentation.edit_contour(self.canvas, **kwargs)
+                        return
+                    elif flag_edit == "overwrite":
+                        print(print_msg + ": overwriting (edit=overwrite)")
+                        annotations[annotation_type][annotation_id] = {}
+                        pass
 
         ## preprocessing
         if fun == "blur":
@@ -203,18 +206,18 @@ class Container(object):
         if fun == "create_mask":
             annotations_updated = preprocessing.create_mask(self.image, **kwargs)
         if fun == "create_reference":
-            annotation = preprocessing.create_reference(self.image, **kwargs)
+            annotations_updated = preprocessing.create_reference(self.image, **kwargs)
         if fun == "detect_shape":
-            annotation = preprocessing.detect_shape(self.image, **kwargs)
+            annotations_updated = preprocessing.detect_shape(self.image, **kwargs)
         if fun == "write_comment":
-            annotation = preprocessing.write_comment(self.image, **kwargs)
+            annotations_updated = preprocessing.write_comment(self.image, **kwargs)
         if fun == "detect_reference":
                 if all(hasattr(self, attr) for attr in [
                         "reference_template_px_ratio", 
                         "reference_template_image",
                         "reference_unit"
                         ]):
-                    annotation = preprocessing.detect_reference(
+                    annotations_updated = preprocessing.detect_reference(
                         self.image, 
                         self.reference_template_image,
                         self.reference_template_px_ratio,
@@ -227,49 +230,41 @@ class Container(object):
             
         ## segmentation
         if fun == "threshold":
-            if "mask" in annotations and len(annotations["mask"]) > 0 :
-                kwargs.update({"mask":annotations["mask"]})
-            if "reference" in annotations and len(annotations["reference"]) > 0 :
-                kwargs.update({"reference":annotations["reference"]})
             self.image = segmentation.threshold(self.image, **kwargs)
-            # self.image_bin = copy.deepcopy(self.image)
-        # if fun == "watershed":
-        #     self.image = segmentation.watershed(self.image_copy, self.image_bin, **kwargs)
+        if fun == "watershed":
+            self.image = segmentation.watershed(self.image_copy, self.image_bin, **kwargs)
         if fun == "morphology":
             self.image = segmentation.morphology(self.image, **kwargs)
         if fun == "detect_contour":
-            annotation = segmentation.detect_contour(self.image, **kwargs)
+            annotations_updated = segmentation.detect_contour(self.image, **kwargs)
         if fun == "edit_contour":
-            if self.canvas.__class__.__name__ == "NoneType":
-                visualization.select_canvas(self)
-            image, annotation = segmentation.edit_contour(self.canvas, annotation=annotations, **kwargs)
-            self.image = image
+            annotations_updated = segmentation.edit_contour(self.canvas, **kwargs)
             
         ## measurement
         if fun == "set_landmark":
-            annotation = measurement.set_landmark(self.canvas, **kwargs)
+            annotations_updated = measurement.set_landmark(self.canvas, **kwargs)
         if fun == "set_polyline":
-            annotation = measurement.set_polyline(self.canvas, **kwargs)
+            annotations_updated = measurement.set_polyline(self.canvas, **kwargs)
         if fun == "skeletonize":
-            annotation = measurement.skeletonize(self.image, annotation=annotations, **kwargs)
+            annotations_updated = measurement.skeletonize(self.image, **kwargs)
         if fun == "shape_features":
-            annotation = measurement.shape_features(annotation=annotations, **kwargs)
+            annotations_updated = measurement.shape_features(**kwargs)
         if fun == "texture_features":
-            annotation = measurement.texture_features(self.image_copy, annotation=annotations, **kwargs)
+            annotations_updated = measurement.texture_features(self.image_copy, **kwargs)
 
         ## visualization
         if fun == "select_canvas":
             visualization.select_canvas(self, **kwargs)
         if fun == "draw_contour":
-            self.canvas = visualization.draw_contour(self.canvas, annotation=annotations, **kwargs)
+            self.canvas = visualization.draw_contour(self.canvas, **kwargs)
         if fun == "draw_landmark":
-            self.canvas = visualization.draw_landmark(self.canvas, annotation=annotations, **kwargs)
+            self.canvas = visualization.draw_landmark(self.canvas, **kwargs)
         if fun == "draw_mask":
-            self.canvas = visualization.draw_mask(self.canvas, annotations=annotations, **kwargs)
+            self.canvas = visualization.draw_mask(self.canvas, **kwargs)
         if fun == "draw_polyline":
-            self.canvas = visualization.draw_polyline(self.canvas, annotation=annotations, **kwargs)
+            self.canvas = visualization.draw_polyline(self.canvas, **kwargs)
         if fun == "draw_reference":
-            self.canvas = visualization.draw_reference(self.canvas, annotation=annotations, **kwargs)
+            self.canvas = visualization.draw_reference(self.canvas, **kwargs)
             
             
         ## export
@@ -292,35 +287,16 @@ class Container(object):
                               **kwargs)           
             
         ## save annotation to dict   
-        # print(annotations)
-        print("\n")
         if annotations_updated:
-            # print(annotation)
-            # print(annotations[annotation_type])
-            # print("\n")
             
+            if not annotation_type in annotations:
+                annotations[annotation_type] = {}
             
-            print(annotations)
-            print("\n")
-
-            print(annotations_updated)
-            print("\n")
-
             annotations[annotation_type][annotation_id] = annotations_updated[annotation_type][annotation_id]
-            print("\n")
-
-            print(annotations)
-            print("\n")
-
-            print(annotations_updated)
-            print("\n")
-
-            
             self.annotations.update(annotations)
-
-            # print(annotations)
-
-        # print(self.annotationsh)
+            
+            print(annotations_updated)
+            
             
     def save(self, dir_path=None, export_list=[], overwrite=False, **kwargs):
         """

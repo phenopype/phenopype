@@ -87,10 +87,13 @@ def detect_contour(
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = utils_lowlevel._get_annotation(
-        annotations, annotation_type, annotation_id, kwargs, 
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
         prep_msg="- combining contours and drawing:"
-        )   
-    
+    )
+
     ## contours
     fun_name = sys._getframe().f_code.co_name
 
@@ -256,7 +259,11 @@ def edit_contour(
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = utils_lowlevel._get_annotation(
-        annotations, annotation_type, annotation_id, kwargs, feedback=True)
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
     
     gui_data = {annotation_type: utils_lowlevel._get_GUI_data(annotation)}
         

@@ -99,9 +99,7 @@ def draw_contour(
     
     contours = annotation["data"][annotation_type]
     contours_support = annotation["data"]["support"]
-    
-    print(annotation["data"]["n"])
-        
+            
     # =============================================================================
 	# setup
     

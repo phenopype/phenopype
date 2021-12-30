@@ -588,7 +588,7 @@ class Project:
             annotation_mask = preprocessing.create_mask(reference_image)
 
             ## create template from mask coordinates
-            coords = annotation_mask["data"]["coord_list"][0]
+            coords = annotation_mask[settings._mask_type]["a"]["data"][settings._mask_type][0]
             template = reference_image[coords[0][1]:coords[2][1], coords[0][0]:coords[1][0]]
 
             ## create reference attributes
@@ -596,8 +596,8 @@ class Project:
                     "reference_source_path": reference_source_path,
                     "reference_file_name": reference_image_name,
                     "template_file_name": template_name,
-                    "template_px_ratio": annotation_ref["data"]["px_ratio"],
-                    "unit": annotation_ref["data"]["unit"],
+                    "template_px_ratio": annotation_ref[settings._reference_type]["a"]["data"]["px_ratio"],
+                    "unit": annotation_ref[settings._reference_type]["a"]["data"]["unit"],
                     "date_added":datetime.today().strftime(settings.strftime_format),
                     }
                         
@@ -861,8 +861,8 @@ class Pype(object):
     def __init__(
         self,
         image_path,
-        config_path=None,
         tag="v1",
+        config_path=None,
         skip=False,
         autosave=True,
         autoload=True,
@@ -1140,7 +1140,7 @@ class Pype(object):
         # reset values
         if not self.flags.dry_run:
             self.container.reset()
-        annotation_counter = dict.fromkeys(annotations, -1)
+        annotation_counter = dict.fromkeys(settings._annotation_types, -1)
 
         ## apply pype: loop through steps and contained methods
         step_list = self.config["processing_steps"]
@@ -1229,7 +1229,12 @@ class Pype(object):
                     if not "id" in annotation_args:
                         annotation_args.update({"id": string.ascii_lowercase[annotation_counter[settings._annotation_functions[method_name]]]})
                     if not "edit" in annotation_args:
-                        annotation_args.update({"edit": "overwrite" if annotation_args["type"] in ["contour", "morphology", "texture"] else False})
+                        annotation_args.update({"edit": "overwrite" if method_name in [
+                            "detect_contour", 
+                            "detect_shape", 
+                            "compute_shape_features", 
+                            "compute_texture_features", 
+                            ] else False})
 
                     annotation_args =  utils_lowlevel._yaml_flow_style(annotation_args)
                     method_args_updated = {"ANNOTATION":annotation_args}

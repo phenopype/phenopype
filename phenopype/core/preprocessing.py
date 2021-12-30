@@ -109,15 +109,19 @@ def create_mask(
     
     fun_name = sys._getframe().f_code.co_name
 
-    # annotations = kwargs.get("annotations", {})
+    annotations = kwargs.get("annotations", {})
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
-    # annotation = utils_lowlevel._get_annotation(
-    #     annotations, annotation_type, annotation_id, kwargs)
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
             
-    # gui_data = {settings._coord_list_type: utils_lowlevel._get_GUI_data(annotation)}
-    # gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    gui_data = {settings._coord_list_type: utils_lowlevel._get_GUI_data(annotation)}
+    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
     
     # =============================================================================
 	# execute function
@@ -125,8 +129,8 @@ def create_mask(
     gui = utils_lowlevel._GUI(
         image=image, 
         tool=tool, 
-        # data=gui_data,
-        # **gui_settings
+        data=gui_data,
+        **gui_settings
         )
             
 	# =============================================================================
@@ -134,9 +138,9 @@ def create_mask(
         
     annotation = {
         "info": {
+            "annotation_type": annotation_type,
             "phenopype_function": fun_name,
             "phenopype_version": __version__,
-            "annotation_type": annotation_type,
             },
         "settings": {
             "tool":tool,
@@ -149,18 +153,19 @@ def create_mask(
             }
     }
     
-    # if len(gui_settings) > 0:
-    #     annotation["settings"]["GUI"] = gui_settings
+    if len(gui_settings) > 0:
+        annotation["settings"]["GUI"] = gui_settings
     
 	# =============================================================================
 	# return
     
-    annotations = {}
-                
-    return utils_lowlevel._update_annotations( 
-        annotations, annotation, annotation_type, annotation_id, kwargs,
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
     )
-
 
     
 def detect_shape(
@@ -239,7 +244,11 @@ def detect_shape(
     annotation_id = kwargs.get("annotations_id", None)
     
     annotation = utils_lowlevel._get_annotation(
-        annotations, annotation_type, annotation_id, kwargs)
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
 
     # =============================================================================
     # setup
@@ -289,8 +298,8 @@ def detect_shape(
                     )
                 circle_contours.append(
                     np.append(
-                        mask_contours["contour"]["a"]["data"]["contours"][0],
-                        [mask_contours["contour"]["a"]["data"]["contours"][0][0]],
+                        mask_contours["contour"]["a"]["data"][settings._contour_type][0],
+                        [mask_contours["contour"]["a"]["data"][settings._contour_type][0][0]],
                         axis=0
                         )
                     )
@@ -327,9 +336,13 @@ def detect_shape(
     
 	# =============================================================================
 	# return
-            
-    return utils_lowlevel._update_annotations( 
-        annotations, annotation, annotation_type, annotation_id, kwargs,
+    
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
     )
     
 
@@ -366,16 +379,23 @@ def create_reference(
     
     
     # =============================================================================
-    # settings
+    # annotation management
     
-    annotation_type = "reference"
+    fun_name = sys._getframe().f_code.co_name
+
+    annotations = kwargs.get("annotations", {})
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotations_id", None)
+    
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
         
-    # =============================================================================
-    # retrieve attributes
-    
-    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
-        
+
     # =============================================================================
     # exectue
 
@@ -397,13 +417,12 @@ def create_reference(
     gui = utils_lowlevel._GUI(
         image, 
         tool="comment", 
-        field="distance in {}".format(unit),
+        label="distance in {}".format(unit),
         **gui_settings,
         )
     
     ## output conversion
-    entry = gui.data["entry"]
-    distance_measured = float(entry)
+    distance_measured = float(gui.data[settings._comment_type])
     px_ratio = round(float(distance_px / distance_measured))
 
     
@@ -428,14 +447,14 @@ def create_reference(
     
 	# =============================================================================
 	# return
-        
-    annotations = utils_lowlevel._update_annotations(
-        kwargs, 
-        annotation, 
-        annotation_type
-        )
-            
-    return annotations
+    
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
 
 def detect_reference(
         image,
@@ -485,9 +504,16 @@ def detect_reference(
     """
 
     # =============================================================================
-    # settings
+    # annotation management
     
-    annotation_type = "reference"
+    fun_name = sys._getframe().f_code.co_name
+
+    annotations = kwargs.get("annotations", {})
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotation_id", None)
+        
+    # =============================================================================
+    # setup 
     
     ## kwargs
     flags = make_dataclass(cls_name="flags", 
@@ -495,9 +521,6 @@ def detect_reference(
                                    ("equalize",bool, equalize)])   
          
     px_ratio_template = px_ratio
-        
-    # =============================================================================
-    # prep
 
     ## if image diameter bigger than 5000 px, then automatically resize
     if (image.shape[0] + image.shape[1]) / 2 > 5000 and resize == 1:
@@ -600,7 +623,7 @@ def detect_reference(
             "phenopype_version": __version__,
         },
         "settings": {
-            "mask": mask,
+            "mask": flags.mask,
             "equalize": equalize,
             "min_matches": min_matches,
             "resize": resize,
@@ -618,13 +641,13 @@ def detect_reference(
 	# =============================================================================
 	# return
     
-    annotations = utils_lowlevel._update_annotations(
-        kwargs, 
-        annotation, 
-        annotation_type
-        )
-    
-    return annotations
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
 
 
 
@@ -703,7 +726,7 @@ def decompose_image(
 
 def write_comment(
         image,
-        field="ID",
+        label="ID",
         **kwargs
     ):
     """
@@ -724,24 +747,31 @@ def write_comment(
     """
 
     # =============================================================================
-    # settings
+    # annotation management
     
-    annotation_type = "comment"
-        
-    # =============================================================================
-    # retrieve attributes
-    
-    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)    
-    gui_data = utils_lowlevel._get_GUI_data(annotation)
+    fun_name = sys._getframe().f_code.co_name
+
+    annotations = kwargs.get("annotations", {})
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotation_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
+            
+    gui_data = {settings._coord_list_type: utils_lowlevel._get_GUI_data(annotation)}
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
-                
+    
 	# =============================================================================
 	# execute
     
     gui = utils_lowlevel._GUI(
         image, 
         tool="comment", 
-        field=field, 
+        label=label, 
         data=gui_data,
          **gui_settings
          )
@@ -752,28 +782,28 @@ def write_comment(
 
     annotation = {
         "info": {
-            "annotation_type": annotation_type,
-            "phenopype_function": "write_comment",
+            "phenopype_function": fun_name,
             "phenopype_version": __version__,
+            "annotation_type": annotation_type,
         },
         "settings": {},
         "data": {
-            "label": gui.data["field"],
-            "entry": gui.data["entry"],
+            "label": label,
+            annotation_type: gui.data[settings._comment_type],
         }
     }
     
     if len(gui_settings) > 0:
         annotation["settings"]["GUI"] = gui_settings
-    
+        
 	# =============================================================================
 	# return
     
-    annotations = utils_lowlevel._update_annotations(
-        kwargs, 
-        annotation, 
-        annotation_type
-        )
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
     
-    return annotations
-

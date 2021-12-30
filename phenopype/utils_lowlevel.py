@@ -76,14 +76,15 @@ class _GUI:
         ## basic settings
         self.tool = tool
         self.passive = passive
-        self.label = kwargs.get("label")
+        self.label = kwargs.get("label", "NA")
 
         ## data collector
         self.data = {
+            settings._comment_type: "",
             settings._contour_type:[],
             settings._coord_type:[],
             settings._coord_list_type:[],
-            settings._sequence_type:[]
+            settings._sequence_type:[],
             }
         
         self.data.update(kwargs.get("data", {}))
@@ -318,14 +319,14 @@ class _GUI:
     def _comment_tool(self):
                 
         if self.keypress > 0 and not self.keypress in [8, 13, 27]:
-            self.data["entry"] = self.data["entry"] + chr(self.keypress)
+            self.data[settings._comment_type] = self.data[settings._comment_type] + chr(self.keypress)
         elif self.keypress == 8:
-            self.data["entry"] = self.data["entry"][0 : len(self.data["entry"]) - 1]
+            self.data[settings._comment_type] = self.data[settings._comment_type][0 : len(self.data[settings._comment_type]) - 1]
 
         self.canvas = copy.deepcopy(self.canvas_copy)
         cv2.putText(
             self.canvas,
-            "Enter " + self.data["field"] + ": " + self.data["entry"],
+            "Enter " + self.label + ": " + self.data[settings._comment_type],
             (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
             cv2.FONT_HERSHEY_SIMPLEX,
             self.settings.label_size,
@@ -919,6 +920,7 @@ def _get_annotation(
         annotation_type,
         annotation_id=None,
         reduce_counter=False,
+        prep_msg=None,
         kwargs={},
         ):
     
@@ -942,12 +944,14 @@ def _get_annotation(
                 
         ## get ID from last used annotation function of that type
         if annotation_id.__class__.__name__ == "NoneType":
+            
+            
             if kwargs.get("annotation_counter"):
                 print_msg = "- \"{}\" not provided: ".format(annotation_id_str)
                 annotation_counter = kwargs.get("annotation_counter")
                 annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
                 if annotation_id == "z":
-                    print_msg = print_msg + "no precursing annotations of type \"{}\" found - check your config file".format(annotation_type)
+                    print_msg = print_msg + "- no precursing annotations of type \"{}\" found".format(annotation_type)
                     annotation_id = None
                 else:
                     if reduce_counter:
@@ -973,6 +977,7 @@ def _get_annotation(
                     print_msg = "could not find \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
                     annotation = {}
             else:
+                print("NONE")
                 annotation = {}
         else:
             # print_msg = "incompatible annotation type supplied - need \"{}\" type".format(annotation_type)
@@ -1005,16 +1010,17 @@ def _get_annotation_type(fun_name):
     return settings._annotation_functions[fun_name]
 
 
-def _get_annotation_types(typ=None):
+def _get_annotation_types(typ=None, ex=[]):
     
     at = copy.deepcopy(settings._annotation_types)
+    at_upt = [x for x in at if not x in ex]
         
     if typ =="dict":
-        return dict.fromkeys(sorted(at), {})
+        return dict.fromkeys(sorted(at_upt), {})
     elif typ == "list":
-        return dict.fromkeys(sorted(at), {})
+        return dict.fromkeys(sorted(at_upt), {})
     else:
-        return list(at)
+        return list(at_upt)
 
 
 def _get_GUI_data(annotation):
@@ -1044,6 +1050,8 @@ def _get_GUI_settings(kwargs, annotation=None):
     if kwargs:
         for key, value in kwargs.items():
             if key in settings._GUI_settings_args:
+                GUI_settings[key] = value
+            elif key in ["passive"]:
                 GUI_settings[key] = value
     
     return GUI_settings

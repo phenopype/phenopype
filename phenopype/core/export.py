@@ -387,7 +387,7 @@ def save_annotation(annotation,
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
                     
                     ## unindent entries for better legibility
-                    if key in utils_lowlevel._get_annotation_types():
+                    if key in utils_lowlevel._get_annotation_types(ex=[settings._comment_type]):
                         if len(value)>0 and not type(value[0]) in [list,tuple, int]:
                             value = [elem.tolist() for elem in value if not type(elem)==list] 
                         value = [utils_lowlevel._NoIndent(elem) for elem in value]   

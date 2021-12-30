@@ -167,7 +167,6 @@ opencv_window_flags={
 
 #%% annotation definitions
 
-
 _coord_type = "points"
 _coord_list_type = "polygons"
 _sequence_type = "drawings"
