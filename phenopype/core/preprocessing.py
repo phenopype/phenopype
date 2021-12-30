@@ -109,25 +109,24 @@ def create_mask(
     
     fun_name = sys._getframe().f_code.co_name
 
-    annotations = kwargs.get("annotations", {})
+    # annotations = kwargs.get("annotations", {})
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
-    annotation_id = kwargs.get("annotations_id", None)
+    annotation_id = kwargs.get("annotation_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
-        annotations, annotation_type, annotation_id, kwargs)
+    # annotation = utils_lowlevel._get_annotation(
+    #     annotations, annotation_type, annotation_id, kwargs)
             
-    gui_data = utils_lowlevel._get_GUI_data(annotation)
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
-
-
+    # gui_data = {settings._coord_list_type: utils_lowlevel._get_GUI_data(annotation)}
+    # gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    
     # =============================================================================
 	# execute function
         
     gui = utils_lowlevel._GUI(
         image=image, 
         tool=tool, 
-        data=gui_data,
-        **gui_settings
+        # data=gui_data,
+        # **gui_settings
         )
             
 	# =============================================================================
@@ -150,12 +149,14 @@ def create_mask(
             }
     }
     
-    if len(gui_settings) > 0:
-        annotation["settings"]["GUI"] = gui_settings
+    # if len(gui_settings) > 0:
+    #     annotation["settings"]["GUI"] = gui_settings
     
 	# =============================================================================
 	# return
-            
+    
+    annotations = {}
+                
     return utils_lowlevel._update_annotations( 
         annotations, annotation, annotation_type, annotation_id, kwargs,
     )

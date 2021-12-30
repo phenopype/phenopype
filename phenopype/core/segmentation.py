@@ -1,5 +1,6 @@
 #%% modules
 
+import copy
 import cv2
 import numpy as np
 import sys
@@ -18,6 +19,7 @@ def detect_contour(
         image,
         approximation="simple",
         retrieval="ext",
+        apply_drawing=True,
         offset_coords=[0,0],       
         min_nodes=3,
         max_nodes=inf,
@@ -78,27 +80,54 @@ def detect_contour(
     # =============================================================================
     # annotation management
     
+    annotations = kwargs.get("annotations", {})
+    
+    ## drawings
+    annotation_type = settings._drawing_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations, annotation_type, annotation_id, kwargs, 
+        prep_msg="- combining contours and drawing:"
+        )   
+    
+    ## contours
     fun_name = sys._getframe().f_code.co_name
 
-    annotations = kwargs.get("annotations", {})
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
-    annotation_id = kwargs.get("annotations_id", None)
-    
-    annotation = utils_lowlevel._get_annotation(
-        annotations, annotation_type, annotation_id, kwargs)
-    
+    annotation_id = kwargs.get("annotation_id", None)
+
     # =============================================================================
     # setup
+    
+    image_bin = copy.deepcopy(image)
 
-    if len(image.shape) > 2:
+    if len(image_bin.shape) > 2:
         print("Multi-channel array supplied - need binary array.")
         return 
+    
+    if apply_drawing and "data" in annotation:
+        
+        drawings = annotation["data"][settings._drawing_type]
+        
+        ## apply coords to tool and draw on canvas
+        for idx, coords in enumerate(drawings):
+            if len(coords)==0:
+                continue
+            else:
+                cv2.polylines(
+                    image_bin,
+                    np.array([coords[0]]),
+                    False,
+                    coords[1],
+                    coords[2],
+                )
               
 	# =============================================================================
 	# execute
-    
+        
     _ , contours_det, hierarchies_det = cv2.findContours(
-        image=image,
+        image=image_bin,
         mode=settings.opencv_contour_flags["retrieval"][retrieval],
         method=settings.opencv_contour_flags["approximation"][approximation],
         offset=tuple(offset_coords),
@@ -224,7 +253,7 @@ def edit_contour(
     
     ## get contours
     annotation_type = settings._contour_type
-    annotation_id = kwargs.get("annotations_id", None)
+    annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = utils_lowlevel._get_annotation(
         annotations, annotation_type, annotation_id, kwargs, feedback=True)
@@ -236,10 +265,11 @@ def edit_contour(
     fun_name = sys._getframe().f_code.co_name
 
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
-    annotation_id = kwargs.get("annotations_id", None)
+    annotation_id = kwargs.get("annotation_id", None)
     
     annotation = utils_lowlevel._get_annotation(
         annotations, annotation_type, annotation_id, kwargs)
+    
     
     gui_data.update({"sequences": utils_lowlevel._get_GUI_data(annotation)})
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
@@ -448,16 +478,27 @@ def threshold(
     # annotation management
     
     annotations = kwargs.get("annotations", {})
-    
-    ## masks 
-    annotation = utils_lowlevel._get_annotation(
-        annotations, "mask", None, kwargs)
+        
+    ## references
+    annotation_id_ref = kwargs.get(settings._mask_type + "_id", None)
+    annotation_ref = utils_lowlevel._get_annotation(
+        annotations, settings._reference_type, annotation_id_ref,
+        prep_msg = "- masking regions in thresholded image:")
 
-    if len(annotation) > 0:
+    ## masks 
+    annotation_id_mask= kwargs.get(settings._mask_type + "_id", None)
+    annotation_mask = utils_lowlevel._get_annotation(
+        annotations, settings._mask_type, annotation_id_mask,
+        prep_msg = "- masking regions in thresholded image:")
+    
+    # =============================================================================
+    # execute masking
+
+    if len(annotation_mask) > 0:
         mask_bool, include_idx, exclude_idx = np.zeros(thresh.shape, dtype=bool), 0,0
         
-        polygons = annotation["data"]["mask"]
-        include = annotation["data"]["include"]
+        polygons = annotation_mask["data"]["mask"]
+        include = annotation_mask["data"]["include"]
 
         if include == True:
             for coords in polygons:
@@ -474,12 +515,8 @@ def threshold(
         if include_idx>0:
             print("- including pixels from " + str(include_idx) + " drawn masks ")
             
-    ## references
-    annotation = utils_lowlevel._get_annotation(
-        annotations, "reference", None, kwargs)
-
-    if len(annotation) > 0:
-        polygons = annotation["data"]["polygons"]
+    if len(annotation_ref) > 0:
+        polygons = annotation_ref["data"]["polygons"]
         for coords in polygons:
             thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
         print("- excluding pixels from reference")

@@ -49,7 +49,7 @@ from phenopype import utils_lowlevel
 # with path(__package__, 'templates') as template_dir:
 #     pype_templates = TemplateList(template_dir)
     
-#%% scalars and definitions
+#%% defaults
 
 auto_line_width_factor = 0.005
 auto_point_size_factor = 0.005
@@ -164,28 +164,28 @@ opencv_window_flags={
     "GUIexp": cv2.WINDOW_GUI_EXPANDED, 
     "GUInorm": cv2.WINDOW_GUI_NORMAL,
     } 
-#%% GUI definitions
 
-g = utils_lowlevel._GUI(np.zeros((1, 1, 1), dtype = "uint8"), window_control="external")
-cv2.waitKey(1)
-cv2.destroyAllWindows()
-_GUI_settings_args = list(g.settings.__dict__)
-_GUI_data_args = list(g.data.keys())
+#%% annotation definitions
+
 
 _coord_type = "points"
 _coord_list_type = "polygons"
 _sequence_type = "drawings"
 
-
-#%% annotation definitions
-
+_comment_type = "comment"
 _contour_type = "contour"
 _drawing_type = "drawing"
+_landmark_type = "landmark"
+_line_type = "line"
+_mask_type = "mask"
+_reference_type = "reference"
+_shape_feature_type = "shape_features"
+_texture_feature_type = "texture_features"
 
 _annotation_functions = {
     
     ## comments
-    "write_comment": "comment",
+    "write_comment": _comment_type,
     
     ## contours
     "detect_contour": _contour_type,
@@ -194,25 +194,35 @@ _annotation_functions = {
     "edit_contour": _drawing_type,
     
     ## landmarks
-    "set_landmark": "landmark",
+    "set_landmark": _landmark_type,
     
     ## lines
-    "set_polyline": "line",
-    "skeletonize": "line",
+    "set_polyline": _line_type,
+    "skeletonize": _line_type,
     
     ## masks 
-    "create_mask": "mask",
-    "detect_shape": "mask",
+    "create_mask": _mask_type,
+    "detect_shape": _mask_type,
 
     ## reference
-    "create_reference": "reference",
-    "detect_reference": "reference",
+    "create_reference": _reference_type,
+    "detect_reference": _reference_type,
     
     ## shape_features
-    "compute_shape_features": "shape_features",
+    "compute_shape_features": _shape_feature_type,
     
     ## texture_features
-    "compute_texture_features": "texture_features",   
+    "compute_texture_features": _texture_feature_type,   
 
     }
 
+_annotation_types = list(set(_annotation_functions.values()))
+
+#%% GUI definitions
+
+g = utils_lowlevel._GUI(np.zeros((1, 1, 1), dtype = "uint8"), window_control="external")
+cv2.waitKey(1)
+cv2.destroyAllWindows()
+
+_GUI_settings_args = list(g.settings.__dict__)
+_GUI_data_args = list(g.data.keys())

@@ -58,7 +58,7 @@ def export_csv(annotation,
     ## filter by annotation type
     if annotation_type.__class__.__name__ == "NoneType":
         print("- no annotation_type selected - exporting all annotations")
-        annotation_types = list(settings._annotation_types.keys())
+        annotation_types =  utils_lowlevel._get_annotation_types()
     elif annotation_type.__class__.__name__ == "str":
         annotation_types = [annotation_type]
     elif annotation_type.__class__.__name__ in [ "list", "CommentedSeq"]:
@@ -350,7 +350,7 @@ def save_annotation(annotation,
         break
     
     ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] in settings._annotation_types.keys():
+    if list(annotation.keys())[0] in utils_lowlevel._get_annotation_types():
         annotation = defaultdict(dict, annotation)
     elif list(annotation.keys())[0] == "info":
         if annotation_id.__class__.__name__ == "NoneType":
@@ -387,7 +387,7 @@ def save_annotation(annotation,
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
                     
                     ## unindent entries for better legibility
-                    if key in ["coord_list", "point_list", "points", "coords", "polygons"]:
+                    if key in utils_lowlevel._get_annotation_types():
                         if len(value)>0 and not type(value[0]) in [list,tuple, int]:
                             value = [elem.tolist() for elem in value if not type(elem)==list] 
                         value = [utils_lowlevel._NoIndent(elem) for elem in value]   

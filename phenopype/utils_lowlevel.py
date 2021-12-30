@@ -81,10 +81,11 @@ class _GUI:
         ## data collector
         self.data = {
             settings._contour_type:[],
-            "polygons":[],
-            "points":[],
-            "sequences":[]
+            settings._coord_type:[],
+            settings._coord_list_type:[],
+            settings._sequence_type:[]
             }
+        
         self.data.update(kwargs.get("data", {}))
 
         ## GUI settings 
@@ -154,26 +155,30 @@ class _GUI:
         self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
         
         ## binary image (for blending)
-        if len(self.data[settings._contour_type]) > 0 and self.tool == "draw":
+        if self.tool == "draw":
+            
+            if len(self.data[settings._contour_type]) > 0:
 
-            ## coerce to multi channel image for colour mask
-            if len(self.image.shape) == 2:
-                self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
-            
-            ## create binary overlay
-            self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
-            
-            ## draw contours onto overlay
-            for contour in self.data[settings._contour_type]:
-                cv2.drawContours(
-                    image=self.image_bin,
-                    contours=[contour],
-                    contourIdx=0,
-                    thickness=-1,
-                    color=255,
-                    maxLevel=3,
-                    offset=(0,0),
-                    )
+                ## coerce to multi channel image for colour mask
+                if len(self.image.shape) == 2:
+                    self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
+                
+                ## create binary overlay
+                self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
+                
+                ## draw contours onto overlay
+                for contour in self.data[settings._contour_type]:
+                    cv2.drawContours(
+                        image=self.image_bin,
+                        contours=[contour],
+                        contourIdx=0,
+                        thickness=-1,
+                        color=255,
+                        maxLevel=3,
+                        offset=(0,0),
+                        )
+            else:
+                raise AttributeError("Could not find contours to edit - check annotations.")
                                           
         ## get canvas dimensions
         if self.image_height > window_max_dim or self.image_width > window_max_dim:
@@ -815,7 +820,7 @@ class _GUI:
                 int(self.zoom_x1 + (x * self.global_fx)),
                 int(self.zoom_y1 + (y * self.global_fy)),
             )
-        
+
         
 class _NoIndent(object):
     
@@ -909,34 +914,23 @@ class _YamlFileMonitor:
         
 #%% functions - ANNOTATION helpers
 
-def _create_annotation_type_collector(typ):
-    
-    if typ =="dict":
-        typ_ret = {}
-    elif typ == "list":
-        typ_ret = []
-    
-    s = set(settings._annotation_functions.values())
-    
-    return dict.fromkeys(sorted(s), typ_ret)
-
-
-
 def _get_annotation(
         annotations, 
         annotation_type,
         annotation_id=None,
         reduce_counter=False,
-        feedback=False,
-        **kwargs,
+        kwargs={},
         ):
     
-    ## setup
+    ## setup    
+    pype_mode = kwargs.get("pype_mode", False)
+    prep_msg = kwargs.get("prep_msg", "")
+    
     annotations = copy.deepcopy(annotations)
     
     if not annotation_type.__class__.__name__ == "NoneType":
         annotation_id_str = annotation_type + "_id"
-        print_msg = None
+        print_msg = ""
     else:
         return {}
     
@@ -966,7 +960,7 @@ def _get_annotation(
 
                 else:
                     annotation = {}
-                    print_msg = "\"{}\" not specified and annotation type not found".format(annotation_id_str)
+                    # print_msg = "\"{}\" not specified and annotation type not found".format(annotation_id_str)
 
         ## check if type is given
         if annotation_type in annotations:
@@ -974,23 +968,32 @@ def _get_annotation(
             ## extract item
             if annotation_id:
                 if annotation_id in annotations[annotation_type]:
-                    
                     annotation = annotations[annotation_type][annotation_id]
-                   
                 else:
-                    print_msg = "- could not find \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
+                    print_msg = "could not find \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
                     annotation = {}
             else:
                 annotation = {}
         else:
-            print_msg = "- incompatible annotation type supplied - need \"{}\" type".format(annotation_type)
+            # print_msg = "incompatible annotation type supplied - need \"{}\" type".format(annotation_type)
             annotation = {}
             
         ## cleaned feedback (skip identical messages)
-        if print_msg and feedback:          
-            if not print_msg == _config.last_print_msg:
-                _config.last_print_msg = print_msg
+        while True:
+            if print_msg:
+                if prep_msg:
+                    print_msg = prep_msg + "\n\t" + print_msg
+                if pype_mode:          
+                    if not print_msg == _config.last_print_msg:
+                        _config.last_print_msg = print_msg
+                        break
+                    else:
+                        pass
+                else:
+                    pass
                 print(print_msg)
+                break
+            break
     else:
         annotation = {}
                 
@@ -1000,6 +1003,18 @@ def _get_annotation(
 def _get_annotation_type(fun_name):
     
     return settings._annotation_functions[fun_name]
+
+
+def _get_annotation_types(typ=None):
+    
+    at = copy.deepcopy(settings._annotation_types)
+        
+    if typ =="dict":
+        return dict.fromkeys(sorted(at), {})
+    elif typ == "list":
+        return dict.fromkeys(sorted(at), {})
+    else:
+        return list(at)
 
 
 def _get_GUI_data(annotation):
@@ -1042,6 +1057,8 @@ def _update_annotations(
         kwargs,
         ):
                 
+    annotations = copy.deepcopy(annotations)
+    
     if not annotation_type in annotations:
         annotations[annotation_type] = {}
         
@@ -1052,7 +1069,7 @@ def _update_annotations(
         else:
             annotation_id = "a"
             
-    annotations[annotation_type].update({annotation_id: annotation})
+    annotations[annotation_type][annotation_id] = copy.deepcopy(annotation)
                     
     return annotations
 
@@ -1061,8 +1078,8 @@ def _update_annotations(
 #%% functions - GUI helpers
 
 
-def _auto_line_width(image):
-    factor = settings.auto_line_width_factor
+def _auto_line_width(image, **kwargs):
+    factor = kwargs.get("factor", settings.auto_line_width_factor)
     image_height, image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) / 2
     line_width = max(int(factor * image_diagonal), 1)
@@ -1070,8 +1087,8 @@ def _auto_line_width(image):
     return line_width
 
 
-def _auto_point_size(image):
-    factor = settings.auto_point_size_factor
+def _auto_point_size(image, **kwargs):
+    factor = kwargs.get("factor", settings.auto_point_size_factor)
     image_height, image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) / 2
     point_size = max(int(factor * image_diagonal), 1)
@@ -1079,8 +1096,8 @@ def _auto_point_size(image):
     return point_size
 
 
-def _auto_text_width(image):
-    factor = settings.auto_text_width_factor
+def _auto_text_width(image, **kwargs):
+    factor = kwargs.get("factor", settings.auto_text_width_factor)
     image_height, image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) / 2
     text_width = max(int(factor * image_diagonal), 1)
@@ -1088,8 +1105,8 @@ def _auto_text_width(image):
     return text_width
 
 
-def _auto_text_size(image):
-    factor = settings.auto_text_size_factor
+def _auto_text_size(image, **kwargs):
+    factor = kwargs.get("factor", settings.auto_text_size_factor)
     image_height, image_width = image.shape[0:2]
     image_diagonal = (image_height + image_width) / 2
     text_size = max(int(factor * image_diagonal), 1)

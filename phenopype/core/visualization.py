@@ -18,17 +18,17 @@ inf = math.inf
 def draw_contour(
         image,
         annotations,
-        offset_coords=None,
-        line_colour="green",
-        line_width="auto",
         fill=0.3,
+        line_colour="default",
+        line_width="auto",
         label=False,
-        label_colour="red",
-        label_font_size="auto",
-        label_font_width="auto",
+        label_colour="default",
+        label_size="auto",
+        label_width="auto",
+        offset_coords=None,
         bounding_box=False,
         bounding_box_ext=20,
-        bounding_box_colour="red",
+        bounding_box_colour="default",
         bounding_box_line_width="auto",
         **kwargs,
     ):
@@ -82,47 +82,54 @@ def draw_contour(
     fill_colour = kwargs.get("fill_colour", line_colour)
     
     ## flags
-    flags = make_dataclass(cls_name="flags", 
-                            fields=[("bounding_box", bool, bounding_box), 
-                                    ("label", str, label),
-                                    ])
+    flags = make_dataclass(cls_name="flags", fields=[
+        ("bounding_box", bool, bounding_box), 
+        ("label", bool, label),
+        ("fill", bool, True),
+        ])
     
     # =============================================================================
     # annotation management
 
     annotation_type = settings._contour_type
-    annotation_id = kwargs.get("annotations_id", None)
-
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+    
     annotation = utils_lowlevel._get_annotation(
         annotations, annotation_type, annotation_id, kwargs)
-
+    
     contours = annotation["data"][annotation_type]
     contours_support = annotation["data"]["support"]
+    
+    print(annotation["data"]["n"])
         
     # =============================================================================
 	# setup
     
     canvas = copy.deepcopy(image)
     
+    if fill_colour == "default":
+        fill_colour = utils_lowlevel._get_bgr(settings._default_line_colour)     
+    if line_width == "auto":
+        line_width = utils_lowlevel._auto_line_width(image, factor=0.001)
+    if label_size == "auto":
+        label_size = utils_lowlevel._auto_text_size(image)
+    if label_width == "auto":
+        label_width = utils_lowlevel._auto_text_width(image)
+    if line_colour == "default":
+        line_colour = utils_lowlevel._get_bgr(settings._default_line_colour)     
+    if label_colour == "default":
+        label_colour = utils_lowlevel._get_bgr(settings._default_label_colour)     
+    if bounding_box_line_width == "auto":
+        bounding_box_line_width = utils_lowlevel._auto_line_width(image)
+    if bounding_box_colour == "default":
+        bounding_box_colour = utils_lowlevel._get_bgr(settings._default_line_colour)     
+    
+    
     ## filling and line settings
     if fill > 0:
         flags.fill = True
-        fill_colour = utils_lowlevel._get_bgr(fill_colour)
     else:
         flags.fill = False
-
-    line_colour = utils_lowlevel._get_bgr(line_colour)
-    label_colour = utils_lowlevel._get_bgr(label_colour)
-    bounding_box_colour_sel = utils_lowlevel._get_bgr(bounding_box_colour)
-    
-    if line_width == "auto":
-        line_width = utils_lowlevel._auto_line_width(image)
-    if bounding_box_line_width == "auto":
-        bounding_box_line_width = utils_lowlevel._auto_line_width(image)
-    if label_font_size == "auto":
-        label_size = utils_lowlevel._auto_text_size(image)
-    if label_font_width == "auto":
-        label_width = utils_lowlevel._auto_text_width(image)
        
 	# =============================================================================
 	# execute
@@ -136,7 +143,7 @@ def draw_contour(
                 contours=[contour],
                 contourIdx=0,
                 thickness=-1,
-                color=fill_colour,
+                color=line_colour,
                 maxLevel=level,
                 offset=offset_coords,
                 )
@@ -163,7 +170,7 @@ def draw_contour(
                 canvas,
                 (rx - q, ry - q),
                 (rx + rw + q, ry + rh + q),
-                bounding_box_colour_sel,
+                bounding_box_colour,
                 bounding_box_line_width,
             )
 
@@ -289,8 +296,8 @@ def draw_mask(
         line_colour="default",
         line_width="auto",
         label=False,
-        label_size="auto",
         label_colour="default",
+        label_size="auto",
         label_width="auto",
         **kwargs
     ):
@@ -320,14 +327,14 @@ def draw_mask(
     image: ndarray
         canvas with masks
     """
+
  	# =============================================================================
 	# setup 
     
-    annotation_type = "mask"
-
     ## flags
-    flags = make_dataclass(cls_name="flags", 
-                            fields=[("label", bool, label)])
+    flags = make_dataclass(cls_name="flags", fields=[
+        ("label", bool, label)
+        ])
     
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
@@ -336,24 +343,30 @@ def draw_mask(
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
     if line_colour == "default":
-        line_colour = utils_lowlevel._get_bgr(settings._default_line_colour)     
+        line_colour = settings._default_line_colour
     if label_colour == "default":
         label_colour = settings._default_label_colour
         
-    # =============================================================================
-    # retrieve annotation
-    
-    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)
-          
-    polygons = annotation["data"]["polygons"]
-    label = annotation["data"]["label"]
-    
+    label_colour = utils_lowlevel._get_bgr(label_colour)     
+    line_colour = utils_lowlevel._get_bgr(line_colour)     
 
+    # =============================================================================
+    # annotation management
+
+    annotation_type = settings._mask_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations, annotation_type, annotation_id, kwargs)
+         
+    polygons = annotation["data"][annotation_type]
+    label = annotation["data"]["label"]
+        
 	# =============================================================================
 	# execute
     
     canvas = copy.deepcopy(image)
-    
+        
     for coords in polygons:
         cv2.polylines(
             canvas, 
@@ -382,8 +395,6 @@ def draw_mask(
                 label_width,
                 cv2.LINE_AA,
                 )
-
-
 
 	# =============================================================================
 	# return
