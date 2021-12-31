@@ -5,9 +5,7 @@ import numpy as np
 import sys
 
 from dataclasses import make_dataclass
-
-from math import sqrt as _sqrt
-import numpy.ma as ma
+import math
 
 from phenopype import __version__
 from phenopype import settings
@@ -77,7 +75,11 @@ def create_mask(
         image,
         tool="rectangle",
         include=True,
-        label="mask-1",
+        line_colour="default",
+        line_width="auto",
+        label_colour="default",
+        label_size="auto",
+        label_width="auto",
         **kwargs,
     ):
            
@@ -103,7 +105,7 @@ def create_mask(
         phenopype annotation containing mask coordinates
 
     """
-            
+    
     # =============================================================================
     # annotation management
     
@@ -124,11 +126,37 @@ def create_mask(
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
     
     # =============================================================================
+    # setup
+    
+    label = kwargs.get("label")
+    
+    if line_width == "auto":
+        line_width = utils_lowlevel._auto_line_width(image)
+    if label_size == "auto":
+        label_size = utils_lowlevel._auto_text_size(image)
+    if label_width == "auto":
+        label_width = utils_lowlevel._auto_text_width(image)
+        
+    if line_colour == "default":
+        line_colour = settings._default_line_colour
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
+        
+    label_colour = utils_lowlevel._get_bgr(label_colour)     
+    line_colour = utils_lowlevel._get_bgr(line_colour)    
+    
+    # =============================================================================
 	# execute function
         
     gui = utils_lowlevel._GUI(
         image=image, 
         tool=tool, 
+        line_width=line_width,
+        line_colour=line_colour,
+        label=label,
+        label_size=label_size,
+        label_width=label_width,
+        label_colour=label_colour,
         data=gui_data,
         **gui_settings
         )
@@ -144,6 +172,11 @@ def create_mask(
             },
         "settings": {
             "tool":tool,
+            "line_width":line_width,
+            "line_colour":line_colour,
+            "label_size":label_size,
+            "label_width":label_width,
+            "label_colour":label_colour,
             },
         "data": {
             "label":label,
@@ -170,7 +203,6 @@ def create_mask(
     
 def detect_shape(
         image,
-        label="mask-1",
         include=True,
         shape="circle",
         resize=1,
@@ -206,7 +238,7 @@ def detect_shape(
         https://docs.opencv.org/3.4.9/dd/d1a/group__imgproc__feature.html ):
             
             - dp: inverse ratio of the accumulator resolution to the image ressolution
-            - minDist: minimum distance between the centers of the detected circles
+            - min_dist: minimum distance between the centers of the detected circles
             - param1: higher threshold passed to the canny-edge detector
             - param2: accumulator threshold - smaller = more false positives
             - min_radius: minimum circle radius
@@ -252,6 +284,8 @@ def detect_shape(
 
     # =============================================================================
     # setup
+    
+    label = kwargs.get("label")
     
     if len(image.shape) == 3:
         image = decompose_image(image, "gray")
@@ -326,7 +360,6 @@ def detect_shape(
             "circle_args": circle_args_exec,
             },
         "data": {
-
             "label":label,
             "include":include,
             "n": len(circle_contours),
@@ -349,6 +382,12 @@ def detect_shape(
 def create_reference(
         image,
         unit="mm",
+        line_colour="default",
+        line_width="auto",
+        label=True,
+        label_colour="default",
+        label_size="auto",
+        label_width="auto",
         **kwargs
     ):
     """
@@ -395,20 +434,41 @@ def create_reference(
     )
         
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
-
+    
     # =============================================================================
-    # exectue
+    # setup
+    
+    label = kwargs.get("label")
+    
+    if line_width == "auto":
+        line_width = utils_lowlevel._auto_line_width(image)
+    if label_size == "auto":
+        label_size = utils_lowlevel._auto_text_size(image)
+    if label_width == "auto":
+        label_width = utils_lowlevel._auto_text_width(image)
+    if line_colour == "default":
+        line_colour = settings._default_line_colour
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
+        
+    label_colour = utils_lowlevel._get_bgr(label_colour)     
+    line_colour = utils_lowlevel._get_bgr(line_colour)   
+    
+    # =============================================================================
+    # execute
 
     ## measure length
     gui = utils_lowlevel._GUI(
         image, 
         tool="reference",
+        line_width=line_width,
+        line_colour=line_colour,
         **gui_settings,
         )
     
     ## enter length
     points = gui.data["reference_coords"]
-    distance_px = _sqrt(
+    distance_px = math.sqrt(
             ((points[0][0] - points[1][0]) ** 2)
             + ((points[0][1] - points[1][1]) ** 2)
         )
@@ -418,6 +478,9 @@ def create_reference(
         image, 
         tool="comment", 
         label="distance in {}".format(unit),
+        label_size=label_size,
+        label_width=label_width,
+        label_colour=label_colour,
         **gui_settings,
         )
     
@@ -437,6 +500,7 @@ def create_reference(
         },
         "settings": {},
         "data": {
+            "label":label,
             annotation_type: (px_ratio, unit),
         }
     }
@@ -460,8 +524,8 @@ def detect_reference(
         template,
         px_ratio,
         unit,
-        mask=True,
-        equalize=False,
+        get_mask=True,
+        correct_colours=False,
         min_matches=10,
         resize=1,
         **kwargs,
@@ -516,8 +580,8 @@ def detect_reference(
     
     ## kwargs
     flags = make_dataclass(cls_name="flags", 
-                           fields=[("mask", bool, mask),
-                                   ("equalize",bool, equalize)])   
+                           fields=[("mask", bool, get_mask),
+                                   ("equalize",bool, correct_colours)])   
          
     px_ratio_template = px_ratio
 
@@ -607,7 +671,7 @@ def detect_reference(
         detected_rect_mask = np.zeros(image.shape, np.uint8)
         cv2.fillPoly(detected_rect_mask, [np.array(rect_new)], utils_lowlevel._get_bgr("white"))
         (rx, ry, rw, rh) = cv2.boundingRect(np.array(rect_new))
-        detected_rect_mask = ma.array(
+        detected_rect_mask = np.ma.array(
             data=image[ry : ry + rh, rx : rx + rw],
             mask=detected_rect_mask[ry : ry + rh, rx : rx + rw],
         )
@@ -623,7 +687,7 @@ def detect_reference(
         },
         "settings": {
             "get_mask": flags.mask,
-            "equalize_colours": flags.equalize,
+            "correct_colours": flags.equalize,
             "min_matches": min_matches,
             "resize": resize_factor,
             },

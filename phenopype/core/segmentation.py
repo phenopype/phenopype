@@ -187,9 +187,9 @@ def detect_contour(
 
     annotation = {
         "info":{
-            "annotation_type": annotation_type,
-            "phenopype_function": "detect_contour",
+            "phenopype_function": fun_name,
             "phenopype_version": __version__,
+            "annotation_type": annotation_type,
             },
         "settings": {
             "approximation":approximation,
@@ -213,8 +213,12 @@ def detect_contour(
 	# =============================================================================
 	# return
             
-    return utils_lowlevel._update_annotations( 
-        annotations, annotation, annotation_type, annotation_id, kwargs,
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
     )
     
 
@@ -275,9 +279,13 @@ def edit_contour(
     annotation_id = kwargs.get("annotation_id", None)
     
     annotation = utils_lowlevel._get_annotation(
-        annotations, annotation_type, annotation_id, kwargs)
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
     
-    gui_data.update({"sequences": utils_lowlevel._get_GUI_data(annotation)})
+    gui_data.update({settings._sequence_type: utils_lowlevel._get_GUI_data(annotation)})
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
     
 
@@ -325,10 +333,13 @@ def edit_contour(
 	# =============================================================================
 	# return
             
-    return utils_lowlevel._update_annotations( 
-        annotations, annotation, annotation_type, annotation_id, kwargs,
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
     )
-
 
 
 def morphology(
@@ -652,10 +663,6 @@ def watershed(
 
     contours = detect_contour(watershed_mask, retrieval="ccomp")
     image_watershed = np.zeros(watershed_mask.shape, np.uint8)
-           
-    
-	# =============================================================================
-	# process
 
     for coord, supp in zip(contours["data"]["coords"], contours["data"]["support"]):
         if supp["hierarchy_level"] == "child":

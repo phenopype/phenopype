@@ -245,12 +245,12 @@ class Container(object):
             annotations_updated = measurement.set_landmark(self.canvas, **kwargs)
         if fun == "set_polyline":
             annotations_updated = measurement.set_polyline(self.canvas, **kwargs)
-        if fun == "skeletonize":
-            annotations_updated = measurement.skeletonize(self.image, **kwargs)
-        if fun == "shape_features":
-            annotations_updated = measurement.shape_features(**kwargs)
-        if fun == "texture_features":
-            annotations_updated = measurement.texture_features(self.image_copy, **kwargs)
+        if fun == "detect_skeleton":
+            annotations_updated = measurement.detect_skeleton(self.image, **kwargs)
+        if fun == "compute_shape_features":
+            annotations_updated = measurement.compute_shape_features(**kwargs)
+        if fun == "compute_texture_features":
+            annotations_updated = measurement.compute_texture_features(self.image_copy, **kwargs)
 
         ## visualization
         if fun == "select_canvas":
@@ -409,7 +409,7 @@ def load_image(
                 raise OSError("Invalid file extension \"{}\" - could not load image:\n".format(ext))
                 return
         elif os.path.isdir(path):
-            image = utils_lowlevel._load_project_image_directory(path)
+            image = utils_lowlevel._load_project_image_directory(path, as_container=False)
         else:
             raise FileNotFoundError("Invalid image path - could not load image.")
             # return

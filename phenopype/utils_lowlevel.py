@@ -238,11 +238,11 @@ class _GUI:
         ## initialize canvas
         self._canvas_renew()
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
-            self._canvas_draw(tool="line", coord_list=self.data["polygons"])
+            self._canvas_draw(tool="line", coord_list=self.data[settings._coord_list_type])
         if self.tool in ["point"]:
             self._canvas_draw(tool="point", coord_list=self.data[settings._coord_type])
         if self.tool in ["draw"]:
-            self._canvas_draw(tool="line_bin", coord_list=self.data["sequences"])
+            self._canvas_draw(tool="line_bin", coord_list=self.data[settings._sequence_type])
             self._canvas_blend()
             self._canvas_add_lines()
         self._canvas_mount()                                   
@@ -286,7 +286,7 @@ class _GUI:
                             if self.tool:
                                 if len(self.data[settings._coord_type]) > 2 and not self.tool in ["point"]:
                                     self.data[settings._coord_type].append(self.data[settings._coord_type][0])
-                                    self.data["polygons"].append(self.data[settings._coord_type])
+                                    self.data[settings._coord_list_type].append(self.data[settings._coord_type])
                             self.flags.end = True
                             cv2.destroyAllWindows()
                             
@@ -303,9 +303,9 @@ class _GUI:
                             
                         ## Ctrl + z = undo
                         elif self.keypress == 26 and self.tool == "draw":
-                            self.data["sequences"] = self.data["sequences"][:-1]
+                            self.data[settings._sequence_type] = self.data[settings._sequence_type][:-1]
                             self._canvas_renew()
-                            self._canvas_draw(tool="line_bin", coord_list=self.data["sequences"])
+                            self._canvas_draw(tool="line_bin", coord_list=self.data[settings._sequence_type])
                             self._canvas_blend()
                             self._canvas_add_lines()
                             self._canvas_mount()
@@ -451,7 +451,7 @@ class _GUI:
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.data["polygons"] + [self.data[settings._coord_type]])
+                tool="line", coord_list=self.data[settings._coord_list_type] + [self.data[settings._coord_type]])
             self._canvas_mount()
             
             ## if in reference mode, append to ref coords
@@ -465,13 +465,13 @@ class _GUI:
             if len(self.data[settings._coord_type]) > 0:
                 self.data[settings._coord_type] = self.data[settings._coord_type][:-1]
             else:
-                self.data["polygons"] = self.data["polygons"][:-1]
+                self.data[settings._coord_list_type] = self.data[settings._coord_list_type][:-1]
                 
             ## apply tool and refresh canvas
             print("remove")
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.data["polygons"] + [self.data[settings._coord_type]])
+                tool="line", coord_list=self.data[settings._coord_list_type] + [self.data[settings._coord_type]])
             self._canvas_mount()
 
         if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.data[settings._coord_type]) > 2:
@@ -482,13 +482,13 @@ class _GUI:
                 
             ## add current points to polygon and empyt point list
             print("poly")
-            self.data["polygons"].append(self.data[settings._coord_type])
+            self.data[settings._coord_list_type].append(self.data[settings._coord_type])
             self.data[settings._coord_type] = []
 
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.data["polygons"] + [self.data[settings._coord_type]])
+                tool="line", coord_list=self.data[settings._coord_list_type] + [self.data[settings._coord_type]])
             self._canvas_mount()
 
 
@@ -500,7 +500,7 @@ class _GUI:
         if event == cv2.EVENT_LBUTTONDOWN:  
             
             ## end after one set of points if creating a template
-            if template == True and len(self.data["polygons"]) == 1:
+            if template == True and len(self.data[settings._coord_list_type]) == 1:
                 return
             
             ## start drawing temporary rectangle 
@@ -510,7 +510,7 @@ class _GUI:
         if event == cv2.EVENT_LBUTTONUP:
             
             ## end after one set of points if creating a template
-            if template == True and len(self.data["polygons"]) == 1:
+            if template == True and len(self.data[settings._coord_list_type]) == 1:
                 print("Template selected")
                 return
             
@@ -524,7 +524,7 @@ class _GUI:
                 int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])),
                 int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1])),
                 ]
-            self.data["polygons"].append(
+            self.data[settings._coord_list_type].append(
                 [
                     (self.rect[0], self.rect[1]), 
                     (self.rect[2], self.rect[1]),
@@ -537,19 +537,19 @@ class _GUI:
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.data["polygons"])
+                tool="line", coord_list=self.data[settings._coord_list_type])
             self._canvas_mount(refresh=False)
             
         if event == cv2.EVENT_RBUTTONDOWN:
             
             ## remove polygons and update canvas
-            if len(self.data["polygons"]) > 0:
-                self.data["polygons"] = self.data["polygons"][:-1]
+            if len(self.data[settings._coord_list_type]) > 0:
+                self.data[settings._coord_list_type] = self.data[settings._coord_list_type][:-1]
                 
                 ## apply tool and refresh canvas
                 self._canvas_renew()
                 self._canvas_draw(
-                    tool="line", coord_list=self.data["polygons"])
+                    tool="line", coord_list=self.data[settings._coord_list_type])
                 self._canvas_mount()
 
                 
@@ -596,7 +596,7 @@ class _GUI:
         if event==cv2.EVENT_LBUTTONUP or event==cv2.EVENT_RBUTTONUP:
             self.flags.drawing=False
             self.canvas = copy.deepcopy(self.canvas_copy)
-            self.data["sequences"].append([
+            self.data[settings._sequence_type].append([
                 self.data[settings._coord_type],
                 self.colour_current_bin, 
                 int(self.settings.line_width*self.global_fx),
@@ -605,7 +605,7 @@ class _GUI:
             
             ## draw all segments
             self._canvas_renew()
-            self._canvas_draw(tool="line_bin", coord_list=self.data["sequences"])
+            self._canvas_draw(tool="line_bin", coord_list=self.data[settings._sequence_type])
             self._canvas_blend()
             self._canvas_add_lines()
             self._canvas_mount()

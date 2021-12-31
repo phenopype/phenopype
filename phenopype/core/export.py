@@ -3,7 +3,6 @@ import copy
 import json
 import os
 from collections import defaultdict
-from dataclasses import make_dataclass
 
 import cv2
 import numpy as np
@@ -12,11 +11,7 @@ import pandas as pd
 
 from phenopype import settings
 from phenopype import utils_lowlevel 
-from phenopype import utils
-
-
-#%% settings   
-    
+from phenopype import utils    
         
 #%% functions
 
@@ -26,6 +21,29 @@ def export_csv(annotation,
                dir_path=None,
                overwrite=False, 
                **kwargs):
+    """
+    
+
+    Parameters
+    ----------
+    annotation : TYPE
+        DESCRIPTION.
+    annotation_type : TYPE, optional
+        DESCRIPTION. The default is None.
+    image_name : TYPE, optional
+        DESCRIPTION. The default is None.
+    dir_path : TYPE, optional
+        DESCRIPTION. The default is None.
+    overwrite : TYPE, optional
+        DESCRIPTION. The default is False.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
 
             
     ## dirpath
@@ -379,12 +397,15 @@ def save_annotation(annotation,
                     
                     ## unindent lists for better legibility
                     if key in [x for x in settings._annotation_types if not x in[
-                            settings._comment_type, settings._reference_type]] + ["support"]:
-                        if len(value)>0 and type(value[0]) in [np.ndarray]:
-                            value = [elem.tolist() for elem in value] 
+                            settings._comment_type, 
+                            settings._reference_type,
+                            ]] + ["support"]:
+                        if type(value) == list and len(value)>0 and type(value[0]) in [np.ndarray]:
+                            value = [elem.tolist() for elem in value]                             
                         value = [utils_lowlevel._NoIndent(elem) for elem in value]   
                     elif type(value) in [tuple, list]:
                         value = utils_lowlevel._NoIndent(value)
+                        
                     annotation_file[annotation_type][annotation_id][section][key] = value
 
     ## save
@@ -501,86 +522,3 @@ def save_canvas(
                resize=resize,
                overwrite=overwrite,
                verbose=settings.flag_verbose)
-        
-    
-        
-
-# def save_reference(annotation, 
-#                    overwrite=True, 
-#                    dir_path=None, 
-#                    active_ref=None):
-#     """
-    
-#     Save a created or detected reference to attributes.yaml
-    
-#     Parameters
-#     ----------
-#     annotation: dict
-#         A phenopype annotation dict.
-#     overwrite: bool optional
-#         Overwrite reference if it already exists
-#     dir_path: str, optional
-#         location to save df
-        
-#     """
-   
-#     ## load df
-#     px_mm_ratio = annotation["reference"]["a"]["data"]["px_mm_ratio"]
-
-
-#     ## dir_path
-#     if dir_path.__class__.__name__ == "NoneType":
-#         print('No save directory ("dirpath") specified - cannot save result.')
-#         return
-#     else:
-#         if not os.path.isdir(dirpath):
-#             q = input("Save folder {} does not exist - create?.".format(dirpath))
-#             if q in ["True", "true", "y", "yes"]:
-#                 os.makedirs(dirpath)
-#             else:
-#                 print("Directory not created - aborting")
-#                 return
-
-#     ## load attributes file        
-#     attr_path = os.path.join(dirpath, "attributes.yaml")
-#     if os.path.isfile(attr_path):
-#         attr = utils_lowlevel._load_yaml(attr_path)
-#         if not "reference" in attr:
-#             attr["reference"] = {}      
-#         if not "project_level" in attr["reference"]:
-#             attr["reference"]["project_level"] = {}     
-
-
-#     ## check if file exists
-#     if not active_ref.__class__.__name__ == "NoneType":
-#         while True:
-#             if "reference_detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and overwrite == False:
-#                 print("- reference not saved (overwrite=False)")
-#                 break
-#             elif "reference_detected_px_mm_ratio" in attr["reference"]["project_level"][active_ref] and overwrite == True:
-#                 print("- save reference to attributes (overwriting)")
-#                 pass
-#             else:
-#                 print("- save reference to attributes")
-#                 pass
-#             attr["reference"]["project_level"][active_ref]["reference_detected_px_mm_ratio"] = px_mm_ratio
-#             break
-#         utils_lowlevel._save_yaml(attr, attr_path)
-#     else: 
-#         while True:
-#             if "reference_manually_measured_px_mm_ratio" in attr["reference"] and overwrite == False:
-#                 print("- reference not saved (overwrite=False)")
-#                 break
-#             elif "reference_manually_measured_px_mm_ratio" in attr["reference"] and overwrite == True:
-#                 print("- save reference to attributes (overwriting)")
-#                 pass
-#             else:
-#                 print("- save reference to attributes")
-#                 pass
-#             attr["reference"]["reference_manually_measured_px_mm_ratio"] = px_mm_ratio
-#             break
-#         utils_lowlevel._save_yaml(attr, attr_path)        
-
-
-
-

@@ -1,5 +1,7 @@
 #%% modules
-import cv2, copy, sys
+
+import copy
+import cv2
 import numpy as np
 import math
 from dataclasses import make_dataclass
@@ -75,9 +77,26 @@ def draw_contour(
         canvas with contours
 
     """
-    # =============================================================================
-	# setup
     
+    # =============================================================================
+    # annotation management
+    
+    annotation_type = settings._contour_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
+    
+    contours = annotation["data"][annotation_type]
+    contours_support = annotation["data"]["support"]
+
+    # =============================================================================
+   	# setup
+       
     level = kwargs.get("level",3)
     fill_colour = kwargs.get("fill_colour", line_colour)
     
@@ -87,41 +106,29 @@ def draw_contour(
         ("label", bool, label),
         ("fill", bool, True),
         ])
-    
-    # =============================================================================
-    # annotation management
-
-    annotation_type = settings._contour_type
-    annotation_id = kwargs.get(annotation_type + "_id", None)
-    
-    annotation = utils_lowlevel._get_annotation(
-        annotations, annotation_type, annotation_id, kwargs)
-    
-    contours = annotation["data"][annotation_type]
-    contours_support = annotation["data"]["support"]
-            
-    # =============================================================================
-	# setup
-    
-    canvas = copy.deepcopy(image)
-    
-    if fill_colour == "default":
-        fill_colour = utils_lowlevel._get_bgr(settings._default_line_colour)     
+         
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image, factor=0.001)
     if label_size == "auto":
         label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
-    if line_colour == "default":
-        line_colour = utils_lowlevel._get_bgr(settings._default_line_colour)     
-    if label_colour == "default":
-        label_colour = utils_lowlevel._get_bgr(settings._default_label_colour)     
     if bounding_box_line_width == "auto":
         bounding_box_line_width = utils_lowlevel._auto_line_width(image)
+        
+    if fill_colour == "default":
+        fill_colour = settings._default_line_colour
+    if line_colour == "default":
+        line_colour = settings._default_line_colour  
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
     if bounding_box_colour == "default":
-        bounding_box_colour = utils_lowlevel._get_bgr(settings._default_line_colour)     
-    
+        bounding_box_colour = settings._default_line_colour
+        
+    fill_colour = utils_lowlevel._get_bgr(fill_colour)     
+    line_colour = utils_lowlevel._get_bgr(line_colour)     
+    label_colour = utils_lowlevel._get_bgr(label_colour)     
+    bounding_box_colour = utils_lowlevel._get_bgr(bounding_box_colour)  
     
     ## filling and line settings
     if fill > 0:
@@ -131,6 +138,8 @@ def draw_contour(
        
 	# =============================================================================
 	# execute
+    
+    canvas = copy.deepcopy(image)
     
     ## 1) fill contours
     if flags.fill:
@@ -195,13 +204,13 @@ def draw_contour(
 
 def draw_landmark(
         image,
-        annotation,
+        annotations,
         label=True,
-        label_colour="black",
+        label_colour="default",
         label_size="auto",
         label_width="auto",
         offset=0,
-        point_colour="green",
+        point_colour="default",
         point_size="auto",
         **kwargs
     ):
@@ -235,6 +244,21 @@ def draw_landmark(
         canvas with landmarks
 
     """
+    
+    # =============================================================================
+    # annotation management
+    
+    annotation_type = settings._landmark_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
+    
+    points = annotation["data"][annotation_type]
 
 	# =============================================================================
 	# setup 
@@ -243,28 +267,26 @@ def draw_landmark(
     flags = make_dataclass(cls_name="flags", 
                             fields=[("label", bool, label)])
     
-    ## point and label settings
-    point_colour = utils_lowlevel._get_bgr(point_colour)
-    label_col = utils_lowlevel._get_bgr(label_colour)
-
+    ## configure points
     if point_size == "auto":
         point_size = utils_lowlevel._auto_point_size(image)
     if label_size == "auto":
         label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
-
-    ## extract annotation data     
-    points = utils_lowlevel._provide_annotation_data(annotation, "landmark", "points", kwargs)
-
-    if not points:
-        return image
-    else:
-        canvas = copy.deepcopy(image)
-
+        
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
+    if point_colour == "default":
+        point_colour = settings._default_point_colour
+        
+    label_colour = utils_lowlevel._get_bgr(label_colour)     
+    point_colour = utils_lowlevel._get_bgr(point_colour)  
 
 	# =============================================================================
 	# execute
+    
+    canvas = copy.deepcopy(image)
     
     for idx, point in enumerate(points):
         x,y = point
@@ -277,7 +299,7 @@ def draw_landmark(
                 (x, y),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 label_size,
-                label_col,
+                label_colour,
                 label_width,
                 cv2.LINE_AA,
             )
@@ -326,6 +348,21 @@ def draw_mask(
         canvas with masks
     """
 
+    # =============================================================================
+    # annotation management
+    
+    annotation_type = settings._mask_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
+    
+    polygons = annotation["data"][annotation_type]
+
  	# =============================================================================
 	# setup 
     
@@ -340,6 +377,7 @@ def draw_mask(
         label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
+        
     if line_colour == "default":
         line_colour = settings._default_line_colour
     if label_colour == "default":
@@ -347,18 +385,6 @@ def draw_mask(
         
     label_colour = utils_lowlevel._get_bgr(label_colour)     
     line_colour = utils_lowlevel._get_bgr(line_colour)     
-
-    # =============================================================================
-    # annotation management
-
-    annotation_type = settings._mask_type
-    annotation_id = kwargs.get(annotation_type + "_id", None)
-
-    annotation = utils_lowlevel._get_annotation(
-        annotations, annotation_type, annotation_id, kwargs)
-         
-    polygons = annotation["data"][annotation_type]
-    label = annotation["data"]["label"]
         
 	# =============================================================================
 	# execute
@@ -434,40 +460,42 @@ def draw_polyline(
     image: ndarray
         canvas with lines
     """
-	# =============================================================================
-	# setup 
     
-    annotation_type = "line"
-
     # =============================================================================
-    # retrieve annotation
+    # annotation management
     
-    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type, annotations)
-          
-    polygons = annotation["data"]["polygons"]
+    annotation_type = settings._line_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
     
+    lines = annotation["data"][annotation_type]
     
+	# =============================================================================
+	# setup    
     
     ## line settings
-    
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
+        
     if line_colour == "default":
-        line_colour = utils_lowlevel._get_bgr(settings._default_line_colour)    
-
-    if not polygons:
-        return image
-    else:
-        canvas = copy.deepcopy(image)
-
+        line_colour = settings._default_line_colour
+    
+    line_colour = utils_lowlevel._get_bgr(line_colour)
     
 	# =============================================================================
 	# execute
     
+    canvas = copy.deepcopy(image)
+    
     ## draw lines
-    for coords in polygons:
+    for coords in lines:
         cv2.polylines(canvas, np.array([coords]), False, line_colour, line_width)
-
 
 	# =============================================================================
 	# return
@@ -481,7 +509,7 @@ def draw_reference(
         annotations,
         line_colour="default",
         line_width="auto",
-        label=False,
+        label=True,
         label_colour="default",
         label_size="auto",
         label_width="auto",
@@ -520,6 +548,22 @@ def draw_reference(
 
     """
 
+    # =============================================================================
+    # annotation management
+    
+    annotation_type = settings._reference_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
+    
+    px_ratio, unit = annotation["data"][annotation_type]
+    polygons = annotation["data"][settings._mask_type]
+
  	# =============================================================================
 	# setup 
     
@@ -543,21 +587,9 @@ def draw_reference(
     line_colour = utils_lowlevel._get_bgr(line_colour)     
     
     # =============================================================================
-    # annotation management
-
-    annotation_type = settings._reference_type
-    annotation_id = kwargs.get(annotation_type + "_id", None)
-
-    annotation = utils_lowlevel._get_annotation(
-        annotations, annotation_type, annotation_id, kwargs)
-             
-    px_ratio, unit = annotation["data"][annotation_type]
-    polygons = annotation["data"][settings._mask_type]
-        
-    canvas = copy.deepcopy(image)
-
-    # =============================================================================
     # execute
+    
+    canvas = copy.deepcopy(image)
        
     ## draw referenc mask outline
     cv2.polylines(canvas, np.array([polygons[0]]), False, line_colour, line_width)
@@ -599,7 +631,7 @@ def draw_reference(
                       np.array([scale_box_inner]), 
                       False, 
                       utils_lowlevel._get_bgr("black"), 
-                      utils_lowlevel._auto_line_width(canvas)
+                      utils_lowlevel._auto_line_width(canvas, factor=0.001)
                       )
 
         
@@ -613,8 +645,6 @@ def draw_reference(
             label_width*2,
             cv2.LINE_AA,
         )
-         
-
      
     # =============================================================================
     # return

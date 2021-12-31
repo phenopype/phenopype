@@ -596,8 +596,8 @@ class Project:
                     "reference_source_path": reference_source_path,
                     "reference_file_name": reference_image_name,
                     "template_file_name": template_name,
-                    "template_px_ratio": annotation_ref[settings._reference_type]["a"]["data"]["px_ratio"],
-                    "unit": annotation_ref[settings._reference_type]["a"]["data"]["unit"],
+                    "template_px_ratio": annotation_ref[settings._reference_type]["a"]["data"][settings._reference_type][0],
+                    "unit": annotation_ref[settings._reference_type]["a"]["data"][settings._reference_type][1],
                     "date_added":datetime.today().strftime(settings.strftime_format),
                     }
                         
@@ -1234,6 +1234,7 @@ class Pype(object):
                             "detect_shape", 
                             "compute_shape_features", 
                             "compute_texture_features", 
+                            "skeletonize",
                             ] else False})
 
                     annotation_args =  utils_lowlevel._yaml_flow_style(annotation_args)

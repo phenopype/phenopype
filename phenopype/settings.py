@@ -196,7 +196,7 @@ _annotation_functions = {
     
     ## lines
     "set_polyline": _line_type,
-    "skeletonize": _line_type,
+    "detect_skeleton": _line_type,
     
     ## masks 
     "create_mask": _mask_type,
