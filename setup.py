@@ -23,7 +23,7 @@ setup(
     author_email="moritz.luerig@gmail.com",
     packages=["phenopype"],
     package_dir={"phenopype": "phenopype"},
-    package_data={"phenopype": ["core/*.py", "templates/*.py", "templates/*.yaml"]},
+    package_data={"phenopype": ["core/*.py"]},
     install_requires=[
         "colour",
         "numpy==1.18.5",
