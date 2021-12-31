@@ -76,7 +76,7 @@ class _GUI:
         ## basic settings
         self.tool = tool
         self.passive = passive
-        self.label = kwargs.get("label", "NA")
+        self.label = kwargs.get("label", None)
 
         ## data collector
         self.data = {
@@ -105,10 +105,10 @@ class _GUI:
                 ("point_colour", tuple,  kwargs.get("point_colour", settings._default_point_colour)),
                 ("point_size", int, kwargs.get("point_size", _auto_point_size(image))),
                 
+                ("overlay_blend", float, kwargs.get("overlay_blend", 0.2)),
+                ("overlay_line_width", int, kwargs.get("overlay_line_width", 1)),
                 ("overlay_colour_left", tuple, kwargs.get("overlay_colour_left", settings._default_overlay_left)),
                 ("overlay_colour_right", tuple, kwargs.get("overlay_colour_right", settings._default_overlay_right)),
-                ("overlay_blend", float, kwargs.get("overlay_blend", 0.5)),
-                ("overlay_line_width", int, kwargs.get("overlay_line_width", 1)),
                 
                 ("zoom_mode", str, zoom_mode),
                 ("zoom_magnification", float, zoom_magnification),
@@ -240,7 +240,7 @@ class _GUI:
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
             self._canvas_draw(tool="line", coord_list=self.data["polygons"])
         if self.tool in ["point"]:
-            self._canvas_draw(tool="point", coord_list=self.data["points"])
+            self._canvas_draw(tool="point", coord_list=self.data[settings._coord_type])
         if self.tool in ["draw"]:
             self._canvas_draw(tool="line_bin", coord_list=self.data["sequences"])
             self._canvas_blend()
@@ -284,9 +284,9 @@ class _GUI:
                         if self.keypress == 13:
                             ## close unfinished polygon and append to polygon list
                             if self.tool:
-                                if len(self.data["points"]) > 2 and not self.tool in ["point"]:
-                                    self.data["points"].append(self.data["points"][0])
-                                    self.data["polygons"].append(self.data["points"])
+                                if len(self.data[settings._coord_type]) > 2 and not self.tool in ["point"]:
+                                    self.data[settings._coord_type].append(self.data[settings._coord_type][0])
+                                    self.data["polygons"].append(self.data[settings._coord_type])
                             self.flags.end = True
                             cv2.destroyAllWindows()
                             
@@ -330,7 +330,7 @@ class _GUI:
             (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
             cv2.FONT_HERSHEY_SIMPLEX,
             self.settings.label_size,
-            _get_bgr(self.settings.label_colour),
+            self.settings.label_colour,
             self.settings.label_width,
             cv2.LINE_AA,
         )
@@ -383,22 +383,22 @@ class _GUI:
             self._zoom_coords_orig(x,y)
             
             ## append points to point list
-            self.data["points"].append(self.coords_original)
+            self.data[settings._coord_type].append(self.coords_original)
                        
             ## apply tool and refresh canvas
             self._canvas_renew()
-            self._canvas_draw(tool="point", coord_list=self.data["points"])
+            self._canvas_draw(tool="point", coord_list=self.data[settings._coord_type])
             self._canvas_mount()
             
         if event == cv2.EVENT_RBUTTONDOWN:
             
             ## remove points from list, if any are left
-            if len(self.data["points"]) > 0:
-                self.data["points"] = self.data["points"][:-1]
+            if len(self.data[settings._coord_type]) > 0:
+                self.data[settings._coord_type] = self.data[settings._coord_type][:-1]
                 
             ## apply tool and refresh canvas
             self._canvas_renew()
-            self._canvas_draw(tool="point", coord_list=self.data["points"])
+            self._canvas_draw(tool="point", coord_list=self.data[settings._coord_type])
             self._canvas_mount()
                 
 
@@ -410,26 +410,26 @@ class _GUI:
         flag_draw = kwargs.get("draw", False)
 
         if event == cv2.EVENT_MOUSEMOVE:
-            if (reference or flag_draw) and self.tool == "line" and len(self.data["points"]) == 2:
+            if (reference or flag_draw) and self.tool == "line" and len(self.data[settings._coord_type]) == 2:
                 return
             
             ## draw line between current cursor coords and last polygon node
-            if len(self.data["points"]) > 0:
+            if len(self.data[settings._coord_type]) > 0:
                 self.coords_prev = (
-                    int((self.data["points"][-1][0] - self.zoom_x1) / self.global_fx),
-                    int((self.data["points"][-1][1] - self.zoom_y1) // self.global_fy),
+                    int((self.data[settings._coord_type][-1][0] - self.zoom_x1) / self.global_fx),
+                    int((self.data[settings._coord_type][-1][1] - self.zoom_y1) // self.global_fy),
                 )
                 self.canvas = copy.deepcopy(self.canvas_copy)
                 cv2.line(
                     self.canvas,
                     self.coords_prev,
                     (x, y),
-                    _get_bgr(self.settings.line_colour),
+                    self.settings.line_colour,
                     self.settings.line_width,
                 )
                 
             ## if in reference mode, don't connect
-            elif (reference or flag_draw) and self.tool == "line" and len(self.data["points"]) > 2:
+            elif (reference or flag_draw) and self.tool == "line" and len(self.data[settings._coord_type]) > 2:
                 pass
             
             ## pump updates
@@ -438,7 +438,7 @@ class _GUI:
         if event == cv2.EVENT_LBUTTONDOWN:  
         
             ## skip if in reference mode
-            if reference and len(self.data["points"]) == 2:
+            if reference and len(self.data[settings._coord_type]) == 2:
                 print("already two points selected")
                 return
             
@@ -446,24 +446,24 @@ class _GUI:
             self._zoom_coords_orig(x,y)
             
             ## append points to point list
-            self.data["points"].append(self.coords_original)
+            self.data[settings._coord_type].append(self.coords_original)
             
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.data["polygons"] + [self.data["points"]])
+                tool="line", coord_list=self.data["polygons"] + [self.data[settings._coord_type]])
             self._canvas_mount()
             
             ## if in reference mode, append to ref coords
-            if reference and len(self.data["points"]) == 2:
+            if reference and len(self.data[settings._coord_type]) == 2:
                 print("Reference set")
-                self.data["reference_coords"] = self.data["points"]
+                self.data["reference_coords"] = self.data[settings._coord_type]
                                                 
         if event == cv2.EVENT_RBUTTONDOWN:
             
             ## remove points and update canvas
-            if len(self.data["points"]) > 0:
-                self.data["points"] = self.data["points"][:-1]
+            if len(self.data[settings._coord_type]) > 0:
+                self.data[settings._coord_type] = self.data[settings._coord_type][:-1]
             else:
                 self.data["polygons"] = self.data["polygons"][:-1]
                 
@@ -471,24 +471,24 @@ class _GUI:
             print("remove")
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.data["polygons"] + [self.data["points"]])
+                tool="line", coord_list=self.data["polygons"] + [self.data[settings._coord_type]])
             self._canvas_mount()
 
-        if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.data["points"]) > 2:
+        if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.data[settings._coord_type]) > 2:
 
             ## close polygon
             if not polyline:
-                self.data["points"].append(self.data["points"][0])
+                self.data[settings._coord_type].append(self.data[settings._coord_type][0])
                 
             ## add current points to polygon and empyt point list
             print("poly")
-            self.data["polygons"].append(self.data["points"])
-            self.data["points"] = []
+            self.data["polygons"].append(self.data[settings._coord_type])
+            self.data[settings._coord_type] = []
 
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.data["polygons"] + [self.data["points"]])
+                tool="line", coord_list=self.data["polygons"] + [self.data[settings._coord_type]])
             self._canvas_mount()
 
 
@@ -563,7 +563,7 @@ class _GUI:
                     self.canvas,
                     self.rect_minpos,
                     self.rect_maxpos,
-                    _get_bgr(self.settings.line_colour),
+                    self.settings.line_colour,
                     self.settings.line_width,
                 )
                 cv2.imshow(self.settings.window_name, self.canvas)
@@ -575,10 +575,10 @@ class _GUI:
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
                 self.colour_current_bin = 255
-                self.colour_current = _get_bgr(self.settings.overlay_colour_left)
+                self.colour_current = self.settings.overlay_colour_left
             elif event == cv2.EVENT_RBUTTONDOWN:
                 self.colour_current_bin = 0
-                self.colour_current = _get_bgr(self.settings.overlay_colour_right)
+                self.colour_current = self.settings.overlay_colour_right
             
             ## start drawing and use current coords as start point
             self.canvas = copy.deepcopy(self.canvas_copy)
@@ -589,7 +589,7 @@ class _GUI:
                 int(self.zoom_x1 + (self.ix * self.global_fx)),
                 int(self.zoom_y1 + (self.iy * self.global_fy)),
             )
-            self.data["points"].append(self.coords_original_i)
+            self.data[settings._coord_type].append(self.coords_original_i)
             self.flags.drawing=True
 
         ## finish drawing and update image_copy
@@ -597,11 +597,11 @@ class _GUI:
             self.flags.drawing=False
             self.canvas = copy.deepcopy(self.canvas_copy)
             self.data["sequences"].append([
-                self.data["points"],
+                self.data[settings._coord_type],
                 self.colour_current_bin, 
                 int(self.settings.line_width*self.global_fx),
                 ])
-            self.data["points"] = []
+            self.data[settings._coord_type] = []
             
             ## draw all segments
             self._canvas_renew()
@@ -617,7 +617,7 @@ class _GUI:
             self._zoom_coords_orig(x,y)
             
             ## add points, colour, and line width to point list
-            self.data["points"].append(self.coords_original)
+            self.data[settings._coord_type].append(self.coords_original)
             
             ## draw onto canvas for immediate feedback
             cv2.line(self.canvas,(self.ix,self.iy),(x,y), 
@@ -655,7 +655,7 @@ class _GUI:
                 contours=[contour],
                 contourIdx=0,
                 thickness=self.settings.overlay_line_width,
-                color=_get_bgr(self.settings.overlay_colour_left),
+                color=self.settings.overlay_colour_left,
                 maxLevel=3,
                 offset=None,
             )   
@@ -666,8 +666,8 @@ class _GUI:
         ## create coloured overlay from binary image
         self.colour_mask = copy.deepcopy(self.image_bin_copy)
         self.colour_mask = cv2.cvtColor(self.colour_mask, cv2.COLOR_GRAY2BGR)
-        self.colour_mask[self.image_bin_copy == 0] = _get_bgr(self.settings.overlay_colour_right)
-        self.colour_mask[self.image_bin_copy == 255] = _get_bgr(self.settings.overlay_colour_left)
+        self.colour_mask[self.image_bin_copy == 0] = self.settings.overlay_colour_right
+        self.colour_mask[self.image_bin_copy == 255] = self.settings.overlay_colour_left
 
         ## blend two canvas layers
         self.image_copy = cv2.addWeighted(self.image_copy,
@@ -688,7 +688,7 @@ class _GUI:
                     self.image_copy,
                     np.array([coords]),
                     False,
-                    _get_bgr(self.settings.line_colour),
+                    self.settings.line_colour,
                     self.settings.line_width,
                 )
             elif tool == "line_bin":
@@ -704,17 +704,17 @@ class _GUI:
                     self.image_copy,
                     coords,
                     self.settings.point_size,
-                    _get_bgr(self.settings.point_colour),
+                    self.settings.point_colour,
                     -1,
                 )
-                if self.settings.label:                    
+                if self.label:                    
                     cv2.putText(
                         self.image_copy,
                         str(idx+1),
                         coords,
                         cv2.FONT_HERSHEY_SIMPLEX,
                         self.settings.label_size,
-                        _get_bgr(self.settings.label_colour),
+                        self.settings.label_colour,
                         self.settings.label_width,
                         cv2.LINE_AA,
                     )
@@ -826,8 +826,8 @@ class _GUI:
 class _NoIndent(object):
     
     def __init__(self, value):
-        if not isinstance(value, (list, tuple, dict)):
-            raise TypeError('Only lists and tuples can be wrapped')
+        # if not isinstance(value, (list, tuple, dict)):
+        #     raise TypeError('Only lists and tuples can be wrapped')
         self.value = value
 
 
@@ -1008,19 +1008,6 @@ def _get_annotation(
 def _get_annotation_type(fun_name):
     
     return settings._annotation_functions[fun_name]
-
-
-def _get_annotation_types(typ=None, ex=[]):
-    
-    at = copy.deepcopy(settings._annotation_types)
-    at_upt = [x for x in at if not x in ex]
-        
-    if typ =="dict":
-        return dict.fromkeys(sorted(at_upt), {})
-    elif typ == "list":
-        return dict.fromkeys(sorted(at_upt), {})
-    else:
-        return list(at_upt)
 
 
 def _get_GUI_data(annotation):

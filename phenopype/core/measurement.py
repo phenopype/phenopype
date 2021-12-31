@@ -2,6 +2,7 @@
 import cv2
 import math
 import numpy as np
+import sys
 
 import logging
 from radiomics import featureextractor
@@ -55,16 +56,23 @@ def set_landmark(
         phenopype annotation containing landmarks
     """
 
-	# =============================================================================
-	# setup 
-       
-    annotation_type = "landmark"
-        
     # =============================================================================
-    # retrieve attributes
+    # annotation management
     
-    annotation = utils_lowlevel._get_annotation(kwargs, annotation_type)   
-    gui_data = utils_lowlevel._get_GUI_data(annotation)
+    fun_name = sys._getframe().f_code.co_name
+
+    annotations = kwargs.get("annotations", {})
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotation_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
+            
+    gui_data = {settings._coord_list_type: utils_lowlevel._get_GUI_data(annotation)}
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
         
 	# =============================================================================
@@ -77,10 +85,13 @@ def set_landmark(
         label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
-    if point_colour == "default":
-        point_colour = settings._default_point_colour
     if label_colour == "default":
         label_colour = settings._default_label_colour
+    if point_colour == "default":
+        point_colour = settings._default_point_colour
+        
+    label_colour = utils_lowlevel._get_bgr(label_colour)     
+    point_colour = utils_lowlevel._get_bgr(point_colour)  
 
 	# =============================================================================
 	# execute
@@ -98,21 +109,13 @@ def set_landmark(
         **gui_settings,
         )
     
-    ## check if tasks completed successfully
-    if not gui.flags.end:
-        print("- didn't finish: redo mask")
-        return 
-    if len(gui.data["points"]) == 0:
-        print("- zero coordinates: redo landmarks")
-        return 
-           
 	# =============================================================================
 	# assemble results
 
     annotation = {
         "info": {
             "annotation_type": annotation_type,
-            "phenopype_function": "set_landmark",
+            "phenopype_function": fun_name,
             "phenopype_version": __version__,
             },
         "settings": {
@@ -124,7 +127,7 @@ def set_landmark(
             "label_colour":label_colour,     
             },
         "data":{
-            "points": gui.data["points"],
+            annotation_type: gui.data[settings._coord_type],
             }
         }
 
@@ -134,13 +137,13 @@ def set_landmark(
 	# =============================================================================
 	# return
     
-    annotations = utils_lowlevel._update_annotations(
-        kwargs, 
-        annotation, 
-        annotation_type
-        )
-            
-    return annotations
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
 
 
 

@@ -478,53 +478,92 @@ def draw_polyline(
 
 def draw_reference(
         image, 
-        annotation,
-        line_colour="blue",
+        annotations,
+        line_colour="default",
         line_width="auto",
-        scale=False,
+        label=False,
+        label_colour="default",
         label_size="auto",
-        label_colour="blue",
         label_width="auto",
         **kwargs,
         ):
+    """
     
-    
-	# =============================================================================
-    # setup 
 
+    Parameters
+    ----------
+    image : TYPE
+        DESCRIPTION.
+    annotations : TYPE
+        DESCRIPTION.
+    line_colour : TYPE, optional
+        DESCRIPTION. The default is "blue".
+    line_width : TYPE, optional
+        DESCRIPTION. The default is "auto".
+    scale : TYPE, optional
+        DESCRIPTION. The default is False.
+    label_size : TYPE, optional
+        DESCRIPTION. The default is "auto".
+    label_colour : TYPE, optional
+        DESCRIPTION. The default is "blue".
+    label_width : TYPE, optional
+        DESCRIPTION. The default is "auto".
+    **kwargs : TYPE
+        DESCRIPTION.
+     : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    canvas : TYPE
+        DESCRIPTION.
+
+    """
+
+ 	# =============================================================================
+	# setup 
+    
     ## flags
-    flags = make_dataclass(cls_name="flags", 
-                            fields=[("scale", bool, scale)])
-
-    ## filling and line settings
-    line_colour = utils_lowlevel._get_bgr(line_colour)
-    label_colour = utils_lowlevel._get_bgr(label_colour)
-   
+    flags = make_dataclass(cls_name="flags", fields=[
+        ("label", bool, label)
+        ])
+    
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
     if label_size == "auto":
         label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
-              
-    ## extract annotation data     
-    coord_list = utils_lowlevel._provide_annotation_data(annotation, "reference", "coord_list", kwargs)
-    px_ratio = utils_lowlevel._provide_annotation_data(annotation, "reference", "px_ratio", kwargs)
-    unit = utils_lowlevel._provide_annotation_data(annotation, "reference", "unit", kwargs)
+    if line_colour == "default":
+        line_colour = settings._default_line_colour
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
+        
+    label_colour = utils_lowlevel._get_bgr(label_colour)     
+    line_colour = utils_lowlevel._get_bgr(line_colour)     
+    
+    # =============================================================================
+    # annotation management
 
-    # label = utils_lowlevel._provide_annotation_data(annotation, "reference", "label", kwargs)
-    if not coord_list:
-        return image
-    else:
-        canvas = copy.deepcopy(image)
+    annotation_type = settings._reference_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations, annotation_type, annotation_id, kwargs)
+             
+    px_ratio, unit = annotation["data"][annotation_type]
+    polygons = annotation["data"][settings._mask_type]
+        
+    canvas = copy.deepcopy(image)
 
     # =============================================================================
     # execute
        
     ## draw referenc mask outline
-    cv2.polylines(canvas, np.array([coord_list[0]]), False, line_colour, line_width)
+    cv2.polylines(canvas, np.array([polygons[0]]), False, line_colour, line_width)
 
-    if flags.scale:
+    ## draw scale
+    if flags.label:
         height, width = canvas.shape[:2]
         
         hp, wp = height/100, width/100

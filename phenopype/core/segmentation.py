@@ -223,8 +223,8 @@ def edit_contour(
     annotations,
     overlay_blend=0.2,
     overlay_line_width=1,
-    left_colour="green",
-    right_colour="red",
+    overlay_colour_left="green",
+    overlay_colour_right="red",
     **kwargs
 ):
     """
@@ -277,9 +277,15 @@ def edit_contour(
     annotation = utils_lowlevel._get_annotation(
         annotations, annotation_type, annotation_id, kwargs)
     
-    
     gui_data.update({"sequences": utils_lowlevel._get_GUI_data(annotation)})
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    
+
+    # =============================================================================
+    # setup    
+
+    overlay_colour_left = utils_lowlevel._get_bgr(overlay_colour_left)     
+    overlay_colour_right = utils_lowlevel._get_bgr(overlay_colour_right)   
     
 	# =============================================================================
 	# execute
@@ -289,8 +295,8 @@ def edit_contour(
         tool="draw", 
         overlay_blend=overlay_blend,
         overlay_line_width=overlay_line_width,
-        left_colour=left_colour,
-        right_colour=right_colour,
+        overlay_colour_left=overlay_colour_left,
+        overlay_colour_right=overlay_colour_right,
         data=gui_data,
         **gui_settings,
         )
@@ -307,11 +313,11 @@ def edit_contour(
         "settings": {
             "overlay_blend": overlay_blend,
             "overlay_line_width": overlay_line_width,
-            "left_colour": left_colour,
-            "right_colour": right_colour,
+            "overlay_colour_left": overlay_colour_left,
+            "overlay_colour_right": overlay_colour_right,
             },
         "data":{
-            annotation_type: gui.data["sequences"],
+            annotation_type: gui.data[settings._sequence_type],
             }
         }
     
@@ -487,7 +493,7 @@ def threshold(
     annotations = kwargs.get("annotations", {})
         
     ## references
-    annotation_id_ref = kwargs.get(settings._mask_type + "_id", None)
+    annotation_id_ref = kwargs.get(settings._reference_type + "_id", None)
     annotation_ref = utils_lowlevel._get_annotation(
         annotations, settings._reference_type, annotation_id_ref,
         prep_msg = "- masking regions in thresholded image:")
@@ -501,32 +507,35 @@ def threshold(
     # =============================================================================
     # execute masking
 
-    if len(annotation_mask) > 0:
-        mask_bool, include_idx, exclude_idx = np.zeros(thresh.shape, dtype=bool), 0,0
+            
+    if "data" in annotation_mask:
+        if settings._mask_type in annotation_mask["data"]:
+            mask_bool, include_idx, exclude_idx = np.zeros(thresh.shape, dtype=bool), 0,0
         
-        polygons = annotation_mask["data"]["mask"]
-        include = annotation_mask["data"]["include"]
-
-        if include == True:
-            for coords in polygons:
-                mask_bool = np.logical_or(mask_bool, utils_lowlevel._create_mask_bool(thresh, coords))
-                include_idx += 1
-            thresh[mask_bool == False] = 0
-        elif include == False:
+            polygons = annotation_mask["data"][settings._mask_type]
+            include = annotation_mask["data"]["include"]
+    
+            if include == True:
+                for coords in polygons:
+                    mask_bool = np.logical_or(mask_bool, utils_lowlevel._create_mask_bool(thresh, coords))
+                    include_idx += 1
+                thresh[mask_bool == False] = 0
+            elif include == False:
+                for coords in polygons:
+                    thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
+                    exclude_idx += 1
+                    
+            if exclude_idx>0:
+                print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
+            if include_idx>0:
+                print("- including pixels from " + str(include_idx) + " drawn masks ")
+                        
+    if "data" in annotation_ref:
+        if settings._mask_type in annotation_ref["data"]:
+            polygons = annotation_ref["data"][settings._mask_type]
             for coords in polygons:
                 thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
-                exclude_idx += 1
-                
-        if exclude_idx>0:
-            print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
-        if include_idx>0:
-            print("- including pixels from " + str(include_idx) + " drawn masks ")
-            
-    if len(annotation_ref) > 0:
-        polygons = annotation_ref["data"]["polygons"]
-        for coords in polygons:
-            thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
-        print("- excluding pixels from reference")
+            print("- excluding pixels from reference")
 
 
 	# =============================================================================

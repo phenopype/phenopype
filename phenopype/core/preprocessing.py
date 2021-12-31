@@ -385,7 +385,7 @@ def create_reference(
 
     annotations = kwargs.get("annotations", {})
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
-    annotation_id = kwargs.get("annotations_id", None)
+    annotation_id = kwargs.get("annotation_id", None)
     
     annotation = utils_lowlevel._get_annotation(
         annotations=annotations, 
@@ -432,13 +432,12 @@ def create_reference(
     annotation = {
         "info": {
             "annotation_type": annotation_type,
-            "phenopype_function": "create_reference",
+            "phenopype_function": fun_name,
             "phenopype_version": __version__,
         },
         "settings": {},
         "data": {
-            "px_ratio":px_ratio,
-            "unit": unit,
+            annotation_type: (px_ratio, unit),
         }
     }
     
@@ -619,23 +618,22 @@ def detect_reference(
     annotation = {
         "info": {
             "annotation_type": annotation_type,
-            "phenopype_function": "detect_reference",
+            "phenopype_function": fun_name,
             "phenopype_version": __version__,
         },
         "settings": {
-            "mask": flags.mask,
-            "equalize": equalize,
+            "get_mask": flags.mask,
+            "equalize_colours": flags.equalize,
             "min_matches": min_matches,
-            "resize": resize,
+            "resize": resize_factor,
             },
         "data": {
-            "px_ratio": px_ratio_detected,
-            "unit": unit,
+            annotation_type: (px_ratio_detected, unit),
         }
     }  
 
     if flags.mask:
-        annotation["data"]["polygons"] = coord_list
+        annotation["data"][settings._mask_type] = coord_list
         
 
 	# =============================================================================

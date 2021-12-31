@@ -58,7 +58,7 @@ def export_csv(annotation,
     ## filter by annotation type
     if annotation_type.__class__.__name__ == "NoneType":
         print("- no annotation_type selected - exporting all annotations")
-        annotation_types =  utils_lowlevel._get_annotation_types()
+        annotation_types = settings._annotation_types
     elif annotation_type.__class__.__name__ == "str":
         annotation_types = [annotation_type]
     elif annotation_type.__class__.__name__ in [ "list", "CommentedSeq"]:
@@ -349,16 +349,7 @@ def save_annotation(annotation,
         annotation_file = defaultdict(dict)
         break
     
-    ## check annotation dict input and convert to type/id/ann structure
-    if list(annotation.keys())[0] in utils_lowlevel._get_annotation_types():
-        annotation = defaultdict(dict, annotation)
-    elif list(annotation.keys())[0] == "info":
-        if annotation_id.__class__.__name__ == "NoneType":
-            print("- annotation_id missing - please provide an annotation ID [a-z]")
-            return
-        if not annotation_id.__class__.__name__ == "str":
-            annotation_id = str(annotation_id)
-        annotation = defaultdict(dict, {annotation["info"]["annotation_type"]:{annotation_id: annotation}})
+    annotation = defaultdict(dict, annotation)
                         
     ## write annotation to output dict
     for annotation_type in annotation:
@@ -386,27 +377,19 @@ def save_annotation(annotation,
             for section in annotation_file[annotation_type][annotation_id]:
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
                     
-                    ## unindent entries for better legibility
-                    if key in utils_lowlevel._get_annotation_types(ex=[settings._comment_type]):
-                        if len(value)>0 and not type(value[0]) in [list,tuple, int]:
-                            value = [elem.tolist() for elem in value if not type(elem)==list] 
+                    ## unindent lists for better legibility
+                    if key in [x for x in settings._annotation_types if not x in[
+                            settings._comment_type, settings._reference_type]] + ["support"]:
+                        if len(value)>0 and type(value[0]) in [np.ndarray]:
+                            value = [elem.tolist() for elem in value] 
                         value = [utils_lowlevel._NoIndent(elem) for elem in value]   
-                    elif key in ["offset_coords", "channels", "features"]:
+                    elif type(value) in [tuple, list]:
                         value = utils_lowlevel._NoIndent(value)
-                    elif key in ["support"]:
-                        value_new = []
-                        for item in value:
-                            item["center"] = utils_lowlevel._NoIndent(item["center"])
-                            value_new.append(item) 
-                        value = value_new
                     annotation_file[annotation_type][annotation_id][section][key] = value
 
     ## save
     with open(filepath, 'w') as file:
-        json.dump(annotation_file, 
-                    file, 
-                    indent=indent, 
-                    cls=utils_lowlevel._NoIndentEncoder)
+        json.dump(annotation_file, file, indent=indent, cls=utils_lowlevel._NoIndentEncoder)
         
         
 

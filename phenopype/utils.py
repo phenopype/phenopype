@@ -294,9 +294,7 @@ class Container(object):
             
             annotations[annotation_type][annotation_id] = annotations_updated[annotation_type][annotation_id]
             self.annotations.update(annotations)
-            
-            print(annotations_updated)
-            
+                        
             
     def save(self, dir_path=None, export_list=[], overwrite=False, **kwargs):
         """
