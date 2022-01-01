@@ -13,15 +13,15 @@ from .settings import template_ex1, template_test1, template_test2
 @pytest.fixture(scope="module")
 def new_project():
     with mock.patch('builtins.input', return_value="y"):
-        project = pp.project(root_dir=root_dir1, overwrite=True)
+        project = pp.Project(root_dir=root_dir1, overwrite=True)
     new_project = project
     return project
 
 def test_project(new_project):
     with mock.patch('builtins.input', return_value='n'):
-        project = pp.project(root_dir=root_dir1)
+        project = pp.Project(root_dir=root_dir1)
     with mock.patch('builtins.input', return_value='y'):
-        project = pp.project(root_dir=root_dir1)
+        project = pp.Project(root_dir=root_dir1)
     assert os.path.isdir(project.root_dir)    
         
 def test_project_add_files(new_project):
