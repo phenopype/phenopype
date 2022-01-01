@@ -94,13 +94,8 @@ class Project:
                     os.makedirs(os.path.join(root_dir,"data"))
                     print('\n"' + root_dir + '" created (overwritten)')
                     break
-                elif len(os.listdir(root_dir)) == 0:
-                    print("Found existing project root directory - creating missing directories and files.")
-                    os.makedirs(os.path.join(root_dir,"data"))
-                    break
                 else:
                     print("Directory is neither empty nor a valid phenopype directory - aborting.")
-                    
                     return
             else:
                 print("Creating a new phenopype project directory at:\n" + root_dir + "\n")
@@ -439,10 +434,7 @@ class Project:
         ## interactive template modification
         if flag_interactive:
             if len(self.dir_paths)>0:
-                if image_number.__class__.__name__ == "int":
-                    dir_path = self.dir_paths[image_number-1]
-                else: 
-                    raise TypeError("Need int to specify which project image should be used for interactive mode")
+                dir_path = self.dir_paths[image_number-1]
             else:
                 print("Project contains no images - could not add config files in interactive mode.")
                 return
@@ -451,8 +443,9 @@ class Project:
                 container = utils_lowlevel._load_project_image_directory(dir_path)
                 container.dir_path = os.path.join(self.root_dir, "_template-mod")
             else: 
-                raise FileNotFoundError("Could not enter interactive mode - invalid directory.")
-
+                print("Could not enter interactive mode - invalid directory.")
+                return
+            
             if not os.path.isdir(container.dir_path):   
                 os.mkdir(container.dir_path)
                 
@@ -529,11 +522,14 @@ class Project:
             template, phenopype can try to find a reference card in a given image,
             measure its dimensions, and adjust pixel-to-mm-ratio and colour space
         """
+    	# =============================================================================
+    	# setup
 
         ## set flags
-        flags = make_dataclass(cls_name="flags", 
-                               fields=[("overwrite", bool, overwrite), 
-                                       ("activate", bool, activate)])                
+        flags = make_dataclass(cls_name="flags", fields=[
+            ("overwrite", bool, overwrite), 
+            ("activate", bool, activate),
+            ])                
 
         print_save_msg = "== no msg =="
         
@@ -541,11 +537,11 @@ class Project:
         
         ## load reference image
         if reference_source_path.__class__.__name__ == "str": 
-            reference_image = utils.load_image(reference_source_path)
+            reference_image = utils.load_image(reference_source_path)        
         
-        # =============================================================================
-        # METHOD START
-        # =============================================================================
+    	# =============================================================================
+    	# execute        
+    
         reference_folder_path = os.path.join(self.root_dir, "reference")
         if not os.path.isdir(reference_folder_path):   
             os.mkdir(reference_folder_path)
@@ -583,12 +579,19 @@ class Project:
                 print_save_msg = print_save_msg + "\nReference image saved under " + template_path 
                 pass
             
-            ## measure reference
-            annotation_ref = preprocessing.create_reference(reference_image)
-            annotation_mask = preprocessing.create_mask(reference_image)
+            # =============================================================================
+            # annotation management (for tests)
+                
+            annotations = kwargs.get("annotations")
+
+            if not annotations:
+            
+                ## measure reference
+                annotations = preprocessing.create_reference(reference_image)
+                annotations = preprocessing.create_mask(reference_image, annotations=annotations)
 
             ## create template from mask coordinates
-            coords = annotation_mask[settings._mask_type]["a"]["data"][settings._mask_type][0]
+            coords = annotations[settings._mask_type]["a"]["data"][settings._mask_type][0]
             template = reference_image[coords[0][1]:coords[2][1], coords[0][0]:coords[1][0]]
 
             ## create reference attributes
@@ -596,8 +599,8 @@ class Project:
                     "reference_source_path": reference_source_path,
                     "reference_file_name": reference_image_name,
                     "template_file_name": template_name,
-                    "template_px_ratio": annotation_ref[settings._reference_type]["a"]["data"][settings._reference_type][0],
-                    "unit": annotation_ref[settings._reference_type]["a"]["data"][settings._reference_type][1],
+                    "template_px_ratio": annotations[settings._reference_type]["a"]["data"][settings._reference_type][0],
+                    "unit": annotations[settings._reference_type]["a"]["data"][settings._reference_type][1],
                     "date_added":datetime.today().strftime(settings.strftime_format),
                     }
                         

@@ -406,15 +406,15 @@ def load_image(
                 elif flags.mode == "gray":
                     image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)     
             else:
-                raise OSError("Invalid file extension \"{}\" - could not load image:\n".format(ext))
+                print("Invalid file extension \"{}\" - could not load image:\n".format(ext))
                 return
         elif os.path.isdir(path):
             image = utils_lowlevel._load_project_image_directory(path, as_container=False)
         else:
-            raise FileNotFoundError("Invalid image path - could not load image.")
-            # return
+            print("Invalid image path - could not load image.")
+            return
     else:
-        raise FileNotFoundError("Invalid input format - could not load image.")
+        print("Invalid input format - could not load image.")
         return            
             
     return image
@@ -439,18 +439,24 @@ def load_template(
         if os.path.isfile(template_path):
             template_loaded = utils_lowlevel._load_yaml(template_path)
         else:
-            raise FileNotFoundError("Could not find template_path")
+            print("Could not find template_path")
+            return
     else:
-        raise TypeError("Wrong input format for template_path")
+        print("Wrong input format for template_path")
+        return
     
     ## construct config-name
     if dir_path.__class__.__name__ == "NoneType" and image_path.__class__.__name__ == "NoneType":
-        raise AttributeError("Need to specify image_path or dir_path")
+        print("Need to specify image_path or dir_path")
+        return
+    
     elif dir_path.__class__.__name__ == "str" and image_path.__class__.__name__ == "NoneType":
         if os.path.isdir(dir_path):
             prepend = ""
         else:
-            raise FileNotFoundError("Could not find dir_path")
+            print("Could not find dir_path")
+            return
+        
     elif dir_path.__class__.__name__ == "NoneType":    
         dir_path = os.path.dirname(image_path)
         image_name_root = os.path.splitext(os.path.basename(image_path))[0]

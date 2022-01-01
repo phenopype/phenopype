@@ -457,7 +457,6 @@ class _GUI:
             ## if in reference mode, append to ref coords
             if reference and len(self.data[settings._coord_type]) == 2:
                 print("Reference set")
-                self.data["reference_coords"] = self.data[settings._coord_type]
                                                 
         if event == cv2.EVENT_RBUTTONDOWN:
             
@@ -927,7 +926,8 @@ def _get_annotation(
     ## setup    
     pype_mode = kwargs.get("pype_mode", False)
     prep_msg = kwargs.get("prep_msg", "")
-    
+    verbose = kwargs.get("verbose", "")
+
     annotations = copy.deepcopy(annotations)
     
     if not annotation_type.__class__.__name__ == "NoneType":
@@ -964,11 +964,11 @@ def _get_annotation(
 
                 else:
                     annotation = {}
-                    # print_msg = "\"{}\" not specified and annotation type not found".format(annotation_id_str)
+                    print_msg = "\"{}\" not specified and annotation type not found".format(annotation_id_str)
 
         ## check if type is given
         if annotation_type in annotations:
-                                            
+                                                        
             ## extract item
             if annotation_id:
                 if annotation_id in annotations[annotation_type]:
@@ -977,15 +977,14 @@ def _get_annotation(
                     print_msg = "could not find \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
                     annotation = {}
             else:
-                print("NONE")
                 annotation = {}
-        else:
-            # print_msg = "incompatible annotation type supplied - need \"{}\" type".format(annotation_type)
+        else:     
+            print_msg = "incompatible annotation type supplied - need \"{}\" type".format(annotation_type)
             annotation = {}
             
         ## cleaned feedback (skip identical messages)
         while True:
-            if print_msg:
+            if print_msg and verbose:
                 if prep_msg:
                     print_msg = prep_msg + "\n\t" + print_msg
                 if pype_mode:          

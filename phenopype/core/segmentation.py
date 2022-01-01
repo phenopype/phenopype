@@ -139,7 +139,7 @@ def detect_contour(
 
 	# =============================================================================
 	# process
-        
+            
     if len(contours_det) > 0:
         contours, support = [], []
         for idx, (contour, hierarchy) in enumerate(zip(contours_det, hierarchies_det[0])):
@@ -175,10 +175,14 @@ def detect_contour(
                             "hierarchy_idx_child": int(hierarchy[2]),
                             "hierarchy_idx_parent": int(hierarchy[3]),
                             })
-
-        print("- found " + str(len(contours)) + " contours that match criteria")
+                    
+        if len(contours) == 0:
+            print("- did not find any contours that match criteria")
+            return
+        else:
+            print("- found " + str(len(contours)) + " contours that match criteria")
     else:
-        print("- did not find contours that match criteria")
+        print("- did not find any contours")
         return
 
 
@@ -459,17 +463,18 @@ def threshold(
 
 	# =============================================================================
 	# setup 
-
+    
+    verbose = kwargs.get("verbose", settings.flag_verbose)
+    
     if len(image.shape) == 3:
         if not channel:
             channel = "gray"
             print("- multichannel image supplied, converting to grayscale")
-        image = preprocessing.decompose_image(image, channel)
+        image = preprocessing.decompose_image(image, channel, verbose=verbose)
             
     if blocksize % 2 == 0:
-        if settings.reference:
-            blocksize = blocksize + 1
-            print("- even blocksize supplied, adding 1 to make odd")
+        blocksize = blocksize + 1
+        print("- even blocksize supplied, adding 1 to make odd")
 
 	# =============================================================================
 	# execute
@@ -536,9 +541,9 @@ def threshold(
                     thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
                     exclude_idx += 1
                     
-            if exclude_idx>0:
+            if exclude_idx>0 and verbose:
                 print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
-            if include_idx>0:
+            if include_idx>0 and verbose:
                 print("- including pixels from " + str(include_idx) + " drawn masks ")
                         
     if "data" in annotation_ref:
@@ -558,7 +563,7 @@ def threshold(
 
 def watershed(
     image,
-    image_thresh,
+    annotations,
     iterations=1,
     kernel_size=3,
     distance_cutoff=0.8,
@@ -596,9 +601,45 @@ def watershed(
         binary image
 
     """
+    # =============================================================================
+    # annotation management
+    
+    ## get contours
+    annotation_type = settings._contour_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
+    
+    contours = annotation["data"][settings._contour_type]
 
 	# =============================================================================
 	# setup 
+
+    if len(contours) > 0:
+
+        ## coerce to multi channel image for colour mask
+        if len(image.shape) == 2:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        
+        ## create binary overlay
+        image_bin = np.zeros(image.shape[0:2], dtype=np.uint8)
+        
+        ## draw contours onto overlay
+        for contour in contours:
+            cv2.drawContours(
+                image=image_bin,
+                contours=[contour],
+                contourIdx=0,
+                thickness=-1,
+                color=255,
+                maxLevel=3,
+                offset=(0,0),
+                )
     
     if kernel_size % 2 == 0:
         kernel_size = kernel_size + 1
@@ -608,7 +649,7 @@ def watershed(
 
     ## sure background
     sure_bg = morphology(
-        image_thresh,
+        image_bin,
         operation="dilate",
         shape="ellipse",
         kernel_size=kernel_size,
@@ -618,8 +659,9 @@ def watershed(
     ## distances in foreground 
     if distance_type in ["user", "l12", "fair", "welsch", "huber"]:
         distance_mask = 0
+        
     opened = morphology(
-        image_thresh,
+        image_bin,
         operation="erode",
         shape="ellipse",
         kernel_size=kernel_size,
@@ -661,12 +703,13 @@ def watershed(
     watershed_mask[0, 0 : watershed_mask.shape[1]] = 0
     watershed_mask[watershed_mask.shape[0] - 1, 0 : watershed_mask.shape[1]] = 0
 
-    contours = detect_contour(watershed_mask, retrieval="ccomp")
+    annotations_contour = detect_contour(watershed_mask, retrieval="ccomp")
     image_watershed = np.zeros(watershed_mask.shape, np.uint8)
 
-    for coord, supp in zip(contours["data"]["coords"], contours["data"]["support"]):
+    for coord, supp in zip(annotations_contour[annotation_type]["a"]["data"][annotation_type], 
+                           annotations_contour[annotation_type]["a"]["data"]["support"]):
         if supp["hierarchy_level"] == "child":
-            cv2.drawcontours(
+            cv2.drawContours(
                 image=image_watershed,
                 contours=[coord],
                 contourIdx=0,
@@ -675,7 +718,7 @@ def watershed(
                 maxLevel=3,
                 offset=None
                 )
-            cv2.drawcontours(
+            cv2.drawContours(
                 image=image_watershed,
                 contours=[coord],
                 contourIdx=0,
@@ -685,9 +728,184 @@ def watershed(
                 offset=None
                 )
     
-    
 	# =============================================================================
 	# return
     
     return image_watershed
+
+
+
+# def watershed(
+#     image,
+#     annotations,
+#     iterations=1,
+#     kernel_size=3,
+#     distance_cutoff=0.8,
+#     distance_mask=0,
+#     distance_type="l1",
+#     **kwargs
+# ):
+#     """
+#     Performs non-parametric marker-based segmentation - useful if many detected 
+#     contours are touching or overlapping with each other. Input image should be 
+#     a binary image that serves as the true background. Iteratively, edges are 
+#     eroded, the difference serves as markers.
+
+#     Parameters
+#     ----------
+#     image : ndarray
+#         input image
+#     image_thresh: array
+#         binary image (e.g. from threshold)
+#     kernel_size: int, optional
+#         size of the diff-kernel (has to be odd - even numbers will be ceiled)
+#     iterations : int, optional
+#         number of times to apply diff-operation
+#     distance_cutoff : {between 0 and 1} float, optional
+#         watershed distance transform cutoff (larger values discard more pixels)
+#     distance_mask : {0, 3, 5} int, optional
+#         size of distance mask - not all sizes work with all distance types (will
+#         be coerced to 0)
+#     distance_type : {"user", "l1", "l2", "C", "l12", "fair", "welsch", "huber"} str, optional
+#         distance transformation type
+
+#     Returns
+#     -------
+#     image : ndarray
+#         binary image
+
+#     """
+#     # =============================================================================
+#     # annotation management
+    
+#     ## get contours
+#     annotation_type = settings._contour_type
+#     annotation_id = kwargs.get(annotation_type + "_id", None)
+
+#     annotation = utils_lowlevel._get_annotation(
+#         annotations=annotations, 
+#         annotation_type=annotation_type, 
+#         annotation_id=annotation_id, 
+#         kwargs=kwargs,
+#     )
+    
+#     contours = annotation["data"][settings._contour_type]
+
+# 	# =============================================================================
+# 	# setup 
+
+#     if len(contours) > 0:
+
+#         ## coerce to multi channel image for colour mask
+#         if len(image.shape) == 2:
+#             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        
+#         ## create binary overlay
+#         image_bin = np.zeros(image.shape[0:2], dtype=np.uint8)
+        
+#         ## draw contours onto overlay
+#         for contour in contours:
+#             cv2.drawContours(
+#                 image=image_bin,
+#                 contours=[contour],
+#                 contourIdx=0,
+#                 thickness=-1,
+#                 color=255,
+#                 maxLevel=3,
+#                 offset=(0,0),
+#                 )
+    
+
+    
+#     if kernel_size % 2 == 0:
+#         kernel_size = kernel_size + 1
+
+# 	# =============================================================================
+# 	# execute
+
+#     ## sure background
+#     sure_bg = morphology(
+#         image_bin,
+#         operation="dilate",
+#         shape="ellipse",
+#         kernel_size=kernel_size,
+#         iterations=iterations,
+#     )
+    
+#     ## distances in foreground 
+#     if distance_type in ["user", "l12", "fair", "welsch", "huber"]:
+#         distance_mask = 0
+        
+#     opened = morphology(
+#         image_bin,
+#         operation="erode",
+#         shape="ellipse",
+#         kernel_size=kernel_size,
+#         iterations=iterations,
+#     )
+    
+#     ## distance transformation
+#     dist_transform = cv2.distanceTransform(
+#         opened, settings.opencv_distance_flags[distance_type], distance_mask
+#     )
+#     dist_transform = cv2.normalize(
+#         dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX
+#     )
+#     dist_transform = preprocessing.blur(dist_transform, kernel_size=int(2*kernel_size))
+#     dist_transform = abs(255 * (1-dist_transform)) 
+#     dist_transform = dist_transform.astype(np.uint8)
+
+#     ## sure foreground 
+#     sure_fg = threshold(dist_transform, method="binary", value=int(distance_cutoff*255))
+
+#     ## finding unknown region
+#     sure_fg = sure_fg.astype("uint8")
+#     sure_fg[sure_fg == 1] = 255
+#     unknown = cv2.subtract(sure_bg, sure_fg)
+
+#     ## marker labelling
+#     ret, markers = cv2.connectedComponents(sure_fg)
+#     markers = markers + 1
+#     markers[unknown == 255] = 0
+
+#     ## watershed
+#     markers = cv2.watershed(preprocessing.blur(image, int(2*kernel_size+1)), markers)
+
+#     ## convert to contours
+#     watershed_mask = np.zeros(image.shape[:2], np.uint8)
+#     watershed_mask[markers == -1] = 255
+#     watershed_mask[0 : watershed_mask.shape[0], 0] = 0
+#     watershed_mask[0 : watershed_mask.shape[0], watershed_mask.shape[1] - 1] = 0
+#     watershed_mask[0, 0 : watershed_mask.shape[1]] = 0
+#     watershed_mask[watershed_mask.shape[0] - 1, 0 : watershed_mask.shape[1]] = 0
+
+#     annotations_contour = detect_contour(watershed_mask, retrieval="ccomp")
+#     image_watershed = np.zeros(watershed_mask.shape, np.uint8)
+
+#     for coord, supp in zip(annotations_contour[annotation_type]["a"]["data"][annotation_type], 
+#                            annotations_contour[annotation_type]["a"]["data"]["support"]):
+#         if supp["hierarchy_level"] == "child":
+#             cv2.drawContours(
+#                 image=image_watershed,
+#                 contours=[coord],
+#                 contourIdx=0,
+#                 thickness=-1,
+#                 color=utils_lowlevel._get_bgr("white"),
+#                 maxLevel=3,
+#                 offset=None
+#                 )
+#             cv2.drawContours(
+#                 image=image_watershed,
+#                 contours=[coord],
+#                 contourIdx=0,
+#                 thickness=2,
+#                 color=utils_lowlevel._get_bgr("black"),
+#                 maxLevel=3,
+#                 offset=None
+#                 )
+    
+# 	# =============================================================================
+# 	# return
+    
+#     return image_watershed
 

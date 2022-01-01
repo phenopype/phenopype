@@ -337,13 +337,10 @@ def detect_shape(
                         axis=0
                         )
                     )
-            if settings.flag_verbose:
-                print("Found {} circles".format(len(circles[0])))
+            print("Found {} circles".format(len(circles[0])))
         else:
-            if settings.flag_verbose:
-                print("No circles detected")
-            return None
-        
+            print("No circles detected")
+            return
         
 	# =============================================================================
 	# assemble results
@@ -388,6 +385,7 @@ def create_reference(
         label_colour="default",
         label_size="auto",
         label_width="auto",
+        mask=False,
         **kwargs
     ):
     """
@@ -415,7 +413,10 @@ def create_reference(
         phenopype annotation containing mask coordinates
 
     """
+    # =============================================================================
+    # setup
     
+    label = kwargs.get("label")
     
     # =============================================================================
     # annotation management
@@ -432,14 +433,22 @@ def create_reference(
         annotation_id=annotation_id, 
         kwargs=kwargs,
     )
-        
+    
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
     
+    ## not pretty but needed for tests:
+    gui_data = {}
+    if annotation:
+        gui_data.update({settings._coord_type: annotation["data"]["support"]})
+        gui_data.update({settings._comment_type: annotation["data"][annotation_type][0]})
+        unit = annotation["data"][annotation_type][0]
+        label = annotation["data"]["label"]
+        if "mask" in annotation["data"]:
+            gui_data.update({settings._coord_list_type: annotation["data"][settings._mask_type]})
+
     # =============================================================================
     # setup
-    
-    label = kwargs.get("label")
-    
+        
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
     if label_size == "auto":
@@ -463,11 +472,12 @@ def create_reference(
         tool="reference",
         line_width=line_width,
         line_colour=line_colour,
+        data=gui_data,
         **gui_settings,
         )
-    
+        
     ## enter length
-    points = gui.data["reference_coords"]
+    points = gui.data[settings._coord_type]
     distance_px = math.sqrt(
             ((points[0][0] - points[1][0]) ** 2)
             + ((points[0][1] - points[1][1]) ** 2)
@@ -481,13 +491,23 @@ def create_reference(
         label_size=label_size,
         label_width=label_width,
         label_colour=label_colour,
+        data=gui_data,
         **gui_settings,
         )
     
     ## output conversion
     distance_measured = float(gui.data[settings._comment_type])
-    px_ratio = round(float(distance_px / distance_measured))
+    px_ratio = round(float(distance_px / distance_measured), 3)
 
+    if mask:
+        gui = utils_lowlevel._GUI(
+            image=image, 
+            tool="rectangle", 
+            line_width=line_width,
+            line_colour=line_colour,
+            data=gui_data,
+            **gui_settings
+            )
     
 	# =============================================================================
 	# assemble results
@@ -502,6 +522,8 @@ def create_reference(
         "data": {
             "label":label,
             annotation_type: (px_ratio, unit),
+            "support": points,
+            settings._mask_type: gui.data[settings._coord_list_type]
         }
     }
     
@@ -595,75 +617,86 @@ def detect_reference(
         )
     else:
         resize_factor = resize
-    image = cv2.resize(image, (0, 0), fx=1 * resize_factor, fy=1 * resize_factor)
+    image_resized = cv2.resize(image, (0, 0), fx=1 * resize_factor, fy=1 * resize_factor)
 
     # =============================================================================
     # execute function
         
     akaze = cv2.AKAZE_create()
     kp1, des1 = akaze.detectAndCompute(template, None)
-    kp2, des2 = akaze.detectAndCompute(image, None)
+    kp2, des2 = akaze.detectAndCompute(image_resized, None)
     matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
-    matches = matcher.knnMatch(des1, des2, 2)
-
-    # keep only good matches
+    
     good = []
-    for m, n in matches:
-        if m.distance < 0.7 * n.distance:
-            good.append(m)
-
-    # find and transpose coordinates of matches
-    if len(good) >= min_matches:
+    
+    while True:
+    
+        if not des2.__class__.__name__ == "NoneType":
+            matches = matcher.knnMatch(des1, des2, 2)
+        else:
+            break
+    
+        # keep only good matches
+        for m, n in matches:
+            if m.distance < 0.7 * n.distance:
+                good.append(m)
+    
+        # find and transpose coordinates of matches
+        if len(good) >= min_matches:
+            
+            ## find homography betweeen detected keypoints
+            src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+            dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+    
+            ## transform boundary box of template
+            rect_old = np.array(
+                [
+                    [[0, 0]],
+                    [[0, template.shape[0]]],
+                    [[template.shape[1], template.shape[0]]],
+                    [[template.shape[1], 0]],
+                ],
+                dtype=np.float32,
+            )
+            rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
+    
+            # calculate template diameter
+            (x, y), radius = cv2.minEnclosingCircle(rect_new.astype(np.int32))
+            diameter_new = radius * 2
+    
+            # calculate transformed diameter
+            (x, y), radius = cv2.minEnclosingCircle(rect_old.astype(np.int32))
+            diameter_old = radius * 2
+    
+            ## calculate ratios
+            diameter_ratio = diameter_new / diameter_old
+            px_ratio_detected = round(diameter_ratio * px_ratio_template, 3)
+    
+            ## feedback
+            print("---------------------------------------------------")
+            print("Reference card found with {} keypoint matches:".format(len(good)))
+            print("template image has {} pixel per {}.".format(round(px_ratio_template,3), unit))
+            print("current image has {} pixel per mm.".format(round(px_ratio_detected,3)))
+            print("= {} %% of template image.".format(round(diameter_ratio * 100, 3)))
+            print("---------------------------------------------------")
+    
+            ## create mask from new coordinates
+            rect_new = rect_new.astype(int)
+            coord_list = utils_lowlevel._convert_arr_tup_list(rect_new)
+            coord_list[0].append(coord_list[0][0])
+            
+            break
         
-        ## find homography betweeen detected keypoints
-        src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-
-        ## transform boundary box of template
-        rect_old = np.array(
-            [
-                [[0, 0]],
-                [[0, template.shape[0]]],
-                [[template.shape[1], template.shape[0]]],
-                [[template.shape[1], 0]],
-            ],
-            dtype=np.float32,
-        )
-        rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
-
-        # calculate template diameter
-        (x, y), radius = cv2.minEnclosingCircle(rect_new.astype(np.int32))
-        diameter_new = radius * 2
-
-        # calculate transformed diameter
-        (x, y), radius = cv2.minEnclosingCircle(rect_old.astype(np.int32))
-        diameter_old = radius * 2
-
-        ## calculate ratios
-        diameter_ratio = diameter_new / diameter_old
-        px_ratio_detected = round(diameter_ratio * px_ratio_template, 3)
-
-        ## feedback
-        print("---------------------------------------------------")
-        print("Reference card found with {} keypoint matches:".format(len(good)))
-        print("template image has {} pixel per {}.".format(round(px_ratio_template,3), unit))
-        print("current image has {} pixel per mm.".format(round(px_ratio_detected,3)))
-        print("= {} %% of template image.".format(round(diameter_ratio * 100, 3)))
-        print("---------------------------------------------------")
-
-        ## create mask from new coordinates
-        rect_new = rect_new.astype(int)
-        coord_list = utils_lowlevel._convert_arr_tup_list(rect_new)
-        coord_list[0].append(coord_list[0][0])
+    if len(good) == 0:
         
-    else:
         ## feedback
         print("---------------------------------------------------")
         print("Reference card not found - %d keypoint matches:" % len(good))
         print('Setting "current reference" to None')
         print("---------------------------------------------------")
         px_ratio_detected = None
+        return
         
 
     ## do histogram equalization
@@ -720,6 +753,7 @@ def decompose_image(
         image, 
         channel="gray", 
         invert=False,
+        **kwargs,
     ):
     
     """
@@ -740,6 +774,10 @@ def decompose_image(
         decomposed image.
 
     """
+	# =============================================================================
+    ## setup 
+        
+    verbose = kwargs.get("verbose", settings.flag_verbose)
     
 	# =============================================================================
 	# execute
@@ -771,7 +809,7 @@ def decompose_image(
             print("- don't know how to handle channel {}".format(channel))
             return 
             
-        if settings.flag_verbose:
+        if verbose:
             print("- decompose image: using {} channel".format(str(channel)))
         
     if invert==True:
@@ -789,6 +827,10 @@ def decompose_image(
 def write_comment(
         image,
         label="ID",
+        tool="rectangle",
+        label_colour="default",
+        label_size="auto",
+        label_width="auto",
         **kwargs
     ):
     """
@@ -823,17 +865,36 @@ def write_comment(
         annotation_id=annotation_id, 
         kwargs=kwargs,
     )
-            
-    gui_data = {settings._coord_list_type: utils_lowlevel._get_GUI_data(annotation)}
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
     
+    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    gui_data = {settings._comment_type: utils_lowlevel._get_GUI_data(annotation)}
+    if annotation:
+        label = annotation["data"]["label"]
+    
+    # =============================================================================
+	# setup
+    
+    if label_size == "auto":
+        label_size = utils_lowlevel._auto_text_size(image)
+    if label_width == "auto":
+        label_width = utils_lowlevel._auto_text_width(image)
+
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
+        
+    label_colour = utils_lowlevel._get_bgr(label_colour)     
+    
+
 	# =============================================================================
 	# execute
     
     gui = utils_lowlevel._GUI(
         image, 
         tool="comment", 
-        label=label, 
+        label=label,
+        label_size=label_size,
+        label_width=label_width,
+        label_colour=label_colour,
         data=gui_data,
          **gui_settings
          )

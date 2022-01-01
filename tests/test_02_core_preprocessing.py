@@ -1,69 +1,154 @@
 #%% modules
 
-import phenopype as pp
+import pytest
+import numpy as np
 
-from .settings import flag_overwrite
+import phenopype as pp
 
 #%% tests
 
-def test_create_mask(project_container):
-    test_params = {"flag_test_mode": True,
-                   "flag_tool": "polygon",
-                   "point_list":[[(1376, 272),
-                                  (1378, 435),
-                                  (1814, 422),
-                                  (1816, 379),
-                                  (1757, 377),
-                                  (1627, 336),
-                                  (1504, 295),
-                                  (1389, 275),
-                                  (1376, 272)]]}
-    pp.preprocessing.create_mask(project_container, 
-
-                                 overwrite=flag_overwrite,
-                                 test_params=test_params)
-    assert len(project_container.df_masks) > 0
+def test_blur(image):
     
-def test_invert_image(project_container):
-    inv = pp.preprocessing.invert_image(project_container.image)
-    assert not (project_container.image==inv).all()
+    image_blurred = pp.preprocessing.blur(image)
+    image_blurred = pp.preprocessing.blur(image, kernel_size=4)
+    image_blurred = pp.preprocessing.blur(image, method="gaussian")
+    image_blurred = pp.preprocessing.blur(image, method="median")
+    image_blurred = pp.preprocessing.blur(image, method="bilateral")
+
+    assert not (image == image_blurred).all()
+
+def test_create_mask(image):
+
+    annotations = {'mask': {'a': {'info': {'annotation_type': 'mask',
+        'phenopype_function': 'create_mask',
+        'phenopype_version': '3.0.dev0'},
+       'settings': {'tool': 'rectangle',
+        'line_width': 5,
+        'line_colour': (0, 255, 0),
+        'label_size': 1,
+        'label_width': 1,
+        'label_colour': (0, 255, 0)},
+       'data': {'label': None,
+        'include': True,
+        'n': 1,
+        'mask': [[(652, 127), (2160, 127), (2160, 639), (652, 639), (652, 127)]]}},
+      'b': {'info': {'annotation_type': 'mask',
+        'phenopype_function': 'create_mask',
+        'phenopype_version': '3.0.dev0'},
+       'settings': {'tool': 'polygon',
+        'line_width': 5,
+        'line_colour': (0, 255, 0),
+        'label_size': 1,
+        'label_width': 1,
+        'label_colour': (0, 255, 0)},
+       'data': {'label': None,
+        'include': True,
+        'n': 1,
+        'mask': [[(1166, 324),
+          (1336, 432),
+          (1816, 420),
+          (1804, 365),
+          (1687, 353),
+          (1459, 278),
+          (1317, 264),
+          (1092, 281),
+          (1166, 324)]]}}}}    
+
+    annotations = pp.preprocessing.create_mask(image, annotations=annotations, annotation_id="a", passive=True)
+    annotations = pp.preprocessing.create_mask(image, annotations=annotations, annotation_id="b", passive=True)
+
+    assert annotations["mask"]["b"]["data"]["n"] == 1
     
-def test_resize_image(project_container):
-    res = pp.preprocessing.resize_image(project_container.image, factor=0.9)
-    assert project_container.image.shape>=res.shape
+    
+def test_detect_shape(image):
+    
+    annotations = pp.preprocessing.detect_shape(image, circle_args={"param1": 150, "param2": 150, "min_radius":1000}, resize=0.5)
+    annotations = pp.preprocessing.detect_shape(image, circle_args={"param1": 150, "param2": 150, "max_radius":150}, resize=0.5)
 
-def test_enter_data(project_container):
-    test_params = {"flag_test_mode": True,
-                   "entry": "142501"}
-    pp.preprocessing.enter_data(project_container, 
-                                columns="ID", 
-                                overwrite=flag_overwrite,
-                                test_params=test_params)
-    assert project_container.df_image_data.iloc[0]["ID"] == "142501"
+    assert len(annotations) > 0
+    
+def test_create_reference(reference_created, settings):
+    
+    image = pp.load_image(pytest.reference_image_path)
+    
+    annotations = reference_created
+    
+    annotations = pp.preprocessing.create_reference(
+        image,
+        annotations=annotations, 
+        passive=True
+        )
+    
+    assert len(annotations) > 0
+    
+def test_detect_reference(image, reference_created, settings):
+    
+    annotations = reference_created
+    
+    reference_image = pp.load_image(pytest.reference_image_path)
+    
+    coords = annotations["reference"]["a"]["data"]["mask"][0]
+    template = reference_image[coords[0][1]:coords[2][1], coords[0][0]:coords[1][0]]
+    px_ratio = annotations["reference"]["a"]["data"]["reference"][0]
+    unit = annotations["reference"]["a"]["data"]["reference"][1]
+    
+    black_dummy = np.zeros((5001, 5001, 3), dtype=np.uint8)
+    
+    annotations = pp.preprocessing.detect_reference(
+        image=black_dummy,
+        template=template,
+        correct_colours=True,
+        px_ratio=px_ratio,
+        unit=unit
+        )
+    
+    annotations = pp.preprocessing.detect_reference(
+        image=image,
+        template=template,
+        resize=0.25,
+        correct_colours=True,
+        px_ratio=px_ratio,
+        unit=unit
+        )
+        
+    assert len(annotations) > 0
 
-def test_detect_reference(project_container):
-    pp.preprocessing.detect_reference(project_container, 
-                                      overwrite=flag_overwrite,
-                                      equalize=True)
-    assert project_container.reference_detected_px_mm_ratio == 35.4
+    
+def test_decompose_image(image):
+    
+    mod = pp.preprocessing.decompose_image(image, "bier")
+    mod = pp.preprocessing.decompose_image(image, "raw", invert=True)
+    mod = pp.preprocessing.decompose_image(image, "v")
+    mod = pp.preprocessing.decompose_image(mod, "v")
+    
+    mod = pp.preprocessing.decompose_image(image, "r")
+    mod = pp.preprocessing.decompose_image(image, "g")
+    mod = pp.preprocessing.decompose_image(image, "b")
+    mod = pp.preprocessing.decompose_image(image, "h")
+    mod = pp.preprocessing.decompose_image(image, "s")
+    mod = pp.preprocessing.decompose_image(image, "v")
+    
+    canvas = pp.visualization.select_canvas(mod, multi_channel=True)
 
-def test_create_reference(project_container):
-    test_params = {"flag_test_mode": True,
-              "flag_tool": "reference",
-              "reference_coords": [(701, 741), 
-                               (1053, 774)],
-              "point_list": [[(316, 675), 
-                              (1236, 675), 
-                              (1236, 1549), 
-                              (316, 1549), 
-                              (316, 675)]],
-              "rect_list": [[316, 675, 1236, 1549]],
-              "entry": "10"}
-    pp.preprocessing.create_reference(project_container, 
-                                  template=False, 
-                                  overwrite=flag_overwrite,
-                                  test_params=test_params)
-    assert project_container.reference_manually_measured_px_mm_ratio == 35.35434909597403
+    assert not (image == canvas).all()
+    
+    
+def test_write_comment(image):
+    
+    
+    annotations = {'comment': {'a': {'info': {'phenopype_function': 'write_comment',
+        'phenopype_version': '3.0.dev0',
+        'annotation_type': 'comment'},
+       'settings': {},
+       'data': {'label': 'test msg', 'comment': 'THIS IS A TEST'}}}}
+    
+    annotations = pp.preprocessing.write_comment(
+        image=image,
+        annotations=annotations,
+        passive=True,
+        )
+
+    assert len(annotations) > 0
 
 
 

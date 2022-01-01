@@ -2,44 +2,171 @@
 
 import copy
 import numpy as np
-
+import pytest 
 
 import phenopype as pp
 
-from .settings import flag_overwrite
+#%% fixtures 
+
+@pytest.fixture
+def image_binary(settings, image):
+        
+    annotations = {'mask': {'a': {'info': {'annotation_type': 'mask',
+        'phenopype_function': 'create_mask',
+        'phenopype_version': '3.0.dev0'},
+       'settings': {'tool': 'polygon',
+        'line_width': 5,
+        'line_colour': (0, 255, 0),
+        'label_size': 1,
+        'label_width': 1,
+        'label_colour': (0, 255, 0)},
+       'data': {'label': None,
+        'include': True,
+        'n': 1,
+        'mask': [[(1340, 289),
+          (1346, 444),
+          (1772, 420),
+          (1775, 371),
+          (1563, 307),
+          (1421, 277),
+          (1360, 274),
+          (1340, 289)]]}}}}
+
+    thresh = pp.segmentation.threshold(
+        image, 
+        method="adaptive", 
+        blocksize=149, 
+        constant=10, 
+        channel="red",
+        annotations=annotations,
+        verbose=False,
+        )
+    
+    return thresh
 
 #%% tests
 
-def test_blur(project_container):
-    pp.segmentation.blur(project_container, kernel_size=7)
-    assert not (project_container.image_copy==project_container.image).all()
+def test_threshold(image, reference_detected, mask_polygon):
+    
+    annotations = {**reference_detected, **mask_polygon}
 
-def test_threshold(project_container):
-    pp.segmentation.threshold(project_container, method="adaptive", 
-                              blocksize=149, constant=10, channel="red")
-    unique, counts = np.unique(project_container.image, return_counts=True)
+    thresh = pp.segmentation.threshold(
+        image, 
+        method="adaptive", 
+        blocksize=100, 
+        constant=10, 
+        )
+    
+    thresh = pp.segmentation.threshold(
+        image, 
+        method="binary",
+        annotations=annotations,
+        )
+    
+    annotations["mask"]["a"]["data"]["include"] = False
+    
+    thresh = pp.segmentation.threshold(
+        image, 
+        method="binary",
+        annotations=annotations,
+        )
+    
+    thresh = pp.segmentation.threshold(
+        image, 
+        method="otsu"
+        )
+    
+    unique, counts = np.unique(thresh, return_counts=True)
+    
     assert len(unique) == 2
 
-def test_morphology(project_container):
-    pp.segmentation.morphology(project_container, operation="close", 
-                                shape="ellipse", kernel_size=3, iterations=2)
-    assert not np.any(np.not_equal(project_container.image_bin, project_container.image))
-        
-def test_watershed(project_container):
-    image = copy.deepcopy(project_container.image_copy)
-    thresh = copy.deepcopy(project_container.image)
-    water = pp.segmentation.watershed(image, thresh)
-    assert not (thresh==water).all()
+def test_morphology(image_binary):
+    
+    morph = pp.segmentation.morphology(
+        image_binary, 
+        operation="close", 
+        shape="ellipse", 
+        kernel_size=4, 
+        iterations=2
+        )    
+    
+    assert not (image_binary==morph).all()
 
-def test_draw(project_container):
-    test_params = {"flag_test_mode": True,
-                   "line_width": 2,
-                   "line_colour": (0,0,0),
-                   "point_list": [[(1417, 327), (1410, 346)]]}
-    pp.segmentation.draw(project_container, overwrite=flag_overwrite, test_params=test_params)
-    assert project_container.df_drawings.iloc[0]["coords"] == "[(1417, 327), (1410, 346)]"
+def test_detect_contour(image_binary, image):
     
-def test_find_contours(project_container):
-    pp.segmentation.find_contours(project_container, min_area=250)
-    assert len(project_container.df_contours)>0
+    annotations = {"drawing": {'a': {'info': {'annotation_type': 'drawing',
+       'phenopype_function': 'edit_contour',
+       'phenopype_version': '3.0.dev0'},
+      'settings': {'overlay_blend': 0.2,
+       'overlay_line_width': 1,
+       'overlay_colour_left': (0, 128, 0),
+       'overlay_colour_right': (0, 0, 255)},
+      'data': {'drawing': [[[(1375, 328), (1375, 328)], 0, 16],
+        [[(1416, 336), (1416, 336)], 0, 16],
+        [[(1445, 346), (1445, 346)], 0, 16],
+        [[(1474, 350), (1474, 350)], 0, 16],
+        [[(1677, 390), (1677, 390)], 0, 16],
+        [[(1708, 395), (1708, 395)], 0, 16]]}}}}
     
+    pp.segmentation.detect_contour(
+        image, 
+        )    
+    
+    pp.segmentation.detect_contour(
+        image_binary,
+        min_area=1000000,
+        )    
+    
+    annotations = pp.segmentation.detect_contour(
+        image_binary, 
+        annotations=annotations,
+        )    
+    
+    assert len(annotations) > 0
+    
+    
+def test_edit_contour(image_binary, image):
+    
+    annotations = {"drawing": {'a': {'info': {'annotation_type': 'drawing',
+       'phenopype_function': 'edit_contour',
+       'phenopype_version': '3.0.dev0'},
+      'settings': {'overlay_blend': 0.2,
+       'overlay_line_width': 1,
+       'overlay_colour_left': (0, 128, 0),
+       'overlay_colour_right': (0, 0, 255)},
+      'data': {'drawing': [[[(1375, 328), (1375, 328)], 0, 16],
+        [[(1416, 336), (1416, 336)], 0, 16],
+        [[(1445, 346), (1445, 346)], 0, 16],
+        [[(1474, 350), (1474, 350)], 0, 16],
+        [[(1677, 390), (1677, 390)], 0, 16],
+        [[(1708, 395), (1708, 395)], 0, 16]]}}}}
+    
+    annotations = pp.segmentation.detect_contour(
+        image_binary, 
+        annotations=annotations
+        )    
+    
+    annotations = pp.segmentation.edit_contour(
+        image, 
+        annotations=annotations,
+        passive=True,
+        )
+
+    assert len(annotations) > 0
+    
+    
+def test_watershed(image_binary, reference_detected, mask_polygon):
+    
+    annotations = {**reference_detected, **mask_polygon}
+    
+    annotations = pp.segmentation.detect_contour(
+        image_binary, 
+        annotations=annotations
+        )    
+    
+    water = pp.segmentation.watershed(
+        image_binary, 
+        annotations, 
+        annotation_id="b", contour_id="a")
+
+    assert not (image_binary==water).all()    
