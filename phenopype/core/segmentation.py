@@ -519,7 +519,7 @@ def threshold(
     annotation_mask = utils_lowlevel._get_annotation(
         annotations, settings._mask_type, annotation_id_mask,
         prep_msg = "- masking regions in thresholded image:")
-    
+        
     # =============================================================================
     # execute masking
 

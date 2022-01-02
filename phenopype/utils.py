@@ -57,17 +57,7 @@ class Container(object):
         self.image_name = kwargs.get("image_name")
         
         ## annotations
-        self.annotations = {
-            # settings._comment_type: {},
-            # settings._contour_type: {},
-            # settings._drawing_type: {},
-            # settings._landmark_type: {},
-            # settings._line_type: {},
-            # settings._mask_type: {},
-            # settings._reference_type: {},
-            # settings._shape_feature_type: {},
-            # settings._texture_feature_type: {},
-            }
+        self.annotations = {}
 
         
     def load(self, contours=False,  **kwargs):

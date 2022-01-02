@@ -1,102 +1,158 @@
 #%% modules
 import mock
 import os
-import time
+import pytest 
+
 import phenopype as pp
 
-from .settings import pype_name
+# from .settings import pype_name
 
 
 #%% tests
 
-def test_save_canvas(project_container):
-    pp.export.save_canvas(project_container.canvas)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_canvas(project_container, dirpath="new")
-    pp.export.save_canvas(project_container, overwrite=True)
-    pp.export.save_canvas(project_container, overwrite=False)
-    assert os.path.isfile(os.path.join(project_container.dirpath, "canvas_" + pype_name + ".jpg"))
+def test_save_canvas(image, settings):
 
-def test_save_landmarks(project_container):
-    pp.export.save_landmarks(project_container.df_landmarks)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_landmarks(project_container, dirpath="new")        
-    pp.export.save_landmarks(project_container, overwrite=True)
-    pp.export.save_landmarks(project_container, overwrite=False)
-    assert os.path.isfile(os.path.join(project_container.dirpath, "landmarks_" + pype_name + ".csv"))
+    pp.export.save_canvas(
+        image, 
+        dir_path=pytest.test_dir,
+        )
     
-def test_save_colours(project_container):
-    pp.export.save_colours(project_container.df_colours)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_colours(project_container, dirpath="new")        
-    pp.export.save_colours(project_container, overwrite=True)
-    pp.export.save_colours(project_container, overwrite=False)    
-    assert os.path.isfile(os.path.join(project_container.dirpath, "colours_" + pype_name + ".csv"))
+    pp.export.save_canvas(
+        image, 
+        dir_path=pytest.test_dir,
+        ext="jpg",
+        overwrite=True,
+        resize=1,
+        )
 
-def test_save_contours(project_container):
-    pp.export.save_contours(project_container.df_colours)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_contours(project_container, dirpath="new")        
-    pp.export.save_contours(project_container, overwrite=True, save_coords=True)
-    pp.export.save_contours(project_container, overwrite=False)    
-    assert os.path.isfile(os.path.join(project_container.dirpath, "contours_" + pype_name + ".csv"))
+    assert os.path.isfile(os.path.join(pytest.test_dir, "canvas.jpg"))
 
-def test_save_masks(project_container):
-    pp.export.save_masks(project_container.df_masks)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_masks(project_container, dirpath="new")        
-    pp.export.save_masks(project_container, overwrite=True)
-    pp.export.save_masks(project_container, overwrite=False)    
-    assert os.path.isfile(os.path.join(project_container.dirpath, "masks_" + pype_name + ".csv"))
+
+def test_save_annotation(contours, mask_polygon, settings):
+
+    annotations = {**contours, **mask_polygon}
     
-def test_save_polylines(project_container):
-    pp.export.save_polylines(project_container.df_polylines)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_polylines(project_container, dirpath="new")        
-    pp.export.save_polylines(project_container, overwrite=True)
-    pp.export.save_polylines(project_container, overwrite=False)    
-    assert os.path.isfile(os.path.join(project_container.dirpath, "polylines_" + pype_name + ".csv"))
+    pp.export.save_annotation(
+        annotations, 
+        dir_path=pytest.test_dir,
+        )
+    
+    pp.export.save_annotation(
+        annotations, 
+        dir_path=pytest.test_dir,
+        )
+    
+    pp.export.save_annotation(
+        annotations, 
+        dir_path=pytest.test_dir,
+        )
+    
+    pp.export.save_annotation(
+        annotations, 
+        dir_path=pytest.test_dir,
+        overwrite=True,
+        )
+    
+    pp.export.save_annotation(
+        annotations, 
+        dir_path=pytest.test_dir,
+        overwrite="file",
+        )
 
-def test_save_drawings(project_container):
-    pp.export.save_drawings(project_container.df_drawings)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_drawings(project_container, dirpath="new")        
-    pp.export.save_drawings(project_container, overwrite=True)
-    pp.export.save_drawings(project_container, overwrite=False)    
-    assert os.path.isfile(os.path.join(project_container.dirpath, "drawings_" + pype_name + ".csv"))
+    assert os.path.isfile(os.path.join(pytest.test_dir, "annotations.json"))
     
     
-def test_save_data_entry(project_container):
-    pp.export.save_data_entry(project_container.df_other_data)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_data_entry(project_container, dirpath="new")        
-    pp.export.save_data_entry(project_container, overwrite=True)
-    pp.export.save_data_entry(project_container, overwrite=False)    
-    attr = pp.utils_lowlevel._load_yaml(os.path.join(project_container.dirpath, "attributes.yaml"))
-    assert "other" in attr    
+def test_load_annotation(settings, image):
+
+    path = os.path.join(pytest.test_dir, "annotations.json")
     
-def test_save_reference(project_container):
-    pp.export.save_reference(project_container.reference_detected_px_mm_ratio)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_reference(project_container, dirpath="new")        
-    pp.export.save_reference(project_container, overwrite=True)
-    pp.export.save_reference(project_container, overwrite=False)  
-    attr = pp.utils_lowlevel._load_yaml(os.path.join(project_container.dirpath, "attributes.yaml"))
-    assert "reference" in attr
+    
+    annotations = pp.export.load_annotation(
+        path, 
+        annotation_type="comment",
+        annotation_id="a",
+        )
+    
+    annotations = pp.export.load_annotation(
+        path, 
+        annotation_type="comment",
+        annotation_id=["a"],
+        )
+    
+        
+    annotations = pp.export.load_annotation(
+        path, 
+        annotation_type=["comment","mask"]
+        )
 
-def test_save_shapes(project_container):
-    pp.export.save_shapes(project_container.df_shapes)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_shapes(project_container, dirpath="new")        
-    pp.export.save_shapes(project_container, overwrite=True)
-    pp.export.save_shapes(project_container, overwrite=False)    
-    assert os.path.isfile(os.path.join(project_container.dirpath, "shapes_" + pype_name + ".csv"))
 
-def test_save_textures(project_container):
-    pp.export.save_textures(project_container.df_textures)
-    with mock.patch('builtins.input', return_value='n'):
-        pp.export.save_textures(project_container, dirpath="new")        
-    pp.export.save_textures(project_container, overwrite=True)
-    pp.export.save_textures(project_container, overwrite=False)    
-    assert os.path.isfile(os.path.join(project_container.dirpath, "textures_" + pype_name + ".csv"))
+    annotations = pp.export.load_annotation(
+        path, 
+        )
+    
+    ## check if coords are legible
+    canvas = pp.visualization.select_canvas(
+        image, 
+        )
+    
+    canvas_mod = pp.visualization.draw_contour(
+        canvas,
+        annotations,
+        )
+    
+    annotations = pp.preprocessing.create_mask(
+        image, 
+        annotations=annotations, 
+        passive=True,
+        )
 
+    assert not (image==canvas_mod).all() and len(annotations) > 0
+
+    
+def test_save_ROI(image, contours, settings):
+    
+    annotations = contours
+    
+    save_dir = os.path.join(pytest.test_dir,"ROI")
+
+    os.mkdir(save_dir)
+    
+    pp.export.save_ROI(
+        image, 
+        file_name="test",
+        annotations=annotations,
+        dir_path=save_dir,
+        )
+
+    assert len(os.listdir(save_dir)) == len(annotations["contour"]["a"]["data"]["contour"])
+    
+    
+def test_export_csv(image, contours, comment, settings):
+    
+    annotations = {**contours, **comment}
+    
+    annotations = pp.measurement.compute_texture_features(
+        image,
+        annotations,
+        features=["firstorder", "shape", "glcm", "gldm", "glrlm", "glszm", "ngtdm"],
+    )
+
+    annotations = pp.measurement.compute_shape_features(
+        annotations=annotations,
+        features=["basic","moments","hu_moments"],
+    )
+    
+    save_dir = pytest.test_dir
+
+    pp.export.export_csv(
+        annotations=annotations,
+        annotation_type = "comment",
+        dir_path=save_dir,
+        )
+
+    pp.export.export_csv(
+        annotations=annotations,
+        dir_path=save_dir,
+        )
+
+    assert os.path.isfile(os.path.join(save_dir, "texture_features.csv"))

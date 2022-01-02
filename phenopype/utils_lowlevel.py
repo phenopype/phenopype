@@ -1198,6 +1198,9 @@ def _yaml_recursive_delete_comments(d):
         pass
 
 
+#%% functions - DIALOGUES
+
+
 #%% functions - VARIOUS
 
 
@@ -1591,107 +1594,3 @@ def _save_prompt(object_type, filepath, ow_flag):
 
     print(print_msg)
     return ret
-    
-
-#%% obsolete?
-
-
-class _DummyClass:
-    def __init__(self, kwargs):
-        self.__dict__.update(kwargs)
-        
-
-def _update_settings(kwargs, local_settings, IV_settings=None):
-
-    for key, value in kwargs.items():
-        if key in settings._image_viewer_arg_list:
-            if not IV_settings.__class__.__name__ == "NoneType":
-                IV_settings[key] = value
-            local_settings[key] = value
-    if "passive" in local_settings:
-        del local_settings["passive"]
-
-
-
-def _drop_dict_entries(dictionary, drop=[]):
-    
-    new_dictionary = {}
-    
-    for key, value in dictionary.items():
-        if not key in drop:
-            new_dictionary[key] = value
-        
-    return new_dictionary
-
-
-def _load_previous_annotation(annotation_previous, components, load_settings=True):
-    ImageViewer_previous = {}    
-    if load_settings:
-        ImageViewer_previous.update(annotation_previous["settings"])
-    for item in components:
-        field, data = item
-        ImageViewer_previous[data] = annotation_previous[field][data]
-        
-    return _DummyClass(ImageViewer_previous)
-
-
-def _calc_circle_perimeter(center_x, center_y, radius):
-    coordinate_list=[]
-    for i in range(360):
-        y = center_x + radius * cos(i)
-        x = center_y + radius * cos(i)
-        coordinate_list.append((int(x),int(y)))
-        
-    return coordinate_list
-
-
-def _df_overwrite_checker(df, 
-                          annotation, 
-                          label,
-                          flag_overwrite, 
-                          flag_edit):
-
-    if df.__class__.__name__ == "NoneType":
-        df = pd.DataFrame()
-        print("- creating new {}".format(annotation))
-        return df, None
-    elif df.__class__.__name__ == "DataFrame":
-        if label in df["mask"].values:
-            if flag_overwrite == False and flag_edit == False:
-                print("- {} with label \"{}\" already created (edit/overwrite=False)".format(annotation,label))
-                return None, None
-            elif flag_overwrite == True and flag_edit == False:
-                df = df.drop(df[df["mask"]==label].index)
-                print("- creating {} (overwriting)".format(annotation))
-                return df, None
-            elif flag_edit == True:
-                edit_params = df[df["mask"]==label].to_dict("records")[0]
-                df = df.drop(df[df["mask"]==label].index)
-                print("- creating {} (editing)".format(annotation))
-                return df, edit_params  
-        else:
-            print("- creating another {}".format(annotation))
-            return df, None    
-    else:
-        print("- wrong df supplied to edit {}".format(annotation))
-
-
-# def _timestamp():
-#     return datetime.today().strftime("%Y:%m:%d %H:%M:%S")
-
-
-# def get_median_grayscale(image, **kwargs):
-#     if (image.shape[0] + image.shape[1])/2 > 2000:
-#         factor = kwargs.get('resize', 0.5)
-#         image = cv2.resize(image, (0,0), fx=1*factor, fy=1*factor)
-
-#     vector = np.ravel(image)
-#     vector_mc = Counter(vector).most_common(9)
-#     g = [item[0] for item in vector_mc]
-#     return int(np.median(g))
-
-# def avgit(x):
-#     return x.sum(axis=0)/np.shape(x)[0]
-
-# def decode_fourcc(cc):
-#     return "".join([chr((int(cc) >> 8 * i) & 0xFF) for i in range(4)])

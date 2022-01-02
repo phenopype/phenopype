@@ -1,38 +1,187 @@
 #%% modules
 
-import os
-
-from shutil import copyfile
+import mock
+import pytest
 
 import phenopype as pp
 
-from .settings import pype_name
 
-#%% test
-
-def test_select_canvas(project_container):
-    pp.visualization.select_canvas(project_container, canvas="red", multi=True)
-    assert not (project_container.image_copy==project_container.canvas).all()
-
-def test_draw_contours(project_container):
-    pp.export.save_contours(project_container, overwrite=True)    
-    pp.export.save_contours(project_container, overwrite=True, save_coords=True)    
-    contour_source = os.path.join(project_container.dirpath, "contours_" + pype_name + ".csv")
-    contour_dest = os.path.join(project_container.dirpath, "contours_" + "v2" + ".csv")
+#%% fixtures
+@pytest.fixture
+def canvas(image):
     
-    copyfile(contour_source, contour_dest)
-    pp.visualization.draw_contours(project_container, label=True, mark_holes=True,
-                                   compare = "v2", fill=0.5, skeleton=True)
-    assert not (project_container.image_copy==project_container.canvas).all()
+    canvas = pp.visualization.select_canvas(
+        image, 
+        )
+    
+    return canvas
 
-def test_draw_landmarks(project_container):
-    pp.visualization.draw_landmarks(project_container)
-    assert not (project_container.image_copy==project_container.canvas).all()
+@pytest.fixture
+def container():
+    with mock.patch('builtins.input', return_value='y'):
+        project = pp.Project(root_dir=pytest.project_root_dir_1)    
+        
+    project.add_files(
+        image_dir=pytest.image_dir, 
+        mode="link", 
+        include="stickle"
+        )
+        
+    return pp.utils_lowlevel._load_project_image_directory(project.dir_paths[0])
 
-def test_draw_masks(project_container):
-    pp.visualization.draw_masks(project_container, label=True)
-    assert not (project_container.image_copy==project_container.canvas).all()
+#%% tests
 
-def test_draw_polylines(project_container):
-    pp.visualization.draw_polylines(project_container)
-    assert not (project_container.image_copy==project_container.canvas).all()
+def test_select_canvas(image, image_binary, container):
+    
+    
+    canvas = pp.visualization.select_canvas(
+        image_binary, 
+        canvas="raw", 
+        multi=True,
+        )
+    
+    
+    canvas = pp.visualization.select_canvas(
+        container, 
+        canvas="mod", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        container, 
+        canvas="gray", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        container, 
+        canvas="red", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        container, 
+        canvas="green", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        container, 
+        canvas="blue", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        container, 
+        canvas="raw", 
+        multi=True,
+        )
+    
+    
+    canvas = pp.visualization.select_canvas(
+        image, 
+        canvas="mod", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        image, 
+        canvas="gray", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        image, 
+        canvas="red", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        image, 
+        canvas="green", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        image, 
+        canvas="blue", 
+        multi=True,
+        )
+    canvas = pp.visualization.select_canvas(
+        image, 
+        canvas="raw", 
+        multi=True,
+        )
+    
+    assert (image==canvas).all()
+
+
+
+def test_draw_contour(canvas, contours):
+    
+    annotations = contours
+    
+    canvas_mod = pp.visualization.draw_contour(
+        canvas,
+        annotations,
+        bounding_box=True,
+        label=True,
+        )
+    
+    assert not (canvas==canvas_mod).all()
+
+
+
+def test_draw_landmarks(canvas, landmarks):
+    
+    annotations = landmarks
+    
+    canvas_mod = pp.visualization.draw_landmark(
+        canvas,
+        annotations,
+        )
+    
+    assert not (canvas==canvas_mod).all()
+    
+    
+
+def test_draw_mask(canvas, mask_polygon):
+    
+    annotations = mask_polygon
+    
+    canvas_mod = pp.visualization.draw_mask(
+        canvas,
+        annotations,
+        label=True,
+        )
+    
+    assert not (canvas==canvas_mod).all()
+    
+    
+    
+def test_draw_polyline(canvas, polyline):
+    
+    annotations = polyline
+    
+    canvas_mod = pp.visualization.draw_polyline(
+        canvas,
+        annotations,
+        )
+    
+    assert not (canvas==canvas_mod).all()
+
+
+
+def test_draw_reference(canvas, reference_created, reference_detected):
+    
+    annotations = reference_created 
+    
+    canvas_mod = pp.visualization.draw_reference(
+        canvas,
+        annotations,
+        label=True,
+        )
+    
+    annotations = reference_detected 
+        
+    canvas_mod = pp.visualization.draw_reference(
+        canvas,
+        annotations,
+        label=True,
+        )
+    
+    assert not (canvas==canvas_mod).all()
+
+
+

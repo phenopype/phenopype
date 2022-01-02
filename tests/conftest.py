@@ -20,15 +20,16 @@ def settings():
     ## project
     pytest.project_root_dir_1 =  os.path.join(test_dir, "project1")
     pytest.project_root_dir_2 =  os.path.join(test_dir, "project2")
-    pytest.project_root_dir_3 =  os.path.join(test_dir, "project3")
     
     pytest.image_dir = os.path.join(tutorial_dir, "tutorials/images")
     pytest.reference_image_path = os.path.join(tutorial_dir, "tutorials/images", "stickleback_top.jpg")
 
     pytest.tag_1 = "v1"
+    pytest.tag_2 = "v2"
     
     pytest.template_path_1 = "tests/test_templates/test1.yaml"
     pytest.template_path_2 = "tests/test_templates/test2.yaml"
+    pytest.template_path_3 = "tests/test_templates/test3.yaml"
 
     pytest.edit_config_target = \
     """        - create_mask:
@@ -56,7 +57,7 @@ def settings():
 #%% project
     
 @pytest.fixture(scope="session")
-def project(settings):
+def project():
     with mock.patch('builtins.input', return_value="y"):
         test_project = pp.Project(root_dir=pytest.project_root_dir_1)
     return test_project
@@ -66,6 +67,7 @@ def project(settings):
 def image(settings):
     return pp.load_image(pytest.image_path)
 
+    
 @pytest.fixture(scope="session")
 def mask_polygon():
 
@@ -78,18 +80,35 @@ def mask_polygon():
         'label_size': 1,
         'label_width': 1,
         'label_colour': (0, 255, 0)},
-       'data': {'label': None,
+       'data': {'label': "armour-plates",
         'include': True,
         'n': 1,
-        'mask': [[(1340, 289),
-          (1346, 444),
-          (1772, 420),
-          (1775, 371),
-          (1563, 307),
-          (1421, 277),
-          (1360, 274),
-          (1340, 289)]]}}}}
+        'mask': [[(1377, 273),
+          (1380, 444),
+          (1816, 424),
+          (1814, 382),
+          (1682, 357),
+          (1521, 290),
+          (1394, 274),
+          (1377, 273)]]}}}}
 
+@pytest.fixture(scope="session")
+def image_binary(settings, image,  mask_polygon):
+        
+    annotations = mask_polygon
+        
+    image_blurred = pp.preprocessing.blur(image, kernel_size=7)
+        
+    return pp.segmentation.threshold(
+        image_blurred, 
+        method="adaptive", 
+        blocksize=199, 
+        constant=10, 
+        channel="red",
+        annotations=annotations,
+        verbose=False,
+        )
+        
 @pytest.fixture(scope="session")
 def reference_created():
 
@@ -123,22 +142,60 @@ def reference_detected():
           (335, 1508),
           (1202, 1555)]]}}}}
 
+@pytest.fixture(scope="session")
+def landmarks():
+
+    return {'landmark': {'a': {'info': {'annotation_type': 'landmark',
+        'phenopype_function': 'set_landmark',
+        'phenopype_version': '3.0.dev0'},
+       'settings': {'point_size': 5,
+        'point_colour': (0, 255, 0),
+        'label': True,
+        'label_size': 1,
+        'label_width': 1,
+        'label_colour': (0, 255, 0)},
+       'data': {'landmark': [(840, 369),
+         (1183, 293),
+         (1675, 309),
+         (1740, 442),
+         (1238, 458),
+         (832, 437)]}}}}
 
 
-# @pytest.fixture(scope="session")
-# def project_container():
-#     with mock.patch('builtins.input', return_value='y'):
-#         proj = pp.Project(root_dir=root_dir_2, overwrite=flag_overwrite)
-#     proj.add_files(image_dir=image_dir, 
-#                       raw_mode="copy", 
-#                       include="stickle")
-#     # proj.add_config(name=pype_name, template=template_path_1)
-#     pp.project.save(proj)
 
-#     # proj.add_reference(name="ref1", reference_image=0, template=True, test_params=ref_params)
-#     obj_input = pp.load_directory(proj.dirpaths[0], save_suffix=tag_1)
-#     obj_input.load()
-#     return obj_input 
+@pytest.fixture(scope="session")
+def polyline():
+    
+    return {'line': {'a': {'info': {'phenopype_function': 'set_polyline',
+        'phenopype_version': '3.0.dev0',
+        'annotation_type': 'line'},
+       'settings': {'line_width': 5, 'line_colour': (0, 255, 0)},
+       'data': {'line': [[(746, 706),
+          (1024, 557),
+          (1238, 747),
+          (1560, 528),
+          (1821, 706),
+          (2092, 571)],
+         [(924, 694), (1180, 869), (1574, 641), (1893, 814), (2119, 694)]]}}}}
+
+@pytest.fixture(scope="session")
+def contours(image_binary):
+
+    return pp.segmentation.detect_contour(
+        image_binary, 
+        )    
+    
+
+
+@pytest.fixture(scope="session")
+def comment():
+    
+    return {'comment': {'a': {'info': {'phenopype_function': 'write_comment',
+        'phenopype_version': '3.0.dev0',
+        'annotation_type': 'comment'},
+       'settings': {},
+       'data': {'label': 'test msg', 'comment': 'THIS IS A TEST'}}}}
+    
 
 # @pytest.fixture(scope="session")
 # def project_directory():

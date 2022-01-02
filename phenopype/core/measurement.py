@@ -73,7 +73,7 @@ def set_landmark(
         kwargs=kwargs,
     )
             
-    gui_data = {settings._coord_list_type: utils_lowlevel._get_GUI_data(annotation)}
+    gui_data = {settings._coord_type: utils_lowlevel._get_GUI_data(annotation)}
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
         
 	# =============================================================================
@@ -250,7 +250,6 @@ def set_polyline(
 
 
 def detect_skeleton(
-        image, 
         annotations, 
         thinning="zhangsuen", 
         **kwargs,
@@ -289,15 +288,16 @@ def detect_skeleton(
         kwargs=kwargs,
     )  
     contours = annotation["data"][annotation_type]
-    
-    ##  skeleton
+
+    ##  features
     fun_name = sys._getframe().f_code.co_name
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)       
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)   
+    annotation_id = kwargs.get("annotation_id", None)
     
     # =============================================================================
     # setuo
     
-    padding = kwargs.get("padding", 1)
+    padding = kwargs.get("padding", 5)
     
 	# =============================================================================
 	# execute
@@ -306,13 +306,10 @@ def detect_skeleton(
     
     for coords in contours:
         rx, ry, rw, rh = cv2.boundingRect(coords)
-        image_sub = image[
-            (ry - padding) : (ry + rh + padding), (rx - padding) : (rx + rw + padding)
-        ]
 
-        mask = np.zeros(image_sub.shape[0:2], np.uint8)
+        mask = np.zeros((rh + int(2*padding), rw + int(2*padding)), np.uint8)
         mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx + padding, -ry + padding))
-
+        
         skeleton = cv2.ximgproc.thinning(mask, thinningType=settings.opencv_skeletonize_flags[thinning])
         skel_ret, skel_contour, skel_hierarchy = cv2.findContours(
             skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
@@ -321,10 +318,10 @@ def detect_skeleton(
         skel_contour = skel_contour[0]
         skel_contour[:, :, 0] = skel_contour[:, :, 0] + rx - padding
         skel_contour[:, :, 1] = skel_contour[:, :, 1] + ry - padding
-                
+                        
         lines.append(skel_contour)
-               
-        
+            
+                
 	# =============================================================================
 	# assemble results
     
@@ -357,6 +354,7 @@ def detect_skeleton(
 def compute_shape_features(
     annotations,
     features=["basic"],
+    min_diameter = 5,
     **kwargs
 ):
     """
@@ -432,7 +430,8 @@ def compute_shape_features(
     ##  features
     fun_name = sys._getframe().f_code.co_name
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)   
-    
+    annotation_id = kwargs.get("annotation_id", None)
+
     # =============================================================================
     # execute
     
@@ -444,55 +443,57 @@ def compute_shape_features(
         
         output = {}
         
-        ## basic shape descriptors
-        if "basic" in features:
-
-            ## retrieve area and diameter, needed for calculation
-            cnt_diameter = support["diameter"]
-            cnt_area = support["area"]
-
-            tri_area, tri_coords = cv2.minEnclosingTriangle(coords)
-            min_rect_center, min_rect_min_max, min_rect_angle = cv2.minAreaRect(coords)
-            min_rect_max, min_rect_min = min_rect_min_max[0], min_rect_min_max[1]
-            rect_x, rect_y, rect_width, rect_height = cv2.boundingRect(coords)
-            perimeter_length = cv2.arcLength(coords, closed=True)
-            circularity = 4 * np.pi * cnt_area / math.pow(perimeter_length, 2)
-            roundness = (4 * cnt_area) / (np.pi * math.pow(cnt_diameter, 2))
-            solidity = cnt_area / cv2.contourArea(cv2.convexHull(coords))
-            compactness = math.sqrt(4 * cnt_area / np.pi) / cnt_diameter
-            
-            basic = {
-                'area': cnt_area,
-                'circularity': circularity, 
-                'diameter': cnt_diameter,
-                'compactness': compactness,
-                'min_rect_max': min_rect_max,
-                'min_rect_min': min_rect_min,
-                'perimeter_length': perimeter_length,
-                'rect_height': rect_height,
-                'rect_width': rect_width,
-                'roundness': roundness,
-                'solidity':solidity,
-                'tri_area': tri_area,
-                }
-            
-            output = {**output, **basic}
-                                             
-        ## moments
-        if "moments" in features:
-            moments = cv2.moments(coords)
-            output = {**output, **moments}
-
-
-        ## hu moments
-        if "hu_moments" in features:
-            hu_moments = {}
-            for idx2, mom in enumerate(cv2.HuMoments(moments)):
-                hu_moments["hu" + str(idx2 + 1)] = mom[0]
-            output = {**output, **hu_moments}
-            
+        if support["diameter"] > min_diameter:
         
-        shape_features.append(output)
+            ## basic shape descriptors
+            if "basic" in features:
+    
+                ## retrieve area and diameter, needed for calculation
+                cnt_diameter = support["diameter"]
+                cnt_area = support["area"]
+    
+                tri_area, tri_coords = cv2.minEnclosingTriangle(coords)
+                min_rect_center, min_rect_min_max, min_rect_angle = cv2.minAreaRect(coords)
+                min_rect_max, min_rect_min = min_rect_min_max[0], min_rect_min_max[1]
+                rect_x, rect_y, rect_width, rect_height = cv2.boundingRect(coords)
+                perimeter_length = cv2.arcLength(coords, closed=True)
+                circularity = 4 * np.pi * cnt_area / math.pow(perimeter_length, 2)
+                roundness = (4 * cnt_area) / (np.pi * math.pow(cnt_diameter, 2))
+                solidity = cnt_area / cv2.contourArea(cv2.convexHull(coords))
+                compactness = math.sqrt(4 * cnt_area / np.pi) / cnt_diameter
+                
+                basic = {
+                    'area': cnt_area,
+                    'circularity': circularity, 
+                    'diameter': cnt_diameter,
+                    'compactness': compactness,
+                    'min_rect_max': min_rect_max,
+                    'min_rect_min': min_rect_min,
+                    'perimeter_length': perimeter_length,
+                    'rect_height': rect_height,
+                    'rect_width': rect_width,
+                    'roundness': roundness,
+                    'solidity':solidity,
+                    'tri_area': tri_area,
+                    }
+                
+                output = {**output, **basic}
+                                                 
+            ## moments
+            if "moments" in features:
+                moments = cv2.moments(coords)
+                output = {**output, **moments}
+    
+    
+            ## hu moments
+            if "hu_moments" in features:
+                hu_moments = {}
+                for idx2, mom in enumerate(cv2.HuMoments(moments)):
+                    hu_moments["hu" + str(idx2 + 1)] = mom[0]
+                output = {**output, **hu_moments}
+                
+            
+            shape_features.append(output)
 
 	# =============================================================================
 	# return
@@ -504,7 +505,8 @@ def compute_shape_features(
             "annotation_type": annotation_type,
             },
         "settings": {
-            "features": features
+            "features": features,
+            "min_diameter": min_diameter,
             },
         "data":{
             annotation_type: shape_features,
@@ -587,9 +589,10 @@ def compute_texture_features(
     contours = annotation["data"][annotation_type]
     contours_support = annotation["data"]["support"]
 
-    ## features
+    ##  features
     fun_name = sys._getframe().f_code.co_name
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)   
+    annotation_id = kwargs.get("annotation_id", None)
     
     # =============================================================================
     # setup
@@ -660,8 +663,8 @@ def compute_texture_features(
             },
         "settings": {
             "features": features,
-            "channels": channels,
             "min_diameter": min_diameter,
+            "channels": channels,
             },
         "data":{
             annotation_type: texture_features,

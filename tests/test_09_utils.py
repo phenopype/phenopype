@@ -1,41 +1,97 @@
 #%% modules
+
+import cv2
 import mock
+import pytest
+import os
+
 import phenopype as pp
 
-from .settings import image_save_dir, wait_time
 
 
 #%% tests
 
 
 
-def test_load_image_arr(image_path):
-    image, df = pp.load_image(image_path, df=True)
-    assert all([image.__class__.__name__ == "ndarray",
-                df["filename"][0] == "isopods.jpg"])
+def test_load_image(settings, project):
+    
+    project.add_files(
+        image_dir=pytest.image_dir, 
+        mode="link", 
+        include="stickle"
+        )
+    
+    image = pp.load_image(pytest.template_path_1)
+    image = pp.load_image(project.dir_paths[0])    
+    image = pp.load_image(project.root_dir)    
+    image = pp.load_image("string")
+    image = pp.load_image(2)
+    
+    image = pp.load_image(pytest.image_path, mode="colour")
+    image = pp.load_image(pytest.image_path, mode="gray")
+    image = pp.load_image(pytest.image_path)
 
-def test_load_image_ct(image_path):
-    image = pp.load_image(image_path, meta=True, cont=True, df=True)
-    assert image.__class__.__name__ == "container"
-
-def test_load_meta_data(image_path):
-    meta = pp.utils.load_meta_data(image_path, show_fields=True)
-    assert meta["ISOSpeedRatings"] == "200"
+    assert image.__class__.__name__ == "ndarray"
 
 
-def test_show_image(image_array):
-    test_params = {"flag_test_mode": True,
-                   "wait_time": wait_time}
-    pp.show_image(image_array, test_params=test_params)
-    test_params = {"flag_test_mode": True,
-                   "wait_time": wait_time}
-    img_list = []
-    for i in range(11):
-        img_list.append(image_array)
-    with mock.patch('builtins.input', return_value='y'):
-        pp.show_image(img_list, 
-                      test_params=test_params, 
-                      position_reset=False)
-        
-def test_save_image(image_array):
-    pp.save_image(image_array, name="test_img", dirpath=image_save_dir)
+def test_template(settings, project):
+    
+    pp.load_template(
+        "string",
+        dir_path=pytest.test_dir,
+        )
+    
+    pp.load_template(
+        2,
+        dir_path=pytest.test_dir,
+        )
+    
+    pp.load_template(
+        pytest.template_path_1,
+        )
+    
+    pp.load_template(
+        pytest.template_path_1,
+        image_path=pytest.image_path,
+        )
+    
+    pp.load_template(
+        pytest.template_path_1,
+        image_path=pytest.image_path,
+        )
+    
+    pp.load_template(
+        pytest.template_path_1,
+        image_path=pytest.image_path,
+        overwrite=True,
+        keep_comments = False,
+        )
+    
+    pp.load_template(
+        pytest.template_path_1,
+        dir_path=pytest.test_dir,
+        )
+
+    assert os.path.isfile(os.path.join(pytest.test_dir, "pype_config_v1.yaml"))
+
+
+
+def test_show_image(image):
+
+    pp.show_image(image, passive=True)
+
+    with mock.patch('builtins.input', return_value="y"):
+        pp.show_image([image, image, image, image, image, 
+                       image, image, image, image, image, 
+                       image],
+                      passive=True)
+    
+    
+def test_save_image(image):
+
+    pp.save_image(image, file_name="test", dir_path=pytest.test_dir)
+    pp.save_image(image, file_name="test", dir_path=pytest.test_dir)
+    pp.save_image(image, file_name="test", dir_path=pytest.test_dir, overwrite=True)
+
+
+    assert os.path.isfile(os.path.join(pytest.test_dir, "test.jpg"))

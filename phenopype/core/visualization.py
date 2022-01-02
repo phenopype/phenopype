@@ -348,6 +348,14 @@ def draw_mask(
         canvas with masks
     """
 
+ 	# =============================================================================
+	# setup 
+    
+    ## flags
+    flags = make_dataclass(cls_name="flags", fields=[
+        ("label", bool, label)
+        ])
+
     # =============================================================================
     # annotation management
     
@@ -362,15 +370,11 @@ def draw_mask(
     )
     
     polygons = annotation["data"][annotation_type]
+    label = annotation["data"]["label"]
 
  	# =============================================================================
 	# setup 
-    
-    ## flags
-    flags = make_dataclass(cls_name="flags", fields=[
-        ("label", bool, label)
-        ])
-    
+        
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
     if label_size == "auto":
@@ -408,7 +412,7 @@ def draw_mask(
                 label_coords = tuple(coords[0][0])
             elif coords[0].__class__.__name__ == "tuple":
                 label_coords = coords[0]            
-            
+                            
             cv2.putText(
                 canvas,
                 label,
@@ -492,10 +496,11 @@ def draw_polyline(
 	# execute
     
     canvas = copy.deepcopy(image)
-    
+        
     ## draw lines
     for coords in lines:
         cv2.polylines(canvas, np.array([coords]), False, line_colour, line_width)
+        
 
 	# =============================================================================
 	# return
@@ -688,9 +693,9 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
         # elif canvas == "bin":
         #     image.canvas = copy.deepcopy(image.image_bin)
             # print("- binary image")
-        elif canvas == "gray":
-            image.canvas = cv2.cvtColor(image.image_gray, cv2.COLOR_BGR2GRAY)
-            print("- grayscale image")
+        # elif canvas == "gray":
+        #     image.canvas = cv2.cvtColor(image.image_gray, cv2.COLOR_BGR2GRAY)
+        #     print("- grayscale image")
         elif canvas == "green":
             image.canvas = image.image_copy[:, :, 0]
             print("- green channel")

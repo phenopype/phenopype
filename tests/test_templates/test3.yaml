@@ -1,0 +1,7 @@
+processing_steps:
+    - preprocessing:
+        - create_mask:
+            ANNOTATION: {type: mask, id: a, edit: true}
+            tool: polygon
+    - visualization:
+        - draw_mask

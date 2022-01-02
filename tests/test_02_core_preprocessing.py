@@ -17,53 +17,33 @@ def test_blur(image):
 
     assert not (image == image_blurred).all()
 
-def test_create_mask(image):
+def test_create_mask(image, mask_polygon):
+    
+    annotations = mask_polygon
 
-    annotations = {'mask': {'a': {'info': {'annotation_type': 'mask',
-        'phenopype_function': 'create_mask',
-        'phenopype_version': '3.0.dev0'},
-       'settings': {'tool': 'rectangle',
-        'line_width': 5,
-        'line_colour': (0, 255, 0),
-        'label_size': 1,
-        'label_width': 1,
-        'label_colour': (0, 255, 0)},
-       'data': {'label': None,
-        'include': True,
-        'n': 1,
-        'mask': [[(652, 127), (2160, 127), (2160, 639), (652, 639), (652, 127)]]}},
-      'b': {'info': {'annotation_type': 'mask',
-        'phenopype_function': 'create_mask',
-        'phenopype_version': '3.0.dev0'},
-       'settings': {'tool': 'polygon',
-        'line_width': 5,
-        'line_colour': (0, 255, 0),
-        'label_size': 1,
-        'label_width': 1,
-        'label_colour': (0, 255, 0)},
-       'data': {'label': None,
-        'include': True,
-        'n': 1,
-        'mask': [[(1166, 324),
-          (1336, 432),
-          (1816, 420),
-          (1804, 365),
-          (1687, 353),
-          (1459, 278),
-          (1317, 264),
-          (1092, 281),
-          (1166, 324)]]}}}}    
+    annotations = pp.preprocessing.create_mask(
+        image, 
+        annotations=annotations, 
+        annotation_id="a", 
+        passive=True,
+        )
 
-    annotations = pp.preprocessing.create_mask(image, annotations=annotations, annotation_id="a", passive=True)
-    annotations = pp.preprocessing.create_mask(image, annotations=annotations, annotation_id="b", passive=True)
-
-    assert annotations["mask"]["b"]["data"]["n"] == 1
+    assert len(annotations) > 0
     
     
 def test_detect_shape(image):
     
-    annotations = pp.preprocessing.detect_shape(image, circle_args={"param1": 150, "param2": 150, "min_radius":1000}, resize=0.5)
-    annotations = pp.preprocessing.detect_shape(image, circle_args={"param1": 150, "param2": 150, "max_radius":150}, resize=0.5)
+    annotations = pp.preprocessing.detect_shape(
+        image, 
+        circle_args={"param1": 150, "param2": 150, "min_radius":1000}, 
+        resize=0.5
+        )
+    
+    annotations = pp.preprocessing.detect_shape(
+        image, 
+        circle_args={"param1": 150, "param2": 150, "max_radius":150}, 
+        resize=0.5
+        )
 
     assert len(annotations) > 0
     
@@ -133,14 +113,9 @@ def test_decompose_image(image):
     assert not (image == canvas).all()
     
     
-def test_write_comment(image):
+def test_write_comment(image, comment):
     
-    
-    annotations = {'comment': {'a': {'info': {'phenopype_function': 'write_comment',
-        'phenopype_version': '3.0.dev0',
-        'annotation_type': 'comment'},
-       'settings': {},
-       'data': {'label': 'test msg', 'comment': 'THIS IS A TEST'}}}}
+    annotations = comment
     
     annotations = pp.preprocessing.write_comment(
         image=image,

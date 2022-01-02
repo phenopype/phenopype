@@ -15,10 +15,10 @@ from phenopype import utils
         
 #%% functions
 
-def export_csv(annotation, 
+def export_csv(annotations, 
+               dir_path,
                annotation_type=None,
                image_name=None,
-               dir_path=None,
                overwrite=False, 
                **kwargs):
     """
@@ -26,7 +26,7 @@ def export_csv(annotation,
 
     Parameters
     ----------
-    annotation : TYPE
+    annotations : TYPE
         DESCRIPTION.
     annotation_type : TYPE, optional
         DESCRIPTION. The default is None.
@@ -47,18 +47,10 @@ def export_csv(annotation,
 
             
     ## dirpath
-    if dir_path.__class__.__name__ == "NoneType":
-        dir_path = os.getcwd()
-        print('No save directory ("dir_path") specified - using current working directory.')
-    else:
-        if not os.path.isdir(dir_path):
-            q = input("Save folder {} does not exist - create?.".format(dir_path))
-            if q in ["True", "true", "y", "yes"]:
-                os.makedirs(dir_path)
-            else:
-                print("Directory not created - aborting")
-                return
-        
+
+    if not image_name:
+        print("Warning: missing image_name argument - exported CSV will not contain information about source-imagee")
+    
     ## file name formatting
     if kwargs.get("save_prefix"):
         save_prefix =  kwargs.get("save_prefix") + "_"
@@ -70,48 +62,46 @@ def export_csv(annotation,
     else:
         save_suffix = ""    
             
-    ## annotation copy
-    annotation = copy.deepcopy(annotation)
+    ## annotations copy
+    annotations = copy.deepcopy(annotations)
     
-    ## filter by annotation type
+    ## format annotation type
     if annotation_type.__class__.__name__ == "NoneType":
         print("- no annotation_type selected - exporting all annotations")
-        annotation_types = settings._annotation_types
+        annotation_types = list(annotations.keys())
     elif annotation_type.__class__.__name__ == "str":
         annotation_types = [annotation_type]
     elif annotation_type.__class__.__name__ in [ "list", "CommentedSeq"]:
         annotation_types = annotation_type
-        
-    ## dry run
-    annotation_types1 = []
-    for annotation_type in annotation_types:
-        if len(annotation[annotation_type].keys()) > 0:
-            annotation_types1.append(annotation_type)
-    annotation_types = annotation_types1
+                
+    # ## dry run
+    # annotation_types1 = []
+    # for annotation_type in annotation_types:
+    #     if len(annotations[annotation_type].keys()) > 0:
+    #         annotation_types1.append(annotation_type)
+    # annotation_types = annotation_types1
 
     for annotation_type in annotation_types:
         
         list_flattened = []
         
-        if annotation_type == "comment":
-            for annotation_id in annotation[annotation_type].keys():    
+        if annotation_type == settings._comment_type:
+            for annotation_id in annotations[annotation_type].keys():    
                 list_flattened.append(
                     pd.DataFrame({
                         **{"image_name": image_name},
                         **{"annotation_type": annotation_type},
                         **{"annotation_id": annotation_id},
-                        **{"field": annotation[annotation_type][annotation_id]["data"]["field"]},
-                        **{"entry": annotation[annotation_type][annotation_id]["data"]["entry"]},
+                        **{"label": annotations[annotation_type][annotation_id]["data"][annotation_type]},
                         },index=[0])
                     )
 
-        if annotation_type == "contour":
-        
-            for annotation_id in annotation[annotation_type].keys():    
+        if annotation_type == settings._contour_type:
+            for annotation_id in annotations[annotation_type].keys():    
                 idx = 0 
                 for coords, support in zip(
-                        annotation[annotation_type][annotation_id]["data"]["coord_list"],
-                        annotation[annotation_type][annotation_id]["data"]["support"],
+                        annotations[annotation_type][annotation_id]["data"][annotation_type],
+                        annotations[annotation_type][annotation_id]["data"]["support"],
                         ):
                     idx += 1
                     list_flattened.append(
@@ -132,43 +122,38 @@ def export_csv(annotation,
                             }, index=[0])
                         )
         
-        if annotation_type == "morphology":
-            for annotation_id in annotation[annotation_type].keys():    
-                for contour_idx in annotation[annotation_type][annotation_id]["data"]["features"]:
+        if annotation_type == settings._shape_feature_type:
+            for annotation_id in annotations[annotation_type].keys():    
+                for idx, annotation in enumerate(annotations[annotation_type][annotation_id]["data"][annotation_type]):
                     list_flattened.append(
                         pd.DataFrame({
                             **{"image_name": image_name},
                             **{"annotation_type": annotation_type},
                             **{"annotation_id": annotation_id},
-                            **{"contour_id": annotation[annotation_type][annotation_id]["settings"]["contour_id"]},
-                            **{"contour_idx":contour_idx}, 
-                            **annotation[annotation_type][annotation_id]["data"]["features"][contour_idx]}, 
+                            **{"contour_idx": idx},
+                            **annotation}, 
                             index=[0])
                         )
                           
-        if annotation_type == "texture":
-            for annotation_id in annotation[annotation_type].keys():    
-                for channel in annotation[annotation_type][annotation_id]["data"]["features"]:
-                    for contour_idx in annotation[annotation_type][annotation_id]["data"]["features"][channel]:
-                        list_flattened.append(
-                            pd.DataFrame({
-                                **{"image_name": image_name},
-                                **{"annotation_type": annotation_type},
-                                **{"annotation_id": annotation_id},
-                                **{"channel": channel},
-                                **{"contour_id": annotation[annotation_type][annotation_id]["settings"]["contour_id"]},
-                                **{"contour_idx":contour_idx}, 
-                                **annotation[annotation_type][annotation_id]["data"]["features"][channel][contour_idx]}, 
-                                index=[0])
-                            )
-                          
+        if annotation_type == settings._texture_feature_type:
+            for annotation_id in annotations[annotation_type].keys():    
+                for idx, annotation in enumerate(annotations[annotation_type][annotation_id]["data"][annotation_type]):
+                    list_flattened.append(
+                        pd.DataFrame({
+                            **{"image_name": image_name},
+                            **{"annotation_type": annotation_type},
+                            **{"annotation_id": annotation_id},
+                            **{"contour_idx": idx},
+                            **annotation}, 
+                            index=[0])
+                        )
+                      
         if len(list_flattened) > 0:
-            print("- " + annotation_type)
+            print("- exported csv for type " + annotation_type)
             df = pd.concat(list_flattened)    
             filepath = os.path.join(dir_path, save_prefix + annotation_type + save_suffix + ".csv")
             df.to_csv(filepath, index=False)
-        else:
-            print("- " + annotation_type + ": nothing to save")
+
     
 
 
@@ -218,12 +203,15 @@ def load_annotation(filepath,
         for annotation_id1 in annotation_file[annotation_type1]:    
             for section in annotation_file[annotation_type1][annotation_id1]:
                 for key, value in annotation_file[annotation_type1][annotation_id1][section].items():
-                    if key in ["coord_list", "point_list", "points"]:
+                    if key in [x for x in settings._annotation_types if not x in[
+                            settings._comment_type, 
+                            settings._reference_type,
+                            ]] + ["support"]:
                         if type(value) == str:
                             value = eval(value)
-                        if annotation_type1 == "contour":
+                        if key == settings._contour_type:
                             value = [np.asarray(elem, dtype=np.int32) for elem in value] 
-                        if annotation_type1 == "landmark":
+                        elif annotation_type1 == settings._landmark_type:
                             value = [tuple(elem) for elem in value] 
                     annotation_file[annotation_type1][annotation_id1][section][key] = value
              
@@ -249,8 +237,6 @@ def load_annotation(filepath,
             print("- no annotation_id selected - returning all annotations of type: {}".format(annotation_type_list))
             annotation = annotation_subset
             break
-        elif annotation_id.__class__.__name__ == "int":
-            annotation_id_list = [str(annotation_id)]
         elif annotation_id.__class__.__name__ == "str":
             annotation_id_list = [annotation_id]
         elif annotation_id.__class__.__name__ == "list":
@@ -269,8 +255,8 @@ def load_annotation(filepath,
 
 
 def save_annotation(annotation, 
+                    dir_path,
                     file_name="annotations.json",
-                    dir_path=os.getcwd(),
                     annotation_id=None,
                     overwrite=False, 
                     **kwargs):
@@ -323,20 +309,7 @@ def save_annotation(annotation,
     
     ## kwargs
     indent = kwargs.get("indent", 4)
-        
-    ## dirpath
-    if dir_path.__class__.__name__ == "NoneType":
-        dir_path = os.getcwd()
-        print('No save directory ("dir_path") specified - using current working directory.')
-    else:
-        if not os.path.isdir(dir_path):
-            q = input("Save folder {} does not exist - create?.".format(dir_path))
-            if q in ["True", "true", "y", "yes"]:
-                os.makedirs(dir_path)
-            else:
-                print("Directory not created - aborting")
-                return
-    
+            
     ## filepath
     filepath = os.path.join(dir_path, file_name)
     annotation = copy.deepcopy(annotation)
@@ -414,12 +387,15 @@ def save_annotation(annotation,
         
         
 
-def save_ROI(image,
-             annotation,
-             file_name,
-             dir_path=None,
-             prefix=None,
-             suffix="roi"): 
+def save_ROI(
+        image,
+        annotations,
+        dir_path,
+        file_name,
+        prefix=None,
+        suffix="roi",
+        **kwargs
+        ): 
     """
 
     Parameters
@@ -448,18 +424,7 @@ def save_ROI(image,
     """
     
     ## dirpath
-    if dir_path.__class__.__name__ == "NoneType":
-        dir_path = os.getcwd()
-        print('No save directory ("dir_path") specified - using current working directory.')
-    else:
-        if not os.path.isdir(dir_path):
-            q = input("Save folder {} does not exist - create?.".format(dir_path))
-            if q in settings.confirm_options:
-                os.makedirs(dir_path)
-            else:
-                print("Directory not created - aborting")
-                return
-        
+
     if prefix is None:
         prefix=""
     else:
@@ -469,9 +434,22 @@ def save_ROI(image,
     else:
         suffix= "_" + suffix
         
-    coords = annotation["data"]["coords"]
+    # =============================================================================
+    # annotation management
+    
+    annotation_type = settings._contour_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations, 
+        annotation_type=annotation_type, 
+        annotation_id=annotation_id, 
+        kwargs=kwargs,
+    )
+    
+    contours = annotation["data"][annotation_type]
         
-    for idx, roi_coords in enumerate(coords):
+    for idx, roi_coords in enumerate(contours):
         
         rx, ry, rw, rh = cv2.boundingRect(roi_coords)
         roi_rect=image[ry : ry + rh, rx : rx + rw]
@@ -490,8 +468,8 @@ def save_ROI(image,
         
 def save_canvas(
         image,
+        dir_path,
         file_name="canvas",
-        dir_path=os.getcwd(),
         **kwargs):
     """
     
