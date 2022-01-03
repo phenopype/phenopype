@@ -14,7 +14,7 @@ from phenopype import settings
 from phenopype import utils_lowlevel 
 from phenopype.core import preprocessing 
 from phenopype.core import segmentation
-
+from phenopype.core import visualization
 #%% classes
 
 
@@ -417,22 +417,7 @@ class motion_tracker(object):
 
             ## if captured, apply masks > apply methods > write to output
             if capture_frame == True:
-
-                # ## apply masks
-                # if hasattr(self, "masks"):
-                    
-                #     for key, value in self.masks[settings._mask_type].items():
-                #         polygons = self.masks[settings._mask_type][key]["data"][settings._mask_type]
-                #         include =  self.masks[settings._mask_type][key]["data"]["include"]
                         
-                #         for coords in polygons:
-                #             mask_bool = utils_lowlevel._create_mask_bool(self.frame, coords)
-                        
-                #             if include:
-                #                 self.frame[mask_bool == False] = 0
-                #             else:
-                #                 self.frame[mask_bool] = 0
-
                 # initiate tracking
                 fgmask = self.fgbg_subtractor.apply(self.frame)
                 fgmask_copy = copy.deepcopy(fgmask)
@@ -522,6 +507,15 @@ class motion_tracker(object):
                     self.canvas = cv2.resize(
                         self.canvas, (0, 0), fx=self.resize_factor, fy=self.resize_factor
                     )
+                
+                ## convert to colour
+                if len(self.canvas.shape) < 3:
+                    self.canvas = cv2.cvtColor(self.canvas, cv2.COLOR_GRAY2BGR)
+                    
+                ## draw masks
+                if hasattr(self, "masks"):
+                    for key, value in self.masks[settings._mask_type].items():
+                        self.canvas = visualization.draw_mask(self.canvas, {settings._mask_type: {"a":value}}, label=True)
                     
                 ## feedback
                 if flag_feedback == True:
@@ -713,6 +707,7 @@ class tracking_method:
                 list_x, list_y = [], []
                 list_grayscale, list_grayscale_background = [], []
                 list_b, list_g, list_r = [], [], []
+                list_mask_check = []
 
                 for contour, center in zip(list_contours, list_center_coordinates):
 
@@ -723,7 +718,6 @@ class tracking_method:
                     list_y.append(y)
 
                     if "mask_bool" in vars(self):
-                        list_mask_check = []
                         temp_list = []
                         for key, val in self.mask_bool.items():
                             temp_list.append(val[y, x])
@@ -817,14 +811,18 @@ class tracking_method:
                 frame_df = frame_df.transpose()
                 frame_df.columns = df_column_names
                 frame_df["label"] = self.label
-                self.frame_df = frame_df
+                
 
                 if "mask_bool" in vars(self):
+                    
                     mask_df = pd.DataFrame(list_mask_check, columns=[*self.mask_bool])
                     self.frame_df = pd.concat(
                         [frame_df.reset_index(drop=True), mask_df], axis=1
                     )
-
+                    
+                else:
+                    self.frame_df = frame_df
+                    
                 self.contours = list_contours
 
                 return fgmask, self.overlay, self.contours, self.frame_df

@@ -17,20 +17,29 @@ def motion_tracker():
 
 @pytest.fixture
 def tracking_method():
-    fish = pp.tracking_method(label="fish", remove_shadows=True, min_length=30,
-                              overlay_colour="red", mode="single",
-                              blur=15, # bigger blurring kernel
-                              threshold=200 #higher sensitivity
-                              )
-    isopod = pp.tracking_method(label="isopod", remove_shadows=True, max_length=30,
-                                overlay_colour="green", mode="multiple",
-                                blur=9, # smaller blurring kernel
-                                threshold=180, # lower sensitivity
-                                operations=["diameter",  # isopod size
-                                            "area",      # isopod area
-                                            "grayscale", # isopod pigmentation
-                                            "grayscale_background"] # background darkness
-                                )
+    fish = pp.tracking_method(
+        label="fish", 
+        remove_shadows=True, 
+        min_length=30,
+        overlay_colour="red",
+        mode="single",
+        blur=15, 
+        threshold=200,
+        )
+    isopod = pp.tracking_method(
+        label="isopod",
+        remove_shadows=True, 
+        max_length=30,
+        overlay_colour="green", mode="multiple",
+        blur=9,
+        threshold=180, 
+        operations=[
+            "diameter",  
+            "area",      
+            "grayscale", 
+            "grayscale_background",
+            "bgr",
+                    ])
     tracking_method = [fish, isopod]
     return tracking_method
 
@@ -78,31 +87,6 @@ def test_video_output(motion_tracker):
                                        os.path.splitext(os.path.basename(pytest.video_path))[0] 
                                        + "_out" 
                                        + os.path.splitext(os.path.basename(pytest.video_path))[1])) 
-
-# def test_create_mask_mt(motion_tracker):
-#     test_params = {"flag_test_mode": True,
-#                    "flag_tool": "rectangle",
-#                    "point_list":[[(189, 52),
-#                                      (838, 52),
-#                                      (838, 479),
-#                                      (189, 479),
-#                                      (189, 52)]]}
-#     pp.preprocessing.create_mask(motion_tracker, 
-#                                  label="full arena",
-#                                  tool="rectangle",
-#                                  test_params=test_params)
-#     test_params = {"flag_test_mode": True,
-#                       "flag_tool": "rectangle",
-#                       "point_list":[[(314, 149),
-#                                      (699, 149), 
-#                                      (699, 380), 
-#                                      (314, 380), 
-#                                      (314, 149)]]}
-#     pp.preprocessing.create_mask(motion_tracker, 
-#                                  label="center",
-#                                  tool="rectangle",
-#                                  test_params=test_params)
-#     assert len(motion_tracker.df_masks) == 2
     
 def test_tracking_method(motion_tracker):
     isopod = pp.tracking_method(
@@ -126,7 +110,7 @@ def test_run_tracking(motion_tracker, tracking_method, masks):
     
     motion_tracker.detection_settings(
         methods=tracking_method,
-        finish_after = 2,
+        finish_after = 5,
         c_mask=True,
         c_mask_shape="rect",
         c_mask_size=200,

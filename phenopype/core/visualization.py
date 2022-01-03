@@ -368,7 +368,7 @@ def draw_mask(
         annotation_id=annotation_id, 
         kwargs=kwargs,
     )
-    
+        
     polygons = annotation["data"][annotation_type]
     label = annotation["data"]["label"]
 

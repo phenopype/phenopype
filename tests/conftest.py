@@ -30,6 +30,8 @@ def settings():
     pytest.template_path_1 = "tests/templates/test1.yaml"
     pytest.template_path_2 = "tests/templates/test2.yaml"
     pytest.template_path_3 = "tests/templates/test3.yaml"
+    pytest.template_path_4 = "tests/templates/test4.yaml"
+
 
     pytest.edit_config_target = \
     """        - create_mask:

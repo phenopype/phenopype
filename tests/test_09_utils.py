@@ -1,6 +1,5 @@
 #%% modules
 
-import cv2
 import mock
 import pytest
 import os

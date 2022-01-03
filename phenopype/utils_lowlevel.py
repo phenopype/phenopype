@@ -958,7 +958,7 @@ def _get_annotation(
                         annotation_id =  chr(ord(annotation_id) - 1)
                     print_msg = print_msg + "using last annotation of type \"{}\" with ID \"{}\"".format(annotation_type, annotation_id)
             else:
-                if annotation_type in annotations:
+                if annotation_type in annotations:                    
                     annotation_id = max(list(annotations[annotation_type].keys()))
                     print_msg = "\"{}\" not specified - using endmost in provided annotations: \"{}\"".format(annotation_id_str, annotation_id)
 
