@@ -1,0 +1,64 @@
+processing_steps:
+    - preprocessing:
+        - create_mask:
+            ANNOTATION: {type: mask, id: a, edit: true}
+            tool: polygon
+        - blur
+        - write_comment:
+            ANNOTATION: {type: comment, id: a, edit: true}
+        - write_comment:
+            ANNOTATION: {type: comment, id: a, edit: false}
+        - detect_shape:
+            ANNOTATION: {type: mask, id: b, edit: overwrite}
+        - detect_reference:
+            ANNOTATION: {type: reference, id: a, edit: False}
+        - decompose_image:
+            channel: gray
+    - segmentation:
+        - threshold:
+            method: adaptive
+            blocksize: 149
+            constant: 5
+            channel: red
+        - watershed
+        - morphology:
+            operation: close
+            shape: ellipse
+            kernel_size: 3
+            iterations: 3
+        - detect_contour:
+            ANNOTATION: {type: contour, id: a, edit: overwrite}
+            retrieval: ext
+            min_area: 150
+            min_nodes: 5
+            min_diameter: 10
+            approximation: simple
+        - edit_contour:
+            ANNOTATION: {type: drawing, id: a, edit: true}
+    - measurement:
+        - set_landmark:
+            ANNOTATION: {type: landmark, id: a, edit: true}
+        - set_polyline:
+            ANNOTATION: {type: line, id: a, edit: overwrite}
+        - detect_skeleton:
+            ANNOTATION: {type: line, id: b, edit: true}
+        - compute_shape_features:
+            ANNOTATION: {type: shape_features, id: a, edit: overwrite}
+        - compute_texture_features:
+            ANNOTATION: {type: texture_features, id: a, edit: overwrite}
+    - visualization:
+        - select_canvas:
+            canvas: image
+        - draw_contour:
+            line_width: 2
+            label_width: 1
+            label_size: 1
+            fill: 0.3
+        - draw_landmark
+        - draw_mask
+        - draw_polyline
+        - draw_reference
+    - export:
+        - save_annotation
+        - save_canvas
+        - export_csv

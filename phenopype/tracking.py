@@ -1,3 +1,5 @@
+#%% modules
+
 import copy
 import numpy as np
 import numpy.ma as ma
@@ -6,12 +8,12 @@ import cv2
 import os
 import pprint
 
-from colour import Color
 from math import inf
 
-from phenopype.utils_lowlevel import _decode_fourcc, _create_mask_bool, _load_image_data, _get_bgr
-from phenopype.core.preprocessing import blur
-from phenopype.core.segmentation import threshold, detect_contour
+from phenopype import settings
+from phenopype import utils_lowlevel 
+from phenopype.core import preprocessing 
+from phenopype.core import segmentation
 
 #%% classes
 
@@ -54,7 +56,7 @@ class motion_tracker(object):
         self.name = os.path.basename(self.path)
         self.nframes = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
         self.fps = capture.get(cv2.CAP_PROP_FPS)
-        self.fourcc_str = _decode_fourcc(capture.get(cv2.CAP_PROP_FOURCC))
+        self.fourcc_str = utils_lowlevel._decode_fourcc(capture.get(cv2.CAP_PROP_FOURCC))
         self.length = str(
             str(int((self.nframes / self.fps) / 60)).zfill(2)
             + ":"
@@ -227,6 +229,7 @@ class motion_tracker(object):
         detect_shadows=True,
         mode="MOG",
         methods=None,
+        masks=None,
         c_mask=False,
         c_mask_shape="rect",
         c_mask_size=50,
@@ -275,7 +278,8 @@ class motion_tracker(object):
         self.flag_consecutive = c_mask
         self.consecutive_shape = c_mask_shape
         self.consecutive_size = c_mask_size
-
+        self.masks = masks
+        
         ## select background subtractor
         if mode == "MOG":
             self.fgbg_subtractor = cv2.createBackgroundSubtractorMOG2(
@@ -290,6 +294,7 @@ class motion_tracker(object):
         if not methods.__class__.__name__ == "NoneType":
             if methods.__class__.__name__ == "tracking_method":
                 methods = [methods]
+                                
             self.methods = methods
             for m in self.methods:
                 m._print_settings()
@@ -350,9 +355,10 @@ class motion_tracker(object):
         else:
             self.finish_frame = self.nframes
 
-        if "methods" in vars(self) and "df_masks" in vars(self):
+        if all(hasattr(self, attr) for attr in ["methods", "masks"]):
             for m in self.methods:
-                m._apply_masks(frame=self.image, df_masks=self.df_masks)
+                m._apply_masks(frame=self.image, masks=self.masks)
+                print("MASK")
 
         ## loop thrpugh frames
         while self.capture.isOpened():
@@ -412,31 +418,20 @@ class motion_tracker(object):
             ## if captured, apply masks > apply methods > write to output
             if capture_frame == True:
 
-                ## apply masks
-                if hasattr(self, "df_masks"):
-
-                    ## include == True
-                    mask_bool, include_idx = (
-                        np.zeros(self.frame.shape[0:2], dtype=bool),
-                        0,
-                    )
-                    for index, row in self.df_masks.iterrows():
-                        if row["include"] == True:
-                            if not row["mask"] == "":
-                                coords = eval(row["coords"])
-                                mask_bool = np.logical_or(
-                                    mask_bool, _create_mask_bool(self.frame, coords)
-                                )
-                                include_idx += 1
-                    if include_idx > 0:
-                        self.frame[mask_bool == False] = 0
-
-                    ## include == False
-                    for index, row in self.df_masks.iterrows():
-                        if row["include"] == False:
-                            if not row["mask"] == "":
-                                coords = eval(row["coords"])
-                                self.frame[_create_mask_bool(self.frame, coords)] = 0
+                # ## apply masks
+                # if hasattr(self, "masks"):
+                    
+                #     for key, value in self.masks[settings._mask_type].items():
+                #         polygons = self.masks[settings._mask_type][key]["data"][settings._mask_type]
+                #         include =  self.masks[settings._mask_type][key]["data"]["include"]
+                        
+                #         for coords in polygons:
+                #             mask_bool = utils_lowlevel._create_mask_bool(self.frame, coords)
+                        
+                #             if include:
+                #                 self.frame[mask_bool == False] = 0
+                #             else:
+                #                 self.frame[mask_bool] = 0
 
                 # initiate tracking
                 fgmask = self.fgbg_subtractor.apply(self.frame)
@@ -461,18 +456,18 @@ class motion_tracker(object):
                             self.method_mask = np.zeros_like(fgmask_copy)
                             for contour in self.method_contours:
                                 if self.consecutive_shape == "contour":
-                                    self.method_mask = cv2.drawcontours(
+                                    self.method_mask = cv2.drawContours(
                                         self.method_mask,
                                         [contour],
                                         0,
-                                        _get_bgr("white"),
+                                        utils_lowlevel._get_bgr("white"),
                                         -1,
                                     )  # Draw filled contour in mask
                                 elif self.consecutive_shape == "ellipse":
                                     self.method_mask = cv2.ellipse(
                                         self.method_mask,
                                         cv2.fitEllipse(contour),
-                                        _get_bgr("white"),
+                                        utils_lowlevel._get_bgr("white"),
                                         -1,
                                     )
                                 elif self.consecutive_shape in ["rect", "rectangle"]:
@@ -481,7 +476,7 @@ class motion_tracker(object):
                                         self.method_mask,
                                         (int(rx), int(ry)),
                                         (int(rx + rw), int(ry + rh)),
-                                        _get_bgr("white"),
+                                        utils_lowlevel._get_bgr("white"),
                                         -1,
                                     )
                                 kernel = cv2.getStructuringElement(
@@ -527,10 +522,10 @@ class motion_tracker(object):
                     self.canvas = cv2.resize(
                         self.canvas, (0, 0), fx=self.resize_factor, fy=self.resize_factor
                     )
-
+                    
                 ## feedback
                 if flag_feedback == True:
-                    cv2.namedWindow("phenopype", cv2.WINDOW_NORMAL)
+                    cv2.namedWindow("phenopype", cv2.WINDOW_AUTOSIZE)
                     cv2.imshow("phenopype", self.canvas)
 
                 # save output
@@ -614,7 +609,7 @@ class tracking_method:
         ## kwargs
         self.blur_kernel = blur
         self.label = label
-        self.overlay_colour = _get_bgr(overlay_colour)
+        self.overlay_colour = utils_lowlevel._get_bgr(overlay_colour)
         self.min_length, self.max_length = min_length, max_length
         self.min_area, self.max_area = min_area, max_area
         self.mode = mode
@@ -622,20 +617,21 @@ class tracking_method:
         self.threshold_value = threshold
         self.remove_shadows = remove_shadows
 
-    def _apply_masks(self, frame, df_masks):
+    def _apply_masks(self, frame, masks):
         """
         Applies masks drawn using the motion_tracker.
         
         Internal reference - don't call this directly. 
         """
-        if df_masks.__class__.__name__ == "DataFrame":
-            self.mask_bool = {}
-            for index, row in df_masks.iterrows():
-                if row["include"] == True:
-                    if not row["mask"] == "":
-                        coords = eval(row["coords"])
-                        mask_bool = _create_mask_bool(frame, coords)
-                        self.mask_bool[row["mask"]] = mask_bool
+        if masks.__class__.__name__ == "dict":
+            if settings._mask_type in masks:
+                self.mask_bool = {}
+                for key, value in masks[settings._mask_type].items():
+                    polygons =  masks[settings._mask_type][key]["data"][settings._mask_type]
+                    label =  masks[settings._mask_type][key]["data"]["label"]
+                    for coords in polygons:
+                        mask_bool = utils_lowlevel._create_mask_bool(frame, coords)
+                        self.mask_bool[label] = mask_bool
 
     def _print_settings(self, width=30, indent=1, compact=True):
         """
@@ -663,18 +659,18 @@ class tracking_method:
             ret, fgmask = cv2.threshold(fgmask, 128, 255, cv2.THRESH_BINARY)
 
         ## blur
-        fgmask = blur(fgmask, self.blur_kernel)
+        fgmask = preprocessing.blur(fgmask, self.blur_kernel)
 
         # ## threshold
-        fgmask = threshold(
+        fgmask = segmentation.threshold(
             fgmask, method="binary", invert=True, value=self.threshold_value
         )
 
         ## find contours
-        ret, contours, hierarchy = cv2.findcontours(
+        ret, contours, hierarchy = cv2.findContours(
             fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
-
+        
         ## perform operations on contours
         if len(contours) > 0:
             list_contours, list_area, list_length, list_center_coordinates = (
@@ -770,7 +766,7 @@ class tracking_method:
                         list_r.append(int(np.mean(r)))
 
                     # drawing
-                    self.overlay = cv2.drawcontours(
+                    self.overlay = cv2.drawContours(
                         self.overlay, [contour], 0, self.overlay_colour, -1
                     )  # Draw filled contour in mask
                     self.overlay = cv2.putText(

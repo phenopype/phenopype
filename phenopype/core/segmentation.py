@@ -421,6 +421,7 @@ def threshold(
     blocksize=99,
     value=127,
     channel=None,
+    invert=False,
     **kwargs,
 ):
     """
@@ -475,6 +476,9 @@ def threshold(
     if blocksize % 2 == 0:
         blocksize = blocksize + 1
         print("- even blocksize supplied, adding 1 to make odd")
+        
+    if invert:
+        image = cv2.bitwise_not(image)
 
 	# =============================================================================
 	# execute

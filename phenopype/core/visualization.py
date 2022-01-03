@@ -541,10 +541,6 @@ def draw_reference(
         DESCRIPTION. The default is "blue".
     label_width : TYPE, optional
         DESCRIPTION. The default is "auto".
-    **kwargs : TYPE
-        DESCRIPTION.
-     : TYPE
-        DESCRIPTION.
 
     Returns
     -------

@@ -27,9 +27,9 @@ def settings():
     pytest.tag_1 = "v1"
     pytest.tag_2 = "v2"
     
-    pytest.template_path_1 = "tests/test_templates/test1.yaml"
-    pytest.template_path_2 = "tests/test_templates/test2.yaml"
-    pytest.template_path_3 = "tests/test_templates/test3.yaml"
+    pytest.template_path_1 = "tests/templates/test1.yaml"
+    pytest.template_path_2 = "tests/templates/test2.yaml"
+    pytest.template_path_3 = "tests/templates/test3.yaml"
 
     pytest.edit_config_target = \
     """        - create_mask:
@@ -39,17 +39,13 @@ def settings():
     """        - create_mask:
             tool: rectangle"""
             
-            
-    ## various
+    ## single image
     pytest.image_path = tutorial_dir + r"tutorials/images/stickle1.jpg"
 
-
-    # pytest.video_path = r"tutorials/images/isopods_fish.mp4"
+    ## video
+    pytest.video_path = os.path.join(tutorial_dir, r"tutorials/videos/isopods_fish.mp4")
+    pytest.video_out_dir =  os.path.join(test_dir, "video")
     
-    # pytest.image_save_dir = test_dir + r"/images"
-    # pytest.video_out_dir =  test_dir + r"/video"
-    
-    # pytest.template_ex1 = "ex1"
     
     
 
@@ -64,7 +60,7 @@ def project():
     
 
 @pytest.fixture(scope="session")
-def image(settings):
+def image():
     return pp.load_image(pytest.image_path)
 
     
@@ -93,7 +89,7 @@ def mask_polygon():
           (1377, 273)]]}}}}
 
 @pytest.fixture(scope="session")
-def image_binary(settings, image,  mask_polygon):
+def image_binary(image,  mask_polygon):
         
     annotations = mask_polygon
         
@@ -108,6 +104,16 @@ def image_binary(settings, image,  mask_polygon):
         annotations=annotations,
         verbose=False,
         )
+
+
+@pytest.fixture(scope="session")
+def contours(image_binary):
+
+    return pp.segmentation.detect_contour(
+        image_binary, 
+        )    
+
+
         
 @pytest.fixture(scope="session")
 def reference_created():
@@ -162,7 +168,6 @@ def landmarks():
          (832, 437)]}}}}
 
 
-
 @pytest.fixture(scope="session")
 def polyline():
     
@@ -177,15 +182,7 @@ def polyline():
           (1821, 706),
           (2092, 571)],
          [(924, 694), (1180, 869), (1574, 641), (1893, 814), (2119, 694)]]}}}}
-
-@pytest.fixture(scope="session")
-def contours(image_binary):
-
-    return pp.segmentation.detect_contour(
-        image_binary, 
-        )    
     
-
 
 @pytest.fixture(scope="session")
 def comment():
@@ -195,50 +192,3 @@ def comment():
         'annotation_type': 'comment'},
        'settings': {},
        'data': {'label': 'test msg', 'comment': 'THIS IS A TEST'}}}}
-    
-
-# @pytest.fixture(scope="session")
-# def project_directory():
-#     proj = pp.project.load(root_dir_2)
-#     image = proj.dirpaths[0]
-#     # project_directory = image 
-#     return image
-
-# @pytest.fixture(scope="session")
-# def motion_tracker():
-#     mt = pp.motion_tracker(video_path)
-#     motion_tracker = mt
-#     return mt
-
-# @pytest.fixture(scope="session")
-# def tracking_method():
-#     fish = pp.tracking_method(label="fish", remove_shadows=True, min_length=30,
-#                               overlay_colour="red", mode="single",
-#                               blur=15, # bigger blurring kernel
-#                               threshold=200 #higher sensitivity
-#                              )
-#     isopod = pp.tracking_method(label="isopod", remove_shadows=True, max_length=30,
-#                                 overlay_colour="green", mode="multiple",
-#                                 blur=9, # smaller blurring kernel
-#                                 threshold=180, # lower sensitivity
-#                                 operations=["diameter",  # isopod size
-#                                             "area",      # isopod area
-#                                             "grayscale", # isopod pigmentation
-#                                             "grayscale_background"] # background darkness
-#                                )
-#     methods = [fish, isopod]
-#     tracking_method = methods
-#     return methods
-
-# @pytest.fixture(scope="session")
-# def image_path():
-#     return image_filepath
-
-# @pytest.fixture(scope="session")
-# def image_array(image_path):
-#     if os.path.isdir(image_save_dir):
-#         shutil.rmtree(image_save_dir) 
-#     with mock.patch('builtins.input', return_value='y'):
-#         img = pp.load_image(image_path, dirpath=image_save_dir)
-#     image = img
-#     return img
