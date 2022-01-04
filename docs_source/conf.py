@@ -78,7 +78,7 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 #
 # html_theme = 'bootstrap'
-html_logo = "../phenopype_logo.png"
+html_logo = "../assets/phenopype_logo.png"
 html_theme = "furo"
 html_show_sourcelink = True
 html_last_updated_fmt = "%Y-%m-%d %H:%M:%S"
