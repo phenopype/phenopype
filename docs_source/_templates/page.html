@@ -122,7 +122,7 @@
             {%- endif %}
           {%- endif %}
           {%- if last_updated %}
-            {%- if show_copyright %} | {%- endif %}
+            {%- if show_copyright %} <a href="https://luerig.net">Moritz Lürig</a> | {%- endif %}
             {% trans last_updated=last_updated|e -%}
               Last updated on {{ last_updated }}.
             {%- endtrans %}
