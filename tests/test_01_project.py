@@ -2,10 +2,8 @@
 import os
 import mock
 import pytest
-import shutil 
 
 import phenopype as pp
-
 
 #%% tests
 

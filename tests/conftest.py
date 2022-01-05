@@ -1,6 +1,12 @@
+#%% modules
+
 import os
 import mock
 import pytest
+import shutil 
+from urllib.request import urlopen
+from io import BytesIO
+from zipfile import ZipFile
 
 import phenopype as pp
 
@@ -9,20 +15,21 @@ import phenopype as pp
 @pytest.fixture(scope="session")
 def settings():
     
+    pytest.tutorials_url = "https://github.com/phenopype/phenopype-tutorials/archive/refs/heads/main.zip"
+    
     ## general 
-    test_dir = "_temp/tests"
-    tutorial_dir = "../phenopype-tutorials/"
-    
+    test_dir = r"_temp/tests"
+    image_dir = r"_temp/tests/phenopype-tutorials-main/tutorials/images"
+    video_dir = r"_temp/tests/phenopype-tutorials-main/tutorials/videos"
+
     pytest.test_dir = test_dir
-    pytest.tutorial_dir = tutorial_dir
-    
-    
+    pytest.image_dir = image_dir
+        
     ## project
     pytest.project_root_dir_1 =  os.path.join(test_dir, "project1")
     pytest.project_root_dir_2 =  os.path.join(test_dir, "project2")
     
-    pytest.image_dir = os.path.join(tutorial_dir, "tutorials/images")
-    pytest.reference_image_path = os.path.join(tutorial_dir, "tutorials/images", "stickleback_top.jpg")
+    pytest.reference_image_path = os.path.join(image_dir, "stickleback_top.jpg")
 
     pytest.tag_1 = "v1"
     pytest.tag_2 = "v2"
@@ -42,15 +49,28 @@ def settings():
             tool: rectangle"""
             
     ## single image
-    pytest.image_path = tutorial_dir + r"tutorials/images/stickle1.jpg"
+    pytest.image_path =  os.path.join(image_dir, r"stickle1.jpg")
 
     ## video
-    pytest.video_path = os.path.join(tutorial_dir, r"tutorials/videos/isopods_fish.mp4")
-    pytest.video_out_dir =  os.path.join(test_dir, "video")
+    pytest.video_path = os.path.join(video_dir, r"isopods_fish.mp4")
+    pytest.video_out_dir =  test_dir
     
     
+def pytest_configure(config):
     
-
+    test_dir = r"_temp/tests"
+    tutorials_url = "https://github.com/phenopype/phenopype-tutorials/archive/refs/heads/main.zip" 
+    
+    if os.path.isdir(test_dir):
+       shutil.rmtree(test_dir) 
+       print("Removed existing test dir {}".format(os.path.abspath(test_dir)))
+       
+    os.makedirs(test_dir)
+    
+    http_response = urlopen(tutorials_url)
+    zipfile = ZipFile(BytesIO(http_response.read()))
+    zipfile.extractall(path=test_dir)
+    
 
 #%% project
     
