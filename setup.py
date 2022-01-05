@@ -18,7 +18,7 @@ with open("README.md", encoding="utf-8") as readme:
 ## setup
 setup(
     name="phenopype",
-    url="https://github.com/mluerig/phenopype",
+    url="https://www.phenopype.org",
     author="Moritz Luerig",
     author_email="moritz.luerig@gmail.com",
     packages=["phenopype"],
@@ -37,7 +37,7 @@ setup(
     ],
     version=verstr,
     license="LGPL",
-    description="a phenotyping pipeline for python",
+    description="A phenotyping pipeline for python",
     long_description=long_description,
     long_description_content_type="text/markdown",
     extras_require={
