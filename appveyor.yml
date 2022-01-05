@@ -2,6 +2,10 @@ branches:
   only:
     - main
 
+image:
+  - Visual Studio 2015
+  - Ubuntu
+
 environment:
   matrix:
   - TOXENV: py37
