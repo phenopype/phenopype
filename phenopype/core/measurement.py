@@ -385,7 +385,7 @@ def compute_shape_features(
         - perimeter_length = total length of contour perimenter
         - rect_height = height of the bounding rectangle ("caliper dim 1")
         - rect_width = width of the bounding rectangle ("caliper dim 2")
-        - roundness = (4 * contour_area) / pi * contour_perimeter_length^2
+        - roundness = (4 * contour_area) / (pi * contour_perimeter_length^2)
         - solidity = contour_area / convex_hull_area
         - tri_area = area of minimum bounding triangle
 
