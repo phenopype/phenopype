@@ -1,11 +1,9 @@
 Computer vision
 ---------------
 
-Computer vision (CV) is an interdisciplinary field concerned with the automatic and semiautomatic extraction of information from digital images. We recently wrote a review about CV in the context of ecology and evolution. In the paper we give an overview of the field and describe the primary types of image-based data. This might be a good starting point if you are new to digital image analysis and CV altogether.
-
-A preprint version of the paper is available under https://ecoevorxiv.org/98cuw/
+Computer vision is an interdisciplinary field concerned with the automatic and semiautomatic extraction of information from digital images. This `review-paper <https://www.frontiersin.org/articles/10.3389/fevo.2021.642774/full>`_ gives an overview of the field and describes the primary types of image-based data, which might be a good starting point if you are new to digital image analysis and computer vision.
 
 .. image:: /_assets/images/luerig_et_al_2021_figure2.png
-   :scale: 50 %
-   :target: https://ecoevorxiv.org/98cuw/
+   :scale: 75 %
+   :target: https://www.frontiersin.org/articles/10.3389/fevo.2021.642774/full
    :align: center

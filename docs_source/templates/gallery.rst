@@ -1,2 +1,2 @@
-Gallery templates
-=================
+Gallery
+=======

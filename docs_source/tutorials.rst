@@ -19,14 +19,13 @@ Tutorials (read-only)
 These are html / read-only versions of the jupyter notebooks containing the tutorials which are stored under (`https://github.com/phenopype/phenopype-tutorials <https://github.com/phenopype/phenopype-tutorials>`_). To run the notebooks yourself, follow the above instructions.  
 
 .. tip::
-	If you want to use the tutorials or `vignettes <https://www.phenopype.org/vignettes>`_ as a blueprint for your own project, simply save them as a Python script from juypter notebook using File > Download as > Python (.py).
+	If you want to use the tutorials or any exampe from the `phenopype gallery <https://www.phenopype.org/gallery>`_ as a blueprint for your own project, simply save them as a Python script from juypter notebook using File > Download as > Python (.py).
 
 
 .. grid:: 2
-
-	.. grid-item::
-
-		.. card::  Tutorial 1
+	:gutter: 2
+	
+	.. grid-item-card::  Tutorial 1
 			:link: tutorial_1
 
 			A (very) brief python introduction
@@ -36,9 +35,7 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 			- Images in Python
 
 
-	.. grid-item::
-
-		.. card::  Tutorial 2
+	.. grid-item-card::   Tutorial 2
 			:link: tutorial_2
 
 			Interacting with images in phenopype
@@ -48,11 +45,7 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 			- Creating masks
 
 
-.. grid:: 2
-
-	.. grid-item::
-
-		.. card::  Tutorial 3
+	.. grid-item-card::  Tutorial 3
 			:link: tutorial_3
 
 			Image analysis workflow
@@ -61,34 +54,28 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 			- Low throughput
 			- High throughput
 			
-	.. grid-item::
-
-		.. card::  Tutorial 4
+			
+	.. grid-item-card:: Tutorial 4
 			:link: tutorial_4
 
 			The Pype class
 
-			- Templates
-			- YAML-syntax
 			- Operation 
+			- Configuratiob templates
+			- YAML-syntax
+			
 
-
-.. grid:: 2
-
-	.. grid-item::
-
-		.. card::  Tutorial 5
+	.. grid-item-card:: Tutorial 5
 			:link: tutorial_5
 
-			Setting up and managing projects	
+			Setting up and managing projects
 
 			- Project directories
 			- Adding images and configs
-			- collecting results
+			- Collecting results
 
-	.. grid-item::
 
-		.. card::  Tutorial 6
+	.. grid-item-card:: Tutorial 6
 			:link: tutorial_6
 
 			Creating and detecting a reference
@@ -96,12 +83,8 @@ These are html / read-only versions of the jupyter notebooks containing the tuto
 			- Setting project wide size references
 			- Detecting size references
 			
-.. grid:: 2
-
-
-	.. grid-item::
-
-		.. card::  Tutorial 7
+			
+	.. grid-item-card:: Tutorial 7
 			:link: tutorial_7
 
 			Video analysis
