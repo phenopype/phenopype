@@ -1021,35 +1021,37 @@ class Pype(object):
 
     def _load_pype_config(self, image_path, tag, config_path):
         
-        ## load config from config path
-        if config_path.__class__.__name__ == "str":
-            if os.path.isfile(config_path):
-                self.config = utils_lowlevel._load_yaml(config_path)
-                self.config_path = config_path   
-                return
-            else:
-                raise FileNotFoundError(
-                    "Could not read config file from specified config_path: \"{}\"".format(config_path))
-                
-        ## auto-load config from filename prefix and tag OR from project directory
-        elif config_path.__class__.__name__ == "NoneType":
+        if config_path.__class__.__name__ == "NoneType":
             if os.path.isfile(image_path):
                 image_name_root = os.path.splitext(os.path.basename(image_path))[0]
                 prepend = image_name_root + "_"
             elif os.path.isdir(image_path):
                 prepend = ""
             
+            ## generate config path from image file or directory (project)
             config_name = prepend + "pype_config_" + tag + ".yaml"
             config_path = os.path.join(self.container.dir_path, config_name) 
-            
+        
+        ## load config from config path
+        elif config_path.__class__.__name__ == "str":
             if os.path.isfile(config_path):
-                self.config = utils_lowlevel._load_yaml(config_path)
-                self.config_path = config_path
-            else:
-                raise FileNotFoundError(
-                    "Could not find config file \"{}\" in image directory: \"{}\"".format(config_name, os.path.dirname(image_path)))
+                pass
+            # else:
+            #     raise FileNotFoundError(
+            #         "Could not read config file from specified config_path: \"{}\"".format(config_path))
+                
+        if os.path.isfile(config_path):
+            self.config = utils_lowlevel._load_yaml(config_path)
+            self.config_path = config_path
+            
+            if "template_locked" in self.config:
+                if self.config["template_locked"] == True:
+                    raise AttributeError("Attempting to load config from locked template - create config file using \"load_template\" first.")    
         else:
-            raise TypeError("Invalid input for config_path (str required)")
+            raise FileNotFoundError("Could not find config file \"{}\" in image directory: \"{}\"".format(config_name, os.path.dirname(image_path)))
+        
+            
+        
             
     def _start_file_monitor(self, delay):
         
@@ -1107,13 +1109,13 @@ class Pype(object):
             not hasattr(self.container, "dir_path")
             or self.container.dir_path.__class__.__name__ == "NoneType"
         ):
-            raise AttributeError("Could not determine directory path to save output.")
+            raise AttributeError("Could not determine dir_path to save output.")
             return
         if (
             not hasattr(self, "config")
             or self.config.__class__.__name__ == "NoneType"
         ):
-            raise AttributeError("No config file was provided.")
+            raise AttributeError("No config file was provided or loading config did not succeed.")
             return
         
         

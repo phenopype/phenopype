@@ -11,8 +11,8 @@ Landmarks
 	.. raw:: html
 			 
 			 <script> 
-					var url = "https://raw.githubusercontent.com/phenopype/phenopype-templates/main/templates/landmarks/landmarks_plain.yaml";
-					document.write('<a class="sd-sphinx-override sd-btn sd-text-wrap sd-btn-primary reference external" type="button" onclick="download_file(url)">Download</a>');
+					var url1 = "https://raw.githubusercontent.com/phenopype/phenopype-templates/main/templates/landmarks/landmarks_plain.yaml";
+					document.write('<a class="sd-sphinx-override sd-btn sd-text-wrap sd-btn-primary reference external" type="button" onclick="download_file(url1)">Download</a>');
 			 </script>
 			 
 			 
@@ -25,7 +25,7 @@ Landmarks
 	.. raw:: html
 			 
 			 <script> 
-					var url = "https://raw.githubusercontent.com/phenopype/phenopype-templates/main/templates/landmarks/landmarks_ref.yaml";
-					document.write('<a class="sd-sphinx-override sd-btn sd-text-wrap sd-btn-primary reference external" type="button" onclick="download_file(url)">Download</a>');
+					var url2 = "https://raw.githubusercontent.com/phenopype/phenopype-templates/main/templates/landmarks/landmarks_ref.yaml";
+					document.write('<a class="sd-sphinx-override sd-btn sd-text-wrap sd-btn-primary reference external" type="button" onclick="download_file(url2)">Download</a>');
 			 </script>
 			 

@@ -420,6 +420,35 @@ def load_template(
         dir_path=None,
         ret_path=False,
         ):
+    """
+    
+
+    Parameters
+    ----------
+    template_path : TYPE
+        DESCRIPTION.
+    tag : TYPE, optional
+        DESCRIPTION. The default is "v1".
+    overwrite : TYPE, optional
+        DESCRIPTION. The default is False.
+    keep_comments : TYPE, optional
+        DESCRIPTION. The default is True.
+    image_path : TYPE, optional
+        DESCRIPTION. The default is None.
+    dir_path : TYPE, optional
+        DESCRIPTION. The default is None.
+    ret_path : TYPE, optional
+        DESCRIPTION. The default is False.
+     : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    config_path : TYPE
+        DESCRIPTION.
+
+    """
+    
     
     flags = make_dataclass(cls_name="flags", 
                            fields=[("overwrite", bool, overwrite)])   
@@ -461,8 +490,8 @@ def load_template(
     config_path = os.path.join(dir_path, config_name) 
 
     ## strip template name
-    if "template" in template_loaded:
-        template_loaded.pop("template")
+    if "template_locked" in template_loaded:
+        template_loaded.pop("template_locked")
 
     
     config_info = {
