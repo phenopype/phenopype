@@ -421,7 +421,6 @@ def load_template(
         ret_path=False,
         ):
     """
-    
 
     Parameters
     ----------
@@ -439,8 +438,6 @@ def load_template(
         DESCRIPTION. The default is None.
     ret_path : TYPE, optional
         DESCRIPTION. The default is False.
-     : TYPE
-        DESCRIPTION.
 
     Returns
     -------

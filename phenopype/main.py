@@ -864,7 +864,7 @@ class Pype(object):
     def __init__(
         self,
         image_path,
-        tag="v1",
+        tag,
         config_path=None,
         skip=False,
         autosave=True,

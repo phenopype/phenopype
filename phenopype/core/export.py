@@ -309,7 +309,10 @@ def save_annotation(annotation,
     
     ## kwargs
     indent = kwargs.get("indent", 4)
-            
+    
+    if not file_name.endswith(".json"):
+        file_name = file_name + ".json"
+
     ## filepath
     filepath = os.path.join(dir_path, file_name)
     annotation = copy.deepcopy(annotation)

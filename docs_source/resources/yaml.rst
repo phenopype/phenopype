@@ -13,9 +13,9 @@ YAML specifications
 	**Here are the most important rules for YAML syntax:**
 
 	- **indentation rules:**  
-			- 0 spaces for modules
-			- 2 spaces + hyphen+space in front of functions 
-			- 4 spaces in front of arguments
+			- 0 spaces + hyphen + space for modules
+			- 4 spaces + hyphen + space in front of functions 
+			- 8 spaces in front of arguments
 	- **separation rules:** 
 			- modules and functions with arguments are followed by a colon (`:`) and a new line
 			- functions without specified arguments don't need a colon 
