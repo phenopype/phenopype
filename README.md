@@ -1,8 +1,8 @@
-![](https://github.com/mluerig/phenopype/raw/master/source/phenopype_logo.png)
+![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo.png)
 
 | Project status | Windows build | Linux build | OSX build | Coverage | Style |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| [![Project Status: Active](http://www.repostatus.org/badges/latest/active.svg)](http://www.repostatus.org/#active) | [![Build status](https://ci.appveyor.com/api/projects/status/4o27rpjbe8ij2kj3?svg=true)](https://ci.appveyor.com/project/mluerig/phenopype) | [![Build Status](https://travis-ci.org/mluerig/phenopype.svg?branch=master)](https://travis-ci.org/mluerig/phenopype) | *none* | [![Coverage Status](https://coveralls.io/repos/github/mluerig/phenopype/badge.svg?branch=master)](https://coveralls.io/github/mluerig/phenopype?branch=master) | [![Code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) |  
+| [![Project Status: Active](http://www.repostatus.org/badges/latest/active.svg)](http://www.repostatus.org/#active) | [![Build status](https://ci.appveyor.com/api/projects/status/20ncgfq137mmvbgb?svg=true)](https://ci.appveyor.com/project/phenopype/phenopype) | *soon to come* | *none* | [![Coverage Status](https://coveralls.io/repos/github/phenopype/phenopype/badge.svg?branch=main)](https://coveralls.io/github/phenopype/phenopype?branch=main) | [![Code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) |  
 
 **Author:** [Moritz Lürig](https://luerig.net)  
 **License:** [LGPL](https://opensource.org/licenses/LGPL-3.0)  
@@ -11,7 +11,7 @@
 
 #### What is phenopype?
 
-phenopype is a high throughput phenotyping pipeline for Python to support ecologists and evolutionary biologists in extracting high dimensional phenotypic data from digital images. phenopype integrates state-of-the-art computer vision functions (using [opencv-python](https://github.com/opencv/opencv-python) as the main backbone), the possibility for GUI-based interactions and a project management ecosystem to facilitate rapid data collection and reproducibility.
+phenopype is a high throughput phenotyping pipeline for Python to support ecologists and evolutionary biologists in extracting high dimensional phenotypic data from digital images. The package aims at facilitating rapid, signal processing based analysis of biological images containing phenotypic information.
 
 #### Why phenopype
 phenopype is aiming to augment, rather than replace the utility of existing CV libraries for scientists measuring phenotypes. Put differently, phenopype does not intend to be an exhaustive library of granular image processing functions, like OpenCV, scikit-image or ImageJ, but instead, it is a set of wrappers and convenient management tools to allow biologists to *get their data fast* without having to fiddle with too much code.
@@ -36,9 +36,6 @@ phenopype is aiming to augment, rather than replace the utility of existing CV l
 #### Getting started
 
 1.  Read the [Installation Instructions](https://mluerig.github.io/phenopype/installation.html)
-2.  Download and run the [Tutorials](https://mluerig.github.io/phenopype/tutorial_0.html)
-3.  Have a look at the [Examples](https://mluerig.github.io/phenopype/index.html#examples)
-
 
 #### Important information
 

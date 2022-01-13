@@ -3,6 +3,25 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.0.1
+-----
+- edit_contour is now directly applied to binary image when used in Pype (accumulative)
+- improved pype name check
+	
+3.0.0
+-----
+new major release - breaks all existing versions
+
+too extensive to document completely, but in a nutshell:
+- we now have annotation functions which save image annotations (contours, drawings, data) to a dict (internally) and are saved as json
+- GREATLY reduced boilerplate code allowing more flexibility when introducing new functions (for developers and contributors)
+- better code annotation and more settings
+- templates externalized
+- all new docs!!
+
+--------------------------------------------------------------------------------------------
+
+
 2.0.1
 -----
 bugfix:
@@ -19,6 +38,8 @@ changes that are INCOMPATIBLE with past versions:
 	- reference information is now stored centrally in the project attributes file, image attributes file now contain pointers that can be "activated" (to use multiple references)
 - phenopype readme and tutorials have been reorganized
 - project.edit_config now takes triple-quote docstring to find and replace text in all configuration files belonging to a project
+
+--------------------------------------------------------------------------------------------
 
 
 1.0.9 

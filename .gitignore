@@ -1,6 +1,6 @@
 # my-patterns
-
 .coverage
+.coveralls.yml
 .doctrees
 .buildinfo
 .eggs

@@ -18,22 +18,22 @@ inf = math.inf
 
 
 def draw_contour(
-        image,
-        annotations,
-        fill=0.3,
-        line_colour="default",
-        line_width="auto",
-        label=False,
-        label_colour="default",
-        label_size="auto",
-        label_width="auto",
-        offset_coords=None,
-        bounding_box=False,
-        bounding_box_ext=20,
-        bounding_box_colour="default",
-        bounding_box_line_width="auto",
-        **kwargs,
-    ):
+    image,
+    annotations,
+    fill=0.3,
+    line_colour="default",
+    line_width="auto",
+    label=False,
+    label_colour="default",
+    label_size="auto",
+    label_width="auto",
+    offset_coords=None,
+    bounding_box=False,
+    bounding_box_ext=20,
+    bounding_box_colour="default",
+    bounding_box_line_width="auto",
+    **kwargs,
+):
     """
     Draw contours and their labels onto a canvas. Can be filled or empty, offset
     coordinates can be supplied. 
@@ -77,36 +77,39 @@ def draw_contour(
         canvas with contours
 
     """
-    
+
     # =============================================================================
     # annotation management
-    
+
     annotation_type = settings._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = utils_lowlevel._get_annotation(
-        annotations=annotations, 
-        annotation_type=annotation_type, 
-        annotation_id=annotation_id, 
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
         kwargs=kwargs,
     )
-    
+
     contours = annotation["data"][annotation_type]
     contours_support = annotation["data"]["support"]
 
     # =============================================================================
-   	# setup
-       
-    level = kwargs.get("level",3)
+    # setup
+
+    level = kwargs.get("level", 3)
     fill_colour = kwargs.get("fill_colour", line_colour)
-    
+
     ## flags
-    flags = make_dataclass(cls_name="flags", fields=[
-        ("bounding_box", bool, bounding_box), 
-        ("label", bool, label),
-        ("fill", bool, True),
-        ])
-         
+    flags = make_dataclass(
+        cls_name="flags",
+        fields=[
+            ("bounding_box", bool, bounding_box),
+            ("label", bool, label),
+            ("fill", bool, True),
+        ],
+    )
+
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image, factor=0.001)
     if label_size == "auto":
@@ -115,32 +118,32 @@ def draw_contour(
         label_width = utils_lowlevel._auto_text_width(image)
     if bounding_box_line_width == "auto":
         bounding_box_line_width = utils_lowlevel._auto_line_width(image)
-        
+
     if fill_colour == "default":
         fill_colour = settings._default_line_colour
     if line_colour == "default":
-        line_colour = settings._default_line_colour  
+        line_colour = settings._default_line_colour
     if label_colour == "default":
         label_colour = settings._default_label_colour
     if bounding_box_colour == "default":
         bounding_box_colour = settings._default_line_colour
-        
-    fill_colour = utils_lowlevel._get_bgr(fill_colour)     
-    line_colour = utils_lowlevel._get_bgr(line_colour)     
-    label_colour = utils_lowlevel._get_bgr(label_colour)     
-    bounding_box_colour = utils_lowlevel._get_bgr(bounding_box_colour)  
-    
+
+    fill_colour = utils_lowlevel._get_bgr(fill_colour)
+    line_colour = utils_lowlevel._get_bgr(line_colour)
+    label_colour = utils_lowlevel._get_bgr(label_colour)
+    bounding_box_colour = utils_lowlevel._get_bgr(bounding_box_colour)
+
     ## filling and line settings
     if fill > 0:
         flags.fill = True
     else:
         flags.fill = False
-       
-	# =============================================================================
-	# execute
-    
+
+    # =============================================================================
+    # execute
+
     canvas = copy.deepcopy(image)
-    
+
     ## 1) fill contours
     if flags.fill:
         colour_mask = copy.deepcopy(canvas)
@@ -153,7 +156,7 @@ def draw_contour(
                 color=line_colour,
                 maxLevel=level,
                 offset=offset_coords,
-                )
+            )
         canvas = cv2.addWeighted(colour_mask, 1 - fill, canvas, fill, 0)
 
     ## 2) contour lines
@@ -181,39 +184,38 @@ def draw_contour(
                 bounding_box_line_width,
             )
 
-    ## 4) contour label 
+    ## 4) contour label
     if flags.label:
         for idx, support in enumerate(contours_support):
             cv2.putText(
-            canvas,
-            str(idx + 1),
-            tuple(support["center"]),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            label_size,
-            label_colour,
-            label_width,
-            cv2.LINE_AA,
-        )
+                canvas,
+                str(idx + 1),
+                tuple(support["center"]),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                label_size,
+                label_colour,
+                label_width,
+                cv2.LINE_AA,
+            )
 
     # =============================================================================
     # return
-    
+
     return canvas
 
 
-
 def draw_landmark(
-        image,
-        annotations,
-        label=True,
-        label_colour="default",
-        label_size="auto",
-        label_width="auto",
-        offset=0,
-        point_colour="default",
-        point_size="auto",
-        **kwargs
-    ):
+    image,
+    annotations,
+    label=True,
+    label_colour="default",
+    label_size="auto",
+    label_width="auto",
+    offset=0,
+    point_colour="default",
+    point_size="auto",
+    **kwargs,
+):
     """
     Draw landmarks into an image.
 
@@ -244,29 +246,28 @@ def draw_landmark(
         canvas with landmarks
 
     """
-    
+
     # =============================================================================
     # annotation management
-    
+
     annotation_type = settings._landmark_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = utils_lowlevel._get_annotation(
-        annotations=annotations, 
-        annotation_type=annotation_type, 
-        annotation_id=annotation_id, 
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
         kwargs=kwargs,
     )
-    
+
     points = annotation["data"][annotation_type]
 
-	# =============================================================================
-	# setup 
-    
+    # =============================================================================
+    # setup
+
     ## flags
-    flags = make_dataclass(cls_name="flags", 
-                            fields=[("label", bool, label)])
-    
+    flags = make_dataclass(cls_name="flags", fields=[("label", bool, label)])
+
     ## configure points
     if point_size == "auto":
         point_size = utils_lowlevel._auto_point_size(image)
@@ -274,25 +275,25 @@ def draw_landmark(
         label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
-        
+
     if label_colour == "default":
         label_colour = settings._default_label_colour
     if point_colour == "default":
         point_colour = settings._default_point_colour
-        
-    label_colour = utils_lowlevel._get_bgr(label_colour)     
-    point_colour = utils_lowlevel._get_bgr(point_colour)  
 
-	# =============================================================================
-	# execute
-    
+    label_colour = utils_lowlevel._get_bgr(label_colour)
+    point_colour = utils_lowlevel._get_bgr(point_colour)
+
+    # =============================================================================
+    # execute
+
     canvas = copy.deepcopy(image)
-    
+
     for idx, point in enumerate(points):
-        x,y = point
-        cv2.circle(canvas, (x,y), point_size, point_colour, -1)
+        x, y = point
+        cv2.circle(canvas, (x, y), point_size, point_colour, -1)
         if flags.label:
-            x,y = x+offset, y+offset
+            x, y = x + offset, y + offset
             cv2.putText(
                 canvas,
                 str(idx + 1),
@@ -303,24 +304,24 @@ def draw_landmark(
                 label_width,
                 cv2.LINE_AA,
             )
-            
 
     # =============================================================================
     # return
-    
+
     return canvas
 
+
 def draw_mask(
-        image,
-        annotations,
-        line_colour="default",
-        line_width="auto",
-        label=False,
-        label_colour="default",
-        label_size="auto",
-        label_width="auto",
-        **kwargs
-    ):
+    image,
+    annotations,
+    line_colour="default",
+    line_width="auto",
+    label=False,
+    label_colour="default",
+    label_size="auto",
+    label_width="auto",
+    **kwargs,
+):
     """
     Draw masks into an image. This function is also used to draw the perimeter 
     of a created or detected reference card.
@@ -348,71 +349,65 @@ def draw_mask(
         canvas with masks
     """
 
- 	# =============================================================================
-	# setup 
-    
+    # =============================================================================
+    # setup
+
     ## flags
-    flags = make_dataclass(cls_name="flags", fields=[
-        ("label", bool, label)
-        ])
+    flags = make_dataclass(cls_name="flags", fields=[("label", bool, label)])
 
     # =============================================================================
     # annotation management
-    
+
     annotation_type = settings._mask_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = utils_lowlevel._get_annotation(
-        annotations=annotations, 
-        annotation_type=annotation_type, 
-        annotation_id=annotation_id, 
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
         kwargs=kwargs,
     )
-        
+
     polygons = annotation["data"][annotation_type]
     label = annotation["data"]["label"]
 
- 	# =============================================================================
-	# setup 
-        
+    # =============================================================================
+    # setup
+
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
     if label_size == "auto":
         label_size = utils_lowlevel._auto_text_size(image)
     if label_width == "auto":
         label_width = utils_lowlevel._auto_text_width(image)
-        
+
     if line_colour == "default":
         line_colour = settings._default_line_colour
     if label_colour == "default":
         label_colour = settings._default_label_colour
-        
-    label_colour = utils_lowlevel._get_bgr(label_colour)     
-    line_colour = utils_lowlevel._get_bgr(line_colour)     
-        
-	# =============================================================================
-	# execute
-    
+
+    label_colour = utils_lowlevel._get_bgr(label_colour)
+    line_colour = utils_lowlevel._get_bgr(line_colour)
+
+    # =============================================================================
+    # execute
+
     canvas = copy.deepcopy(image)
-        
+
     for coords in polygons:
         cv2.polylines(
-            canvas, 
-            np.array([coords]), 
-            False, 
-            line_colour, 
-            line_width,
-            )
-                
+            canvas, np.array([coords]), False, line_colour, line_width,
+        )
+
         if flags.label:
-            
+
             if coords[0].__class__.__name__ == "list":
                 label_coords = tuple(coords[0])
             elif coords[0].__class__.__name__ == "ndarray":
                 label_coords = tuple(coords[0][0])
             elif coords[0].__class__.__name__ == "tuple":
-                label_coords = coords[0]            
-                            
+                label_coords = coords[0]
+
             cv2.putText(
                 canvas,
                 label,
@@ -422,22 +417,17 @@ def draw_mask(
                 label_colour,
                 label_width,
                 cv2.LINE_AA,
-                )
+            )
 
-	# =============================================================================
-	# return
+    # =============================================================================
+    # return
 
     return canvas
 
 
-
 def draw_polyline(
-        image,
-        annotations,
-        line_colour="default",
-        line_width="auto",
-        **kwargs
-        ):
+    image, annotations, line_colour="default", line_width="auto", **kwargs
+):
     """
     Draw masks into an image. This function is also used to draw the perimeter 
     of a created or detected reference card.
@@ -464,62 +454,60 @@ def draw_polyline(
     image: ndarray
         canvas with lines
     """
-    
+
     # =============================================================================
     # annotation management
-    
+
     annotation_type = settings._line_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = utils_lowlevel._get_annotation(
-        annotations=annotations, 
-        annotation_type=annotation_type, 
-        annotation_id=annotation_id, 
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
         kwargs=kwargs,
     )
-    
+
     lines = annotation["data"][annotation_type]
-    
-	# =============================================================================
-	# setup    
-    
+
+    # =============================================================================
+    # setup
+
     ## line settings
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
-        
+
     if line_colour == "default":
         line_colour = settings._default_line_colour
-    
+
     line_colour = utils_lowlevel._get_bgr(line_colour)
-    
-	# =============================================================================
-	# execute
-    
+
+    # =============================================================================
+    # execute
+
     canvas = copy.deepcopy(image)
-        
+
     ## draw lines
     for coords in lines:
         cv2.polylines(canvas, np.array([coords]), False, line_colour, line_width)
-        
 
-	# =============================================================================
-	# return
+    # =============================================================================
+    # return
 
     return canvas
 
 
-
 def draw_reference(
-        image, 
-        annotations,
-        line_colour="default",
-        line_width="auto",
-        label=True,
-        label_colour="default",
-        label_size="auto",
-        label_width="auto",
-        **kwargs,
-        ):
+    image,
+    annotations,
+    line_colour="default",
+    line_width="auto",
+    label=True,
+    label_colour="default",
+    label_size="auto",
+    label_width="auto",
+    **kwargs,
+):
     """
     
 
@@ -551,28 +539,26 @@ def draw_reference(
 
     # =============================================================================
     # annotation management
-    
+
     annotation_type = settings._reference_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = utils_lowlevel._get_annotation(
-        annotations=annotations, 
-        annotation_type=annotation_type, 
-        annotation_id=annotation_id, 
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
         kwargs=kwargs,
     )
-    
+
     px_ratio, unit = annotation["data"][annotation_type]
     polygons = annotation["data"][settings._mask_type]
 
- 	# =============================================================================
-	# setup 
-    
+    # =============================================================================
+    # setup
+
     ## flags
-    flags = make_dataclass(cls_name="flags", fields=[
-        ("label", bool, label)
-        ])
-    
+    flags = make_dataclass(cls_name="flags", fields=[("label", bool, label)])
+
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
     if label_size == "auto":
@@ -583,24 +569,24 @@ def draw_reference(
         line_colour = settings._default_line_colour
     if label_colour == "default":
         label_colour = settings._default_label_colour
-        
-    label_colour = utils_lowlevel._get_bgr(label_colour)     
-    line_colour = utils_lowlevel._get_bgr(line_colour)     
-    
+
+    label_colour = utils_lowlevel._get_bgr(label_colour)
+    line_colour = utils_lowlevel._get_bgr(line_colour)
+
     # =============================================================================
     # execute
-    
+
     canvas = copy.deepcopy(image)
-       
+
     ## draw referenc mask outline
     cv2.polylines(canvas, np.array([polygons[0]]), False, line_colour, line_width)
 
     ## draw scale
     if flags.label:
         height, width = canvas.shape[:2]
-        
-        hp, wp = height/100, width/100
-        
+
+        hp, wp = height / 100, width / 100
+
         length = int(px_ratio * 10)
 
         scale_box = [
@@ -609,49 +595,45 @@ def draw_reference(
             (int((wp * 3) + length + (wp * 4)), int(hp * 11)),
             (int(wp * 3), int(hp * 11)),
             (int(wp * 3), int(hp * 3)),
-            ]
+        ]
 
-        cv2.fillPoly(canvas,
-                      np.array([scale_box]), 
-                      utils_lowlevel._get_bgr("lightgrey")
-                      )
-                             
+        cv2.fillPoly(
+            canvas, np.array([scale_box]), utils_lowlevel._get_bgr("lightgrey")
+        )
+
         scale_box_inner = [
             (int(wp * 5), int(hp * 5)),
-            (int((wp * 5) + length ), int(hp * 5)),
-            (int((wp * 5) + length ), int(hp * 9)),
+            (int((wp * 5) + length), int(hp * 5)),
+            (int((wp * 5) + length), int(hp * 9)),
             (int(wp * 5), int(hp * 9)),
             (int(wp * 5), int(hp * 5)),
-            ]
+        ]
 
-        cv2.fillPoly(canvas,
-                      np.array([scale_box_inner]), 
-                      line_colour)
-        
-        cv2.polylines(canvas, 
-                      np.array([scale_box_inner]), 
-                      False, 
-                      utils_lowlevel._get_bgr("black"), 
-                      utils_lowlevel._auto_line_width(canvas, factor=0.001)
-                      )
+        cv2.fillPoly(canvas, np.array([scale_box_inner]), line_colour)
 
-        
+        cv2.polylines(
+            canvas,
+            np.array([scale_box_inner]),
+            False,
+            utils_lowlevel._get_bgr("black"),
+            utils_lowlevel._auto_line_width(canvas, factor=0.001),
+        )
+
         cv2.putText(
             canvas,
             "10 " + unit,
             (int(wp * 6), int(wp * 5)),
             cv2.FONT_HERSHEY_SIMPLEX,
             utils_lowlevel._auto_text_size(canvas),
-            utils_lowlevel._get_bgr("black"), 
-            label_width*2,
+            utils_lowlevel._get_bgr("black"),
+            label_width * 2,
             cv2.LINE_AA,
         )
-     
+
     # =============================================================================
     # return
-    
-    return canvas    
-    
+
+    return canvas
 
 
 def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
@@ -688,7 +670,7 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
             print("- raw image")
         # elif canvas == "bin":
         #     image.canvas = copy.deepcopy(image.image_bin)
-            # print("- binary image")
+        # print("- binary image")
         # elif canvas == "gray":
         #     image.canvas = cv2.cvtColor(image.image_gray, cv2.COLOR_BGR2GRAY)
         #     print("- grayscale image")
@@ -704,7 +686,7 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
         else:
             print("- invalid selection - defaulting to raw image")
             image.canvas = copy.deepcopy(image.image_copy)
-            
+
     elif image.__class__.__name__ == "ndarray":
         if canvas == "raw":
             canvas = copy.deepcopy(image)
@@ -735,7 +717,3 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
                 canvas = cv2.cvtColor(canvas, cv2.COLOR_GRAY2BGR)
 
     return canvas
-
-            
-            
-        

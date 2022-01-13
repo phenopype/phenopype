@@ -1,4 +1,3 @@
-
 last_print_msg = ""
 pype_restart = False
 window_close = False

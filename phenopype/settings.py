@@ -7,11 +7,11 @@ from pprint import PrettyPrinter
 from phenopype import utils_lowlevel
 
 
-#%% helper-class      
+#%% helper-class
 
 # from importlib.resources import path
 # from pathlib import Path, PurePath
-        
+
 # ## create template browser
 # class TemplateList:
 #     def __init__(self, root_path):
@@ -22,13 +22,13 @@ from phenopype import utils_lowlevel
 #         dict_cleaned = {x: self.__dict__[x] for x in self.__dict__ if x not in no_repr_items}
 #         attrs = "\n".join("pype_templates.{} ({} files)".format(k, v.n_templates) for k, v in dict_cleaned.items())
 #         return "Default Pype-templates:\n\n{}".format(attrs)
-            
+
 # class TemplateFolder:
 #     def __init__(self, folder_path):
 #         self.name = PurePath(folder_path).name
 #         self.n_templates = len(list(Path(folder_path).glob('[!__]*')))
 #         for file_path in list(Path(folder_path).glob('[!__]*')):
-#             setattr(self, PurePath(file_path).stem, Template(file_path))  
+#             setattr(self, PurePath(file_path).stem, Template(file_path))
 #     def __repr__(self):
 #         no_repr_items = ["name","n_templates"]
 #         dict_cleaned = {x: self.__dict__[x] for x in self.__dict__ if x not in no_repr_items}
@@ -41,14 +41,14 @@ from phenopype import utils_lowlevel
 #         self.path = str(PurePath(file_path))
 #         self.processing_steps = utils_lowlevel._load_yaml(file_path)
 #     def __repr__(self):
-#         return "Pype-template \"{}\":\n\n{}".format(self.name, 
+#         return "Pype-template \"{}\":\n\n{}".format(self.name,
 #                                                     utils_lowlevel._show_yaml(
 #                                                         self.processing_steps, ret=True))
-    
-# ## import 
+
+# ## import
 # with path(__package__, 'templates') as template_dir:
 #     pype_templates = TemplateList(template_dir)
-    
+
 #%% defaults
 
 auto_line_width_factor = 0.0025
@@ -84,7 +84,6 @@ pretty = PrettyPrinter(width=30)
 strftime_format = "%Y-%m-%d %H:%M:%S"
 
 
-
 #%% flags
 
 flag_verbose = True
@@ -92,20 +91,20 @@ flag_verbose = True
 #%% flags opencv
 
 opencv_contour_flags = {
-    "retrieval" : {
+    "retrieval": {
         "ext": cv2.RETR_EXTERNAL,  ## only external
         "list": cv2.RETR_LIST,  ## all contours
         "tree": cv2.RETR_TREE,  ## fully hierarchy
         "ccomp": cv2.RETR_CCOMP,  ## outer perimeter and holes
-        "flood": cv2.RETR_FLOODFILL, ## not sure what this does
-        },
-    "approximation" : {
+        "flood": cv2.RETR_FLOODFILL,  ## not sure what this does
+    },
+    "approximation": {
         "none": cv2.CHAIN_APPROX_NONE,  ## all points (no approx)
         "simple": cv2.CHAIN_APPROX_SIMPLE,  ## minimal corners
-        "L1": cv2.CHAIN_APPROX_TC89_L1,  
-        "KCOS": cv2.CHAIN_APPROX_TC89_KCOS, 
-        }
-    }
+        "L1": cv2.CHAIN_APPROX_TC89_L1,
+        "KCOS": cv2.CHAIN_APPROX_TC89_KCOS,
+    },
+}
 
 opencv_distance_flags = {
     "user": cv2.DIST_USER,
@@ -123,20 +122,20 @@ opencv_interpolation_flags = {
     "linear": cv2.INTER_LINEAR,
     "cubic": cv2.INTER_CUBIC,
     "area": cv2.INTER_AREA,
-    "lanczos": cv2.INTER_LANCZOS4, 
-    "lin_exact": cv2.INTER_LINEAR_EXACT, 
+    "lanczos": cv2.INTER_LANCZOS4,
+    "lin_exact": cv2.INTER_LINEAR_EXACT,
     "inter": cv2.INTER_MAX,
     "warp_fill": cv2.WARP_FILL_OUTLIERS,
-    "warp_inverse": cv2.WARP_INVERSE_MAP, 
-    }
+    "warp_inverse": cv2.WARP_INVERSE_MAP,
+}
 
 opencv_morphology_flags = {
-    "shape_list" : {
+    "shape_list": {
         "cross": cv2.MORPH_CROSS,
         "rect": cv2.MORPH_RECT,
         "ellipse": cv2.MORPH_ELLIPSE,
-        },
-    "operation_list" : {
+    },
+    "operation_list": {
         "erode": cv2.MORPH_ERODE,
         "dilate": cv2.MORPH_DILATE,
         "open": cv2.MORPH_OPEN,
@@ -145,24 +144,24 @@ opencv_morphology_flags = {
         "tophat ": cv2.MORPH_TOPHAT,
         "blackhat": cv2.MORPH_BLACKHAT,
         "hitmiss": cv2.MORPH_HITMISS,
-        }
-    }
+    },
+}
 
 opencv_skeletonize_flags = {
     "zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
     "guohall": cv2.ximgproc.THINNING_GUOHALL,
 }
 
-opencv_window_flags={
+opencv_window_flags = {
     "normal": cv2.WINDOW_NORMAL,
     "auto": cv2.WINDOW_AUTOSIZE,
     "openGL": cv2.WINDOW_OPENGL,
-    "full": cv2.WINDOW_FULLSCREEN, 
+    "full": cv2.WINDOW_FULLSCREEN,
     "free": cv2.WINDOW_FREERATIO,
     "keep": cv2.WINDOW_KEEPRATIO,
-    "GUIexp": cv2.WINDOW_GUI_EXPANDED, 
+    "GUIexp": cv2.WINDOW_GUI_EXPANDED,
     "GUInorm": cv2.WINDOW_GUI_NORMAL,
-    } 
+}
 
 #%% annotation definitions
 
@@ -181,44 +180,34 @@ _shape_feature_type = "shape_features"
 _texture_feature_type = "texture_features"
 
 _annotation_functions = {
-    
     ## comments
     "write_comment": _comment_type,
-    
     ## contours
     "detect_contour": _contour_type,
-
     ## drawings
     "edit_contour": _drawing_type,
-    
     ## landmarks
     "set_landmark": _landmark_type,
-    
     ## lines
     "set_polyline": _line_type,
     "detect_skeleton": _line_type,
-    
-    ## masks 
+    ## masks
     "create_mask": _mask_type,
     "detect_shape": _mask_type,
-
     ## reference
     "create_reference": _reference_type,
     "detect_reference": _reference_type,
-    
     ## shape_features
     "compute_shape_features": _shape_feature_type,
-    
     ## texture_features
-    "compute_texture_features": _texture_feature_type,   
-
-    }
+    "compute_texture_features": _texture_feature_type,
+}
 
 _annotation_types = list(set(_annotation_functions.values()))
 
 #%% GUI definitions
 
-g = utils_lowlevel._GUI(np.zeros((1, 1, 1), dtype = "uint8"), window_control="external")
+g = utils_lowlevel._GUI(np.zeros((1, 1, 1), dtype="uint8"), window_control="external")
 cv2.waitKey(1)
 cv2.destroyAllWindows()
 
@@ -229,23 +218,20 @@ _GUI_data_args = list(g.data.keys())
 #%% legacy fun-names
 
 _legacy_names = {
-    "preprocessing": {
-        "enter_data": "write_comment",
-        },
+    "preprocessing": {"enter_data": "write_comment",},
     "segmentation": {
         "detect_contours": "detect_contour",
         "edit_contours": "edit_contour",
-        },
+    },
     "measurement": {
         "set_landmark": "set_landmark",
         "set_landmarks": "set_landmark",
         "landmark": "set_landmark",
         "landmarks": "set_landmark",
-     },
+    },
     "visualization": {
         "draw_landmarks": "draw_landmark",
-        "draw_contours": "draw_contour"
-        },
+        "draw_contours": "draw_contour",
+    },
     "export": {},
-
- }
+}
