@@ -229,6 +229,13 @@ _GUI_data_args = list(g.data.keys())
 #%% legacy fun-names
 
 _legacy_names = {
+    "preprocessing": {
+        "enter_data": "write_comment",
+        },
+    "segmentation": {
+        "detect_contours": "detect_contour",
+        "edit_contours": "edit_contour",
+        },
     "measurement": {
         "set_landmark": "set_landmark",
         "set_landmarks": "set_landmark",
@@ -236,5 +243,9 @@ _legacy_names = {
         "landmarks": "set_landmark",
      },
     "visualization": {
-        "draw_landmarks": "draw_landmark"}
+        "draw_landmarks": "draw_landmark",
+        "draw_contours": "draw_contour"
+        },
+    "export": {},
+
  }

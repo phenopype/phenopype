@@ -161,7 +161,7 @@ class _GUI:
         
         ## binary image (for blending)
         if self.tool == "draw":
-            
+                       
             if len(self.data[settings._contour_type]) > 0:
 
                 ## coerce to multi channel image for colour mask

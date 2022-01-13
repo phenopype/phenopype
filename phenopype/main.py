@@ -1,4 +1,4 @@
-#%% load modules
+#%% modules
 import copy
 import os
 import pandas as pd
@@ -117,8 +117,8 @@ class Project:
         if not os.path.isfile(os.path.join(root_dir, "attributes.yaml")):
             project_attributes = {
                 "project_info": {
-                    "date_created": datetime.today().strftime("%Y%m%d%H%M%S"),
-                    "date_changed": datetime.today().strftime("%Y%m%d%H%M%S"),
+                    "date_created": datetime.today().strftime(settings.strftime_format),
+                    "date_changed": datetime.today().strftime(settings.strftime_format),
                     "phenopype_version": __version__,
                     },
                 "project_data": None
@@ -316,7 +316,7 @@ class Project:
             print(file_path)
             image_data_original = utils_lowlevel._load_image_data(file_path)
             image_data_phenopype = {
-                "date_added": datetime.today().strftime("%Y%m%d%H%M%S"),
+                "date_added": datetime.today().strftime(settings.strftime_format),
                 "mode": flags.mode,
                     }
 
@@ -1140,7 +1140,7 @@ class Pype(object):
         if flags.execute:
             print(
                 "\n\n------------+++ new pype iteration "
-                + datetime.today().strftime("%Y:%m:%d %H:%M:%S")
+                + datetime.today().strftime(settings.strftime_format)
                 + " +++--------------\n\n"
             )
 

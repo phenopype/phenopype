@@ -163,6 +163,10 @@ class Container(object):
         kwargs["annotation_type"] = annotation_type
         kwargs["annotation_id"] = annotation_id
         kwargs["annotation_counter"] = annotation_counter
+        
+        ## verbosity
+        if settings.flag_verbose:
+            kwargs["verbose"] = True
 
         ## attributes
         if hasattr(self, "image_attributes"):
@@ -228,7 +232,7 @@ class Container(object):
         if fun == "detect_contour":
             annotations_updated = segmentation.detect_contour(self.image, **kwargs)
         if fun == "edit_contour":
-            annotations_updated = segmentation.edit_contour(self.canvas, **kwargs)
+            annotations_updated, self.image = segmentation.edit_contour(self.canvas, ret_image=True, **kwargs)
             
         ## measurement
         if fun == "set_landmark":

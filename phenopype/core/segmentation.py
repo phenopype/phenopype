@@ -114,7 +114,7 @@ def detect_contour(
         drawings = annotation["data"][settings._drawing_type]
         
         ## apply coords to tool and draw on canvas
-        for idx, coords in enumerate(drawings):
+        for coords in drawings:
             if len(coords)==0:
                 continue
             else:
@@ -231,7 +231,7 @@ def edit_contour(
     annotations,
     overlay_blend=0.2,
     overlay_line_width=1,
-    overlay_colour_left="green",
+    overlay_colour_left="lime",
     overlay_colour_right="red",
     **kwargs
 ):
@@ -295,7 +295,7 @@ def edit_contour(
 
     # =============================================================================
     # setup    
-
+    
     overlay_colour_left = utils_lowlevel._get_bgr(overlay_colour_left)     
     overlay_colour_right = utils_lowlevel._get_bgr(overlay_colour_right)   
     
@@ -332,18 +332,22 @@ def edit_contour(
             annotation_type: gui.data[settings._sequence_type],
             }
         }
-    
-    
+        
 	# =============================================================================
 	# return
-            
-    return utils_lowlevel._update_annotations(
+    
+    annotation = utils_lowlevel._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
+    
+    if kwargs.get("ret_image", False):
+        return annotation, gui.image_bin
+    else:
+        return annotation
 
 
 def morphology(
