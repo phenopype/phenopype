@@ -187,7 +187,7 @@ class Container(object):
                         print(print_msg + ": skipping (edit=False)")
                         if annotation_type in ["drawing"]:
                             kwargs["passive"] = True                                             
-                            annotations_updated = segmentation.edit_contour(self.canvas, **kwargs)
+                            annotations_updated, self.image = segmentation.edit_contour(self.canvas, ret_image=True, **kwargs)
                         return
                     elif flag_edit == "overwrite":
                         print(print_msg + ": overwriting (edit=overwrite)")
