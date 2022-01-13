@@ -19,8 +19,8 @@ def settings():
     
     ## general 
     test_dir = r"_temp/tests"
-    image_dir = r"_temp/tests/phenopype-tutorials-main/tutorials/images"
-    video_dir = r"_temp/tests/phenopype-tutorials-main/tutorials/videos"
+    image_dir = r"_temp/tests/phenopype-tutorials-main/tutorials/data"
+    video_dir = r"_temp/tests/phenopype-tutorials-main/tutorials/data"
 
     pytest.test_dir = test_dir
     pytest.image_dir = image_dir

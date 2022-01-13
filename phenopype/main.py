@@ -869,6 +869,7 @@ class Pype(object):
         skip=False,
         autosave=True,
         autoload=True,
+        fix_names=True,
         feedback=True,
         visualize=True,
         debug=False,
@@ -891,6 +892,7 @@ class Pype(object):
                                             ("autosave", bool, autosave),
                                             ("autoload", bool, autoload),
                                             ("feedback", bool, feedback),
+                                            ("fix_names", bool, fix_names),
                                             ("skip",bool, skip),
                                             ("terminate", bool, False),
                                             ("visualize", bool, visualize),
@@ -1210,8 +1212,14 @@ class Pype(object):
                 if hasattr(eval(step_name), method_name):
                     self.config_parsed_flattened[step_name].append(method_name)
                     pass
+                elif self.flags.fix_names:
+                    if method_name in settings._legacy_names[step_name]:
+                        method_name_updated = settings._legacy_names[step_name][method_name]
+                        self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name_updated: method_args}
+                        method_name = method_name_updated
+                        print("Fixed method name")
                 else:
-                    print("ERROR - {} has no function called {} - please check config file!".format(step_name, method_name))
+                    print("phenopype.{} has no function called {} - will attempt to look for similarly named functions - fix the config file!".format(step_name, method_name))
                     
                 # =============================================================================
                 # METHOD / ANNOTATION 

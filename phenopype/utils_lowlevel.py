@@ -88,7 +88,11 @@ class _GUI:
             }
         
         self.data.update(kwargs.get("data", {}))
-
+        
+        ## hack to fix empty list bug
+        if type(self.data[settings._comment_type]) == list and len(self.data[settings._comment_type]) == 0:
+            self.data[settings._comment_type] = ""
+        
         ## GUI settings 
         self.settings = make_dataclass(
             cls_name="settings", 
@@ -180,7 +184,9 @@ class _GUI:
                         )
             else:
                 raise AttributeError("Could not find contours to edit - check annotations.")
-                                          
+                                        
+
+                
         ## get canvas dimensions
         if self.image_height > window_max_dim or self.image_width > window_max_dim:
             if self.image_width >= self.image_height:

@@ -659,6 +659,7 @@ def detect_reference(
                 ],
                 dtype=np.float32,
             )
+                        
             rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
     
             # calculate template diameter
@@ -870,7 +871,7 @@ def write_comment(
     gui_data = {settings._comment_type: utils_lowlevel._get_GUI_data(annotation)}
     if annotation:
         label = annotation["data"]["label"]
-    
+        
     # =============================================================================
 	# setup
     
@@ -887,6 +888,8 @@ def write_comment(
 
 	# =============================================================================
 	# execute
+    
+    print(label)
     
     gui = utils_lowlevel._GUI(
         image, 

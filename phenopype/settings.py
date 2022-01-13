@@ -224,3 +224,17 @@ cv2.destroyAllWindows()
 
 _GUI_settings_args = list(g.settings.__dict__)
 _GUI_data_args = list(g.data.keys())
+
+
+#%% legacy fun-names
+
+_legacy_names = {
+    "measurement": {
+        "set_landmark": "set_landmark",
+        "set_landmarks": "set_landmark",
+        "landmark": "set_landmark",
+        "landmarks": "set_landmark",
+     },
+    "visualization": {
+        "draw_landmarks": "draw_landmark"}
+ }

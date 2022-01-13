@@ -11,7 +11,6 @@ YAML specifications
 
 .. note::
 	**Here are the most important rules for YAML syntax:**
-
 	- **indentation rules:**  
 			- 0 spaces + hyphen + space for modules
 			- 4 spaces + hyphen + space in front of functions 
