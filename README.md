@@ -1,4 +1,10 @@
+
 ![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo.png)
+
+---
+
+## **phenopype**
+### **A phenotyping pipeline for python**
 
 | Project status | Windows build | Linux build | OSX build | Coverage | Style |
 |:---:|:---:|:---:|:---:|:---:|:---:|
@@ -6,6 +12,8 @@
 
 **Author:** [Moritz Lürig](https://luerig.net)  
 **License:** [LGPL](https://opensource.org/licenses/LGPL-3.0)  
+**Homepage** [www.phenopype.org](https://www.phenopype.org)  
+**Publication** https://doi.org/10.1111/2041-210x.13771
 
 ---
 
@@ -33,30 +41,33 @@ phenopype is aiming to augment, rather than replace the utility of existing CV l
 
 ---
 
-#### Getting started
+#### Quickstart
 
-1.  Read the [Installation Instructions](https://mluerig.github.io/phenopype/installation.html)
-
-#### Important information
-
-- phenopype currently **does not work on macOS**, as there are several issues with OpenCV's HighGUI module, as documented [here](https://github.com/mluerig/phenopype/issues/9) and [here](https://github.com/mluerig/phenopype/issues/5) - any help in making phenopype usable for macOS is most welcome !
-- phenopype is currently undergoing [review at pyOpenSci](https://github.com/pyOpenSci/software-review/issues/24). In the process, phenopype was updated to version 2 which is **not compatible with previous versions** - read the instructions for [installing past versions](https://mluerig.github.io/phenopype/installation.html#installing-past-versions)
-
----
+https://www.phenopype.org/docs/quickstart/
 
 #### Documentation
 
-The full Documentation can be found here: **https://mluerig.github.io/phenopype/**
+https://www.phenopype.org/docs/
+
+#### Vignette gallery
+
+https://www.phenopype.org/gallery/
 
 #### Contributions and feedback
-Phenopype development is an ongoing process and contributions towards making it a more broadly applicable and user-friendly tool are most welcome. This can be in the form of feature requests (e.g. more functions from the [OpenCV library](https://docs.opencv.org/master/modules.html)) or by reporting bugs via the [issue tracker](https://github.com/mluerig/phenopype/issues). You can also [get in touch with me](https://luerig.net) directly if you have any suggestions for improvement.
+phenopype development is ongoing and contributions towards making it more broadly applicable and user-friendly are most welcome. This can be in the form of feature requests (e.g. more functions from the [OpenCV library](https://docs.opencv.org/master/modules.html)) or by reporting bugs via the [issue tracker](https://github.com/phenopype/phenopype/issues). You can also [get in touch with me](https://www.luerig.net) directly if you would like to contribute code - in that case, please have a look at the [API](https://www.phenopype.org/docs/api/).
 
 #### How to cite phenopype
-phenopype: a phenotyping pipeline for python (v2.0.0). 2021 Lürig, M. https://github.com/mluerig/phenopype
 
-    @misc{phenopype,
-      title={{phenopype: a phenotyping pipeline for Python}},
-      author={L{\"u}rig, Moritz},
-      year={2021},
-      url={https://github.com/mluerig/phenopype},
-    }
+Lürig, M. D. (2021). phenopype : A phenotyping pipeline for Python. Methods in Ecology and Evolution. https://doi.org/10.1111/2041-210x.13771
+
+	@ARTICLE{Lurig2021,
+	  title     = "phenopype : A phenotyping pipeline for Python",
+	  author    = "L{\"u}rig, Moritz D",
+	  journal   = "Methods in Ecology and Evolution",
+	  publisher = "Wiley",
+	  month     =  dec,
+	  year      =  2021,
+	  copyright = "http://creativecommons.org/licenses/by-nc/4.0/",
+	  language  = "en",
+	  doi       = "10.1111/2041-210x.13771"
+	}
