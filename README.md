@@ -26,7 +26,7 @@ phenopype is aiming to augment, rather than replace the utility of existing CV l
 
 #### Main features
 
-(For a complete list [check the API reference](https://mluerig.github.io/phenopype/api.html))
+(For a complete list [check the API reference](https://www.phenopype.org/docs/api/))
 
 - image analysis workflow:
   - preprocessing (automatic reference detection, colour and size correction, morphology operations)
