@@ -451,6 +451,9 @@ def load_image(path, mode="default", **kwargs):
                     image = cv2.imread(path, cv2.IMREAD_COLOR)
                 elif flags.mode == "gray":
                     image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+                elif flags.mode == "rgb":
+                    image = cv2.imread(path)
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             else:
                 print(
                     'Invalid file extension "{}" - could not load image:\n'.format(ext)

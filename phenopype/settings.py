@@ -228,6 +228,8 @@ _legacy_names = {
         "set_landmarks": "set_landmark",
         "landmark": "set_landmark",
         "landmarks": "set_landmark",
+        "shape_features": "compute_shape_features",
+        "texture_features": "compute_texture_features"
     },
     "visualization": {
         "draw_landmarks": "draw_landmark",
