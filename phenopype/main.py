@@ -214,7 +214,8 @@ class Project:
             path to directory with images
         filetypes: list or str, optional
             single or multiple string patterns to target files with certain endings.
-            "settings.default_filetypes" are configured in settings.py
+            "settings.default_filetypes" are configured in settings.py: 
+            ['jpg', 'JPG', 'jpeg', 'JPEG', 'tif', 'png', 'bmp']
         include: list or str, optional
             single or multiple string patterns to target certain files to include
         include_all (optional): bool,
@@ -237,6 +238,10 @@ class Project:
             will only store the link to the original file location to attributes, 
             but not copy the actual file (useful for big files, but the orginal 
             location needs always to be available)
+        overwrite: {"file", "dir", False} str/bool (optional)
+            "file" will overwrite the image file and modify the attributes accordingly, 
+            "dir" will  overwrite the entire image directory (including all meta-data
+            and results!), False will not overwrite anything
         ext: {".tif", ".bmp", ".jpg", ".png"}, str, optional
             file extension for "mod" mode
         resize_factor: float, optional
@@ -329,7 +334,7 @@ class Project:
                         + " already exists (overwrite=False)"
                     )
                     continue
-                elif flags.overwrite == "files":
+                elif flags.overwrite in ["file", "files", "image", "True"]:
                     pass
                 elif flags.overwrite == "dir":
                     shutil.rmtree(
@@ -359,7 +364,10 @@ class Project:
             image = utils.load_image(file_path)
             image_name = os.path.basename(file_path)
             image_name_root = os.path.splitext(image_name)[0]
+            image_ext = os.path.splitext(image_name)[1]
+            
             print(file_path)
+            
             image_data_original = utils_lowlevel._load_image_data(file_path)
             image_data_phenopype = {
                 "date_added": datetime.today().strftime(settings.strftime_format),
@@ -369,7 +377,7 @@ class Project:
             ## copy or link raw files
             if flags.mode == "copy":
                 image_phenopype_path = os.path.join(
-                    self.root_dir, "data", dir_name, "copy_" + image_name,
+                    self.root_dir, "data", dir_name, image_name_root + "_copy" + image_ext,
                 )
                 shutil.copyfile(file_path, image_phenopype_path)
                 image_data_phenopype.update(
@@ -384,7 +392,7 @@ class Project:
                 if not "." in ext:
                     ext = "." + ext
                 image_phenopype_path = os.path.join(
-                    self.root_dir, "data", dir_name, "mod_" + image_name_root + ext,
+                    self.root_dir, "data", dir_name, image_name_root + "_mod" + ext,
                 )
                 if os.path.isfile(image_phenopype_path) and flags.overwrite == "file":
                     print(
