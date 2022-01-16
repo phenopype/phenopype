@@ -26,9 +26,9 @@ setup(
     package_data={"phenopype": ["core/*.py"]},
     install_requires=[
         "colour",
-        "numpy==1.18.5",
+        "numpy",
         "opencv-contrib-python==3.4.9.33",
-        "pandas==1.1.2",
+        "pandas",
         "pillow",
         "pyradiomics==3.0.1",
         "ruamel.yaml==0.16.12",

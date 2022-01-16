@@ -3,6 +3,11 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.0.2
+-----
+- removed numpy/pandas version selection in setup.py to reduce conflicts with other packages and environments
+- zooming during Pype has now memory: it will keep the last zoomed in area focused (except the final inspection window)
+
 3.0.1
 -----
 - edit_contour is now directly applied to binary image when used in Pype (accumulative)
