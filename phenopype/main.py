@@ -1075,12 +1075,20 @@ class Pype(object):
                 visualize=self.flags.visualize,
             )
 
-            ## terminate
+            ## terminate & cleanup
             if self.flags.visualize:
                 if self.flags.terminate:
+                    
+                    ## stope file monitoring
                     if hasattr(self, "YFM"):
                         self.YFM._stop()
+                        
+                    ## reset zoom settings
+                    _config.gui_zoom_config = None
+                        
+                    ## feedback
                     print("\n\nTERMINATE")
+                    
                     break
             else:
                 break
@@ -1244,7 +1252,7 @@ class Pype(object):
         step_list = self.config["processing_steps"]
         self.config_updated = copy.deepcopy(self.config)
         self.config_parsed_flattened = {}
-
+                
         for step_idx, step in enumerate(step_list):
 
             # =============================================================================

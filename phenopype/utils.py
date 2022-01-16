@@ -185,15 +185,18 @@ class Container(object):
         annotations_updated = None
 
         ## function kwargs
-        kwargs = fun_kwargs
-        kwargs["annotations"] = annotations
-        kwargs["annotation_type"] = annotation_type
-        kwargs["annotation_id"] = annotation_id
-        kwargs["annotation_counter"] = annotation_counter
+        kwargs_function = fun_kwargs
+        kwargs_function["annotations"] = annotations
+        kwargs_function["annotation_type"] = annotation_type
+        kwargs_function["annotation_id"] = annotation_id
+        kwargs_function["annotation_counter"] = annotation_counter
 
         ## verbosity
         if settings.flag_verbose:
-            kwargs["verbose"] = True
+            kwargs_function["verbose"] = True
+            
+        ## enable zoom-config memory
+        kwargs_function["pype_mode"] = True
 
         ## attributes
         if hasattr(self, "image_attributes"):
@@ -218,27 +221,27 @@ class Container(object):
                     elif flag_edit == False:
                         print(print_msg + ": skipping (edit=False)")
                         if annotation_type in ["drawing"]:
-                            kwargs["passive"] = True
+                            kwargs_function["passive"] = True
                             annotations_updated, self.image = segmentation.edit_contour(
-                                self.canvas, ret_image=True, **kwargs
+                                self.canvas, ret_image=True, **kwargs_function
                             )
                         return
                     elif flag_edit == "overwrite":
                         print(print_msg + ": overwriting (edit=overwrite)")
                         annotations[annotation_type][annotation_id] = {}
                         pass
-
+                    
         ## preprocessing
         if fun == "blur":
-            self.image = preprocessing.blur(self.image, **kwargs)
+            self.image = preprocessing.blur(self.image, **kwargs_function)
         if fun == "create_mask":
-            annotations_updated = preprocessing.create_mask(self.image, **kwargs)
+            annotations_updated = preprocessing.create_mask(self.image, **kwargs_function)
         if fun == "create_reference":
-            annotations_updated = preprocessing.create_reference(self.image, **kwargs)
+            annotations_updated = preprocessing.create_reference(self.image, **kwargs_function)
         if fun == "detect_shape":
-            annotations_updated = preprocessing.detect_shape(self.image, **kwargs)
+            annotations_updated = preprocessing.detect_shape(self.image, **kwargs_function)
         if fun == "write_comment":
-            annotations_updated = preprocessing.write_comment(self.image, **kwargs)
+            annotations_updated = preprocessing.write_comment(self.image, **kwargs_function)
         if fun == "detect_reference":
             if all(
                 hasattr(self, attr)
@@ -253,54 +256,55 @@ class Container(object):
                     self.reference_template_image,
                     self.reference_template_px_ratio,
                     self.reference_unit,
-                    **kwargs,
+                    **kwargs_function,
                 )
             else:
                 print("- missing project level reference information, cannot detect")
         if fun == "decompose_image":
-            self.image = preprocessing.decompose_image(self.image, **kwargs)
+            self.image = preprocessing.decompose_image(self.image, **kwargs_function)
 
         ## segmentation
         if fun == "threshold":
-            self.image = segmentation.threshold(self.image, **kwargs)
+            self.image = segmentation.threshold(self.image, **kwargs_function)
         if fun == "watershed":
-            self.image = segmentation.watershed(self.image, **kwargs)
+            self.image = segmentation.watershed(self.image, **kwargs_function)
         if fun == "morphology":
-            self.image = segmentation.morphology(self.image, **kwargs)
+            self.image = segmentation.morphology(self.image, **kwargs_function)
         if fun == "detect_contour":
-            annotations_updated = segmentation.detect_contour(self.image, **kwargs)
+            annotations_updated = segmentation.detect_contour(self.image, **kwargs_function)
         if fun == "edit_contour":
+            print("BIER")
             annotations_updated, self.image = segmentation.edit_contour(
-                self.canvas, ret_image=True, **kwargs
+                self.canvas, ret_image=True, **kwargs_function
             )
 
         ## measurement
         if fun == "set_landmark":
-            annotations_updated = measurement.set_landmark(self.canvas, **kwargs)
+            annotations_updated = measurement.set_landmark(self.canvas, **kwargs_function)
         if fun == "set_polyline":
-            annotations_updated = measurement.set_polyline(self.canvas, **kwargs)
+            annotations_updated = measurement.set_polyline(self.canvas, **kwargs_function)
         if fun == "detect_skeleton":
-            annotations_updated = measurement.detect_skeleton(self.image, **kwargs)
+            annotations_updated = measurement.detect_skeleton(self.image, **kwargs_function)
         if fun == "compute_shape_features":
-            annotations_updated = measurement.compute_shape_features(**kwargs)
+            annotations_updated = measurement.compute_shape_features(**kwargs_function)
         if fun == "compute_texture_features":
             annotations_updated = measurement.compute_texture_features(
-                self.image_copy, **kwargs
+                self.image_copy, **kwargs_function
             )
 
         ## visualization
         if fun == "select_canvas":
-            visualization.select_canvas(self, **kwargs)
+            visualization.select_canvas(self, **kwargs_function)
         if fun == "draw_contour":
-            self.canvas = visualization.draw_contour(self.canvas, **kwargs)
+            self.canvas = visualization.draw_contour(self.canvas, **kwargs_function)
         if fun == "draw_landmark":
-            self.canvas = visualization.draw_landmark(self.canvas, **kwargs)
+            self.canvas = visualization.draw_landmark(self.canvas, **kwargs_function)
         if fun == "draw_mask":
-            self.canvas = visualization.draw_mask(self.canvas, **kwargs)
+            self.canvas = visualization.draw_mask(self.canvas, **kwargs_function)
         if fun == "draw_polyline":
-            self.canvas = visualization.draw_polyline(self.canvas, **kwargs)
+            self.canvas = visualization.draw_polyline(self.canvas, **kwargs_function)
         if fun == "draw_reference":
-            self.canvas = visualization.draw_reference(self.canvas, **kwargs)
+            self.canvas = visualization.draw_reference(self.canvas, **kwargs_function)
 
         ## export
         if fun == "save_annotation":
@@ -308,16 +312,16 @@ class Container(object):
                 annotations,
                 file_name=self._construct_file_name("annotations", "json"),
                 dir_path=self.dir_path,
-                **kwargs,
+                **kwargs_function,
             )
         if fun == "save_canvas":
             export.save_canvas(
                 self.canvas,
                 file_name=self._construct_file_name(
-                    "canvas", kwargs.get("ext", ".jpg")
+                    "canvas", kwargs_function.get("ext", ".jpg")
                 ),
                 dir_path=self.dir_path,
-                **kwargs,
+                **kwargs_function,
             )
         if fun == "export_csv":
             export.export_csv(
@@ -326,7 +330,7 @@ class Container(object):
                 save_prefix=self.file_prefix,
                 save_suffix=self.file_suffix,
                 image_name=image_name,
-                **kwargs,
+                **kwargs_function,
             )
 
         ## save annotation to dict

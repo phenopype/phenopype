@@ -74,7 +74,6 @@ class _GUI:
 
         ## basic settings
         self.tool = tool
-        self.passive = passive
         self.label = kwargs.get("label", None)
 
         ## data collector
@@ -96,57 +95,39 @@ class _GUI:
             self.data[settings._comment_type] = ""
 
         ## GUI settings
-        self.settings = make_dataclass(
-            cls_name="settings",
-            fields=[
-                ("show_label", bool, kwargs.get("show_label", False)),
-                (
-                    "label_colour",
-                    tuple,
-                    kwargs.get("label_colour", settings._default_label_colour),
-                ),
-                ("label_size", int, kwargs.get("label_size", _auto_text_size(image))),
-                (
-                    "label_width",
-                    int,
-                    kwargs.get("label_width", _auto_text_width(image)),
-                ),
-                (
-                    "line_colour",
-                    tuple,
-                    kwargs.get("line_colour", settings._default_line_colour),
-                ),
-                ("line_width", int, kwargs.get("line_width", _auto_line_width(image))),
-                (
-                    "point_colour",
-                    tuple,
-                    kwargs.get("point_colour", settings._default_point_colour),
-                ),
-                ("point_size", int, kwargs.get("point_size", _auto_point_size(image))),
-                ("overlay_blend", float, kwargs.get("overlay_blend", 0.2)),
-                ("overlay_line_width", int, kwargs.get("overlay_line_width", 1)),
-                (
-                    "overlay_colour_left",
-                    tuple,
-                    kwargs.get("overlay_colour_left", settings._default_overlay_left),
-                ),
-                (
-                    "overlay_colour_right",
-                    tuple,
-                    kwargs.get("overlay_colour_right", settings._default_overlay_right),
-                ),
-                ("zoom_mode", str, zoom_mode),
-                ("zoom_magnification", float, zoom_magnification),
-                ("zoom_n_steps", int, zoom_n_steps),
-                ("wait_time", int, wait_time),
-                ("window_aspect", str, window_aspect),
-                ("window_control", str, window_control),
-                ("window_max_dim", str, window_max_dim),
-                ("window_name", str, window_name),
-            ],
-        )
-
-        self.locals = make_dataclass(cls_name="locals", fields=[])
+        self.settings = make_dataclass(cls_name='settings', fields=[
+            
+            ('show_label', bool, kwargs.get('show_label', False)),
+            ('label_colour', tuple, kwargs.get('label_colour',settings._default_label_colour)),
+            ('label_size', int, kwargs.get('label_size', _auto_text_size(image))),
+            ('label_width', int, kwargs.get('label_width',_auto_text_width(image))),
+            
+            ('line_colour', tuple, kwargs.get('line_colour', settings._default_line_colour)),
+            ('line_width', int, kwargs.get('line_width', _auto_line_width(image))),
+            
+            ('point_colour', tuple, kwargs.get('point_colour', settings._default_point_colour)),
+            ('point_size', int, kwargs.get('point_size',  _auto_point_size(image))),
+            
+            ('overlay_blend', float, kwargs.get('overlay_blend', 0.2)),
+            ('overlay_line_width', int, kwargs.get('overlay_line_width', 1)),
+            ('overlay_colour_left', tuple, kwargs.get('overlay_colour_left',settings._default_overlay_left)),
+            ('overlay_colour_right', tuple, kwargs.get('overlay_colour_right',settings._default_overlay_right)),
+            
+            ('passive', bool, passive),
+            ('pype_mode', bool, kwargs.get('pype_mode', False)),
+            
+            ('zoom_mode', str, zoom_mode),
+            ('zoom_magnification', float, zoom_magnification),
+            ('zoom_n_steps', int, zoom_n_steps),
+            
+            ('wait_time', int, wait_time),
+            
+            ('window_aspect', str, window_aspect),
+            ('window_control', str, window_control),
+            ('window_max_dim', str, window_max_dim),
+            ('window_name', str, window_name),
+            
+            ])
 
         ## collect interactions and set flags
         self.line_width_orig = copy.deepcopy(self.settings.line_width)
@@ -221,27 +202,36 @@ class _GUI:
             self.image_height / self.canvas_height,
         )
         self.global_fx, self.global_fy = self.canvas_fx, self.canvas_fy
-
+        
         ## zoom config
-        self.zoom_x1, self.zoom_y1, self.zoom_x2, self.zoom_y2 = (
+        self.zoom = make_dataclass(cls_name="zoom_config", fields=[])
+
+        self.zoom.x1, self.zoom.y1, self.zoom.x2, self.zoom.y2 = (
             0,
             0,
             self.image_width,
             self.image_height,
         )
-        self.flag_zoom, self.zoom_idx = -1, 1
-        self.zoom_step_x, self.zoom_step_y = (
+        self.zoom.flag, self.zoom.idx = -1, 1
+        self.zoom.step_x, self.zoom.step_y = (
             int(self.image_width / self.settings.zoom_n_steps),
             int(self.image_height / self.settings.zoom_n_steps),
         )
         if self.settings.zoom_mode == "fixed":
             mag = int(self.settings.zoom_magnification * self.settings.zoom_n_steps)
-            self.zoom_step_x, self.zoom_step_y = (
-                mag * self.zoom_step_x,
-                mag * self.zoom_step_y,
+            self.zoom.step_x, self.zoom.step_y = (
+                mag * self.zoom.step_x,
+                mag * self.zoom.step_y,
             )
 
-        # ## update from previous call
+        # ## update zoom from previous call
+        
+        print(dir(_config.gui_zoom_config))
+        print(self.settings.pype_mode)
+        
+        if hasattr(_config, "gui_zoom_config") and self.settings.pype_mode == True:
+            if not _config.gui_zoom_config.__class__.__name__ == "NoneType":
+                self.zoom = _config.gui_zoom_config
         # if kwargs.get("ImageViewer_previous"):
         #     prev_attr = kwargs.get("ImageViewer_previous").__dict__
         #     prev_attr = {
@@ -280,7 +270,7 @@ class _GUI:
         # window control
         # =============================================================================
 
-        if self.passive == True:
+        if self.settings.passive == True:
 
             self.flags.end = True
             self.flags.end_pype = True
@@ -299,7 +289,11 @@ class _GUI:
 
             if self.settings.window_control == "internal":
                 while not any([self.flags.end, self.flags.end_pype]):
-                    if self.passive == False:
+                    if self.settings.passive == False:
+                        
+                        ## sync zoom settings with config
+                        if self.settings.pype_mode == True:
+                            _config.gui_zoom_config = self.zoom
 
                         ## comment tool
                         if self.tool == "comment":
@@ -382,19 +376,19 @@ class _GUI:
         if event == cv2.EVENT_MOUSEWHEEL and not self.keypress == 9:
             self.keypress = None
             if flags > 0:
-                if self.zoom_idx < self.settings.zoom_n_steps:
-                    self.flag_zoom = 1
-                    self.zoom_idx += 1
+                if self.zoom.idx < self.settings.zoom_n_steps:
+                    self.zoom.flag = 1
+                    self.zoom.idx += 1
                     if self.settings.zoom_mode == "continuous" or (
-                        self.settings.zoom_mode == "fixed" and self.zoom_idx == 2
+                        self.settings.zoom_mode == "fixed" and self.zoom.idx == 2
                     ):
                         self._zoom_fun(x, y)
             if flags < 0:
-                if self.zoom_idx > 1:
-                    self.flag_zoom = -1
-                    self.zoom_idx -= 1
+                if self.zoom.idx > 1:
+                    self.zoom.flag = -1
+                    self.zoom.idx -= 1
                     if self.settings.zoom_mode == "continuous" or (
-                        self.settings.zoom_mode == "fixed" and self.zoom_idx == 1
+                        self.settings.zoom_mode == "fixed" and self.zoom.idx == 1
                     ):
                         self._zoom_fun(x, y)
             self.x, self.y = x, y
@@ -460,11 +454,11 @@ class _GUI:
             if len(self.data[settings._coord_type]) > 0:
                 self.coords_prev = (
                     int(
-                        (self.data[settings._coord_type][-1][0] - self.zoom_x1)
+                        (self.data[settings._coord_type][-1][0] - self.zoom.x1)
                         / self.global_fx
                     ),
                     int(
-                        (self.data[settings._coord_type][-1][1] - self.zoom_y1)
+                        (self.data[settings._coord_type][-1][1] - self.zoom.y1)
                         // self.global_fy
                     ),
                 )
@@ -583,10 +577,10 @@ class _GUI:
 
             ## convert rectangle to polygon coords
             self.rect = [
-                int(self.zoom_x1 + (self.global_fx * self.rect_minpos[0])),
-                int(self.zoom_y1 + (self.global_fy * self.rect_minpos[1])),
-                int(self.zoom_x1 + (self.global_fx * self.rect_maxpos[0])),
-                int(self.zoom_y1 + (self.global_fy * self.rect_maxpos[1])),
+                int(self.zoom.x1 + (self.global_fx * self.rect_minpos[0])),
+                int(self.zoom.y1 + (self.global_fy * self.rect_minpos[1])),
+                int(self.zoom.x1 + (self.global_fx * self.rect_maxpos[0])),
+                int(self.zoom.y1 + (self.global_fy * self.rect_maxpos[1])),
             ]
             self.data[settings._coord_list_type].append(
                 [
@@ -658,8 +652,8 @@ class _GUI:
             ## convert cursor coords from zoomed canvas to original coordinate space
             self.ix, self.iy = x, y
             self.coords_original_i = (
-                int(self.zoom_x1 + (self.ix * self.global_fx)),
-                int(self.zoom_y1 + (self.iy * self.global_fy)),
+                int(self.zoom.x1 + (self.ix * self.global_fx)),
+                int(self.zoom.y1 + (self.iy * self.global_fy)),
             )
             self.data[settings._coord_type].append(self.coords_original_i)
             self.flags.drawing = True
@@ -715,7 +709,7 @@ class _GUI:
             self.canvas = copy.deepcopy(self.canvas_copy)
             self.settings.line_width = int(
                 self.line_width_orig
-                / ((self.zoom_x2 - self.zoom_x1) / self.image_width)
+                / ((self.zoom.x2 - self.zoom.x1) / self.image_width)
             )
             cv2.line(
                 self.canvas, (x, y), (x, y), _get_bgr("black"), self.settings.line_width
@@ -811,7 +805,7 @@ class _GUI:
 
         ## pass zoomed part of original image to canvas
         self.canvas = self.image_copy[
-            self.zoom_y1 : self.zoom_y2, self.zoom_x1 : self.zoom_x2
+            self.zoom.y1 : self.zoom.y2, self.zoom.x1 : self.zoom.x2
         ]
 
         ## resize canvas to fit window
@@ -825,7 +819,7 @@ class _GUI:
         self.canvas_copy = copy.deepcopy(self.canvas)
 
         ## refresh canvas
-        if refresh and not self.passive:
+        if refresh and not self.settings.passive:
             cv2.imshow(self.settings.window_name, self.canvas)
 
     def _canvas_renew(self):
@@ -849,23 +843,23 @@ class _GUI:
 
         x_prop, y_prop = x / self.canvas_width, y / self.canvas_height
         left_padding, right_padding = (
-            int(round(x_prop * self.zoom_step_x)),
-            int(round((1 - x_prop) * self.zoom_step_x)),
+            int(round(x_prop * self.zoom.step_x)),
+            int(round((1 - x_prop) * self.zoom.step_x)),
         )
         top_padding, bottom_padding = (
-            int(round(y_prop * self.zoom_step_y)),
-            int(round((1 - y_prop) * self.zoom_step_y)),
+            int(round(y_prop * self.zoom.step_y)),
+            int(round((1 - y_prop) * self.zoom.step_y)),
         )
 
-        if self.flag_zoom > 0:
-            x1, x2 = self.zoom_x1 + left_padding, self.zoom_x2 - right_padding
-            y1, y2 = self.zoom_y1 + top_padding, self.zoom_y2 - bottom_padding
-        if self.flag_zoom < 0:
+        if self.zoom.flag > 0:
+            x1, x2 = self.zoom.x1 + left_padding, self.zoom.x2 - right_padding
+            y1, y2 = self.zoom.y1 + top_padding, self.zoom.y2 - bottom_padding
+        if self.zoom.flag < 0:
             x1, x2 = (
-                self.zoom_x1 - left_padding,
-                self.zoom_x2 + right_padding,
+                self.zoom.x1 - left_padding,
+                self.zoom.x2 + right_padding,
             )
-            y1, y2 = self.zoom_y1 - top_padding, self.zoom_y2 + bottom_padding
+            y1, y2 = self.zoom.y1 - top_padding, self.zoom.y2 + bottom_padding
             if x1 < 0:
                 x2 = x2 + abs(x1)
                 x1 = 0
@@ -880,18 +874,18 @@ class _GUI:
                 y2 = self.image_height
 
         ## failsafe when zooming out, sets zoom-coords to image coords
-        if self.zoom_idx == 1:
+        if self.zoom.idx == 1:
             x1, x2, y1, y2 = 0, self.image_width, 0, self.image_height
 
         ## zoom coords
-        self.zoom_x1, self.zoom_x2, self.zoom_y1, self.zoom_y2 = x1, x2, y1, y2
+        self.zoom.x1, self.zoom.x2, self.zoom.y1, self.zoom.y2 = x1, x2, y1, y2
 
         ## global magnification factor
         self.global_fx = self.canvas_fx * (
-            (self.zoom_x2 - self.zoom_x1) / self.image_width
+            (self.zoom.x2 - self.zoom.x1) / self.image_width
         )
         self.global_fy = self.canvas_fy * (
-            (self.zoom_y2 - self.zoom_y1) / self.image_height
+            (self.zoom.y2 - self.zoom.y1) / self.image_height
         )
 
         ## update canvas
@@ -901,13 +895,13 @@ class _GUI:
         if self.tool == "draw":
             self.settings.line_width = int(
                 self.line_width_orig
-                / ((self.zoom_x2 - self.zoom_x1) / self.image_width)
+                / ((self.zoom.x2 - self.zoom.x1) / self.image_width)
             )
 
     def _zoom_coords_orig(self, x, y):
         self.coords_original = (
-            int(self.zoom_x1 + (x * self.global_fx)),
-            int(self.zoom_y1 + (y * self.global_fy)),
+            int(self.zoom.x1 + (x * self.global_fx)),
+            int(self.zoom.y1 + (y * self.global_fy)),
         )
 
 
@@ -1151,8 +1145,8 @@ def _get_GUI_settings(kwargs, annotation=None):
         for key, value in kwargs.items():
             if key in settings._GUI_settings_args:
                 GUI_settings[key] = value
-            elif key in ["passive"]:
-                pass
+            # elif key in ["passive"]:
+            #     pass
 
     return GUI_settings
 
