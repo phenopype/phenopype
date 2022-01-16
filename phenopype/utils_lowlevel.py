@@ -1144,14 +1144,15 @@ def _get_GUI_settings(kwargs, annotation=None):
         if "settings" in annotation:
             if "GUI" in annotation["settings"]:
                 for key, value in annotation["settings"]["GUI"].items():
-                    GUI_settings[key] = value
+                    if not key in ["passive"]:
+                        GUI_settings[key] = value
 
     if kwargs:
         for key, value in kwargs.items():
             if key in settings._GUI_settings_args:
                 GUI_settings[key] = value
             elif key in ["passive"]:
-                GUI_settings[key] = value
+                pass
 
     return GUI_settings
 
