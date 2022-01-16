@@ -264,9 +264,7 @@ class Container(object):
         if fun == "threshold":
             self.image = segmentation.threshold(self.image, **kwargs)
         if fun == "watershed":
-            self.image = segmentation.watershed(
-                self.image_copy, self.image_bin, **kwargs
-            )
+            self.image = segmentation.watershed(self.image, **kwargs)
         if fun == "morphology":
             self.image = segmentation.morphology(self.image, **kwargs)
         if fun == "detect_contour":
