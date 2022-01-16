@@ -225,13 +225,10 @@ class _GUI:
             )
 
         # ## update zoom from previous call
-        
-        print(dir(_config.gui_zoom_config))
-        print(self.settings.pype_mode)
-        
         if hasattr(_config, "gui_zoom_config") and self.settings.pype_mode == True:
             if not _config.gui_zoom_config.__class__.__name__ == "NoneType":
                 self.zoom = _config.gui_zoom_config
+                
         # if kwargs.get("ImageViewer_previous"):
         #     prev_attr = kwargs.get("ImageViewer_previous").__dict__
         #     prev_attr = {

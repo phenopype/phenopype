@@ -295,8 +295,6 @@ def edit_contour(
     # =============================================================================
     # execute
 
-    print(kwargs)
-
     gui = utils_lowlevel._GUI(
         image=image,
         tool="draw",
