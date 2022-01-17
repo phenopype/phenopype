@@ -218,7 +218,10 @@ _GUI_data_args = list(g.data.keys())
 #%% legacy fun-names
 
 _legacy_names = {
-    "preprocessing": {"enter_data": "write_comment",},
+    "preprocessing": {
+        "enter_data": "write_comment",
+        "comment": "write_comment",
+        },
     "segmentation": {
         "detect_contours": "detect_contour",
         "edit_contours": "edit_contour",
