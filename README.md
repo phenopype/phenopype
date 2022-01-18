@@ -3,9 +3,6 @@
 
 ---
 
-## **phenopype**
-### **A phenotyping pipeline for python**
-
 | Project status | Windows build | Linux build | OSX build | Coverage | Style |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | [![Project Status: Active](http://www.repostatus.org/badges/latest/active.svg)](http://www.repostatus.org/#active) | [![Build status](https://ci.appveyor.com/api/projects/status/20ncgfq137mmvbgb?svg=true)](https://ci.appveyor.com/project/mluerig/phenopype-9386w) | *soon to come* | *none* | [![Coverage Status](https://coveralls.io/repos/github/phenopype/phenopype/badge.svg?branch=main)](https://coveralls.io/github/phenopype/phenopype?branch=main) | [![Code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) |  
