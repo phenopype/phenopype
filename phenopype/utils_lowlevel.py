@@ -1073,7 +1073,7 @@ def _get_annotation(
             ## extract item
             if annotation_id:
                 if annotation_id in annotations[annotation_type]:
-                    annotation = annotations[annotation_type][annotation_id]
+                    annotation = copy.deepcopy(annotations[annotation_type][annotation_id])
                 else:
                     print_msg = 'could not find "{}" with ID "{}"'.format(
                         annotation_type, annotation_id
@@ -1153,7 +1153,7 @@ def _update_annotations(
 ):
 
     annotations = copy.deepcopy(annotations)
-
+        
     if not annotation_type in annotations:
         annotations[annotation_type] = {}
 
@@ -1163,7 +1163,7 @@ def _update_annotations(
             annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
         else:
             annotation_id = "a"
-
+            
     annotations[annotation_type][annotation_id] = copy.deepcopy(annotation)
 
     return annotations
@@ -1273,6 +1273,7 @@ def _show_yaml(odict, ret=False, typ="rt"):
 
 def _save_yaml(dictionary, filepath, typ="rt"):
     yaml = YAML(typ=typ)
+    yaml.width = 160
     yaml.indent(mapping=4, sequence=4, offset=4)
     with open(filepath, "w") as out:
         yaml.dump(dictionary, out)
@@ -1325,6 +1326,16 @@ def _convert_arr_tup_list(arr_list):
     return tup_list
 
 
+def _convert_tup_list_arr(tup_list):
+    array_list = []
+    for points in tup_list:
+        point_list = []
+        for point in points:
+            point_list.append([list(point)])
+        array_list.append(np.asarray(point_list, dtype="int32"))
+    return array_list
+
+
 def _check_pype_tag(tag):
 
     if tag.__class__.__name__ == "str":
@@ -1343,16 +1354,6 @@ def _check_pype_tag(tag):
                 raise SyntaxError(
                     "No special characters allowed in pype tag - aborting."
                 )
-
-
-def _convert_tup_list_arr(tup_list):
-    array_list = []
-    for points in tup_list:
-        point_list = []
-        for point in points:
-            point_list.append([list(point)])
-        array_list.append(np.asarray(point_list, dtype="int32"))
-    return array_list
 
 
 def _create_mask_bin(image, contours):

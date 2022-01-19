@@ -135,8 +135,9 @@ def detect_contour(
     # =============================================================================
     # process
 
+    contours, support = [], []
     if len(contours_det) > 0:
-        contours, support = [], []
+
         for idx, (contour, hierarchy) in enumerate(
             zip(contours_det, hierarchies_det[0])
         ):
@@ -179,12 +180,11 @@ def detect_contour(
 
         if len(contours) == 0:
             print("- did not find any contours that match criteria")
-            return
         else:
             print("- found " + str(len(contours)) + " contours that match criteria")
     else:
         print("- did not find any contours")
-        return
+        
 
     # =============================================================================
     # assemble results
@@ -206,7 +206,10 @@ def detect_contour(
             "min_diameter": min_diameter,
             "max_diameter": max_diameter,
         },
-        "data": {"n": len(contours), annotation_type: contours, "support": support,},
+        "data": {
+            "n": len(contours), 
+            annotation_type: contours, 
+            "support": support,},
     }
 
     # =============================================================================

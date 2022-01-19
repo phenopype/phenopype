@@ -238,8 +238,9 @@ class Container(object):
             annotations_updated = preprocessing.create_mask(self.image, **kwargs_function)
         if fun == "create_reference":
             annotations_updated = preprocessing.create_reference(self.image, **kwargs_function)
-        if fun == "detect_shape":
-            annotations_updated = preprocessing.detect_shape(self.image, **kwargs_function)
+        if fun == "detect_mask":
+            annotations_updated = preprocessing.detect_mask(self.image, **kwargs_function)
+            # print(annotations_updated)
         if fun == "write_comment":
             annotations_updated = preprocessing.write_comment(self.image, **kwargs_function)
         if fun == "detect_reference":
@@ -273,7 +274,6 @@ class Container(object):
         if fun == "detect_contour":
             annotations_updated = segmentation.detect_contour(self.image, **kwargs_function)
         if fun == "edit_contour":
-            print("BIER")
             annotations_updated, self.image = segmentation.edit_contour(
                 self.canvas, ret_image=True, **kwargs_function
             )
@@ -343,7 +343,8 @@ class Container(object):
                 annotation_type
             ][annotation_id]
             self.annotations.update(annotations)
-
+            
+            
     def save(self, dir_path=None, export_list=[], overwrite=False, **kwargs):
         """
         Autosave function for container. 
@@ -569,6 +570,7 @@ def load_template(
     }
 
     yaml = ruamel.yaml.YAML()
+    yaml.width = 4096
     yaml.indent(mapping=4, sequence=4, offset=4)
 
     if keep_comments == True:

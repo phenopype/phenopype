@@ -1370,7 +1370,7 @@ class Pype(object):
                                 if method_name
                                 in [
                                     "detect_contour",
-                                    "detect_shape",
+                                    "detect_mask",
                                     "compute_shape_features",
                                     "compute_texture_features",
                                     "skeletonize",

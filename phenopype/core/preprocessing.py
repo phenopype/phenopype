@@ -1,5 +1,6 @@
 #%% modules
 
+import copy
 import cv2
 import numpy as np
 import sys
@@ -196,7 +197,7 @@ def create_mask(
     )
 
 
-def detect_shape(
+def detect_mask(
     image,
     include=True,
     shape="circle",
@@ -266,7 +267,7 @@ def detect_shape(
 
     annotations = kwargs.get("annotations", {})
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
-    annotation_id = kwargs.get("annotations_id", None)
+    annotation_id = kwargs.get("annotation_id", None)
 
     annotation = utils_lowlevel._get_annotation(
         annotations=annotations,
@@ -274,7 +275,7 @@ def detect_shape(
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
-
+    
     # =============================================================================
     # setup
 
@@ -311,8 +312,8 @@ def detect_shape(
         )
 
         ## output conversion
+        circle_masks= []
         if circles is not None:
-            circle_contours = []
             for idx, circle in enumerate(circles[0]):
                 x, y, radius = circle / resize
                 mask = np.zeros(image.shape[:2], dtype=np.uint8)
@@ -320,23 +321,20 @@ def detect_shape(
                 mask_contours = segmentation.detect_contour(
                     mask, retrieval="ext", approximation="KCOS", verbose=False,
                 )
-                circle_contours.append(
-                    np.append(
-                        mask_contours["contour"]["a"]["data"][settings._contour_type][
-                            0
-                        ],
-                        [
-                            mask_contours["contour"]["a"]["data"][
-                                settings._contour_type
-                            ][0][0]
-                        ],
-                        axis=0,
+                ## add first coord to close circle and convert to mask notation 
+                circle_masks.append(
+                    utils_lowlevel._convert_arr_tup_list(
+                        np.append(
+                            mask_contours["contour"]["a"]["data"][settings._contour_type][0],
+                            [mask_contours["contour"]["a"]["data"][settings._contour_type][0][0] ],
+                            axis=0,
+                        )
                     )
                 )
             print("Found {} circles".format(len(circles[0])))
         else:
             print("No circles detected")
-            return
+            
 
     # =============================================================================
     # assemble results
@@ -355,8 +353,8 @@ def detect_shape(
         "data": {
             "label": label,
             "include": include,
-            "n": len(circle_contours),
-            annotation_type: circle_contours,
+            "n": len(circle_masks),
+            annotation_type: circle_masks,
         },
     }
 

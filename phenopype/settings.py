@@ -193,7 +193,7 @@ _annotation_functions = {
     "detect_skeleton": _line_type,
     ## masks
     "create_mask": _mask_type,
-    "detect_shape": _mask_type,
+    "detect_mask": _mask_type,
     ## reference
     "create_reference": _reference_type,
     "detect_reference": _reference_type,
@@ -221,6 +221,7 @@ _legacy_names = {
     "preprocessing": {
         "enter_data": "write_comment",
         "comment": "write_comment",
+        "detect_shape": "detect_mask",
         },
     "segmentation": {
         "detect_contours": "detect_contour",
