@@ -1,5 +1,5 @@
 
-![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo.png)
+![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo_text.png)
 
 ---
 
