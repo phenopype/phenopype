@@ -1373,7 +1373,7 @@ class Pype(object):
                                     "detect_mask",
                                     "compute_shape_features",
                                     "compute_texture_features",
-                                    "skeletonize",
+                                    "detect_skeleton",
                                 ]
                                 else False
                             }

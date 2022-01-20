@@ -284,7 +284,7 @@ class Container(object):
         if fun == "set_polyline":
             annotations_updated = measurement.set_polyline(self.canvas, **kwargs_function)
         if fun == "detect_skeleton":
-            annotations_updated = measurement.detect_skeleton(self.image, **kwargs_function)
+            annotations_updated = measurement.detect_skeleton(**kwargs_function)
         if fun == "compute_shape_features":
             annotations_updated = measurement.compute_shape_features(**kwargs_function)
         if fun == "compute_texture_features":

@@ -235,9 +235,7 @@ def set_polyline(image, line_width="auto", line_colour="default", **kwargs):
     )
 
 
-def detect_skeleton(
-    annotations, thinning="zhangsuen", **kwargs,
-):
+def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
     """
     Applies a binary blob thinning operation, to achieve a skeletization of 
     the input image using the technique, i.e. retrieve the topological skeleton
