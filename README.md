@@ -1,10 +1,7 @@
 
-![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo.png)
+![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo_text.png)
 
 ---
-
-## **phenopype**
-### **A phenotyping pipeline for python**
 
 | Project status | Windows build | Linux build | OSX build | Coverage | Style |
 |:---:|:---:|:---:|:---:|:---:|:---:|
