@@ -10,6 +10,7 @@ from dataclasses import make_dataclass
 import pprint
 import subprocess
 import time
+import zipfile
 
 import cv2
 import ruamel.yaml
@@ -900,6 +901,45 @@ class Project:
             else:
                 print("User check failed - aborting.")
                 break
+
+    def export_zip(self, no_imgs=True, **kwargs):
+        """
+    
+        Parameters
+        ----------
+        no_imgs : bool, optional
+            Don't include images from the data folder. The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
+        ## save suffix
+        if kwargs.get("save_suffix"):
+            save_suffix = "_" + kwargs.get("save_suffix")
+        else:
+            save_suffix = ""    
+
+        ## construct save path
+        basename = os.path.basename(self.root_dir) 
+        save_path = os.path.join(self.root_dir, basename + save_suffix + ".zip")
+        
+        ## loop through the file tree
+        relroot = os.path.abspath(os.path.join(self.root_dir, os.pardir))
+        with zipfile.ZipFile(save_path, "w", zipfile.ZIP_DEFLATED) as zip:
+            for root, dirs, files in os.walk(self.root_dir):
+                for file in files:
+                    basename_data = os.path.join(os.path.basename(self.root_dir), "data")
+                    if no_imgs==True and basename_data in root:
+                        if os.path.splitext(file)[1].replace(".","") in settings.default_filetypes:
+                            continue
+                    file_path = os.path.join(root, file)
+                    if os.path.isfile(file_path):
+                        if not file_path == save_path:
+                            arc_name = os.path.join(os.path.relpath(root, relroot), file)
+                            zip.write(file_path, arc_name)
+    
 
 
 class Pype(object):
