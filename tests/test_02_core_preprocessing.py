@@ -31,15 +31,15 @@ def test_create_mask(image, mask_polygon):
     assert len(annotations) > 0
     
     
-def test_detect_shape(image):
+def test_detect_mask(image):
     
-    annotations = pp.preprocessing.detect_shape(
+    annotations = pp.preprocessing.detect_mask(
         image, 
         circle_args={"param1": 150, "param2": 150, "min_radius":1000}, 
         resize=0.5
         )
     
-    annotations = pp.preprocessing.detect_shape(
+    annotations = pp.preprocessing.detect_mask(
         image, 
         circle_args={"param1": 150, "param2": 150, "max_radius":150}, 
         resize=0.5

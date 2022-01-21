@@ -3,6 +3,16 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.1.0
+-----
+bugfix:
+	- detect_mask (formerly detect_shape) would return faulty masks
+	- remove debug markers ("test", "bier", etc.)
+new functionality:
+	- project.export_zip(): compress the current project and store as a zip archive to the root folder (option to exclude imgs)
+- detect_shape becomes detect_mask
+- more legacy conversion added (function names in Pype config files will be automatically renamed to new syntax)
+
 3.0.2
 -----
 - removed numpy/pandas version selection in setup.py to reduce conflicts with other packages and environments

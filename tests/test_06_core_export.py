@@ -109,9 +109,9 @@ def test_load_annotation(settings, image):
     assert not (image==canvas_mod).all() and len(annotations) > 0
 
     
-def test_save_ROI(image, contours, settings):
+def test_save_ROI(image, mask_polygon, settings):
     
-    annotations = contours
+    annotations = mask_polygon
     
     save_dir = os.path.join(pytest.test_dir,"ROI")
 
@@ -124,7 +124,7 @@ def test_save_ROI(image, contours, settings):
         dir_path=save_dir,
         )
 
-    assert len(os.listdir(save_dir)) == len(annotations["contour"]["a"]["data"]["contour"])
+    assert len(os.listdir(save_dir)) == len(annotations["mask"]["a"]["data"]["mask"])
     
     
 def test_export_csv(image, contours, comment, settings):
