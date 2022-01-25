@@ -1575,7 +1575,7 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
 
     ## load image
     if attributes["image_phenopype"]["mode"] == "link":
-        image_path = attributes["image_original"]["filepath"]
+        image_path = attributes["image_phenopype"]["filepath"]
     else:
         image_path = os.path.join(dir_path, attributes["image_phenopype"]["filename"])
     image = utils.load_image(image_path)
@@ -1587,7 +1587,7 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
         return image
 
 
-def _load_image_data(image_path, path_and_type=True, resize=1):
+def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize=1):
     """
     Create a DataFreame with image information (e.g. dimensions).
 
@@ -1605,7 +1605,7 @@ def _load_image_data(image_path, path_and_type=True, resize=1):
         contains image data (+meta data, if selected)
 
     """
-
+    
     if image_path.__class__.__name__ == "str":
         if os.path.isfile(image_path):
             image = Image.open(image_path)
@@ -1618,6 +1618,9 @@ def _load_image_data(image_path, path_and_type=True, resize=1):
             }
 
             if path_and_type:
+                if not image_rel_path.__class__.__name__ == "NoneType":
+                    image_path = image_rel_path
+                
                 image_data.update(
                     {
                         "filepath": image_path,

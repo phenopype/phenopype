@@ -347,7 +347,7 @@ class Project:
                         + " - "
                         + "phenopype-project folder "
                         + dir_name
-                        + ' created (overwrite == "dir")'
+                        + ' created (overwrite="dir")'
                     )
                     os.mkdir(dir_path)
             else:
@@ -366,9 +366,7 @@ class Project:
             image_name = os.path.basename(file_path)
             image_name_root = os.path.splitext(image_name)[0]
             image_ext = os.path.splitext(image_name)[1]
-            
-            print(file_path)
-            
+                        
             image_data_original = utils_lowlevel._load_image_data(file_path)
             image_data_phenopype = {
                 "date_added": datetime.today().strftime(settings.strftime_format),
@@ -395,13 +393,13 @@ class Project:
                 image_phenopype_path = os.path.join(
                     self.root_dir, "data", dir_name, image_name_root + "_mod" + ext,
                 )
-                if os.path.isfile(image_phenopype_path) and flags.overwrite == "file":
+                if os.path.isfile(image_phenopype_path) and flags.overwrite in ["file", "files", "image", "True"]:
                     print(
                         "Found image "
                         + image_phenopype_path
                         + " in "
                         + dir_name
-                        + ' - overwriting (overwrite == "files")'
+                        + ' - overwriting (overwrite="files")'
                     )
                 cv2.imwrite(image_phenopype_path, image)
                 image_data_phenopype.update(
@@ -413,8 +411,17 @@ class Project:
                     )
                 )
 
-            elif flags.mode == "link":
-                image_phenopype_path = file_path
+            elif flags.mode == "link":               
+                               
+                image_phenopype_path = os.path.relpath(file_path, start=dir_path)
+
+                image_data_phenopype.update(
+                    utils_lowlevel._load_image_data(
+                        image_path=file_path, 
+                        image_rel_path=image_phenopype_path,
+                        path_and_type=True
+                        )
+                    )
 
             ## write attributes file
             attributes = {

@@ -325,7 +325,6 @@ class Container(object):
             )
         if fun == "export_csv":
             export.export_csv(
-                annotations,
                 dir_path=self.dir_path,
                 save_prefix=self.file_prefix,
                 save_suffix=self.file_suffix,
