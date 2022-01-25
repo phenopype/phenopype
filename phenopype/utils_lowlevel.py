@@ -1576,12 +1576,9 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
     ## load image
     if attributes["image_phenopype"]["mode"] == "link":
         file_path = attributes["image_phenopype"]["filepath"]
-        image_path = os.path.relpath(
-            file_path, 
-            start=dir_path)
-
-        print(attributes["image_phenopype"]["filepath"])
-        print(dir_path)
+        image_path = os.path.join(
+            dir_path, file_path)
+        print(image_path)
     else:
         image_path = os.path.join(dir_path, attributes["image_phenopype"]["filename"])
     image = utils.load_image(image_path)
