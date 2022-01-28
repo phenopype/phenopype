@@ -1039,14 +1039,6 @@ class Pype(object):
             ],
         )
         
-        ## check version, load container and config
-        # if self.flags.dry_run:
-        #     self._load_pype_config(tag, config)
-        #     self._iterate(config=self.config, annotations=copy.deepcopy(settings._annotation_types),
-        #               execute=False, visualize=False, feedback=True)
-        # else:
-
-        print("Format path to abspath")
         if image_path.__class__.__name__ == "str":
             image_path = os.path.abspath(image_path)
 
@@ -1054,6 +1046,13 @@ class Pype(object):
         utils_lowlevel._check_pype_tag(tag)
         self._load_container(image_path=image_path, tag=tag)
         self._load_pype_config(image_path=image_path, tag=tag, config_path=config_path)
+
+        # check version, load container and config
+        if self.flags.dry_run:
+            self._load_pype_config(image_path, tag, config_path)
+            self._iterate(config=self.config, annotations=copy.deepcopy(settings._annotation_types),
+                      execute=False, visualize=False, feedback=True)
+            return
 
         ## check whether directory is skipped
         if self.flags.skip:
@@ -1372,7 +1371,7 @@ class Pype(object):
                             method_idx
                         ] = {method_name_updated: method_args}
                         method_name = method_name_updated
-                        print("Fixed method name")
+                        print("Stage: fixed method name")
                 else:
                     print(
                         "phenopype.{} has no function called {} - will attempt to look for similarly named functions - fix the config file!".format(
@@ -1395,7 +1394,7 @@ class Pype(object):
                     else:
                         annotation_args = {}
                         method_args = dict(method_args)
-
+                        print("Stage: add annotation control args")
                     if not "type" in annotation_args:
                         annotation_args.update(
                             {"type": settings._annotation_functions[method_name]}
@@ -1481,7 +1480,7 @@ class Pype(object):
 
         if not self.config_updated == self.config:
             utils_lowlevel._save_yaml(self.config_updated, self.config_path)
-            print("updating pype config file")
+            print("Updating pype config: applying staged changes")
 
         if flags.execute:
             print(

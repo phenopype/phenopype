@@ -1578,7 +1578,8 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
         file_path = attributes["image_phenopype"]["filepath"]
         image_path = os.path.join(
             dir_path, file_path)
-        print(image_path)
+        if not os.path.isfile(image_path):
+            raise FileNotFoundError("Link mode: did not find image - images folder set up correctly?")
     else:
         image_path = os.path.join(dir_path, attributes["image_phenopype"]["filename"])
     image = utils.load_image(image_path)

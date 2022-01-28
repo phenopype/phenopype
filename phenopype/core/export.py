@@ -92,17 +92,16 @@ def export_csv(
         ## comment
         if annotation_type == settings._comment_type:
             for annotation_id in annotations[annotation_type].keys():
+                
+                label = annotations[annotation_type][annotation_id]["data"]["label"]
+                comment = annotations[annotation_type][annotation_id]["data"][annotation_type]
                 list_flattened.append(
                     pd.DataFrame(
                         {
                             **{"image_name": image_name},
                             **{"annotation_type": annotation_type},
                             **{"annotation_id": annotation_id},
-                            **{
-                                "label": annotations[annotation_type][annotation_id][
-                                    "data"
-                                ][annotation_type]
-                            },
+                            **{label:comment},
                         },
                         index=[0],
                     )
@@ -132,20 +131,31 @@ def export_csv(
                                 **{"area": support["area"]},
                                 **{"diameter": support["diameter"]},
                                 **{"hierarchy_level": support["hierarchy_level"]},
-                                **{
-                                    "hierarchy_idx_child": support[
-                                        "hierarchy_idx_child"
-                                    ]
-                                },
-                                **{
-                                    "hierarchy_idx_parent": support[
-                                        "hierarchy_idx_parent"
-                                    ]
-                                },
+                                **{"hierarchy_idx_child": support["hierarchy_idx_child"]},
+                                **{"hierarchy_idx_parent": support["hierarchy_idx_parent"]},
                             },
                             index=[0],
                         )
                     )
+                    
+                    
+        ## landmark
+        if annotation_type == settings._landmark_type:
+            for annotation_id in annotations[annotation_type].keys():
+                lm_tuple_list = list(zip(*annotations[annotation_type][annotation_id]["data"][annotation_type]))
+                list_flattened.append(
+                    pd.DataFrame.from_dict(
+                        {
+                            **{"image_name": image_name},
+                            **{"annotation_type": annotation_type},
+                            **{"annotation_id": annotation_id},
+                            **{"landmark_idx": range(1,len(lm_tuple_list[0])+1)},
+                            **{"x_coords": lm_tuple_list[0]},
+                            **{"y_coords": lm_tuple_list[1]},
+
+                        },
+                    )
+                )
 
         ## shape_features
         if annotation_type == settings._shape_feature_type:
@@ -194,7 +204,7 @@ def export_csv(
             df.to_csv(filepath, index=False)
 
 
-def load_annotation(filepath, annotation_type=None, annotation_id=None):
+def load_annotation(filepath, annotation_type=None, annotation_id=None, **kwargs):
     """
 
     Parameters
@@ -214,6 +224,8 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None):
         Loaded annotations.
 
     """
+    
+    flag_verbose = kwargs.get("verbose", settings.flag_verbose)
 
     ## load annotation file
     if os.path.isfile(filepath):
@@ -257,7 +269,8 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None):
 
         ## filter by annotation type
         if annotation_type.__class__.__name__ == "NoneType":
-            print("- no annotation_type selected - returning all annotations")
+            if flag_verbose:
+                print("- no annotation_type selected - returning all annotations")
             annotation = annotation_file
             break
         elif annotation_type.__class__.__name__ == "str":

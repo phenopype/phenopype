@@ -185,10 +185,10 @@ class Container(object):
         annotations_updated = None
 
         ## function kwargs
-        kwargs_function = fun_kwargs
+        kwargs_function = copy.deepcopy(fun_kwargs)
         kwargs_function["annotations"] = annotations
-        kwargs_function["annotation_type"] = annotation_type
-        kwargs_function["annotation_id"] = annotation_id
+        kwargs_function["annotation_type"] = fun_kwargs.get("annotation_type",annotation_type)
+        kwargs_function["annotation_id"] = fun_kwargs.get("annotation_id",annotation_id)
         kwargs_function["annotation_counter"] = annotation_counter
 
         ## verbosity
@@ -205,12 +205,10 @@ class Container(object):
             image_name = self.image_name
 
         ## edit handling
-        if not all(
-            [
+        if not all([
                 annotation_id.__class__.__name__ == "NoneType",
                 annotation_type.__class__.__name__ == "NoneType",
-            ]
-        ):
+            ]):
             if annotation_type in annotations:
                 if annotation_id in annotations[annotation_type]:
                     print_msg = '- loaded existing annotation of type "{}" with ID "{}"'.format(
