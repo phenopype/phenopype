@@ -3,6 +3,13 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.2.0
+-----
+bugfix:
+	- adding image files in "link" mode to a projet will now use relative links instead of absolute
+new functionality:
+	- project.create_training_data(): exports a set of annotations that can be used for training machine learning models. The method extracts a specific set of annotations from the entire project (for a specified tag) and formats them in a specific way so that the data can be immediately processed by a given architecture or framework. The first implementation is for "ml-morph" (https://github.com/agporto/ml-morph / Machine-learning tools for landmark-based morphometrics), a Python toolchain for automatic landmark detection in images. 
+
 3.1.0
 -----
 bugfix:
