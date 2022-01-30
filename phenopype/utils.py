@@ -409,6 +409,8 @@ class Container(object):
 #%% functions
 
 
+
+
 def load_image(path, mode="default", **kwargs):
     """
     Create ndarray from image path or return or resize exising array.

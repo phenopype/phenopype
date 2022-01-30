@@ -29,18 +29,19 @@ def export_csv(
 
     Parameters
     ----------
-    annotations : TYPE
-        DESCRIPTION.
-    annotation_type : TYPE, optional
-        DESCRIPTION. The default is None.
-    image_name : TYPE, optional
-        DESCRIPTION. The default is None.
-    dir_path : TYPE, optional
-        DESCRIPTION. The default is None.
-    overwrite : TYPE, optional
-        DESCRIPTION. The default is False.
-    **kwargs : TYPE
-        DESCRIPTION.
+    annotations : dict
+        A phenopype annotation dictionary.
+    dir_path : str
+        To which folder should the csv file be exported. 
+        PYPE: Automatically set to the current image directory
+    annotation_type : str / list, optional
+        Which annotation types should be exported - can be string or list of strings.
+    image_name : str 
+       Image name to be added as a column
+       PYPE: Automatically adds the image name.
+    overwrite : bool, optional
+        Should an existing csv file be overwritten. The default is False.
+
 
     Returns
     -------
@@ -49,7 +50,6 @@ def export_csv(
     """
 
     ## dirpath
-
     if not image_name:
         print(
             "Warning: missing image_name argument - exported CSV will not contain information about source-image"

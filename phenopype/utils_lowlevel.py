@@ -1305,7 +1305,23 @@ def _yaml_recursive_delete_comments(d):
         pass
 
 
-#%% functions - DIALOGUES
+#%% functions - DIALOGS
+
+def _overwrite_check_file(path, overwrite):
+    
+    filename = os.path.basename(path)
+    
+    if os.path.isfile(path) and overwrite == False:
+        print(
+            filename + " not saved - file already exists (overwrite=False)."
+        )
+        return False
+    elif os.path.isfile(path) and overwrite == True:
+        print(filename + " saved under " + path + " (overwritten).")
+        return True
+    elif not os.path.isfile(path):
+        print(filename + " saved under " + path + ".")
+        return True
 
 
 #%% functions - VARIOUS
@@ -1590,7 +1606,6 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
     else:
         return image
 
-
 def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize=1):
     """
     Create a DataFreame with image information (e.g. dimensions).
@@ -1649,7 +1664,6 @@ def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize
 
     ## return image data
     return image_data
-
 
 def _resize_image(image, factor=1, interpolation="cubic"):
     """

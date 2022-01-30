@@ -852,6 +852,91 @@ class Project:
                 shutil.copyfile(file_path, path)
                 break
 
+    def create_training_data(self, tag, framework, folder, annotation_id=None, overwrite=False, **kwargs):
+        """
+        
+
+        Parameters
+        ----------
+        tag : str
+            The Pype tag from which training data should be extracted.
+        framework :  {"ml-morph"} str
+            For which machine learning framwork should training data be created.
+            Currently instructions for the following architectures are supported:
+                - "ml-morph" - Machine-learning tools for landmark-based morphometrics
+                https://github.com/agporto/ml-morph
+        folder : str
+            Name of the folder under "root/training_data" where the formatted 
+            training data will be stored under.
+        annotation_id : str, optional
+            select a specific annotation id. The default is None.
+        overwrite : bool, optional
+            Should an existing training data set be overwritten. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        # =============================================================================
+        # setup
+        flags = make_dataclass(
+            cls_name="flags", fields=[("overwrite", bool, overwrite)]
+        )
+    
+        if annotation_id.__class__.__name__ == "NoneType":
+            print("No annotation id set - will use last one in annotations file.")
+            time.sleep(2)
+
+        training_data_path = os.path.join(self.root_dir, "training_data", folder)
+    
+        if not os.path.isdir(training_data_path):
+            os.makedirs(training_data_path)
+            print("Created " + training_data_path)
+
+
+        # =============================================================================
+        ## prep
+        if framework=="ml-morph":
+            df_summary = pd.DataFrame()
+            file_path_save = os.path.join(training_data_path, "landmarks_ml-morph_" + tag + ".csv")
+            
+        # =============================================================================
+        ## overwrite check
+        if utils_lowlevel._overwrite_check_file(file_path_save, flags.overwrite):
+            pass
+        else:
+            return
+        
+        # =============================================================================
+        ## run
+        for idx, dirpath in enumerate(self.dir_paths):
+                        
+            attributes = utils_lowlevel._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+            annotations = utils_lowlevel._load_yaml(os.path.join(dirpath, "annotations_" + tag + ".json"))           
+            print("Preparing training data for: ({}/{}) ".format(idx, len(self.dir_paths)) + attributes["image_original"]["filename"])
+
+            if framework=="ml-morph":
+                annotation_type = settings._landmark_type
+                if annotation_id.__class__.__name__ == "NoneType":
+                    annotation_id = max(list(annotations[annotation_type].keys()))
+                data = annotations[annotation_type][annotation_id]["data"][annotation_type]
+                lm_tuple_list = list(zip(*data))
+                df = pd.DataFrame([attributes["image_original"]["filename"]] + list(lm_tuple_list[0]) + list(lm_tuple_list[1])).transpose()
+                df_summary = pd.concat([df_summary, df])
+                
+        # =============================================================================
+        ## save
+        if framework=="ml-morph":
+            num_list = list(range(1, len(data)+1))
+            colnames = ["id"] + ["X" + str(i) for i in num_list] + ["X" + str(i) for i in num_list]          
+            df_summary.set_axis(colnames, axis=1, inplace=True)
+            df_summary.to_csv(file_path_save, index=False)
+            
+            
+            
+
     def edit_config(self, tag, target, replacement, **kwargs):
         """
         Add or edit functions in all configuration files of a project. Finds and
