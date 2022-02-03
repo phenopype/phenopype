@@ -1,19 +1,125 @@
 #%% modules
+
+from collections import defaultdict
 import copy
 import json
 import os
-from collections import defaultdict
+import sys 
 
 import cv2
 import numpy as np
 import pandas as pd
 
-
+from phenopype import __version__
 from phenopype import settings
 from phenopype import utils_lowlevel
 from phenopype import utils
 
 #%% functions
+
+
+
+
+def convert_annotation(
+    annotations,
+    annotation_type,
+    annotation_id,
+    annotation_type_new,
+    annotation_id_new,
+    overwrite=False,
+    **kwargs
+):
+    """
+    
+
+    Parameters
+    ----------
+    annotations : TYPE
+        DESCRIPTION.
+    annotation_type : TYPE
+        DESCRIPTION.
+    annotation_id : TYPE
+        DESCRIPTION.
+    annotation_type_new : TYPE
+        DESCRIPTION.
+    annotation_id_new : TYPE
+        DESCRIPTION.
+    overwrite : TYPE, optional
+        DESCRIPTION. The default is False.
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+
+    # =============================================================================
+    # annotation management
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+        prep_msg="- extracting annotation:",
+    )
+   
+    # =============================================================================
+    # setup
+    
+    ## convert_annotation
+    fun_name = sys._getframe().f_code.co_name
+
+    # =============================================================================
+    # method
+
+    if annotation_type_new == settings._mask_type:
+                
+        ## method setup
+        if "label" in annotation["data"]:
+            label = annotation["data"]["label"]
+        else:
+            label = kwargs.get("label", "mask1")
+        include = kwargs.get("include", True)    
+        
+        annotation_old_data = annotation["data"][annotation_type]
+        
+        annotation_new_data = []
+        for idx, coord_list in enumerate(annotation_old_data):
+            annotation_new_data.append(utils_lowlevel._convert_arr_tup_list(coord_list))
+        
+        
+        annotation = {
+            "info": {
+                "annotation_type": annotation_type_new,
+                "phenopype_function": fun_name,
+                "phenopype_version": __version__,
+            },
+            "settings": {
+                "tool": "polygon",
+            },
+            "data": {
+                "label": label,
+                "include": include,
+                "n": len(annotation_new_data),
+                annotation_type_new: annotation_new_data,
+            },
+        }
+
+    # print(annotations)
+
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type_new,
+        annotation_id=annotation_id_new,
+        kwargs=kwargs,
+    )
+
+
 
 
 def export_csv(
@@ -204,6 +310,7 @@ def export_csv(
             df.to_csv(filepath, index=False)
 
 
+
 def load_annotation(filepath, annotation_type=None, annotation_id=None, **kwargs):
     """
 
@@ -309,10 +416,11 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, **kwargs
     return dict(annotation)
 
 
+
 def save_annotation(
-    annotation,
+    annotations,
     dir_path,
-    file_name="annotations.json",
+    annotation_type=None,
     annotation_id=None,
     overwrite=False,
     **kwargs
@@ -366,13 +474,14 @@ def save_annotation(
 
     ## kwargs
     indent = kwargs.get("indent", 4)
+    file_name = kwargs.get("file_name","annotations")
 
     if not file_name.endswith(".json"):
         file_name = file_name + ".json"
 
     ## filepath
     filepath = os.path.join(dir_path, file_name)
-    annotation = copy.deepcopy(annotation)
+    annotations = copy.deepcopy(annotations)
 
     ## open existing json or create new
     while True:
@@ -403,40 +512,51 @@ def save_annotation(
         annotation_file = defaultdict(dict)
         break
 
-    annotation = defaultdict(dict, annotation)
+    annotations = defaultdict(dict, annotations)
 
-    ## write annotation to output dict
-    for annotation_type in annotation:
-        for annotation_id in annotation[annotation_type]:
+    ## subset annotation types
+    if annotation_type.__class__.__name__ == "NoneType":
+        print("- no annotation_type selected - exporting all annotations")
+        annotation_types = list(annotations.keys())
+    elif annotation_type.__class__.__name__ == "str":
+        annotation_types = [annotation_type]
+    elif annotation_type.__class__.__name__ in ["list", "CommentedSeq"]:
+        annotation_types = annotation_type
+        
+    for annotation_type in annotation_types:
+
+    ## write annotations to output dict
+    # for annotation_type in annotations:
+        for annotation_id in annotations[annotation_type]:
             annotation_id_new = annotation_id
             if str(annotation_id) in annotation_file[annotation_type]:
                 if overwrite in [True, "entry"]:
-                    annotation_file[annotation_type][annotation_id_new] = annotation[
+                    annotation_file[annotation_type][annotation_id_new] = annotations[
                         annotation_type
                     ][annotation_id]
                     print(
-                        '- updating annotation of type "{}" with id '
+                        '- updating annotations of type "{}" with id '
                         '"{}" in "{}" (overwrite="entry")'.format(
                             annotation_type, annotation_id, file_name
                         )
                     )
                 else:
                     print(
-                        '- annotation of type "{}" with id "{}" already '
+                        '- annotations of type "{}" with id "{}" already '
                         'exists in "{}" (overwrite=False)'.format(
                             annotation_type, annotation_id, file_name
                         )
                     )
             else:
-                annotation_file[annotation_type][annotation_id_new] = annotation[
+                annotation_file[annotation_type][annotation_id_new] = annotations[
                     annotation_type
                 ][annotation_id]
                 print(
-                    '- writing annotation of type "{}" with id '
+                    '- writing annotations of type "{}" with id '
                     '"{}" to "{}"'.format(annotation_type, annotation_id, file_name)
                 )
 
-    ## remove indents from annotation arrays and lists
+    ## remove indents from annotations arrays and lists
     for annotation_type in annotation_file:
         for annotation_id in annotation_file[annotation_type]:
             for section in annotation_file[annotation_type][annotation_id]:
@@ -480,7 +600,7 @@ def save_ROI(
     ----------
     image : ndarray
         An image containing regions of interest (ROI).
-    annotation : dict
+    annotations : dict
         A phenopype annotation dict containing one or more contour coordinate
         entries.
     name : str

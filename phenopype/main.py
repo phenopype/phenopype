@@ -1023,7 +1023,7 @@ class Project:
             for root, dirs, files in os.walk(self.root_dir):
                 for file in files:
                     basename_data = os.path.join(os.path.basename(self.root_dir), "data")
-                    if no_imgs==True and basename_data in root:
+                    if no_imgs==True and (basename_data in root or "canvas" in root):
                         if os.path.splitext(file)[1].replace(".","") in settings.default_filetypes:
                             continue
                     file_path = os.path.join(root, file)
@@ -1467,57 +1467,51 @@ class Pype(object):
                 # =============================================================================
                 # METHOD / ANNOTATION
                 # =============================================================================
-
+                
+                if "ANNOTATION" in method_args:
+                    annotation_args = dict(method_args["ANNOTATION"])
+                    del method_args["ANNOTATION"]
+                else:
+                    annotation_args = {}
+                    method_args = dict(method_args)
+                    print("Stage: add annotation control args")
+                
                 ## annotation params
                 if method_name in settings._annotation_functions:
 
                     annotation_counter[settings._annotation_functions[method_name]] += 1
 
-                    if "ANNOTATION" in method_args:
-                        annotation_args = dict(method_args["ANNOTATION"])
-                        del method_args["ANNOTATION"]
-                    else:
-                        annotation_args = {}
-                        method_args = dict(method_args)
-                        print("Stage: add annotation control args")
                     if not "type" in annotation_args:
-                        annotation_args.update(
-                            {"type": settings._annotation_functions[method_name]}
-                        )
+                        annotation_args.update({"type": settings._annotation_functions[method_name]})
                     if not "id" in annotation_args:
-                        annotation_args.update(
-                            {
-                                "id": string.ascii_lowercase[
-                                    annotation_counter[
-                                        settings._annotation_functions[method_name]
-                                    ]
-                                ]
-                            }
-                        )
+                        annotation_args.update({"id": string.ascii_lowercase[annotation_counter[settings._annotation_functions[method_name]]]})
                     if not "edit" in annotation_args:
-                        annotation_args.update(
-                            {
-                                "edit": "overwrite"
-                                if method_name
-                                in [
+                        annotation_args.update({"edit": "overwrite" if method_name in [
                                     "detect_contour",
                                     "detect_mask",
                                     "compute_shape_features",
                                     "compute_texture_features",
                                     "detect_skeleton",
-                                ]
-                                else False
-                            }
-                        )
+                                ] else False })
 
+
+                elif method_name in ["convert_annotation"]:
+                    try:
+                        annotation_type = method_args["annotation_type_new"]
+                        annotation_id = method_args["annotation_id_new"]
+                        annotation_args.update({"type":annotation_type, "id":annotation_id, "edit":"overwrite"})
+                    except KeyError:
+                        print("Missing arguments for annotation conversion")
+                        
+                else:
+                    annotation_args = {}
+
+                ## create ANNOTATION string and add to config
+                if annotation_args:
                     annotation_args = utils_lowlevel._yaml_flow_style(annotation_args)
                     method_args_updated = {"ANNOTATION": annotation_args}
                     method_args_updated.update(method_args)
-                    self.config_updated["processing_steps"][step_idx][step_name][
-                        method_idx
-                    ] = {method_name: method_args_updated}
-                else:
-                    annotation_args = {}
+                    self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
 
                 # =============================================================================
                 # METHOD / EXECUTE

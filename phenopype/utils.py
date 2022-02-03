@@ -305,22 +305,26 @@ class Container(object):
             self.canvas = visualization.draw_reference(self.canvas, **kwargs_function)
 
         ## export
+        if fun == "convert_annotation":
+            annotations_updated = export.convert_annotation(**kwargs_function)
         if fun == "save_annotation":
-            export.save_annotation(
-                annotations,
-                file_name=self._construct_file_name("annotations", "json"),
-                dir_path=self.dir_path,
-                **kwargs_function,
-            )
+            
+            if not "file_name" in kwargs_function:
+                kwargs_function["file_name"] = self._construct_file_name("annotations", "json")
+            
+            export.save_annotation(dir_path=self.dir_path,**kwargs_function)
         if fun == "save_canvas":
+            
+            if not "file_name" in kwargs_function:
+                ext = kwargs_function.get("ext", ".jpg")
+                kwargs_function["file_name"] = self._construct_file_name("canvas", ext)
+            
             export.save_canvas(
                 self.canvas,
-                file_name=self._construct_file_name(
-                    "canvas", kwargs_function.get("ext", ".jpg")
-                ),
                 dir_path=self.dir_path,
                 **kwargs_function,
             )
+            
         if fun == "export_csv":
             export.export_csv(
                 dir_path=self.dir_path,
@@ -336,9 +340,7 @@ class Container(object):
             if not annotation_type in annotations:
                 annotations[annotation_type] = {}
 
-            annotations[annotation_type][annotation_id] = annotations_updated[
-                annotation_type
-            ][annotation_id]
+            annotations[annotation_type][annotation_id] = annotations_updated[annotation_type][annotation_id]
             self.annotations.update(annotations)
             
             
