@@ -863,8 +863,10 @@ class Project:
         framework :  {"ml-morph"} str
             For which machine learning framwork should training data be created.
             Currently instructions for the following architectures are supported:
-                - "ml-morph" - Machine-learning tools for landmark-based morphometrics
-                https://github.com/agporto/ml-morph
+            
+            - "ml-morph" - Machine-learning tools for landmark-based morphometrics 
+              https://github.com/agporto/ml-morph
+            
         folder : str
             Name of the folder under "root/training_data" where the formatted 
             training data will be stored under.
