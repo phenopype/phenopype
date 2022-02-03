@@ -7,6 +7,7 @@ import pandas as pd
 import cv2
 import os
 import pprint
+import sys
 
 from math import inf
 
@@ -304,7 +305,11 @@ class motion_tracker(object):
 
             self.methods = methods
             for m in self.methods:
+                print("-----------------------------")
+                print("Detection method \"{}\":\n".format(m.label))
                 m._print_settings()
+                print("-----------------------------")
+                print("\n")
 
         print("\n")
         print("--------------------------------------------------------------")
@@ -328,7 +333,7 @@ class motion_tracker(object):
         )
         print("--------------------------------------------------------------")
 
-    def run_tracking(self, feedback=True, canvas="overlay", overlay_weight=0.5):
+    def run_tracking(self, feedback=True, canvas="overlay", overlay_weight=0.5, **kwargs):
         """
         Start motion tracking procedure. Enable or disable video feedback, 
         output and select canvas (overlay of detected objects, foreground mask,
@@ -365,7 +370,6 @@ class motion_tracker(object):
         if all(hasattr(self, attr) for attr in ["methods", "masks"]):
             for m in self.methods:
                 m._apply_masks(frame=self.image, masks=self.masks)
-                print("MASK")
 
         ## loop thrpugh frames
         while self.capture.isOpened():
@@ -523,10 +527,10 @@ class motion_tracker(object):
                     self.canvas = cv2.cvtColor(self.canvas, cv2.COLOR_GRAY2BGR)
 
                 ## draw masks
-                if hasattr(self, "masks"):
+                if not self.masks.__class__.__name__ == "NoneType":
                     for key, value in self.masks[settings._mask_type].items():
                         self.canvas = visualization.draw_mask(
-                            self.canvas, {settings._mask_type: {"a": value}}, label=True
+                            self.canvas, {settings._mask_type: {key: value}}, label=True
                         )
 
                 ## feedback
@@ -553,7 +557,12 @@ class motion_tracker(object):
         cv2.destroyAllWindows()
 
         ## return DataFrame
-        return self.df
+        debug =  kwargs.get("debug", False)
+        
+        if debug:
+            return self
+        else:
+            return self.df
 
 
 class tracking_method:
@@ -648,8 +657,13 @@ class tracking_method:
         Internal reference - don't call this directly. 
         """
 
+        print_dict = {}
+        for key, value in self.__dict__.items():
+            if type(value) in [str, float, int, tuple, bool]:
+                print_dict[key] = value
+                
         pretty = pprint.PrettyPrinter(width=width, compact=compact, indent=indent)
-        pretty.pprint(vars(self))
+        pretty.pprint(print_dict)
 
     def _run(self, frame, fgmask):
         """
