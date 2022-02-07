@@ -789,11 +789,11 @@ def decompose_image(
 
         if channel in ["grayscale", "gray"]:
             image = gray
-        elif channel in ["green", "g"]:
-            image = image[:, :, 0]
-        elif channel in ["red", "r"]:
-            image = image[:, :, 1]
         elif channel in ["blue", "b"]:
+            image = image[:, :, 0]
+        elif channel in ["green", "g"]:
+            image = image[:, :, 1]
+        elif channel in ["red", "r"]:
             image = image[:, :, 2]
         elif channel in ["hue", "h"]:
             image = hsv[:, :, 0]

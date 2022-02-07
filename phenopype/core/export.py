@@ -89,7 +89,7 @@ def convert_annotation(
         
         annotation_new_data = []
         for idx, coord_list in enumerate(annotation_old_data):
-            annotation_new_data.append(utils_lowlevel._convert_arr_tup_list(coord_list))
+            annotation_new_data.append(utils_lowlevel._convert_arr_tup_list(coord_list,  add_first=True))
         
         
         annotation = {
@@ -216,14 +216,10 @@ def export_csv(
         ## contour
         if annotation_type == settings._contour_type:
             for annotation_id in annotations[annotation_type].keys():
-                idx = 0
-                for coords, support in zip(
-                    annotations[annotation_type][annotation_id]["data"][
-                        annotation_type
-                    ],
+                for idx, (coords, support) in enumerate(zip(
+                    annotations[annotation_type][annotation_id]["data"][annotation_type],
                     annotations[annotation_type][annotation_id]["data"]["support"],
-                ):
-                    idx += 1
+                ), 1):
                     list_flattened.append(
                         # df_temp = pd.DataFrame(utils_lowlevel._convert_arr_tup_list(coords)[0], columns=["x","y"])
                         pd.DataFrame(
@@ -266,8 +262,11 @@ def export_csv(
         ## shape_features
         if annotation_type == settings._shape_feature_type:
             for annotation_id in annotations[annotation_type].keys():
+                
+                contour_id = annotations[annotation_type][annotation_id]["settings"][settings._contour_type + "_id"]
+            
                 for idx, annotation in enumerate(
-                    annotations[annotation_type][annotation_id]["data"][annotation_type]
+                    annotations[annotation_type][annotation_id]["data"][annotation_type], 1
                 ):
                     list_flattened.append(
                         pd.DataFrame(
@@ -275,6 +274,7 @@ def export_csv(
                                 **{"image_name": image_name},
                                 **{"annotation_type": annotation_type},
                                 **{"annotation_id": annotation_id},
+                                **{"contour_id": contour_id},
                                 **{"contour_idx": idx},
                                 **annotation,
                             },
@@ -285,8 +285,11 @@ def export_csv(
         ## texture_features
         if annotation_type == settings._texture_feature_type:
             for annotation_id in annotations[annotation_type].keys():
+                
+                contour_id = annotations[annotation_type][annotation_id]["settings"][settings._contour_type + "_id"]
+                
                 for idx, annotation in enumerate(
-                    annotations[annotation_type][annotation_id]["data"][annotation_type]
+                    annotations[annotation_type][annotation_id]["data"][annotation_type], 1
                 ):
                     list_flattened.append(
                         pd.DataFrame(
@@ -294,6 +297,7 @@ def export_csv(
                                 **{"image_name": image_name},
                                 **{"annotation_type": annotation_type},
                                 **{"annotation_id": annotation_id},
+                                **{"contour_id": contour_id},
                                 **{"contour_idx": idx},
                                 **annotation,
                             },

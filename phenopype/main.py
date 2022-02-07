@@ -852,6 +852,7 @@ class Project:
                 shutil.copyfile(file_path, path)
                 break
 
+
     def create_training_data(self, tag, framework, folder, annotation_id=None, overwrite=False, **kwargs):
         """
         
@@ -1470,13 +1471,14 @@ class Pype(object):
                 # METHOD / ANNOTATION
                 # =============================================================================
                 
-                if "ANNOTATION" in method_args:
-                    annotation_args = dict(method_args["ANNOTATION"])
-                    del method_args["ANNOTATION"]
-                else:
-                    annotation_args = {}
-                    method_args = dict(method_args)
-                    print("Stage: add annotation control args")
+                if method_name in list(settings._annotation_functions.keys()) + ["convert_annotation"]:
+                    if "ANNOTATION" in method_args:
+                        annotation_args = dict(method_args["ANNOTATION"])
+                        del method_args["ANNOTATION"]
+                    else:
+                        annotation_args = {}
+                        method_args = dict(method_args)
+                        print("Stage: add annotation control args")
                 
                 ## annotation params
                 if method_name in settings._annotation_functions:

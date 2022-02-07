@@ -1327,7 +1327,7 @@ def _overwrite_check_file(path, overwrite):
 #%% functions - VARIOUS
 
 
-def _convert_arr_tup_list(arr_list):
+def _convert_arr_tup_list(arr_list, add_first=False):
 
     if not arr_list.__class__.__name__ == "list":
         arr_list = [arr_list]
@@ -1335,8 +1335,20 @@ def _convert_arr_tup_list(arr_list):
     tup_list = []
     for array in arr_list:
         point_list = []
-        for point in array:
-            point_list.append(tuple((int(point[0][0]), int(point[0][1]))))
+        
+        for idx, point in enumerate(array):
+            if type(array) == np.ndarray:
+                point_converted = tuple((int(point[0][0]), int(point[0][1])))
+            elif type(array) == list:
+                point_converted = tuple((int(point[0]), int(point[1])))
+            point_list.append(point_converted)
+            if idx == 0:
+                first_point = point_converted
+                
+        ## add first point during contour->mask conversion
+        if add_first:
+            point_list.append(first_point)
+            
         tup_list.append(point_list)
 
     return tup_list

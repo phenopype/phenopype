@@ -390,15 +390,14 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
     # annotation management
 
     ## get contours
-    annotation_type = settings._contour_type
-    annotation_id = kwargs.get(annotation_type + "_id", None)
+    contour_id = kwargs.get(settings._contour_type + "_id", None)
     annotation = utils_lowlevel._get_annotation(
         annotations=annotations,
-        annotation_type=annotation_type,
-        annotation_id=annotation_id,
+        annotation_type=settings._contour_type,
+        annotation_id=contour_id,
         kwargs=kwargs,
     )
-    contours = annotation["data"][annotation_type]
+    contours = annotation["data"][settings._contour_type]
     contours_support = annotation["data"]["support"]
 
     ##  features
@@ -478,7 +477,11 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
             "phenopype_version": __version__,
             "annotation_type": annotation_type,
         },
-        "settings": {"features": features, "min_diameter": min_diameter,},
+        "settings": {
+            "features": features, 
+            "min_diameter": min_diameter,
+            "contour_id": contour_id,
+            },
         "data": {annotation_type: shape_features,},
     }
 
@@ -546,15 +549,14 @@ def compute_texture_features(
     # annotation management
 
     ## get contours
-    annotation_type = settings._contour_type
-    annotation_id = kwargs.get(annotation_type + "_id", None)
+    contour_id = kwargs.get(settings._contour_type + "_id", None)
     annotation = utils_lowlevel._get_annotation(
         annotations=annotations,
-        annotation_type=annotation_type,
-        annotation_id=annotation_id,
+        annotation_type=settings._contour_type,
+        annotation_id=contour_id,
         kwargs=kwargs,
     )
-    contours = annotation["data"][annotation_type]
+    contours = annotation["data"][settings._contour_type]
     contours_support = annotation["data"]["support"]
 
     ##  features
@@ -585,38 +587,39 @@ def compute_texture_features(
 
     texture_features = []
 
-    for channel in channels:
 
-        image_slice = preprocessing.decompose_image(image, channel)
-
-        for idx1, (coords, support) in _tqdm(
+    for idx1, (coords, support) in _tqdm(
             enumerate(zip(contours, contours_support)),
-            "Processing " + channel + " channel texture features",
+            "Computing texture features",
             total=len(contours),
-        ):
+    ):
+        
+        output = {}
 
-            idx1 += 1
+        if support["diameter"] > min_diameter:
 
-            if support["diameter"] > min_diameter:
+            for channel in channels:
+                
+                image_slice = preprocessing.decompose_image(image, channel, verbose=False)            
 
                 rx, ry, rw, rh = cv2.boundingRect(coords)
-
+    
                 data = image_slice[ry : ry + rh, rx : rx + rw]
                 mask = foreground_mask_inverted[ry : ry + rh, rx : rx + rw]
                 sitk_data = sitk.GetImageFromArray(data)
                 sitk_mask = sitk.GetImageFromArray(mask)
-
+    
                 extractor = featureextractor.RadiomicsFeatureExtractor()
                 extractor.disableAllFeatures()
                 extractor.enableFeaturesByName(**feature_activation)
                 detected_features = extractor.execute(sitk_data, sitk_mask, label=255)
-
-                output = {}
+    
+    
                 for key, val in detected_features.items():
                     if not "diagnostics" in key:
                         output[channel + "_" + key.split("_", 1)[1]] = float(val)
-
-                texture_features.append(output)
+    
+        texture_features.append(output)
 
     # =============================================================================
     # return
@@ -631,6 +634,7 @@ def compute_texture_features(
             "features": features,
             "min_diameter": min_diameter,
             "channels": channels,
+            "contour_id": contour_id,
         },
         "data": {annotation_type: texture_features,},
     }

@@ -411,6 +411,7 @@ def threshold(
     blocksize=99,
     value=127,
     channel=None,
+    mask=True,
     invert=False,
     **kwargs,
 ):
@@ -513,41 +514,41 @@ def threshold(
 
     # =============================================================================
     # execute masking
-
-    if "data" in annotation_mask:
-        if settings._mask_type in annotation_mask["data"]:
-            mask_bool, include_idx, exclude_idx = (
-                np.zeros(thresh.shape, dtype=bool),
-                0,
-                0,
-            )
-
-            polygons = annotation_mask["data"][settings._mask_type]
-            include = annotation_mask["data"]["include"]
-
-            if include == True:
-                for coords in polygons:
-                    mask_bool = np.logical_or(
-                        mask_bool, utils_lowlevel._create_mask_bool(thresh, coords)
-                    )
-                    include_idx += 1
-                thresh[mask_bool == False] = 0
-            elif include == False:
+    if mask:
+        if "data" in annotation_mask:
+            if settings._mask_type in annotation_mask["data"]:
+                mask_bool, include_idx, exclude_idx = (
+                    np.zeros(thresh.shape, dtype=bool),
+                    0,
+                    0,
+                )
+    
+                polygons = annotation_mask["data"][settings._mask_type]
+                include = annotation_mask["data"]["include"]
+    
+                if include == True:
+                    for coords in polygons:
+                        mask_bool = np.logical_or(
+                            mask_bool, utils_lowlevel._create_mask_bool(thresh, coords)
+                        )
+                        include_idx += 1
+                    thresh[mask_bool == False] = 0
+                elif include == False:
+                    for coords in polygons:
+                        thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
+                        exclude_idx += 1
+    
+                if exclude_idx > 0 and verbose:
+                    print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
+                if include_idx > 0 and verbose:
+                    print("- including pixels from " + str(include_idx) + " drawn masks ")
+    
+        if "data" in annotation_ref:
+            if settings._mask_type in annotation_ref["data"]:
+                polygons = annotation_ref["data"][settings._mask_type]
                 for coords in polygons:
                     thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
-                    exclude_idx += 1
-
-            if exclude_idx > 0 and verbose:
-                print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
-            if include_idx > 0 and verbose:
-                print("- including pixels from " + str(include_idx) + " drawn masks ")
-
-    if "data" in annotation_ref:
-        if settings._mask_type in annotation_ref["data"]:
-            polygons = annotation_ref["data"][settings._mask_type]
-            for coords in polygons:
-                thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
-            print("- excluding pixels from reference")
+                print("- excluding pixels from reference")
 
     # =============================================================================
     # return
