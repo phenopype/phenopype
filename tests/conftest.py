@@ -83,13 +83,14 @@ def project():
 
 @pytest.fixture(scope="session")
 def image():
-    return pp.load_image(pytest.image_path)
+    image = pp.load_image(pytest.image_path)
+    return image
 
     
 @pytest.fixture(scope="session")
 def mask_polygon():
 
-    return {'mask': {'a': {'info': {'annotation_type': 'mask',
+    mask_polygon = {'mask': {'a': {'info': {'annotation_type': 'mask',
         'phenopype_function': 'create_mask',
         'phenopype_version': '3.0.dev0'},
        'settings': {'tool': 'polygon',
@@ -109,6 +110,8 @@ def mask_polygon():
           (1521, 290),
           (1394, 274),
           (1377, 273)]]}}}}
+    
+    return mask_polygon
 
 @pytest.fixture(scope="session")
 def image_binary(image,  mask_polygon):
@@ -116,17 +119,17 @@ def image_binary(image,  mask_polygon):
     annotations = mask_polygon
         
     image_blurred = pp.preprocessing.blur(image, kernel_size=7)
-        
-    return pp.segmentation.threshold(
-        image_blurred, 
-        method="adaptive", 
-        blocksize=199, 
-        constant=10, 
-        channel="red",
-        annotations=annotations,
-        verbose=False,
-        )
-
+    image_binary = pp.segmentation.threshold(
+            image=image_blurred, 
+            method="adaptive", 
+            blocksize=199, 
+            constant=10, 
+            channel="green",
+            annotations=annotations,
+            verbose=True,
+            )
+           
+    return image_binary
 
 @pytest.fixture(scope="session")
 def contours(image_binary):

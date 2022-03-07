@@ -3,11 +3,16 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.2.2
+-----
+bugfix:
+	- when selecting canvas or channel, b/g/r were sliced incorrectly!
+	
+
 3.2.1
 -----
 bugfix:
 	- when specifying multiple masks in the detection settings they were overwritten (also updated tutorial 7 and gallery proj. 4)
-	
 	
 3.2.0
 -----

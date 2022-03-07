@@ -462,7 +462,7 @@ def threshold(
             channel = "gray"
             print("- multichannel image supplied, converting to grayscale")
         image = preprocessing.decompose_image(image, channel, verbose=verbose)
-
+        
     if blocksize % 2 == 0:
         blocksize = blocksize + 1
         print("- even blocksize supplied, adding 1 to make odd")

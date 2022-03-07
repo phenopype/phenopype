@@ -70,7 +70,7 @@ def test_morphology(image_binary):
         operation="close", 
         shape="ellipse", 
         kernel_size=4, 
-        iterations=2
+        iterations=2,
         )    
     
     assert not (image_binary==morph).all()

@@ -674,15 +674,15 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
         # elif canvas == "gray":
         #     image.canvas = cv2.cvtColor(image.image_gray, cv2.COLOR_BGR2GRAY)
         #     print("- grayscale image")
-        elif canvas == "green":
+        elif canvas == "blue":
             image.canvas = image.image_copy[:, :, 0]
+            print("- blue channel")
+        elif canvas == "green":
+            image.canvas = image.image_copy[:, :, 1]
             print("- green channel")
         elif canvas == "red":
-            image.canvas = image.image_copy[:, :, 1]
-            print("- red channel")
-        elif canvas == "blue":
             image.canvas = image.image_copy[:, :, 2]
-            print("- blue channel")
+            print("- red channel")
         else:
             print("- invalid selection - defaulting to raw image")
             image.canvas = copy.deepcopy(image.image_copy)
@@ -694,15 +694,15 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
         elif canvas == "gray":
             canvas = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             print("- grayscale image")
-        elif canvas == "green":
+        elif canvas == "blue":
             canvas = image[:, :, 0]
+            print("- blue channel")
+        elif canvas == "green":
+            canvas = image[:, :, 1]
             print("- green channel")
         elif canvas == "red":
-            canvas = image[:, :, 1]
-            print("- red channel")
-        elif canvas == "blue":
             canvas = image[:, :, 2]
-            print("- blue channel")
+            print("- red channel")  
         else:
             canvas = copy.deepcopy(image)
             print("- invalid selection - defaulting to raw image")
