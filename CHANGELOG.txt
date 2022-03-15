@@ -3,12 +3,17 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.2.3
+-----
+bugfix:
+	- training data exported for "ml-morph" framework wasn't formatted correctly
+- new training data export for convolutional neural networks in keras (using "keras-cnn-semantic")
+	
 3.2.2
 -----
 bugfix:
 	- when selecting canvas or channel, b/g/r were sliced incorrectly!
 	
-
 3.2.1
 -----
 bugfix:

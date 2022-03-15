@@ -649,8 +649,9 @@ def save_image(
         )
 
     ## construct save path
-
-    if file_name.endswith(ext):
+    if file_name[len(file_name)-4] == ".":
+        new_name = file_name
+    elif file_name.endswith(ext):
         new_name = file_name
     else:
         new_name = file_name + ext

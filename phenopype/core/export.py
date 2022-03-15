@@ -350,7 +350,7 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, **kwargs
                 return
         annotation_file = defaultdict(dict, annotation_file)
     else:
-        print("file not found")
+        print("Annotation file not found")
         return
 
     ## parse serialized array

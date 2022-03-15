@@ -1209,13 +1209,22 @@ def _auto_text_size(image, **kwargs):
 
 
 def _get_bgr(col_string):
-    col = Color(col_string)
-    rgb = col.get_rgb()
-    rgb_255 = []
-    for component in rgb:
-        rgb_255.append(int(component * 255))
-
-    return tuple((rgb_255[2], rgb_255[1], rgb_255[0]))
+    
+    if col_string.__class__.__name__ == "str":
+    
+        col = Color(col_string)
+        rgb = col.get_rgb()
+        rgb_255 = []
+        for component in rgb:
+            rgb_255.append(int(component * 255))
+    
+        colour = tuple((rgb_255[2], rgb_255[1], rgb_255[0]))
+        
+    if col_string.__class__.__name__ == "int":
+        
+        colour = (col_string, col_string, col_string)
+        
+    return colour
 
 
 #%% functions - YAML helpers
