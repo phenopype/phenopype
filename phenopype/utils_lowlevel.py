@@ -1686,7 +1686,7 @@ def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize
     ## return image data
     return image_data
 
-def _resize_image(image, factor=1, interpolation="cubic"):
+def _resize_image(image, factor=1, max_dim=None, interpolation="cubic"):
     """
     Resize image by resize factor 
 
@@ -1694,12 +1694,14 @@ def _resize_image(image, factor=1, interpolation="cubic"):
     ----------
     image: array 
         image to be resized
-    resize: float, optional
+    max_dim: int, optional
+        maximum size of any dimension that the image will be resized to. if 
+        image is smaller, no resizing will be performed. maintains aspect ratio
+    factor: float, optional
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
-        original size).
-    interpolation: str, optional
-        interpolation algorithm to use. check pp.settings.settings.opencv_interpolation_flags
-        and refer to https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
+        original size). at 1, no resizing will be performed
+    interpolation: {'nearest', 'linear', 'cubic', 'area', 'lanczos', 'lin_exact', 'inter', 'warp_fill', 'warp_inverse'} str, optional
+        interpolation algorithm to use - refer to https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
 
     Returns
     -------
@@ -1707,18 +1709,38 @@ def _resize_image(image, factor=1, interpolation="cubic"):
         resized image
 
     """
+    image_height, image_width, _ = image.shape
 
     ## method
-    if factor == 1:
-        pass
-    else:
-        image = cv2.resize(
-            image,
-            (0, 0),
-            fx=1 * factor,
-            fy=1 * factor,
-            interpolation=settings.opencv_interpolation_flags[interpolation],
-        )
+    if not max_dim.__class__.__name__ == "NoneType":
+        if image_height > max_dim or image_width > max_dim:
+            if image_width >= image_height:
+                new_image_width, new_image_height = (
+                    max_dim,
+                    int((max_dim / image_width) * image_height),
+                )
+            elif image_height > image_width:
+                new_image_width, new_image_height = (
+                    int((max_dim / image_height) * image_width),
+                    max_dim,
+                )
+            image = cv2.resize(
+                image,
+                (new_image_width, new_image_height),
+                interpolation=settings.opencv_interpolation_flags[interpolation],
+            )
+            
+    else:        
+        if factor == 1:
+            pass
+        else:
+            image = cv2.resize(
+                image,
+                (0, 0),
+                fx=1 * factor,
+                fy=1 * factor,
+                interpolation=settings.opencv_interpolation_flags[interpolation],
+            )
 
     ## return results
     return image

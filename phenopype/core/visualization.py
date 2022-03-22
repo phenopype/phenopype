@@ -671,9 +671,9 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
         # elif canvas == "bin":
         #     image.canvas = copy.deepcopy(image.image_bin)
         # print("- binary image")
-        # elif canvas == "gray":
-        #     image.canvas = cv2.cvtColor(image.image_gray, cv2.COLOR_BGR2GRAY)
-        #     print("- grayscale image")
+        elif canvas == "gray":
+            image.canvas = cv2.cvtColor(image.image_copy, cv2.COLOR_BGR2GRAY)
+            print("- grayscale image")
         elif canvas == "blue":
             image.canvas = image.image_copy[:, :, 0]
             print("- blue channel")

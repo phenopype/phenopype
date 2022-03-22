@@ -603,7 +603,6 @@ def save_image(
     resize=1,
     ext="jpg",
     overwrite=False,
-    verbose=True,
     **kwargs
 ):
     """Save an image (array) to jpg.
@@ -670,7 +669,7 @@ def save_image(
             print_msg = "- image saved under " + path + "."
             pass
 
-        if verbose:
+        if settings.flag_verbose:
             print(print_msg)
 
         cv2.imwrite(path, image)

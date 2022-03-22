@@ -3,6 +3,12 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+
+-----
+bugfix:
+	- added "gray" option back to select_canvas
+- images added to the project with "copy" or "mod" mode will, by default, keep their file ending. there is also a new resizing option for mod, which will downsize the images to the specified "resize_max_dim" while maintaining aspect ratio
+
 3.2.3
 -----
 bugfix:
@@ -59,7 +65,6 @@ too extensive to document completely, but in a nutshell:
 
 --------------------------------------------------------------------------------------------
 
-
 2.0.1
 -----
 bugfix:
@@ -78,7 +83,6 @@ changes that are INCOMPATIBLE with past versions:
 - project.edit_config now takes triple-quote docstring to find and replace text in all configuration files belonging to a project
 
 --------------------------------------------------------------------------------------------
-
 
 1.0.9 
 -----
@@ -164,8 +168,6 @@ bugfix:
 1.0.0
 ------
 new major release - breaks all existing versions
-
-
 
 --------------------------------------------------------------------------------------------
 

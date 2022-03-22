@@ -187,10 +187,11 @@ class Project:
         include_all=True,
         exclude=[],
         mode="copy",
-        ext="tif",
+        image_format=None,
         recursive=False,
         overwrite=False,
         resize_factor=1,
+        resize_max_dim=None,
         unique="path",
         **kwargs
     ):
@@ -333,10 +334,10 @@ class Project:
                         + relpath
                         + " - "
                         + dir_name
-                        + " already exists (overwrite=False)"
+                        + " already exists (overwrite=False)\n"
                     )
                     continue
-                elif flags.overwrite in ["file", "files", "image", "True"]:
+                elif flags.overwrite in ["file", "files", "image", True]:
                     pass
                 elif flags.overwrite == "dir":
                     shutil.rmtree(
@@ -348,7 +349,7 @@ class Project:
                         + " - "
                         + "phenopype-project folder "
                         + dir_name
-                        + ' created (overwrite="dir")'
+                        + ' created (overwrite="dir")\n'
                     )
                     os.mkdir(dir_path)
             else:
@@ -358,10 +359,10 @@ class Project:
                     + " - "
                     + "phenopype-project folder "
                     + dir_name
-                    + " created"
+                    + " created\n"
                 )
                 os.mkdir(dir_path)
-
+            
             ## load image, image-data, and image-meta-data
             image = utils.load_image(file_path)
             image_name = os.path.basename(file_path)
@@ -387,20 +388,30 @@ class Project:
                 )
 
             elif flags.mode == "mod":
-                if resize_factor < 1:
-                    image = utils_lowlevel._resize_image(image, resize_factor)
-                if not "." in ext:
-                    ext = "." + ext
+                image = utils_lowlevel._resize_image(
+                    image, 
+                    factor=resize_factor, 
+                    max_dim=resize_max_dim
+                    )
+                if not image_format.__class__.__name__ == "NoneType":
+                    if not "." in image_format:
+                        ext = "." + image_format
+                else:
+                    ext = image_ext
                 image_phenopype_path = os.path.join(
                     self.root_dir, "data", dir_name, image_name_root + "_mod" + ext,
                 )
-                if os.path.isfile(image_phenopype_path) and flags.overwrite in ["file", "files", "image", "True"]:
+                if all([
+                        os.path.isfile(image_phenopype_path),
+                        flags.overwrite in ["file", "files", "image", True]
+                        ]):
                     print(
                         "Found image "
-                        + image_phenopype_path
-                        + " in "
+                        + relpath
+                        + " - "
+                        + "overwriting image and attributes in "
                         + dir_name
-                        + ' - overwriting (overwrite="files")'
+                        + ' (overwrite={})\n'.format(flags.overwrite)
                     )
                 cv2.imwrite(image_phenopype_path, image)
                 image_data_phenopype.update(
@@ -412,10 +423,8 @@ class Project:
                     )
                 )
 
-            elif flags.mode == "link":               
-                               
+            elif flags.mode == "link":                
                 image_phenopype_path = os.path.relpath(file_path, start=dir_path)
-
                 image_data_phenopype.update(
                     utils_lowlevel._load_image_data(
                         image_path=file_path, 
@@ -429,11 +438,6 @@ class Project:
                 "image_original": image_data_original,
                 "image_phenopype": image_data_phenopype,
             }
-            if (
-                os.path.isfile(os.path.join(dir_path, "attributes.yaml"))
-                and flags.overwrite == "file"
-            ):
-                print("overwriting attributes")
             utils_lowlevel._save_yaml(
                 attributes, os.path.join(dir_path, "attributes.yaml")
             )
@@ -1119,6 +1123,58 @@ class Project:
             else:
                 print("User check failed - aborting.")
                 break
+            
+    def copy_tag(self, tag_src, tag_dst, copy_annotations=True, overwrite=False,**kwargs):
+        """
+        
+
+        Parameters
+        ----------
+        tag_src : TYPE
+            DESCRIPTION.
+        tag_dst : TYPE
+            DESCRIPTION.
+        copy_annotations : TYPE, optional
+            DESCRIPTION. The default is True.
+        overwrite : TYPE, optional
+            DESCRIPTION. The default is False.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+   
+        ## go through project directories
+        for directory in self.dir_paths:
+            dir_name = os.path.basename(directory)
+
+            config_path = os.path.join(
+                self.root_dir, "data", dir_name, "pype_config_" + tag_src + ".yaml"
+            )
+            new_config_path = os.path.join(
+                self.root_dir, "data", dir_name, "pype_config_" + tag_dst + ".yaml"
+            )   
+                        
+            if utils_lowlevel._overwrite_check_file(new_config_path, overwrite):
+                shutil.copyfile(config_path, new_config_path)
+                print("Copy config file for {}".format(dir_name))
+
+            if copy_annotations:
+                annotations_path = os.path.join(
+                    self.root_dir, "data", dir_name, "annotations_" + tag_src + ".json"
+                )
+                new_annotations_path = os.path.join(
+                    self.root_dir, "data", dir_name, "annotations_" + tag_dst + ".json"
+                )
+                
+                if utils_lowlevel._overwrite_check_file(new_annotations_path, overwrite):
+                    shutil.copyfile(annotations_path, new_annotations_path)
+                    print("Copy annotations file for {}".format(dir_name))
+        
+            
 
     def export_zip(self, no_imgs=True, **kwargs):
         """
@@ -1564,6 +1620,7 @@ class Pype(object):
                 elif method.__class__.__name__ == "str":
                     method_name = method
                     method_args = {}
+                
 
                 ## feedback
                 if flags.execute:
