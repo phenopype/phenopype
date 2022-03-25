@@ -34,7 +34,6 @@ from phenopype.core import (
     visualization,
 )
 
-
 #%% settings
 
 pd.options.display.max_rows = (

@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import re
 
 ## read and format version from file
@@ -21,9 +21,21 @@ setup(
     url="https://www.phenopype.org",
     author="Moritz Luerig",
     author_email="moritz.luerig@gmail.com",
-    packages=["phenopype"],
-    package_dir={"phenopype": "phenopype"},
-    package_data={"phenopype": ["core/*.py"]},
+    # packages=find_packages(),
+    ## not sure these are needed:
+    packages=[
+        "phenopype", 
+        # "phenopype.core",
+        # "phenopype.contrib"
+        ],
+    package_dir={
+        "phenopype": "phenopype",
+        # "phenopype.core": "phenopype/core",
+        # "phenopype.contrib": "phenopype/contrib"
+        },
+    # package_data={"phenopype": ["contrib/*.py"]},
+
+    # namespace_packages=['phenopype'],
     install_requires=[
         "colour",
         "numpy",
