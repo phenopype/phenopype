@@ -21,18 +21,17 @@ setup(
     url="https://www.phenopype.org",
     author="Moritz Luerig",
     author_email="moritz.luerig@gmail.com",
-    # packages=find_packages(),
+    packages=find_packages(),
     ## not sure these are needed:
-    packages=[
-        "phenopype", 
+    # packages=[
+        # "phenopype", 
         # "phenopype.core",
-        # "phenopype.contrib"
-        ],
-    package_dir={
-        "phenopype": "phenopype",
+        # ],
+    # package_dir={
+        # "phenopype": "phenopype",
         # "phenopype.core": "phenopype/core",
         # "phenopype.contrib": "phenopype/contrib"
-        },
+        # },
     # package_data={"phenopype": ["contrib/*.py"]},
 
     # namespace_packages=['phenopype'],
