@@ -15,6 +15,8 @@ from phenopype import utils_lowlevel
 from phenopype import settings
 from phenopype.core import preprocessing
 
+from phenopype import plugins
+
 
 #%% methods
 
@@ -233,6 +235,7 @@ def set_polyline(image, line_width="auto", line_colour="default", **kwargs):
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
+
 
 
 def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
