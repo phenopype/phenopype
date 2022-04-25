@@ -38,11 +38,25 @@ def __dir__():
 
 #%% functions
 
+project = []
 
-def attach(project, tag=None):
-    return ProjectWrapper(project, tag)
+def link(project, tag=None):
+    if project.__class__.__name__ == "Project":
+        return SingleProjectLink(project, tag)
+    elif project.__class__.__name__ == "list":
+        return MultiProjectLink(project, tag)
+
+class MultiProjectLink: 
     
-class ProjectWrapper: 
+    def __init__(self, project_list, tag=None):
+        
+        self.root_dir = os.path.join(os.getcwd(), "ml_morph")
+
+        for project in project_list:
+            print(project)
+            
+    
+class SingleProjectLink: 
     
     def __init__(self, project, tag=None):
         
