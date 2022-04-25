@@ -260,8 +260,6 @@ def draw_landmark(
         kwargs=kwargs,
     )
 
-    print(annotations)
-
     points = annotation["data"][annotation_type]
 
     # =============================================================================

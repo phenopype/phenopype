@@ -202,7 +202,7 @@ class ProjectWrapper:
                 
                 rx, ry, rw, rh = cv2.boundingRect(np.asarray(annotation_mask["data"][settings._mask_type], dtype="int32"))
                 rect = dlib.rectangle(
-                    left=rx, top=ry, right=rw, bottom=rh
+                    left=rx, top=ry, right=rx+rw, bottom=ry+rh
                 )
             
 
@@ -229,9 +229,11 @@ class ProjectWrapper:
             annotations=annotations,
             annotation=annotation,
             annotation_type=annotation_type,
-            annotation_id=annotation_id,
+            annotation_id="z",
             kwargs=kwargs,
         )
+        
+        print(annotations)
         
         if draw:
             canvas = copy.deepcopy(image)
@@ -240,8 +242,9 @@ class ProjectWrapper:
             
             if mask:
                 canvas = visualization.draw_mask(canvas, annotations=annotations, **kwargs)
+            canvas = visualization.draw_landmark(canvas, annotations=annotations, landmark_id="a", point_colour="red")
 
-            canvas = visualization.draw_landmark(canvas, annotations=annotations, **kwargs)
+            canvas = visualization.draw_landmark(canvas, annotations=annotations, landmark_id="z", point_colour="green")
             utils.show_image(canvas)
             
 
