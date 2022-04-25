@@ -22,19 +22,9 @@ setup(
     author="Moritz Luerig",
     author_email="moritz.luerig@gmail.com",
     packages=find_packages(),
-    ## not sure these are needed:
-    # packages=[
-        # "phenopype", 
-        # "phenopype.core",
-        # ],
-    # package_dir={
-        # "phenopype": "phenopype",
-        # "phenopype.core": "phenopype/core",
-        # "phenopype.contrib": "phenopype/contrib"
-        # },
-    # package_data={"phenopype": ["contrib/*.py"]},
-
-    # namespace_packages=['phenopype'],
+    package_data = {
+        'assets': ['*.html'],
+    }
     install_requires=[
         "colour",
         "numpy",

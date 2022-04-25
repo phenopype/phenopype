@@ -71,6 +71,7 @@ def create_mask(
     image,
     tool="rectangle",
     include=True,
+    label=None,
     line_colour="default",
     line_width="auto",
     label_colour="default",
@@ -80,7 +81,10 @@ def create_mask(
 ):
 
     """    
-    Mask an area.
+    Mask an area by drawing a rectangle or polygon. Multiple mask components count
+    as the same mask - e.g., if objects that you would like to mask out or include
+    can be scattered across the image. Rectangles will finish upon lifting the mouse
+    button, polygons are completed by pressing CTRL. 
     
     ANNOTATION FUNCTION    
 
@@ -93,8 +97,18 @@ def create_mask(
     include : bool, optional
         include or exclude area inside mask
     label : str, optional
-        text label for this mask and all its components
-        
+        label string for this mask and all its components
+    line_colour: {"default", ... see phenopype.print_colours()} str, optional
+        contour line colour - default colour as specified in settings
+    line_width: {"auto", ... int > 0} int, optional 
+        contour line width - automatically scaled to image by default
+    label_colour : {"default", ... see phenopype.print_colours()} str, optional
+        contour label colour - default colour as specified in settings
+    label_size: {"auto", ... int > 0} int, optional 
+        contour label font size - automatically scaled to image by default
+    label_width:  {"auto", ... int > 0} int, optional 
+        contour label font thickness - automatically scaled to image by default
+    
     Returns
     -------
     annotations: dict
@@ -123,8 +137,6 @@ def create_mask(
 
     # =============================================================================
     # setup
-
-    label = kwargs.get("label")
 
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
@@ -200,6 +212,7 @@ def create_mask(
 def detect_mask(
     image,
     include=True,
+    label=None,
     shape="circle",
     resize=1,
     circle_args={
@@ -278,8 +291,6 @@ def detect_mask(
     
     # =============================================================================
     # setup
-
-    label = kwargs.get("label")
 
     if len(image.shape) == 3:
         image = decompose_image(image, "gray")
@@ -398,7 +409,17 @@ def create_reference(
         input image
     mask : bool, optional
         mask a reference card inside the image and return its coordinates as 
-
+    line_colour: {"default", ... see phenopype.print_colours()} str, optional
+        contour line colour - default colour as specified in settings
+    line_width: {"auto", ... int > 0} int, optional 
+        contour line width - automatically scaled to image by default
+    label_colour : {"default", ... see phenopype.print_colours()} str, optional
+        contour label colour - default colour as specified in settings
+    label_size: {"auto", ... int > 0} int, optional 
+        contour label font size - automatically scaled to image by default
+    label_width:  {"auto", ... int > 0} int, optional 
+        contour label font thickness - automatically scaled to image by default
+        
     Returns
     -------
     annotation_ref: dict

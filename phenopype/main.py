@@ -1670,6 +1670,7 @@ class Pype(object):
                         annotation_args.update({"id": string.ascii_lowercase[annotation_counter[settings._annotation_functions[method_name]]]})
                     if not "edit" in annotation_args:
                         annotation_args.update({"edit": "overwrite" if method_name in [
+                                    "contour_to_mask",
                                     "detect_contour",
                                     "detect_mask",
                                     "compute_shape_features",

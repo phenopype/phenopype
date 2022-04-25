@@ -9,6 +9,8 @@ import string
 import re
 from _ctypes import PyObj_FromPtr
 from colour import Color
+from colour import RGB_TO_COLOR_NAMES
+
 from timeit import default_timer as timer
 import ruamel.yaml
 from ruamel.yaml.constructor import SafeConstructor

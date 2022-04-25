@@ -52,16 +52,16 @@ def draw_contour(
         background transparency for contour fill (0=no fill).
     level : int, optional
         the default is 3.
-    line_colour: {"green", "red", "blue", "black", "white"} str, optional
-        contour line colour
-    line_width: int, optional
-        contour line width
-    label_colour : {"black", "white", "green", "red", "blue"} str, optional
-        contour label colour.
-    label_font_size: int, optional
-        contour label font size (scaled to image)
-    label_font_width: int, optional
-        contour label font thickness 
+    line_colour: {"default", ... see phenopype.print_colours()} str, optional
+        contour line colour - default colour as specified in settings
+    line_width: {"auto", ... int > 0} int, optional 
+        contour line width - automatically scaled to image by default
+    label_colour : {"default", ... see phenopype.print_colours()} str, optional
+        contour label colour - default colour as specified in settings
+    label_size: {"auto", ... int > 0} int, optional 
+        contour label font size - automatically scaled to image by default
+    label_width:  {"auto", ... int > 0} int, optional 
+        contour label font thickness - automatically scaled to image by default
     bounding_box: bool, optional
         draw bounding box around the contour
     bounding_box_ext: in, optional
@@ -227,12 +227,12 @@ def draw_landmark(
         phenopype annotation containing landmarks
     label : bool, optional
         draw landmark label
-    label_colour : {"black", "white", "green", "red", "blue"} str, optional
-        landmark label colour.
-    label_size: int, optional
-        landmark label font size (scaled to image)
-    label_width: int, optional
-        landmark label font width  (scaled to image)
+    label_colour : {"default", ... see phenopype.print_colours()} str, optional
+        contour label colour - default colour as specified in settings
+    label_size: {"auto", ... int > 0} int, optional 
+        contour label font size - automatically scaled to image by default
+    label_width:  {"auto", ... int > 0} int, optional 
+        contour label font thickness - automatically scaled to image by default
     offset: int, optional
         add offset (in pixels) to text location (to bottom-left corner of the text string)
     point_colour: {"green", "red", "blue", "black", "white"} str, optional
@@ -259,6 +259,8 @@ def draw_landmark(
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
+
+    print(annotations)
 
     points = annotation["data"][annotation_type]
 
@@ -332,16 +334,18 @@ def draw_mask(
         image used as canvas 
     annotation: dict
         phenopype annotation containing masks
-    line_colour: {"blue", "red", "green", "black", "white"} str, optional
-        mask line colour
-    line_width: int, optional
-        mask line width
-    label_colour : {"black", "white", "green", "red", "blue"} str, optional
-        mask label colour.
-    label_size: int, optional
-        mask label font size (scaled to image)
-    label_width: int, optional
-        mask label font width  (scaled to image)
+    label : bool, optional
+        draw mask label
+    line_colour: {"default", ... see phenopype.print_colours()} str, optional
+        contour line colour - default colour as specified in settings
+    line_width: {"auto", ... int > 0} int, optional 
+        contour line width - automatically scaled to image by default
+    label_colour : {"default", ... see phenopype.print_colours()} str, optional
+        contour label colour - default colour as specified in settings
+    label_size: {"auto", ... int > 0} int, optional 
+        contour label font size - automatically scaled to image by default
+    label_width:  {"auto", ... int > 0} int, optional 
+        contour label font thickness - automatically scaled to image by default
 
     Returns
     -------
@@ -426,7 +430,11 @@ def draw_mask(
 
 
 def draw_polyline(
-    image, annotations, line_colour="default", line_width="auto", **kwargs
+    image, 
+    annotations, 
+    line_colour="default", 
+    line_width="auto", 
+    **kwargs
 ):
     """
     Draw masks into an image. This function is also used to draw the perimeter 
@@ -438,16 +446,10 @@ def draw_polyline(
         image used as canvas 
     annotation: dict
         phenopype annotation containing lines
-    line_colour: {"blue", "red", "green", "black", "white"} str, optional
-        mask line colour
-    line_width: int, optional
-        mask line width
-    label_colour : {"black", "white", "green", "red", "blue"} str, optional
-        mask label colour.
-    label_size: int, optional
-        mask label font size (scaled to image)
-    label_width: int, optional
-        mask label font width  (scaled to image)
+    line_colour: {"default", ... see phenopype.print_colours()} str, optional
+        contour line colour - default colour as specified in settings
+    line_width: {"auto", ... int > 0} int, optional 
+        contour line width - automatically scaled to image by default
 
     Returns
     -------
@@ -513,20 +515,22 @@ def draw_reference(
 
     Parameters
     ----------
-    image : TYPE
-        DESCRIPTION.
-    annotations : TYPE
-        DESCRIPTION.
-    line_colour : TYPE, optional
-        DESCRIPTION. The default is "blue".
-    line_width : TYPE, optional
-        DESCRIPTION. The default is "auto".
-    scale : TYPE, optional
-        DESCRIPTION. The default is False.
-    label_size : TYPE, optional
-        DESCRIPTION. The default is "auto".
-    label_colour : TYPE, optional
-        DESCRIPTION. The default is "blue".
+    image : ndarray
+        image used as canvas 
+    annotation: dict
+        phenopype annotation containing reference data
+    line_colour: {"default", ... see phenopype.print_colours()} str, optional
+        contour line colour - default colour as specified in settings
+    line_width: {"auto", ... int > 0} int, optional 
+        contour line width - automatically scaled to image by default
+    label : bool, optional
+        draw reference label
+    label_colour : {"default", ... see phenopype.print_colours()} str, optional
+        contour label colour - default colour as specified in settings
+    label_size: {"auto", ... int > 0} int, optional 
+        contour label font size - automatically scaled to image by default
+    label_width:  {"auto", ... int > 0} int, optional 
+        contour label font thickness - automatically scaled to image by default
     label_width : TYPE, optional
         DESCRIPTION. The default is "auto".
 

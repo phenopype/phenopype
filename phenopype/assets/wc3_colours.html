@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<!-- saved from url=(0044)https://www.w3.org/TR/css-color-3/#svg-color -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <title>W3C Color Naming</title>
+
+  <!--
+    <link href="https://www.w3.org/TR/2018/PR-css-color-3-20180315/"
+   rel=canonical>
+  -->
+   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <!--
+  <link href="http://purl.org/dc/terms/" rel="schema.dcterms">
+  <link href="https://www.w3.org/Consortium/Legal/ipr-notice#Copyright" rel="dcterms.rights">
+  -->
+  <link rel="canonical" href="https://www.w3.org/TR/css-color-3/">
+  <meta content="CSS Color Module Level 3" name="dcterms.title">
+  <meta content="text" name="dcterms.type">
+  <meta content="2022-01-18" name="dcterms.date">
+  <meta content="Tantek Çelik" name="dcterms.creator">
+  <meta content="Chris Lilley" name="dcterms.creator">
+  <meta content="L. David Baron" name="dcterms.creator">
+  <meta content="W3C" name="dcterms.creator">
+  <meta content="&lt;abbr class=&quot;given-name&quot;&gt;L.&lt;/abbr&gt; &lt;span class=&quot;additional-name&quot;&gt;David&lt;/span&gt; &lt;span class=&quot;family-name&quot;&gt;Baron&lt;/span&gt;" name="dcterms.creator">
+  <meta content="Mozilla Corporation" name="dcterms.creator">
+  <meta content="W3C" name="dcterms.publisher">
+  <!--
+  <meta content="https://www.w3.org/TR/2018/PR-css3-color-20180315/"
+   name=dcterms.identifier>
+  -->
+  <!--
+      FIXME when publishing: copy the current default.css and link to
+      "default.css" rather than "../default.css"
+   -->
+
+
+  <!-- <link href="./CSS Color Module Level 3_files/default.css" rel="stylesheet" type="text/css"> -->
+  <style type="text/css">
+		
+	.example pre {
+		background-color: #d5d5d5;
+		margin: 1em 1cm;
+		padding: 0 0.3cm;
+	}
+
+	pre { text-align:left }
+	pre.code { font-family: monospace }
+
+	table.colortable td {text-align:center }
+	table.colortable td.c { text-transform:uppercase }
+	table.colortable td:first-child, table.colortable td:first-child+td { border:1px solid black }
+	table.colortable th {text-align:center; background:black; color:white }
+
+	table.tprofile th.title {background:gray; color:white}
+	table.tprofile th { width:29%;padding:2px }
+	table.tprofile td { width:71%;padding:2px }
+
+	table.hslexample { background: #808080; padding:1em; margin:0; float:left; }
+	table.hslexample td,table.hslexample th { font-size:smaller;width:3em }
+
+	#hsltable {
+		background: rgb(46.63% 46.63% 46.63%);
+		padding: 0.5em;
+	}
+	div#hsltable {
+		display: flex;
+		flex-flow: row wrap;
+		justify-content: space-around;
+		gap: 2em;
+	} 
+	#hsltable>table {
+		table-layout: fixed;
+	}
+	#hsltable td {
+		padding: .75em;
+	}
+
+	.toc,.subtoc ul,.subtoc ol { list-style-type: none }
+
+	.profile { margin: 1cm }
+
+	.editorNote { color: red; font-style: italic }
+
+	.css::before, .css::after, .property::before, .property::after { content: none !important;}
+ </style>
+ 
+  <link rel="stylesheet" type="text/css" href="./CSS Color Module Level 3_files/W3C-REC">
+  <!-- <script defer=defer
+   src="https://test.csswg.org/harness/annotate.js#css-color-3_dev"
+   type="text/javascript"></script> -->
+
+ </head><body class="h-entry toc-sidebar">
+
+  <div class="head"> 
+
+   </p><h1 class="p-name" id="title">W3C Color Naming</h1>
+
+	For details see <a href=https://github.com/vaab/colour>https://github.com/vaab/colour</a> and <a href=https://www.w3.org/TR/css-color-3/#svg-color>www.w3.org/TR/css-color-3/#svg-color</a> .
+
+  <h3 id="svg-color"><span class="secno">1.1 </span>Basic color keywords</h3>
+
+
+  </p><table class="colortable">
+
+   <tbody>
+    <tr>
+     <th style="background:black">Named
+
+     </th><th>Numeric
+
+     </th><th>Color name
+
+     </th><th>Hex rgb
+
+     </th><th>Decimal
+
+    </th></tr><tr>
+     <td class="c" style="background:black">
+
+     </td><td class="c" style="background:#000000">
+
+     </td><td><dfn id="black">black</dfn>
+
+     </td><td class="c" style="background:silver">#000000
+
+     </td><td class="c" style="background:silver">0,0,0
+
+    </td></tr><tr>
+     <td class="c" style="background:silver">
+
+     </td><td class="c" style="background:#C0C0C0">
+
+     </td><td><dfn id="silver">silver</dfn>
+
+     </td><td class="c" style="background:silver">#C0C0C0
+
+     </td><td class="c" style="background:silver">192,192,192
+
+    </td></tr><tr>
+     <td class="c" style="background:gray">
+
+     </td><td class="c" style="background:#808080">
+
+     </td><td><dfn id="gray">gray</dfn>
+
+     </td><td class="c" style="background:silver">#808080
+
+     </td><td class="c" style="background:silver">128,128,128
+
+    </td></tr><tr>
+     <td class="c" style="background:white">
+
+     </td><td class="c" style="background:#FFFFFF">
+
+     </td><td><dfn id="white">white</dfn>
+
+     </td><td class="c" style="background:silver">#FFFFFF
+
+     </td><td class="c" style="background:silver">255,255,255
+
+    </td></tr><tr>
+     <td class="c" style="background:maroon">
+
+     </td><td class="c" style="background:#800000">
+
+     </td><td><dfn id="maroon">maroon</dfn>
+
+     </td><td class="c" style="background:silver">#800000
+
+     </td><td class="c" style="background:silver">128,0,0
+
+    </td></tr><tr>
+     <td class="c" style="background:red">
+
+     </td><td class="c" style="background:#FF0000">
+
+     </td><td><dfn id="red">red</dfn>
+
+     </td><td class="c" style="background:silver">#FF0000
+
+     </td><td class="c" style="background:silver">255,0,0
+
+    </td></tr><tr>
+     <td class="c" style="background:purple">
+
+     </td><td class="c" style="background:#800080">
+
+     </td><td><dfn id="purple">purple</dfn>
+
+     </td><td class="c" style="background:silver">#800080
+
+     </td><td class="c" style="background:silver">128,0,128
+
+    </td></tr><tr>
+     <td class="c" style="background:fuchsia">
+
+     </td><td class="c" style="background:#FF00FF">
+
+     </td><td><dfn id="fuchsia">fuchsia</dfn>
+
+     </td><td class="c" style="background:silver">#FF00FF
+
+     </td><td class="c" style="background:silver">255,0,255
+
+    </td></tr><tr>
+     <td class="c" style="background:green">
+
+     </td><td class="c" style="background:#008000">
+
+     </td><td><dfn id="green">green</dfn>
+
+     </td><td class="c" style="background:silver">#008000
+
+     </td><td class="c" style="background:silver">0,128,0
+
+    </td></tr><tr>
+     <td class="c" style="background:lime">
+
+     </td><td class="c" style="background:#00FF00">
+
+     </td><td><dfn id="lime">lime</dfn>
+
+     </td><td class="c" style="background:silver">#00FF00
+
+     </td><td class="c" style="background:silver">0,255,0
+
+    </td></tr><tr>
+     <td class="c" style="background:olive">
+
+     </td><td class="c" style="background:#808000">
+
+     </td><td><dfn id="olive">olive</dfn>
+
+     </td><td class="c" style="background:silver">#808000
+
+     </td><td class="c" style="background:silver">128,128,0
+
+    </td></tr><tr>
+     <td class="c" style="background:yellow">
+
+     </td><td class="c" style="background:#FFFF00">
+
+     </td><td><dfn id="yellow">yellow</dfn>
+
+     </td><td class="c" style="background:silver">#FFFF00
+
+     </td><td class="c" style="background:silver">255,255,0
+
+    </td></tr><tr>
+     <td class="c" style="background:navy">
+
+     </td><td class="c" style="background:#000080">
+
+     </td><td><dfn id="navy">navy</dfn>
+
+     </td><td class="c" style="background:silver">#000080
+
+     </td><td class="c" style="background:silver">0,0,128
+
+    </td></tr><tr>
+     <td class="c" style="background:blue">
+
+     </td><td class="c" style="background:#0000FF">
+
+     </td><td><dfn id="blue">blue</dfn>
+
+     </td><td class="c" style="background:silver">#0000FF
+
+     </td><td class="c" style="background:silver">0,0,255
+
+    </td></tr><tr>
+     <td class="c" style="background:teal">
+
+     </td><td class="c" style="background:#008080">
+
+     </td><td><dfn id="teal">teal</dfn>
+
+     </td><td class="c" style="background:silver">#008080
+
+     </td><td class="c" style="background:silver">0,128,128
+
+    </td></tr><tr>
+     <td class="c" style="background:aqua">
+
+     </td><td class="c" style="background:#00FFFF">
+
+     </td><td><dfn id="aqua">aqua</dfn>
+
+     </td><td class="c" style="background:silver">#00FFFF
+
+     </td><td class="c" style="background:silver">0,255,255
+  </td></tr></tbody></table>
+
+  <h3 id="svg-color"><span class="secno">1.2 </span>Extended color keywords</h3>
+
+  </p><table class="colortable">
+   <tbody>
+    <tr>
+     <th style="background:black">Named
+
+     </th><th>Numeric
+
+     </th><th>Color name
+
+     </th><th>Hex rgb
+
+     </th><th>Decimal
+
+    </th></tr><tr>
+     <td class="c" style="background:aliceblue">
+
+     </td><td class="c" style="background:#f0f8ff">
+
+     </td><td><dfn id="aliceblue">aliceblue</dfn>
+
+     </td><td class="c" style="background:silver">#f0f8ff
+
+     </td><td class="c" style="background:silver">240,248,255
+
+    </td></tr><tr>
+     <td class="c" style="background:antiquewhite">
+
+     </td><td class="c" style="background:#faebd7">
+
+     </td><td><dfn id="antiquewhite">antiquewhite</dfn>
+
+     </td><td class="c" style="background:silver">#faebd7
+
+     </td><td class="c" style="background:silver">250,235,215
+
+    </td></tr><tr>
+     <td class="c" style="background:aqua">
+
+     </td><td class="c" style="background:#00ffff">
+
+     </td><td><dfn id="aqua0">aqua</dfn>
+
+     </td><td class="c" style="background:silver">#00ffff
+
+     </td><td class="c" style="background:silver">0,255,255
+
+    </td></tr><tr>
+     <td class="c" style="background:aquamarine">
+
+     </td><td class="c" style="background:#7fffd4">
+
+     </td><td><dfn id="aquamarine">aquamarine</dfn>
+
+     </td><td class="c" style="background:silver">#7fffd4
+
+     </td><td class="c" style="background:silver">127,255,212
+
+    </td></tr><tr>
+     <td class="c" style="background:azure">
+
+     </td><td class="c" style="background:#f0ffff">
+
+     </td><td><dfn id="azure">azure</dfn>
+
+     </td><td class="c" style="background:silver">#f0ffff
+
+     </td><td class="c" style="background:silver">240,255,255
+
+    </td></tr><tr>
+     <td class="c" style="background:beige">
+
+     </td><td class="c" style="background:#f5f5dc">
+
+     </td><td><dfn id="beige">beige</dfn>
+
+     </td><td class="c" style="background:silver">#f5f5dc
+
+     </td><td class="c" style="background:silver">245,245,220
+
+    </td></tr><tr>
+     <td class="c" style="background:bisque">
+
+     </td><td class="c" style="background:#ffe4c4">
+
+     </td><td><dfn id="bisque">bisque</dfn>
+
+     </td><td class="c" style="background:silver">#ffe4c4
+
+     </td><td class="c" style="background:silver">255,228,196
+
+    </td></tr><tr>
+     <td class="c" style="background:black">
+
+     </td><td class="c" style="background:#000000">
+
+     </td><td><dfn id="black0">black</dfn>
+
+     </td><td class="c" style="background:silver">#000000
+
+     </td><td class="c" style="background:silver">0,0,0
+
+    </td></tr><tr>
+     <td class="c" style="background:blanchedalmond">
+
+     </td><td class="c" style="background:#ffebcd">
+
+     </td><td><dfn id="blanchedalmond">blanchedalmond</dfn>
+
+     </td><td class="c" style="background:silver">#ffebcd
+
+     </td><td class="c" style="background:silver">255,235,205
+
+    </td></tr><tr>
+     <td class="c" style="background:blue">
+
+     </td><td class="c" style="background:#0000ff">
+
+     </td><td><dfn id="blue0">blue</dfn>
+
+     </td><td class="c" style="background:silver">#0000ff
+
+     </td><td class="c" style="background:silver">0,0,255
+
+    </td></tr><tr>
+     <td class="c" style="background:blueviolet">
+
+     </td><td class="c" style="background:#8a2be2">
+
+     </td><td><dfn id="blueviolet">blueviolet</dfn>
+
+     </td><td class="c" style="background:silver">#8a2be2
+
+     </td><td class="c" style="background:silver">138,43,226
+
+    </td></tr><tr>
+     <td class="c" style="background:brown">
+
+     </td><td class="c" style="background:#a52a2a">
+
+     </td><td><dfn id="brown">brown</dfn>
+
+     </td><td class="c" style="background:silver">#a52a2a
+
+     </td><td class="c" style="background:silver">165,42,42
+
+    </td></tr><tr>
+     <td class="c" style="background:burlywood">
+
+     </td><td class="c" style="background:#deb887">
+
+     </td><td><dfn id="burlywood">burlywood</dfn>
+
+     </td><td class="c" style="background:silver">#deb887
+
+     </td><td class="c" style="background:silver">222,184,135
+
+    </td></tr><tr>
+     <td class="c" style="background:cadetblue">
+
+     </td><td class="c" style="background:#5f9ea0">
+
+     </td><td><dfn id="cadetblue">cadetblue</dfn>
+
+     </td><td class="c" style="background:silver">#5f9ea0
+
+     </td><td class="c" style="background:silver">95,158,160
+
+    </td></tr><tr>
+     <td class="c" style="background:chartreuse">
+
+     </td><td class="c" style="background:#7fff00">
+
+     </td><td><dfn id="chartreuse">chartreuse</dfn>
+
+     </td><td class="c" style="background:silver">#7fff00
+
+     </td><td class="c" style="background:silver">127,255,0
+
+    </td></tr><tr>
+     <td class="c" style="background:chocolate">
+
+     </td><td class="c" style="background:#d2691e">
+
+     </td><td><dfn id="chocolate">chocolate</dfn>
+
+     </td><td class="c" style="background:silver">#d2691e
+
+     </td><td class="c" style="background:silver">210,105,30
+
+    </td></tr><tr>
+     <td class="c" style="background:coral">
+
+     </td><td class="c" style="background:#ff7f50">
+
+     </td><td><dfn id="coral">coral</dfn>
+
+     </td><td class="c" style="background:silver">#ff7f50
+
+     </td><td class="c" style="background:silver">255,127,80
+
+    </td></tr><tr>
+     <td class="c" style="background:cornflowerblue">
+
+     </td><td class="c" style="background:#6495ed">
+
+     </td><td><dfn id="cornflowerblue">cornflowerblue</dfn>
+
+     </td><td class="c" style="background:silver">#6495ed
+
+     </td><td class="c" style="background:silver">100,149,237
+
+    </td></tr><tr>
+     <td class="c" style="background:cornsilk">
+
+     </td><td class="c" style="background:#fff8dc">
+
+     </td><td><dfn id="cornsilk">cornsilk</dfn>
+
+     </td><td class="c" style="background:silver">#fff8dc
+
+     </td><td class="c" style="background:silver">255,248,220
+
+    </td></tr><tr>
+     <td class="c" style="background:crimson">
+
+     </td><td class="c" style="background:#dc143c">
+
+     </td><td><dfn id="crimson">crimson</dfn>
+
+     </td><td class="c" style="background:silver">#dc143c
+
+     </td><td class="c" style="background:silver">220,20,60
+
+    </td></tr><tr>
+     <td class="c" style="background:cyan">
+
+     </td><td class="c" style="background:#00ffff">
+
+     </td><td><dfn id="cyan">cyan</dfn>
+
+     </td><td class="c" style="background:silver">#00ffff
+
+     </td><td class="c" style="background:silver">0,255,255
+
+    </td></tr><tr>
+     <td class="c" style="background:darkblue">
+
+     </td><td class="c" style="background:#00008b">
+
+     </td><td><dfn id="darkblue">darkblue</dfn>
+
+     </td><td class="c" style="background:silver">#00008b
+
+     </td><td class="c" style="background:silver">0,0,139
+
+    </td></tr><tr>
+     <td class="c" style="background:darkcyan">
+
+     </td><td class="c" style="background:#008b8b">
+
+     </td><td><dfn id="darkcyan">darkcyan</dfn>
+
+     </td><td class="c" style="background:silver">#008b8b
+
+     </td><td class="c" style="background:silver">0,139,139
+
+    </td></tr><tr>
+     <td class="c" style="background:darkgoldenrod">
+
+     </td><td class="c" style="background:#b8860b">
+
+     </td><td><dfn id="darkgoldenrod">darkgoldenrod</dfn>
+
+     </td><td class="c" style="background:silver">#b8860b
+
+     </td><td class="c" style="background:silver">184,134,11
+
+    </td></tr><tr>
+     <td class="c" style="background:darkgray">
+
+     </td><td class="c" style="background:#a9a9a9">
+
+     </td><td><dfn id="darkgray">darkgray</dfn>
+
+     </td><td class="c" style="background:silver">#a9a9a9
+
+     </td><td class="c" style="background:silver">169,169,169
+
+    </td></tr><tr>
+     <td class="c" style="background:darkgreen">
+
+     </td><td class="c" style="background:#006400">
+
+     </td><td><dfn id="darkgreen">darkgreen</dfn>
+
+     </td><td class="c" style="background:silver">#006400
+
+     </td><td class="c" style="background:silver">0,100,0
+
+    </td></tr><tr>
+     <td class="c" style="background:darkgrey">
+
+     </td><td class="c" style="background:#a9a9a9">
+
+     </td><td><dfn id="darkgrey">darkgrey</dfn>
+
+     </td><td class="c" style="background:silver">#a9a9a9
+
+     </td><td class="c" style="background:silver">169,169,169
+
+    </td></tr><tr>
+     <td class="c" style="background:darkkhaki">
+
+     </td><td class="c" style="background:#bdb76b">
+
+     </td><td><dfn id="darkkhaki">darkkhaki</dfn>
+
+     </td><td class="c" style="background:silver">#bdb76b
+
+     </td><td class="c" style="background:silver">189,183,107
+
+    </td></tr><tr>
+     <td class="c" style="background:darkmagenta">
+
+     </td><td class="c" style="background:#8b008b">
+
+     </td><td><dfn id="darkmagenta">darkmagenta</dfn>
+
+     </td><td class="c" style="background:silver">#8b008b
+
+     </td><td class="c" style="background:silver">139,0,139
+
+    </td></tr><tr>
+     <td class="c" style="background:darkolivegreen">
+
+     </td><td class="c" style="background:#556b2f">
+
+     </td><td><dfn id="darkolivegreen">darkolivegreen</dfn>
+
+     </td><td class="c" style="background:silver">#556b2f
+
+     </td><td class="c" style="background:silver">85,107,47
+
+    </td></tr><tr>
+     <td class="c" style="background:darkorange">
+
+     </td><td class="c" style="background:#ff8c00">
+
+     </td><td><dfn id="darkorange">darkorange</dfn>
+
+     </td><td class="c" style="background:silver">#ff8c00
+
+     </td><td class="c" style="background:silver">255,140,0
+
+    </td></tr><tr>
+     <td class="c" style="background:darkorchid">
+
+     </td><td class="c" style="background:#9932cc">
+
+     </td><td><dfn id="darkorchid">darkorchid</dfn>
+
+     </td><td class="c" style="background:silver">#9932cc
+
+     </td><td class="c" style="background:silver">153,50,204
+
+    </td></tr><tr>
+     <td class="c" style="background:darkred">
+
+     </td><td class="c" style="background:#8b0000">
+
+     </td><td><dfn id="darkred">darkred</dfn>
+
+     </td><td class="c" style="background:silver">#8b0000
+
+     </td><td class="c" style="background:silver">139,0,0
+
+    </td></tr><tr>
+     <td class="c" style="background:darksalmon">
+
+     </td><td class="c" style="background:#e9967a">
+
+     </td><td><dfn id="darksalmon">darksalmon</dfn>
+
+     </td><td class="c" style="background:silver">#e9967a
+
+     </td><td class="c" style="background:silver">233,150,122
+
+    </td></tr><tr>
+     <td class="c" style="background:darkseagreen">
+
+     </td><td class="c" style="background:#8fbc8f">
+
+     </td><td><dfn id="darkseagreen">darkseagreen</dfn>
+
+     </td><td class="c" style="background:silver">#8fbc8f
+
+     </td><td class="c" style="background:silver">143,188,143
+
+    </td></tr><tr>
+     <td class="c" style="background:darkslateblue">
+
+     </td><td class="c" style="background:#483d8b">
+
+     </td><td><dfn id="darkslateblue">darkslateblue</dfn>
+
+     </td><td class="c" style="background:silver">#483d8b
+
+     </td><td class="c" style="background:silver">72,61,139
+
+    </td></tr><tr>
+     <td class="c" style="background:darkslategray">
+
+     </td><td class="c" style="background:#2f4f4f">
+
+     </td><td><dfn id="darkslategray">darkslategray</dfn>
+
+     </td><td class="c" style="background:silver">#2f4f4f
+
+     </td><td class="c" style="background:silver">47,79,79
+
+    </td></tr><tr>
+     <td class="c" style="background:darkslategrey">
+
+     </td><td class="c" style="background:#2f4f4f">
+
+     </td><td><dfn id="darkslategrey">darkslategrey</dfn>
+
+     </td><td class="c" style="background:silver">#2f4f4f
+
+     </td><td class="c" style="background:silver">47,79,79
+
+    </td></tr><tr>
+     <td class="c" style="background:darkturquoise">
+
+     </td><td class="c" style="background:#00ced1">
+
+     </td><td><dfn id="darkturquoise">darkturquoise</dfn>
+
+     </td><td class="c" style="background:silver">#00ced1
+
+     </td><td class="c" style="background:silver">0,206,209
+
+    </td></tr><tr>
+     <td class="c" style="background:darkviolet">
+
+     </td><td class="c" style="background:#9400d3">
+
+     </td><td><dfn id="darkviolet">darkviolet</dfn>
+
+     </td><td class="c" style="background:silver">#9400d3
+
+     </td><td class="c" style="background:silver">148,0,211
+
+    </td></tr><tr>
+     <td class="c" style="background:deeppink">
+
+     </td><td class="c" style="background:#ff1493">
+
+     </td><td><dfn id="deeppink">deeppink</dfn>
+
+     </td><td class="c" style="background:silver">#ff1493
+
+     </td><td class="c" style="background:silver">255,20,147
+
+    </td></tr><tr>
+     <td class="c" style="background:deepskyblue">
+
+     </td><td class="c" style="background:#00bfff">
+
+     </td><td><dfn id="deepskyblue">deepskyblue</dfn>
+
+     </td><td class="c" style="background:silver">#00bfff
+
+     </td><td class="c" style="background:silver">0,191,255
+
+    </td></tr><tr>
+     <td class="c" style="background:dimgray">
+
+     </td><td class="c" style="background:#696969">
+
+     </td><td><dfn id="dimgray">dimgray</dfn>
+
+     </td><td class="c" style="background:silver">#696969
+
+     </td><td class="c" style="background:silver">105,105,105
+
+    </td></tr><tr>
+     <td class="c" style="background:dimgrey">
+
+     </td><td class="c" style="background:#696969">
+
+     </td><td><dfn id="dimgrey">dimgrey</dfn>
+
+     </td><td class="c" style="background:silver">#696969
+
+     </td><td class="c" style="background:silver">105,105,105
+
+    </td></tr><tr>
+     <td class="c" style="background:dodgerblue">
+
+     </td><td class="c" style="background:#1e90ff">
+
+     </td><td><dfn id="dodgerblue">dodgerblue</dfn>
+
+     </td><td class="c" style="background:silver">#1e90ff
+
+     </td><td class="c" style="background:silver">30,144,255
+
+    </td></tr><tr>
+     <td class="c" style="background:firebrick">
+
+     </td><td class="c" style="background:#b22222">
+
+     </td><td><dfn id="firebrick">firebrick</dfn>
+
+     </td><td class="c" style="background:silver">#b22222
+
+     </td><td class="c" style="background:silver">178,34,34
+
+    </td></tr><tr>
+     <td class="c" style="background:floralwhite">
+
+     </td><td class="c" style="background:#fffaf0">
+
+     </td><td><dfn id="floralwhite">floralwhite</dfn>
+
+     </td><td class="c" style="background:silver">#fffaf0
+
+     </td><td class="c" style="background:silver">255,250,240
+
+    </td></tr><tr>
+     <td class="c" style="background:forestgreen">
+
+     </td><td class="c" style="background:#228b22">
+
+     </td><td><dfn id="forestgreen">forestgreen</dfn>
+
+     </td><td class="c" style="background:silver">#228b22
+
+     </td><td class="c" style="background:silver">34,139,34
+
+    </td></tr><tr>
+     <td class="c" style="background:fuchsia">
+
+     </td><td class="c" style="background:#ff00ff">
+
+     </td><td><dfn id="fuchsia0">fuchsia</dfn>
+
+     </td><td class="c" style="background:silver">#ff00ff
+
+     </td><td class="c" style="background:silver">255,0,255
+
+    </td></tr><tr>
+     <td class="c" style="background:gainsboro">
+
+     </td><td class="c" style="background:#dcdcdc">
+
+     </td><td><dfn id="gainsboro">gainsboro</dfn>
+
+     </td><td class="c" style="background:silver">#dcdcdc
+
+     </td><td class="c" style="background:silver">220,220,220
+
+    </td></tr><tr>
+     <td class="c" style="background:ghostwhite">
+
+     </td><td class="c" style="background:#f8f8ff">
+
+     </td><td><dfn id="ghostwhite">ghostwhite</dfn>
+
+     </td><td class="c" style="background:silver">#f8f8ff
+
+     </td><td class="c" style="background:silver">248,248,255
+
+    </td></tr><tr>
+     <td class="c" style="background:gold">
+
+     </td><td class="c" style="background:#ffd700">
+
+     </td><td><dfn id="gold">gold</dfn>
+
+     </td><td class="c" style="background:silver">#ffd700
+
+     </td><td class="c" style="background:silver">255,215,0
+
+    </td></tr><tr>
+     <td class="c" style="background:goldenrod">
+
+     </td><td class="c" style="background:#daa520">
+
+     </td><td><dfn id="goldenrod">goldenrod</dfn>
+
+     </td><td class="c" style="background:silver">#daa520
+
+     </td><td class="c" style="background:silver">218,165,32
+
+    </td></tr><tr>
+     <td class="c" style="background:gray">
+
+     </td><td class="c" style="background:#808080">
+
+     </td><td><dfn id="gray0">gray</dfn>
+
+     </td><td class="c" style="background:silver">#808080
+
+     </td><td class="c" style="background:silver">128,128,128
+
+    </td></tr><tr>
+     <td class="c" style="background:green">
+
+     </td><td class="c" style="background:#008000">
+
+     </td><td><dfn id="green0">green</dfn>
+
+     </td><td class="c" style="background:silver">#008000
+
+     </td><td class="c" style="background:silver">0,128,0
+
+    </td></tr><tr>
+     <td class="c" style="background:greenyellow">
+
+     </td><td class="c" style="background:#adff2f">
+
+     </td><td><dfn id="greenyellow">greenyellow</dfn>
+
+     </td><td class="c" style="background:silver">#adff2f
+
+     </td><td class="c" style="background:silver">173,255,47
+
+    </td></tr><tr>
+     <td class="c" style="background:grey">
+
+     </td><td class="c" style="background:#808080">
+
+     </td><td><dfn id="grey">grey</dfn>
+
+     </td><td class="c" style="background:silver">#808080
+
+     </td><td class="c" style="background:silver">128,128,128
+
+    </td></tr><tr>
+     <td class="c" style="background:honeydew">
+
+     </td><td class="c" style="background:#f0fff0">
+
+     </td><td><dfn id="honeydew">honeydew</dfn>
+
+     </td><td class="c" style="background:silver">#f0fff0
+
+     </td><td class="c" style="background:silver">240,255,240
+
+    </td></tr><tr>
+     <td class="c" style="background:hotpink">
+
+     </td><td class="c" style="background:#ff69b4">
+
+     </td><td><dfn id="hotpink">hotpink</dfn>
+
+     </td><td class="c" style="background:silver">#ff69b4
+
+     </td><td class="c" style="background:silver">255,105,180
+
+    </td></tr><tr>
+     <td class="c" style="background:indianred">
+
+     </td><td class="c" style="background:#cd5c5c">
+
+     </td><td><dfn id="indianred">indianred</dfn>
+
+     </td><td class="c" style="background:silver">#cd5c5c
+
+     </td><td class="c" style="background:silver">205,92,92
+
+    </td></tr><tr>
+     <td class="c" style="background:indigo">
+
+     </td><td class="c" style="background:#4b0082">
+
+     </td><td><dfn id="indigo">indigo</dfn>
+
+     </td><td class="c" style="background:silver">#4b0082
+
+     </td><td class="c" style="background:silver">75,0,130
+
+    </td></tr><tr>
+     <td class="c" style="background:ivory">
+
+     </td><td class="c" style="background:#fffff0">
+
+     </td><td><dfn id="ivory">ivory</dfn>
+
+     </td><td class="c" style="background:silver">#fffff0
+
+     </td><td class="c" style="background:silver">255,255,240
+
+    </td></tr><tr>
+     <td class="c" style="background:khaki">
+
+     </td><td class="c" style="background:#f0e68c">
+
+     </td><td><dfn id="khaki">khaki</dfn>
+
+     </td><td class="c" style="background:silver">#f0e68c
+
+     </td><td class="c" style="background:silver">240,230,140
+
+    </td></tr><tr>
+     <td class="c" style="background:lavender">
+
+     </td><td class="c" style="background:#e6e6fa">
+
+     </td><td><dfn id="lavender">lavender</dfn>
+
+     </td><td class="c" style="background:silver">#e6e6fa
+
+     </td><td class="c" style="background:silver">230,230,250
+
+    </td></tr><tr>
+     <td class="c" style="background:lavenderblush">
+
+     </td><td class="c" style="background:#fff0f5">
+
+     </td><td><dfn id="lavenderblush">lavenderblush</dfn>
+
+     </td><td class="c" style="background:silver">#fff0f5
+
+     </td><td class="c" style="background:silver">255,240,245
+
+    </td></tr><tr>
+     <td class="c" style="background:lawngreen">
+
+     </td><td class="c" style="background:#7cfc00">
+
+     </td><td><dfn id="lawngreen">lawngreen</dfn>
+
+     </td><td class="c" style="background:silver">#7cfc00
+
+     </td><td class="c" style="background:silver">124,252,0
+
+    </td></tr><tr>
+     <td class="c" style="background:lemonchiffon">
+
+     </td><td class="c" style="background:#fffacd">
+
+     </td><td><dfn id="lemonchiffon">lemonchiffon</dfn>
+
+     </td><td class="c" style="background:silver">#fffacd
+
+     </td><td class="c" style="background:silver">255,250,205
+
+    </td></tr><tr>
+     <td class="c" style="background:lightblue">
+
+     </td><td class="c" style="background:#add8e6">
+
+     </td><td><dfn id="lightblue">lightblue</dfn>
+
+     </td><td class="c" style="background:silver">#add8e6
+
+     </td><td class="c" style="background:silver">173,216,230
+
+    </td></tr><tr>
+     <td class="c" style="background:lightcoral">
+
+     </td><td class="c" style="background:#f08080">
+
+     </td><td><dfn id="lightcoral">lightcoral</dfn>
+
+     </td><td class="c" style="background:silver">#f08080
+
+     </td><td class="c" style="background:silver">240,128,128
+
+    </td></tr><tr>
+     <td class="c" style="background:lightcyan">
+
+     </td><td class="c" style="background:#e0ffff">
+
+     </td><td><dfn id="lightcyan">lightcyan</dfn>
+
+     </td><td class="c" style="background:silver">#e0ffff
+
+     </td><td class="c" style="background:silver">224,255,255
+
+    </td></tr><tr>
+     <td class="c" style="background:lightgoldenrodyellow">
+
+     </td><td class="c" style="background:#fafad2">
+
+     </td><td><dfn id="lightgoldenrodyellow">lightgoldenrodyellow</dfn>
+
+     </td><td class="c" style="background:silver">#fafad2
+
+     </td><td class="c" style="background:silver">250,250,210
+
+    </td></tr><tr>
+     <td class="c" style="background:lightgray">
+
+     </td><td class="c" style="background:#d3d3d3">
+
+     </td><td><dfn id="lightgray">lightgray</dfn>
+
+     </td><td class="c" style="background:silver">#d3d3d3
+
+     </td><td class="c" style="background:silver">211,211,211
+
+    </td></tr><tr>
+     <td class="c" style="background:lightgreen">
+
+     </td><td class="c" style="background:#90ee90">
+
+     </td><td><dfn id="lightgreen">lightgreen</dfn>
+
+     </td><td class="c" style="background:silver">#90ee90
+
+     </td><td class="c" style="background:silver">144,238,144
+
+    </td></tr><tr>
+     <td class="c" style="background:lightgrey">
+
+     </td><td class="c" style="background:#d3d3d3">
+
+     </td><td><dfn id="lightgrey">lightgrey</dfn>
+
+     </td><td class="c" style="background:silver">#d3d3d3
+
+     </td><td class="c" style="background:silver">211,211,211
+
+    </td></tr><tr>
+     <td class="c" style="background:lightpink">
+
+     </td><td class="c" style="background:#ffb6c1">
+
+     </td><td><dfn id="lightpink">lightpink</dfn>
+
+     </td><td class="c" style="background:silver">#ffb6c1
+
+     </td><td class="c" style="background:silver">255,182,193
+
+    </td></tr><tr>
+     <td class="c" style="background:lightsalmon">
+
+     </td><td class="c" style="background:#ffa07a">
+
+     </td><td><dfn id="lightsalmon">lightsalmon</dfn>
+
+     </td><td class="c" style="background:silver">#ffa07a
+
+     </td><td class="c" style="background:silver">255,160,122
+
+    </td></tr><tr>
+     <td class="c" style="background:lightseagreen">
+
+     </td><td class="c" style="background:#20b2aa">
+
+     </td><td><dfn id="lightseagreen">lightseagreen</dfn>
+
+     </td><td class="c" style="background:silver">#20b2aa
+
+     </td><td class="c" style="background:silver">32,178,170
+
+    </td></tr><tr>
+     <td class="c" style="background:lightskyblue">
+
+     </td><td class="c" style="background:#87cefa">
+
+     </td><td><dfn id="lightskyblue">lightskyblue</dfn>
+
+     </td><td class="c" style="background:silver">#87cefa
+
+     </td><td class="c" style="background:silver">135,206,250
+
+    </td></tr><tr>
+     <td class="c" style="background:lightslategray">
+
+     </td><td class="c" style="background:#778899">
+
+     </td><td><dfn id="lightslategray">lightslategray</dfn>
+
+     </td><td class="c" style="background:silver">#778899
+
+     </td><td class="c" style="background:silver">119,136,153
+
+    </td></tr><tr>
+     <td class="c" style="background:lightslategrey">
+
+     </td><td class="c" style="background:#778899">
+
+     </td><td><dfn id="lightslategrey">lightslategrey</dfn>
+
+     </td><td class="c" style="background:silver">#778899
+
+     </td><td class="c" style="background:silver">119,136,153
+
+    </td></tr><tr>
+     <td class="c" style="background:lightsteelblue">
+
+     </td><td class="c" style="background:#b0c4de">
+
+     </td><td><dfn id="lightsteelblue">lightsteelblue</dfn>
+
+     </td><td class="c" style="background:silver">#b0c4de
+
+     </td><td class="c" style="background:silver">176,196,222
+
+    </td></tr><tr>
+     <td class="c" style="background:lightyellow">
+
+     </td><td class="c" style="background:#ffffe0">
+
+     </td><td><dfn id="lightyellow">lightyellow</dfn>
+
+     </td><td class="c" style="background:silver">#ffffe0
+
+     </td><td class="c" style="background:silver">255,255,224
+
+    </td></tr><tr>
+     <td class="c" style="background:lime">
+
+     </td><td class="c" style="background:#00ff00">
+
+     </td><td><dfn id="lime0">lime</dfn>
+
+     </td><td class="c" style="background:silver">#00ff00
+
+     </td><td class="c" style="background:silver">0,255,0
+
+    </td></tr><tr>
+     <td class="c" style="background:limegreen">
+
+     </td><td class="c" style="background:#32cd32">
+
+     </td><td><dfn id="limegreen">limegreen</dfn>
+
+     </td><td class="c" style="background:silver">#32cd32
+
+     </td><td class="c" style="background:silver">50,205,50
+
+    </td></tr><tr>
+     <td class="c" style="background:linen">
+
+     </td><td class="c" style="background:#faf0e6">
+
+     </td><td><dfn id="linen">linen</dfn>
+
+     </td><td class="c" style="background:silver">#faf0e6
+
+     </td><td class="c" style="background:silver">250,240,230
+
+    </td></tr><tr>
+     <td class="c" style="background:magenta">
+
+     </td><td class="c" style="background:#ff00ff">
+
+     </td><td><dfn id="magenta">magenta</dfn>
+
+     </td><td class="c" style="background:silver">#ff00ff
+
+     </td><td class="c" style="background:silver">255,0,255
+
+    </td></tr><tr>
+     <td class="c" style="background:maroon">
+
+     </td><td class="c" style="background:#800000">
+
+     </td><td><dfn id="maroon0">maroon</dfn>
+
+     </td><td class="c" style="background:silver">#800000
+
+     </td><td class="c" style="background:silver">128,0,0
+
+    </td></tr><tr>
+     <td class="c" style="background:mediumaquamarine">
+
+     </td><td class="c" style="background:#66cdaa">
+
+     </td><td><dfn id="mediumaquamarine">mediumaquamarine</dfn>
+
+     </td><td class="c" style="background:silver">#66cdaa
+
+     </td><td class="c" style="background:silver">102,205,170
+
+    </td></tr><tr>
+     <td class="c" style="background:mediumblue">
+
+     </td><td class="c" style="background:#0000cd">
+
+     </td><td><dfn id="mediumblue">mediumblue</dfn>
+
+     </td><td class="c" style="background:silver">#0000cd
+
+     </td><td class="c" style="background:silver">0,0,205
+
+    </td></tr><tr>
+     <td class="c" style="background:mediumorchid">
+
+     </td><td class="c" style="background:#ba55d3">
+
+     </td><td><dfn id="mediumorchid">mediumorchid</dfn>
+
+     </td><td class="c" style="background:silver">#ba55d3
+
+     </td><td class="c" style="background:silver">186,85,211
+
+    </td></tr><tr>
+     <td class="c" style="background:mediumpurple">
+
+     </td><td class="c" style="background:#9370db">
+
+     </td><td><dfn id="mediumpurple">mediumpurple</dfn>
+
+     </td><td class="c" style="background:silver">#9370db
+
+     </td><td class="c" style="background:silver">147,112,219
+
+    </td></tr><tr>
+     <td class="c" style="background:mediumseagreen">
+
+     </td><td class="c" style="background:#3cb371">
+
+     </td><td><dfn id="mediumseagreen">mediumseagreen</dfn>
+
+     </td><td class="c" style="background:silver">#3cb371
+
+     </td><td class="c" style="background:silver">60,179,113
+
+    </td></tr><tr>
+     <td class="c" style="background:mediumslateblue">
+
+     </td><td class="c" style="background:#7b68ee">
+
+     </td><td><dfn id="mediumslateblue">mediumslateblue</dfn>
+
+     </td><td class="c" style="background:silver">#7b68ee
+
+     </td><td class="c" style="background:silver">123,104,238
+
+    </td></tr><tr>
+     <td class="c" style="background:mediumspringgreen">
+
+     </td><td class="c" style="background:#00fa9a">
+
+     </td><td><dfn id="mediumspringgreen">mediumspringgreen</dfn>
+
+     </td><td class="c" style="background:silver">#00fa9a
+
+     </td><td class="c" style="background:silver">0,250,154
+
+    </td></tr><tr>
+     <td class="c" style="background:mediumturquoise">
+
+     </td><td class="c" style="background:#48d1cc">
+
+     </td><td><dfn id="mediumturquoise">mediumturquoise</dfn>
+
+     </td><td class="c" style="background:silver">#48d1cc
+
+     </td><td class="c" style="background:silver">72,209,204
+
+    </td></tr><tr>
+     <td class="c" style="background:mediumvioletred">
+
+     </td><td class="c" style="background:#c71585">
+
+     </td><td><dfn id="mediumvioletred">mediumvioletred</dfn>
+
+     </td><td class="c" style="background:silver">#c71585
+
+     </td><td class="c" style="background:silver">199,21,133
+
+    </td></tr><tr>
+     <td class="c" style="background:midnightblue">
+
+     </td><td class="c" style="background:#191970">
+
+     </td><td><dfn id="midnightblue">midnightblue</dfn>
+
+     </td><td class="c" style="background:silver">#191970
+
+     </td><td class="c" style="background:silver">25,25,112
+
+    </td></tr><tr>
+     <td class="c" style="background:mintcream">
+
+     </td><td class="c" style="background:#f5fffa">
+
+     </td><td><dfn id="mintcream">mintcream</dfn>
+
+     </td><td class="c" style="background:silver">#f5fffa
+
+     </td><td class="c" style="background:silver">245,255,250
+
+    </td></tr><tr>
+     <td class="c" style="background:mistyrose">
+
+     </td><td class="c" style="background:#ffe4e1">
+
+     </td><td><dfn id="mistyrose">mistyrose</dfn>
+
+     </td><td class="c" style="background:silver">#ffe4e1
+
+     </td><td class="c" style="background:silver">255,228,225
+
+    </td></tr><tr>
+     <td class="c" style="background:moccasin">
+
+     </td><td class="c" style="background:#ffe4b5">
+
+     </td><td><dfn id="moccasin">moccasin</dfn>
+
+     </td><td class="c" style="background:silver">#ffe4b5
+
+     </td><td class="c" style="background:silver">255,228,181
+
+    </td></tr><tr>
+     <td class="c" style="background:navajowhite">
+
+     </td><td class="c" style="background:#ffdead">
+
+     </td><td><dfn id="navajowhite">navajowhite</dfn>
+
+     </td><td class="c" style="background:silver">#ffdead
+
+     </td><td class="c" style="background:silver">255,222,173
+
+    </td></tr><tr>
+     <td class="c" style="background:navy">
+
+     </td><td class="c" style="background:#000080">
+
+     </td><td><dfn id="navy0">navy</dfn>
+
+     </td><td class="c" style="background:silver">#000080
+
+     </td><td class="c" style="background:silver">0,0,128
+
+    </td></tr><tr>
+     <td class="c" style="background:oldlace">
+
+     </td><td class="c" style="background:#fdf5e6">
+
+     </td><td><dfn id="oldlace">oldlace</dfn>
+
+     </td><td class="c" style="background:silver">#fdf5e6
+
+     </td><td class="c" style="background:silver">253,245,230
+
+    </td></tr><tr>
+     <td class="c" style="background:olive">
+
+     </td><td class="c" style="background:#808000">
+
+     </td><td><dfn id="olive0">olive</dfn>
+
+     </td><td class="c" style="background:silver">#808000
+
+     </td><td class="c" style="background:silver">128,128,0
+
+    </td></tr><tr>
+     <td class="c" style="background:olivedrab">
+
+     </td><td class="c" style="background:#6b8e23">
+
+     </td><td><dfn id="olivedrab">olivedrab</dfn>
+
+     </td><td class="c" style="background:silver">#6b8e23
+
+     </td><td class="c" style="background:silver">107,142,35
+
+    </td></tr><tr>
+     <td class="c" style="background:orange">
+
+     </td><td class="c" style="background:#ffa500">
+
+     </td><td><dfn id="orange">orange</dfn>
+
+     </td><td class="c" style="background:silver">#ffa500
+
+     </td><td class="c" style="background:silver">255,165,0
+
+    </td></tr><tr>
+     <td class="c" style="background:orangered">
+
+     </td><td class="c" style="background:#ff4500">
+
+     </td><td><dfn id="orangered">orangered</dfn>
+
+     </td><td class="c" style="background:silver">#ff4500
+
+     </td><td class="c" style="background:silver">255,69,0
+
+    </td></tr><tr>
+     <td class="c" style="background:orchid">
+
+     </td><td class="c" style="background:#da70d6">
+
+     </td><td><dfn id="orchid">orchid</dfn>
+
+     </td><td class="c" style="background:silver">#da70d6
+
+     </td><td class="c" style="background:silver">218,112,214
+
+    </td></tr><tr>
+     <td class="c" style="background:palegoldenrod">
+
+     </td><td class="c" style="background:#eee8aa">
+
+     </td><td><dfn id="palegoldenrod">palegoldenrod</dfn>
+
+     </td><td class="c" style="background:silver">#eee8aa
+
+     </td><td class="c" style="background:silver">238,232,170
+
+    </td></tr><tr>
+     <td class="c" style="background:palegreen">
+
+     </td><td class="c" style="background:#98fb98">
+
+     </td><td><dfn id="palegreen">palegreen</dfn>
+
+     </td><td class="c" style="background:silver">#98fb98
+
+     </td><td class="c" style="background:silver">152,251,152
+
+    </td></tr><tr>
+     <td class="c" style="background:paleturquoise">
+
+     </td><td class="c" style="background:#afeeee">
+
+     </td><td><dfn id="paleturquoise">paleturquoise</dfn>
+
+     </td><td class="c" style="background:silver">#afeeee
+
+     </td><td class="c" style="background:silver">175,238,238
+
+    </td></tr><tr>
+     <td class="c" style="background:palevioletred">
+
+     </td><td class="c" style="background:#db7093">
+
+     </td><td><dfn id="palevioletred">palevioletred</dfn>
+
+     </td><td class="c" style="background:silver">#db7093
+
+     </td><td class="c" style="background:silver">219,112,147
+
+    </td></tr><tr>
+     <td class="c" style="background:papayawhip">
+
+     </td><td class="c" style="background:#ffefd5">
+
+     </td><td><dfn id="papayawhip">papayawhip</dfn>
+
+     </td><td class="c" style="background:silver">#ffefd5
+
+     </td><td class="c" style="background:silver">255,239,213
+
+    </td></tr><tr>
+     <td class="c" style="background:peachpuff">
+
+     </td><td class="c" style="background:#ffdab9">
+
+     </td><td><dfn id="peachpuff">peachpuff</dfn>
+
+     </td><td class="c" style="background:silver">#ffdab9
+
+     </td><td class="c" style="background:silver">255,218,185
+
+    </td></tr><tr>
+     <td class="c" style="background:peru">
+
+     </td><td class="c" style="background:#cd853f">
+
+     </td><td><dfn id="peru">peru</dfn>
+
+     </td><td class="c" style="background:silver">#cd853f
+
+     </td><td class="c" style="background:silver">205,133,63
+
+    </td></tr><tr>
+     <td class="c" style="background:pink">
+
+     </td><td class="c" style="background:#ffc0cb">
+
+     </td><td><dfn id="pink">pink</dfn>
+
+     </td><td class="c" style="background:silver">#ffc0cb
+
+     </td><td class="c" style="background:silver">255,192,203
+
+    </td></tr><tr>
+     <td class="c" style="background:plum">
+
+     </td><td class="c" style="background:#dda0dd">
+
+     </td><td><dfn id="plum">plum</dfn>
+
+     </td><td class="c" style="background:silver">#dda0dd
+
+     </td><td class="c" style="background:silver">221,160,221
+
+    </td></tr><tr>
+     <td class="c" style="background:powderblue">
+
+     </td><td class="c" style="background:#b0e0e6">
+
+     </td><td><dfn id="powderblue">powderblue</dfn>
+
+     </td><td class="c" style="background:silver">#b0e0e6
+
+     </td><td class="c" style="background:silver">176,224,230
+
+    </td></tr><tr>
+     <td class="c" style="background:purple">
+
+     </td><td class="c" style="background:#800080">
+
+     </td><td><dfn id="purple0">purple</dfn>
+
+     </td><td class="c" style="background:silver">#800080
+
+     </td><td class="c" style="background:silver">128,0,128
+
+    </td></tr><tr>
+     <td class="c" style="background:red">
+
+     </td><td class="c" style="background:#ff0000">
+
+     </td><td><dfn id="red0">red</dfn>
+
+     </td><td class="c" style="background:silver">#ff0000
+
+     </td><td class="c" style="background:silver">255,0,0
+
+    </td></tr><tr>
+     <td class="c" style="background:rosybrown">
+
+     </td><td class="c" style="background:#bc8f8f">
+
+     </td><td><dfn id="rosybrown">rosybrown</dfn>
+
+     </td><td class="c" style="background:silver">#bc8f8f
+
+     </td><td class="c" style="background:silver">188,143,143
+
+    </td></tr><tr>
+     <td class="c" style="background:royalblue">
+
+     </td><td class="c" style="background:#4169e1">
+
+     </td><td><dfn id="royalblue">royalblue</dfn>
+
+     </td><td class="c" style="background:silver">#4169e1
+
+     </td><td class="c" style="background:silver">65,105,225
+
+    </td></tr><tr>
+     <td class="c" style="background:saddlebrown">
+
+     </td><td class="c" style="background:#8b4513">
+
+     </td><td><dfn id="saddlebrown">saddlebrown</dfn>
+
+     </td><td class="c" style="background:silver">#8b4513
+
+     </td><td class="c" style="background:silver">139,69,19
+
+    </td></tr><tr>
+     <td class="c" style="background:salmon">
+
+     </td><td class="c" style="background:#fa8072">
+
+     </td><td><dfn id="salmon">salmon</dfn>
+
+     </td><td class="c" style="background:silver">#fa8072
+
+     </td><td class="c" style="background:silver">250,128,114
+
+    </td></tr><tr>
+     <td class="c" style="background:sandybrown">
+
+     </td><td class="c" style="background:#f4a460">
+
+     </td><td><dfn id="sandybrown">sandybrown</dfn>
+
+     </td><td class="c" style="background:silver">#f4a460
+
+     </td><td class="c" style="background:silver">244,164,96
+
+    </td></tr><tr>
+     <td class="c" style="background:seagreen">
+
+     </td><td class="c" style="background:#2e8b57">
+
+     </td><td><dfn id="seagreen">seagreen</dfn>
+
+     </td><td class="c" style="background:silver">#2e8b57
+
+     </td><td class="c" style="background:silver">46,139,87
+
+    </td></tr><tr>
+     <td class="c" style="background:seashell">
+
+     </td><td class="c" style="background:#fff5ee">
+
+     </td><td><dfn id="seashell">seashell</dfn>
+
+     </td><td class="c" style="background:silver">#fff5ee
+
+     </td><td class="c" style="background:silver">255,245,238
+
+    </td></tr><tr>
+     <td class="c" style="background:sienna">
+
+     </td><td class="c" style="background:#a0522d">
+
+     </td><td><dfn id="sienna">sienna</dfn>
+
+     </td><td class="c" style="background:silver">#a0522d
+
+     </td><td class="c" style="background:silver">160,82,45
+
+    </td></tr><tr>
+     <td class="c" style="background:silver">
+
+     </td><td class="c" style="background:#c0c0c0">
+
+     </td><td><dfn id="silver0">silver</dfn>
+
+     </td><td class="c" style="background:silver">#c0c0c0
+
+     </td><td class="c" style="background:silver">192,192,192
+
+    </td></tr><tr>
+     <td class="c" style="background:skyblue">
+
+     </td><td class="c" style="background:#87ceeb">
+
+     </td><td><dfn id="skyblue">skyblue</dfn>
+
+     </td><td class="c" style="background:silver">#87ceeb
+
+     </td><td class="c" style="background:silver">135,206,235
+
+    </td></tr><tr>
+     <td class="c" style="background:slateblue">
+
+     </td><td class="c" style="background:#6a5acd">
+
+     </td><td><dfn id="slateblue">slateblue</dfn>
+
+     </td><td class="c" style="background:silver">#6a5acd
+
+     </td><td class="c" style="background:silver">106,90,205
+
+    </td></tr><tr>
+     <td class="c" style="background:slategray">
+
+     </td><td class="c" style="background:#708090">
+
+     </td><td><dfn id="slategray">slategray</dfn>
+
+     </td><td class="c" style="background:silver">#708090
+
+     </td><td class="c" style="background:silver">112,128,144
+
+    </td></tr><tr>
+     <td class="c" style="background:slategrey">
+
+     </td><td class="c" style="background:#708090">
+
+     </td><td><dfn id="slategrey">slategrey</dfn>
+
+     </td><td class="c" style="background:silver">#708090
+
+     </td><td class="c" style="background:silver">112,128,144
+
+    </td></tr><tr>
+     <td class="c" style="background:snow">
+
+     </td><td class="c" style="background:#fffafa">
+
+     </td><td><dfn id="snow">snow</dfn>
+
+     </td><td class="c" style="background:silver">#fffafa
+
+     </td><td class="c" style="background:silver">255,250,250
+
+    </td></tr><tr>
+     <td class="c" style="background:springgreen">
+
+     </td><td class="c" style="background:#00ff7f">
+
+     </td><td><dfn id="springgreen">springgreen</dfn>
+
+     </td><td class="c" style="background:silver">#00ff7f
+
+     </td><td class="c" style="background:silver">0,255,127
+
+    </td></tr><tr>
+     <td class="c" style="background:steelblue">
+
+     </td><td class="c" style="background:#4682b4">
+
+     </td><td><dfn id="steelblue">steelblue</dfn>
+
+     </td><td class="c" style="background:silver">#4682b4
+
+     </td><td class="c" style="background:silver">70,130,180
+
+    </td></tr><tr>
+     <td class="c" style="background:tan">
+
+     </td><td class="c" style="background:#d2b48c">
+
+     </td><td><dfn id="tan">tan</dfn>
+
+     </td><td class="c" style="background:silver">#d2b48c
+
+     </td><td class="c" style="background:silver">210,180,140
+
+    </td></tr><tr>
+     <td class="c" style="background:teal">
+
+     </td><td class="c" style="background:#008080">
+
+     </td><td><dfn id="teal0">teal</dfn>
+
+     </td><td class="c" style="background:silver">#008080
+
+     </td><td class="c" style="background:silver">0,128,128
+
+    </td></tr><tr>
+     <td class="c" style="background:thistle">
+
+     </td><td class="c" style="background:#d8bfd8">
+
+     </td><td><dfn id="thistle">thistle</dfn>
+
+     </td><td class="c" style="background:silver">#d8bfd8
+
+     </td><td class="c" style="background:silver">216,191,216
+
+    </td></tr><tr>
+     <td class="c" style="background:tomato">
+
+     </td><td class="c" style="background:#ff6347">
+
+     </td><td><dfn id="tomato">tomato</dfn>
+
+     </td><td class="c" style="background:silver">#ff6347
+
+     </td><td class="c" style="background:silver">255,99,71
+
+    </td></tr><tr>
+     <td class="c" style="background:turquoise">
+
+     </td><td class="c" style="background:#40e0d0">
+
+     </td><td><dfn id="turquoise">turquoise</dfn>
+
+     </td><td class="c" style="background:silver">#40e0d0
+
+     </td><td class="c" style="background:silver">64,224,208
+
+    </td></tr><tr>
+     <td class="c" style="background:violet">
+
+     </td><td class="c" style="background:#ee82ee">
+
+     </td><td><dfn id="violet">violet</dfn>
+
+     </td><td class="c" style="background:silver">#ee82ee
+
+     </td><td class="c" style="background:silver">238,130,238
+
+    </td></tr><tr>
+     <td class="c" style="background:wheat">
+
+     </td><td class="c" style="background:#f5deb3">
+
+     </td><td><dfn id="wheat">wheat</dfn>
+
+     </td><td class="c" style="background:silver">#f5deb3
+
+     </td><td class="c" style="background:silver">245,222,179
+
+    </td></tr><tr>
+     <td class="c" style="background:white">
+
+     </td><td class="c" style="background:#ffffff">
+
+     </td><td><dfn id="white0">white</dfn>
+
+     </td><td class="c" style="background:silver">#ffffff
+
+     </td><td class="c" style="background:silver">255,255,255
+
+    </td></tr><tr>
+     <td class="c" style="background:whitesmoke">
+
+     </td><td class="c" style="background:#f5f5f5">
+
+     </td><td><dfn id="whitesmoke">whitesmoke</dfn>
+
+     </td><td class="c" style="background:silver">#f5f5f5
+
+     </td><td class="c" style="background:silver">245,245,245
+
+    </td></tr><tr>
+     <td class="c" style="background:yellow">
+
+     </td><td class="c" style="background:#ffff00">
+
+     </td><td><dfn id="yellow0">yellow</dfn>
+
+     </td><td class="c" style="background:silver">#ffff00
+
+     </td><td class="c" style="background:silver">255,255,0
+
+    </td></tr><tr>
+     <td class="c" style="background:yellowgreen">
+
+     </td><td class="c" style="background:#9acd32">
+
+     </td><td><dfn id="yellowgreen">yellowgreen</dfn>
+
+     </td><td class="c" style="background:silver">#9acd32
+
+     </td><td class="c" style="background:silver">154,205,50
+  </td></tr></tbody></table>
+
+</body></html>

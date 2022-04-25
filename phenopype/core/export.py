@@ -315,7 +315,7 @@ def export_csv(
 
 
 
-def load_annotation(filepath, annotation_type=None, annotation_id=None, **kwargs):
+def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None,**kwargs):
     """
 
     Parameters
@@ -349,6 +349,15 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, **kwargs
                 )
                 return
         annotation_file = defaultdict(dict, annotation_file)
+        
+    elif os.path.isdir(filepath):
+        if tag.__class__.__name__ == "NoneType":
+            print("Attempting to load directory without specifying tag - aborting")
+            return
+        else:
+            filepath = os.path.join(filepath, "annotations_{}.json".format(tag))
+            with open(filepath) as file:
+                annotation_file = json.load(file)
     else:
         print("Annotation file not found")
         return

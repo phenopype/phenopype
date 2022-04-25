@@ -165,10 +165,12 @@ opencv_window_flags = {
 
 #%% annotation definitions
 
+## gui data
 _coord_type = "points"
 _coord_list_type = "polygons"
 _sequence_type = "drawings"
 
+## annotation data
 _comment_type = "comment"
 _contour_type = "contour"
 _drawing_type = "drawing"
@@ -192,6 +194,7 @@ _annotation_functions = {
     "set_polyline": _line_type,
     "detect_skeleton": _line_type,
     ## masks
+    "contour_to_mask": _mask_type,
     "create_mask": _mask_type,
     "detect_mask": _mask_type,
     ## reference

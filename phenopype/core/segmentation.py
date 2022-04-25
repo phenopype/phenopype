@@ -16,6 +16,122 @@ from phenopype.core import preprocessing
 #%% functions
 
 
+def contour_to_mask(
+    annotations,
+    include=True,
+    label=None,
+    box_margin=0,
+    largest=True,
+    **kwargs,
+):
+
+    """
+    Converts a contour to a mask annotation, e.g. for the purpose of creating an ROI
+    and exporting it or for subsequent segmentation inside that mask. Creates a 
+    rectangle bounding box around the largest or all contours. 
+
+    Parameters
+    ----------
+    annotation: dict
+        phenopype annotation containing contours
+    include : bool, optional
+        include or exclude area inside mask
+    label : str, optional
+        text label for this mask and all its components
+    box_margin : int, optional
+        margin that is added between the outer perimeter of the contour and the box
+    largest : bool, optional
+        either use only the largest contour or concatenate all supplied contours
+
+    Returns
+    -------
+    annotation: dict
+        phenopype annotation containing contours
+    """
+    ## fun name
+    fun_name = sys._getframe().f_code.co_name
+
+    # =============================================================================
+    # annotation management
+
+    ## get contours
+    annotation_type = settings._contour_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
+
+    contours = annotation["data"][annotation_type]
+    contours_support = annotation["data"]["support"]
+    
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotation_id", None)
+
+    # =============================================================================
+    # setup
+    
+    label = kwargs.get("label")
+    
+    ## take single largest contour
+    if largest:
+        area_list = []
+        for cnt in contours_support:
+            area_list.append(cnt["area"])
+            
+        contour = contours[area_list.index(max(area_list))]
+        
+    ## concatenate all contours
+    else:
+        contour = np.concatenate(contours)
+        
+    # =============================================================================
+    # process
+
+    rx, ry, rw, rh = cv2.boundingRect(contour)
+    b = box_margin
+
+    mask_coords = [[
+        (rx-b,ry-b),
+        (rx+rw+b, ry-b),
+        (rx+rw+b, ry+rh+b),
+        (rx-b, ry+rh+b),
+        (rx-b,ry-b)
+        ]]
+    
+    # =============================================================================
+    # assemble results
+
+    annotation = {
+        "info": {
+            "phenopype_function": fun_name,
+            "phenopype_version": __version__,
+            "annotation_type": annotation_type,
+        },
+        "settings": {
+        },
+        "data": {
+            "label": label,
+            "include": include,
+            "n": 1,
+            annotation_type: mask_coords,
+            },
+    }
+
+    # =============================================================================
+    # return
+
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
+
 def detect_contour(
     image,
     approximation="simple",
@@ -33,7 +149,8 @@ def detect_contour(
 
     """
     Find objects in binarized image. The input image needs to be a binarized image
-    A flavor of different approximation algorithms and retrieval intstructions can be applied. The contours can also be filtered for minimum area, diameter or nodes
+    A flavor of different approximation algorithms and retrieval intstructions can be applied. 
+    The contours can also be filtered for minimum area, diameter or nodes
     (= number of corners). 
 
     Parameters
@@ -242,6 +359,8 @@ def edit_contour(
     ----------
     image : ndarray
         input image
+    annotations: dict
+        phenopype annotation containing contours
     overlay_blend: float, optional
         transparency / colour-mixing of the contour overlay 
     overlay_line_width: int, optional

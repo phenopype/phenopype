@@ -5,6 +5,8 @@ import cv2
 import os
 import sys
 import json
+import webbrowser
+
 from dataclasses import make_dataclass
 
 from pathlib import Path
@@ -15,6 +17,7 @@ import ruamel.yaml
 
 from phenopype import settings
 from phenopype import utils_lowlevel
+from phenopype import assets
 
 from phenopype.core import (
     preprocessing,
@@ -24,6 +27,7 @@ from phenopype.core import (
     visualization,
 )
 
+from pkg_resources import resource_filename
 
 #%% classes
 
@@ -263,6 +267,8 @@ class Container(object):
             self.image = preprocessing.decompose_image(self.image, **kwargs_function)
 
         ## segmentation
+        if fun == "contour_to_mask":
+            annotations_updated = segmentation.contour_to_mask(**kwargs_function)
         if fun == "threshold":
             self.image = segmentation.threshold(self.image, **kwargs_function)
         if fun == "watershed":
@@ -594,6 +600,16 @@ def load_template(
 
     if ret_path:
         return config_path
+    
+    
+    
+def print_colours():
+    
+    colours_path = os.path.join(resource_filename("phenopype", "assets"), "wc3_colours.html")
+    webbrowser.open_new_tab(colours_path)
+
+
+    
 
 
 def save_image(
