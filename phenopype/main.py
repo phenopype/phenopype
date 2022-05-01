@@ -22,6 +22,7 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 
 from phenopype import __version__
 from phenopype import _config
+from phenopype import plugins
 from phenopype import settings
 from phenopype import utils
 from phenopype import utils_lowlevel
@@ -855,7 +856,66 @@ class Project:
                     pass
                 shutil.copyfile(file_path, path)
                 break
+            
+    def copy_tag(self, tag_src, tag_dst, copy_annotations=True, overwrite=False,**kwargs):
+        """
+        
 
+        Parameters
+        ----------
+        tag_src : TYPE
+            DESCRIPTION.
+        tag_dst : TYPE
+            DESCRIPTION.
+        copy_annotations : TYPE, optional
+            DESCRIPTION. The default is True.
+        overwrite : TYPE, optional
+            DESCRIPTION. The default is False.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+   
+        ## go through project directories
+        for directory in self.dir_paths:
+            dir_name = os.path.basename(directory)
+
+            config_path = os.path.join(
+                self.root_dir, "data", dir_name, "pype_config_" + tag_src + ".yaml"
+            )
+            new_config_path = os.path.join(
+                self.root_dir, "data", dir_name, "pype_config_" + tag_dst + ".yaml"
+            )   
+                        
+            if utils_lowlevel._overwrite_check_file(new_config_path, overwrite):
+                shutil.copyfile(config_path, new_config_path)
+                print("Copy config file for {}".format(dir_name))
+
+            if copy_annotations:
+                annotations_path = os.path.join(
+                    self.root_dir, "data", dir_name, "annotations_" + tag_src + ".json"
+                )
+                new_annotations_path = os.path.join(
+                    self.root_dir, "data", dir_name, "annotations_" + tag_dst + ".json"
+                )
+                
+                if utils_lowlevel._overwrite_check_file(new_annotations_path, overwrite):
+                    shutil.copyfile(annotations_path, new_annotations_path)
+                    print("Copy annotations file for {}".format(dir_name))
+                    
+    def init_plugin(self, plugin_name, tag=None):
+        
+        if plugin_name in ["ml-morph","ml_morph","mlmorph"]:
+            self.ml_morph = plugins.ml_morph._PluginLink(self, tag)
+            
+        if plugin_name in ["keras-cnn", "keras_cnn"]:
+            self.keras_cnn = plugins.keras_cnn._PluginLink(self, tag)
+            
+            
     def create_training_data(
             self, 
             tag,
@@ -1122,57 +1182,7 @@ class Project:
             else:
                 print("User check failed - aborting.")
                 break
-            
-    def copy_tag(self, tag_src, tag_dst, copy_annotations=True, overwrite=False,**kwargs):
-        """
-        
-
-        Parameters
-        ----------
-        tag_src : TYPE
-            DESCRIPTION.
-        tag_dst : TYPE
-            DESCRIPTION.
-        copy_annotations : TYPE, optional
-            DESCRIPTION. The default is True.
-        overwrite : TYPE, optional
-            DESCRIPTION. The default is False.
-        **kwargs : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
-        """
-   
-        ## go through project directories
-        for directory in self.dir_paths:
-            dir_name = os.path.basename(directory)
-
-            config_path = os.path.join(
-                self.root_dir, "data", dir_name, "pype_config_" + tag_src + ".yaml"
-            )
-            new_config_path = os.path.join(
-                self.root_dir, "data", dir_name, "pype_config_" + tag_dst + ".yaml"
-            )   
-                        
-            if utils_lowlevel._overwrite_check_file(new_config_path, overwrite):
-                shutil.copyfile(config_path, new_config_path)
-                print("Copy config file for {}".format(dir_name))
-
-            if copy_annotations:
-                annotations_path = os.path.join(
-                    self.root_dir, "data", dir_name, "annotations_" + tag_src + ".json"
-                )
-                new_annotations_path = os.path.join(
-                    self.root_dir, "data", dir_name, "annotations_" + tag_dst + ".json"
-                )
-                
-                if utils_lowlevel._overwrite_check_file(new_annotations_path, overwrite):
-                    shutil.copyfile(annotations_path, new_annotations_path)
-                    print("Copy annotations file for {}".format(dir_name))
-        
+                    
             
 
     def export_zip(self, no_imgs=True, **kwargs):

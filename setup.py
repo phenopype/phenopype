@@ -24,7 +24,7 @@ setup(
     packages=find_packages(),
     package_data = {
         'assets': ['*.html'],
-    }
+    },
     install_requires=[
         "colour",
         "numpy",

@@ -1333,6 +1333,22 @@ def _overwrite_check_file(path, overwrite):
     elif not os.path.isfile(path):
         print(filename + " saved under " + path + ".")
         return True
+    
+def _overwrite_check_dir(path, overwrite):
+    
+    dirname = os.path.basename(path)
+    
+    if os.path.isdir(path) and overwrite == False:
+        print(
+            dirname + " not saved - file already exists (overwrite=False)."
+        )
+        return False
+    elif os.path.isdir(path) and overwrite == True:
+        print(dirname + " saved under " + path + " (overwritten).")
+        return True
+    elif not os.path.isdir(path):
+        print(dirname + " saved under " + path + ".")
+        return True
 
 
 #%% functions - VARIOUS
