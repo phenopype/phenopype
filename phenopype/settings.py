@@ -184,24 +184,33 @@ _texture_feature_type = "texture_features"
 _annotation_functions = {
     ## comments
     "write_comment": _comment_type,
+    
     ## contours
     "detect_contour": _contour_type,
+    
     ## drawings
     "edit_contour": _drawing_type,
+    
     ## landmarks
     "set_landmark": _landmark_type,
+    "detect_landmark": _landmark_type,
+
     ## lines
     "set_polyline": _line_type,
     "detect_skeleton": _line_type,
+    
     ## masks
     "contour_to_mask": _mask_type,
     "create_mask": _mask_type,
     "detect_mask": _mask_type,
+    
     ## reference
     "create_reference": _reference_type,
     "detect_reference": _reference_type,
+    
     ## shape_features
     "compute_shape_features": _shape_feature_type,
+    
     ## texture_features
     "compute_texture_features": _texture_feature_type,
 }

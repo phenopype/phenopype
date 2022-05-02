@@ -1384,14 +1384,15 @@ def _convert_arr_tup_list(arr_list, add_first=False):
 def _convert_tup_list_arr(tup_list):
     
     array_list = []
-    if type(tup_list[0]) == list:
+    if type(tup_list[0]) == list and len(tup_list[0])>2:
         for points in tup_list:
             point_list = []
             for point in points:
                 point_list.append([list(point)])
             array_list.append(np.asarray(point_list, dtype="int32"))
-    elif type(tup_list[0]) == tuple:
+    elif type(tup_list[0]) == tuple or type(tup_list[0]) == list:
         array_list.append(np.asarray(tup_list, dtype="int32"))
+        
     return array_list
 
 

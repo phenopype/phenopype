@@ -15,17 +15,11 @@ import io
 from contextlib import redirect_stdout
 import ruamel.yaml
 
+from phenopype import assets
+from phenopype import core
+from phenopype import plugins
 from phenopype import settings
 from phenopype import utils_lowlevel
-from phenopype import assets
-
-from phenopype.core import (
-    preprocessing,
-    segmentation,
-    measurement,
-    export,
-    visualization,
-)
 
 from pkg_resources import resource_filename
 
@@ -86,11 +80,10 @@ class Container(object):
         loaded = []
 
         ## load annotations
-
         annotations_file_name = self._construct_file_name("annotations", ".json")
 
         if annotations_file_name in os.listdir(self.dir_path):
-            annotations_loaded = export.load_annotation(
+            annotations_loaded = core.export.load_annotation(
                 os.path.join(self.dir_path, annotations_file_name)
             )
             if annotations_loaded:
@@ -224,7 +217,7 @@ class Container(object):
                         print(print_msg + ": skipping (edit=False)")
                         if annotation_type in ["drawing"]:
                             kwargs_function["passive"] = True
-                            annotations_updated, self.image = segmentation.edit_contour(
+                            annotations_updated, self.image = core.segmentation.edit_contour(
                                 self.canvas, ret_image=True, **kwargs_function
                             )
                         return
@@ -235,16 +228,16 @@ class Container(object):
                     
         ## preprocessing
         if fun == "blur":
-            self.image = preprocessing.blur(self.image, **kwargs_function)
+            self.image = core.preprocessing.blur(self.image, **kwargs_function)
         if fun == "create_mask":
-            annotations_updated = preprocessing.create_mask(self.image, **kwargs_function)
+            annotations_updated = core.preprocessing.create_mask(self.image, **kwargs_function)
         if fun == "create_reference":
-            annotations_updated = preprocessing.create_reference(self.image, **kwargs_function)
+            annotations_updated = core.preprocessing.create_reference(self.image, **kwargs_function)
         if fun == "detect_mask":
-            annotations_updated = preprocessing.detect_mask(self.image, **kwargs_function)
+            annotations_updated = core.preprocessing.detect_mask(self.image, **kwargs_function)
             # print(annotations_updated)
         if fun == "write_comment":
-            annotations_updated = preprocessing.write_comment(self.image, **kwargs_function)
+            annotations_updated = core.preprocessing.write_comment(self.image, **kwargs_function)
         if fun == "detect_reference":
             if all(
                 hasattr(self, attr)
@@ -254,7 +247,7 @@ class Container(object):
                     "reference_unit",
                 ]
             ):
-                annotations_updated = preprocessing.detect_reference(
+                annotations_updated = core.preprocessing.detect_reference(
                     self.image,
                     self.reference_template_image,
                     self.reference_template_px_ratio,
@@ -264,75 +257,87 @@ class Container(object):
             else:
                 print("- missing project level reference information, cannot detect")
         if fun == "decompose_image":
-            self.image = preprocessing.decompose_image(self.image, **kwargs_function)
+            self.image = core.preprocessing.decompose_image(self.image, **kwargs_function)
 
         ## segmentation
         if fun == "contour_to_mask":
-            annotations_updated = segmentation.contour_to_mask(**kwargs_function)
+            annotations_updated = core.segmentation.contour_to_mask(**kwargs_function)
         if fun == "threshold":
-            self.image = segmentation.threshold(self.image, **kwargs_function)
+            self.image = core.segmentation.threshold(self.image, **kwargs_function)
         if fun == "watershed":
-            self.image = segmentation.watershed(self.image, **kwargs_function)
+            self.image = core.segmentation.watershed(self.image, **kwargs_function)
         if fun == "morphology":
-            self.image = segmentation.morphology(self.image, **kwargs_function)
+            self.image = core.segmentation.morphology(self.image, **kwargs_function)
         if fun == "detect_contour":
-            annotations_updated = segmentation.detect_contour(self.image, **kwargs_function)
+            annotations_updated = core.segmentation.detect_contour(self.image, **kwargs_function)
         if fun == "edit_contour":
-            annotations_updated, self.image = segmentation.edit_contour(
+            annotations_updated, self.image = core.segmentation.edit_contour(
                 self.canvas, ret_image=True, **kwargs_function
             )
 
-        ## measurement
+        ## core.measurement
         if fun == "set_landmark":
-            annotations_updated = measurement.set_landmark(self.canvas, **kwargs_function)
+            annotations_updated = core.measurement.set_landmark(self.canvas, **kwargs_function)
         if fun == "set_polyline":
-            annotations_updated = measurement.set_polyline(self.canvas, **kwargs_function)
+            annotations_updated = core.measurement.set_polyline(self.canvas, **kwargs_function)
         if fun == "detect_skeleton":
-            annotations_updated = measurement.detect_skeleton(**kwargs_function)
+            annotations_updated = core.measurement.detect_skeleton(**kwargs_function)
         if fun == "compute_shape_features":
-            annotations_updated = measurement.compute_shape_features(**kwargs_function)
+            annotations_updated = core.measurement.compute_shape_features(**kwargs_function)
         if fun == "compute_texture_features":
-            annotations_updated = measurement.compute_texture_features(
+            annotations_updated = core.measurement.compute_texture_features(
                 self.image_copy, **kwargs_function
             )
+            
+        ## plugins.measurement
+        if fun == "detect_landmark":
+            annotations_updated = plugins.measurement.detect_landmark(
+                image = self.image,
+                model_folder = os.path.join(self.dir_path, r"../../ml_morph/models/"),
+                **kwargs_function)
 
         ## visualization
         if fun == "select_canvas":
-            visualization.select_canvas(self, **kwargs_function)
+            core.visualization.select_canvas(self, **kwargs_function)
         if fun == "draw_contour":
-            self.canvas = visualization.draw_contour(self.canvas, **kwargs_function)
+            self.canvas = core.visualization.draw_contour(self.canvas, **kwargs_function)
         if fun == "draw_landmark":
-            self.canvas = visualization.draw_landmark(self.canvas, **kwargs_function)
+            self.canvas = core.visualization.draw_landmark(self.canvas, **kwargs_function)
         if fun == "draw_mask":
-            self.canvas = visualization.draw_mask(self.canvas, **kwargs_function)
+            self.canvas = core.visualization.draw_mask(self.canvas, **kwargs_function)
         if fun == "draw_polyline":
-            self.canvas = visualization.draw_polyline(self.canvas, **kwargs_function)
+            self.canvas = core.visualization.draw_polyline(self.canvas, **kwargs_function)
         if fun == "draw_reference":
-            self.canvas = visualization.draw_reference(self.canvas, **kwargs_function)
+            self.canvas = core.visualization.draw_reference(self.canvas, **kwargs_function)
 
         ## export
         if fun == "convert_annotation":
-            annotations_updated = export.convert_annotation(**kwargs_function)
+            annotations_updated = core.export.convert_annotation(**kwargs_function)
         if fun == "save_annotation":
-            
             if not "file_name" in kwargs_function:
                 kwargs_function["file_name"] = self._construct_file_name("annotations", "json")
-            
-            export.save_annotation(dir_path=self.dir_path,**kwargs_function)
+            core.export.save_annotation(dir_path=self.dir_path,**kwargs_function)
         if fun == "save_canvas":
-            
             if not "file_name" in kwargs_function:
                 ext = kwargs_function.get("ext", ".jpg")
                 kwargs_function["file_name"] = self._construct_file_name("canvas", ext)
-            
-            export.save_canvas(
+            core.export.save_canvas(
                 self.canvas,
+                dir_path=self.dir_path,
+                **kwargs_function,
+            )
+        if fun == "save_ROI":
+            if not "file_name" in kwargs_function:
+                ext = kwargs_function.get("ext", ".jpg")
+                kwargs_function["file_name"] = self._construct_file_name("canvas", ext)
+            core.export.save_ROI(
+                self.image,
                 dir_path=self.dir_path,
                 **kwargs_function,
             )
             
         if fun == "export_csv":
-            export.export_csv(
+            core.export.export_csv(
                 dir_path=self.dir_path,
                 save_prefix=self.file_prefix,
                 save_suffix=self.file_suffix,
@@ -376,7 +381,7 @@ class Container(object):
 
         if hasattr(self, "canvas") and not "save_canvas" in export_list:
             print("- save_canvas")
-            export.save_canvas(
+            core.export.save_canvas(
                 self.canvas,
                 file_name=self._construct_file_name("canvas", "jpg"),
                 dir_path=self.dir_path,
@@ -386,7 +391,7 @@ class Container(object):
 
         if hasattr(self, "annotations") and not "save_annotation" in export_list:
             print("- save_annotation")
-            export.save_annotation(
+            core.export.save_annotation(
                 self.annotations,
                 file_name=self._construct_file_name("annotations", "json"),
                 dir_path=self.dir_path,

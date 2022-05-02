@@ -910,10 +910,13 @@ class Project:
     def init_plugin(self, plugin_name, tag=None):
         
         if plugin_name in ["ml-morph","ml_morph","mlmorph"]:
-            self.ml_morph = plugins.ml_morph._PluginLink(self, tag)
+            self.ml_morph = plugins.ml_morph.ProjectLink(projects=self, root_dir=self.root_dir, tag=tag, multi=False)
+            
+        # if plugin_name in ["ml-morph","ml_morph","mlmorph"]:
+        #     self.ml_morph = plugins.ml_morph._ProjectLink(self, tag)
             
         if plugin_name in ["keras-cnn", "keras_cnn"]:
-            self.keras_cnn = plugins.keras_cnn._PluginLink(self, tag)
+            self.keras_cnn = plugins.keras_cnn._ProjectLink(self, tag)
             
             
     def create_training_data(
