@@ -56,6 +56,7 @@ class Container(object):
         self.canvas = copy.deepcopy(self.image_copy)
 
         ## attributes
+        self.tag = kwargs.get("tag")
         self.file_prefix = kwargs.get("file_prefix")
         self.file_suffix = kwargs.get("file_suffix")
         self.dir_path = dir_path
@@ -187,6 +188,9 @@ class Container(object):
         kwargs_function["annotation_type"] = fun_kwargs.get("annotation_type",annotation_type)
         kwargs_function["annotation_id"] = fun_kwargs.get("annotation_id",annotation_id)
         kwargs_function["annotation_counter"] = annotation_counter
+        
+        ## use pype tag
+        kwargs_function["tag"] = self.tag
 
         ## verbosity
         if settings.flag_verbose:
@@ -293,7 +297,7 @@ class Container(object):
         if fun == "detect_landmark":
             annotations_updated = plugins.measurement.detect_landmark(
                 image = self.image,
-                model_folder = os.path.join(self.dir_path, r"../../ml_morph/models/"),
+                model_folder = os.path.join(self.dir_path, r"../../ml_morph/"),
                 **kwargs_function)
 
         ## visualization

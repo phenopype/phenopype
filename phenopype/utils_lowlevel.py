@@ -1642,7 +1642,7 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
 
     ## return
     if as_container:
-        return utils.Container(image=image, dir_path=dir_path, file_suffix=tag)
+        return utils.Container(image=image, dir_path=dir_path, file_suffix=tag, tag=tag)
     else:
         return image
 

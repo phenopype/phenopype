@@ -699,7 +699,7 @@ def save_canvas(image, dir_path, file_name="canvas", **kwargs):
     """
 
     ext = kwargs.get("ext", ".jpg")
-    resize = kwargs.get("resize", 1)
+    resize = kwargs.get("resize", 0.5)
     overwrite = kwargs.get("overwrite", True)
 
     utils.save_image(

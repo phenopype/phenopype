@@ -18,11 +18,10 @@ if not importlib.util.find_spec("phenomorph") is None:
     clean_namespace.append("ml_morph")
     
 if not importlib.util.find_spec("keras") is None:
-    from .libraries import keras
-    import_list.append("keras")
-    clean_namespace.append("keras")
+    from .libraries import keras_cnn
+    import_list.append("keras_cnn")
+    clean_namespace.append("keras_cnn")
     
-
 #%% feedback
 
 def __dir__():
