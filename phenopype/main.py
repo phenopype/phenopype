@@ -179,11 +179,11 @@ class Project:
         self.dir_names = dir_names
         self.dir_paths = dir_paths
         
-        self.file_names, self.file_paths = [], []
-        for dir_path in self.dir_paths:
-            attributes = utils_lowlevel._load_yaml(os.path.join(dir_path, "attributes.yaml"))
-            self.file_paths.append(attributes["image_phenopype"]["filepath"])
-            self.file_names.append(attributes["image_phenopype"]["filename"])
+        # self.file_names, self.file_paths = [], []
+        # for dir_path in self.dir_paths:
+        #     attributes = utils_lowlevel._load_yaml(os.path.join(dir_path, "attributes.yaml"))
+        #     self.file_paths.append(attributes["image_phenopype"]["filepath"])
+        #     self.file_names.append(attributes["image_phenopype"]["filename"])
             
 
     def add_files(
