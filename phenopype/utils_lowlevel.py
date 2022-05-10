@@ -1422,8 +1422,11 @@ def _save_yaml(dictionary, filepath, typ="rt"):
         yaml.dump(dictionary, out)
 
 
-def _yaml_flow_style(dictionary):
-    ret = ruamel.yaml.comments.CommentedMap(dictionary)
+def _yaml_flow_style(obj):
+    if obj.__class__.__name__ == "dict":
+        ret = ruamel.yaml.comments.CommentedMap(obj)
+    elif obj.__class__.__name__ == "list":
+        ret = ruamel.yaml.comments.CommentedSeq(obj) 
     ret.fa.set_flow_style()
     return ret
 

@@ -72,7 +72,10 @@ class Project:
         ## set flags
         flags = make_dataclass(
             cls_name="flags",
-            fields=[("load", bool, load), ("overwrite", bool, overwrite)],
+            fields=[("load", bool, load), 
+                    ("overwrite", bool, overwrite),
+                    ("checked", bool, False)
+                    ],
         )
 
         ## path conversion
@@ -136,19 +139,20 @@ class Project:
                     return
 
         ## read directories
-        dir_names, dir_paths = os.listdir(os.path.join(root_dir, "data")), []
+        dir_names_counted, dir_paths = os.listdir(os.path.join(root_dir, "data")), []
         for file_path in os.listdir(os.path.join(root_dir, "data")):
             dir_paths.append(os.path.join(root_dir, "data", file_path))
 
         ## global project attributes
-        if not os.path.isfile(os.path.join(root_dir, "attributes.yaml")):
+        project_attributes_path = os.path.join(root_dir, "attributes.yaml")
+        if not os.path.isfile(project_attributes_path):
             project_attributes = {
                 "project_info": {
                     "date_created": datetime.today().strftime(settings.strftime_format),
                     "date_changed": datetime.today().strftime(settings.strftime_format),
                     "phenopype_version": __version__,
                 },
-                "project_data": None,
+                "project_data": {},
             }
             utils_lowlevel._save_yaml(
                 project_attributes, os.path.join(root_dir, "attributes.yaml")
@@ -159,25 +163,40 @@ class Project:
                 )
             )
         else:
-            if len(dir_names) > 0:
-                print(
-                    '\nProject "{}" successfully loaded with {} images'.format(
-                        os.path.basename(root_dir), len(dir_paths)
-                    )
-                )
+            project_attributes = utils_lowlevel._load_yaml(project_attributes_path)
+            
+            if "filenames" in project_attributes["project_data"]:
+                
+                file_names_attr = project_attributes["project_data"]["filenames"]
+                dir_names_attr = project_attributes["project_data"]["dirnames"]
+    
+                if len(dir_names_attr) == len(file_names_attr) == len(dir_names_counted):
+                    flags.checked = True
+                    print("\nChecks for directory completeness passed!")
+
+                else:
+                    print("\nWARNING: Number of images in existing project and in project attributes are not matching")
+
             else:
-                print(
-                    '\nProject "{}" successfully loaded, but it didn\'t contain any images!'.format(
+                print("\nWARNING: Potentially broken project attributes file - could not check for completeness.")
+                
+            if len(dir_names_counted) > 0:
+                print('\nProject "{}" successfully loaded with {} images'.format(
+                        os.path.basename(root_dir), len(dir_paths)
+                    ))
+            else:
+                print('\nProject "{}" successfully loaded, but it didn\'t contain any images!'.format(
                         os.path.basename(root_dir)
-                    )
-                )
+                    ))
 
         print("--------------------------------------------")
 
         ## attach to instance
         self.root_dir = root_dir
-        self.dir_names = dir_names
         self.dir_paths = dir_paths
+        if flags.checked:
+            self.dir_names = dir_names_attr
+            self.file_names = file_names_attr
         
         # self.file_names, self.file_paths = [], []
         # for dir_path in self.dir_paths:
@@ -316,6 +335,7 @@ class Project:
         )
 
         ## loop through files
+        filenames = []
         for file_path in filepaths:
 
             ## generate folder paths by flattening nested directories; one
@@ -356,7 +376,7 @@ class Project:
                         + " - "
                         + "phenopype-project folder "
                         + dir_name
-                        + ' created (overwrite="dir")\n'
+                        + ' created (overwrite="dir")'
                     )
                     os.mkdir(dir_path)
             else:
@@ -366,15 +386,15 @@ class Project:
                     + " - "
                     + "phenopype-project folder "
                     + dir_name
-                    + " created\n"
+                    + " created"
                 )
                 os.mkdir(dir_path)
             
             ## load image, image-data, and image-meta-data
-            image = utils.load_image(file_path)
             image_name = os.path.basename(file_path)
             image_name_root = os.path.splitext(image_name)[0]
             image_ext = os.path.splitext(image_name)[1]
+            filenames.append(image_name)
                         
             image_data_original = utils_lowlevel._load_image_data(file_path)
             image_data_phenopype = {
@@ -395,6 +415,7 @@ class Project:
                 )
 
             elif flags.mode == "mod":
+                image = utils.load_image(file_path)
                 image = utils_lowlevel._resize_image(
                     image, 
                     factor=resize_factor, 
@@ -418,7 +439,7 @@ class Project:
                         + " - "
                         + "overwriting image and attributes in "
                         + dir_name
-                        + ' (overwrite={})\n'.format(flags.overwrite)
+                        + ' (overwrite={})'.format(flags.overwrite)
                     )
                 cv2.imwrite(image_phenopype_path, image)
                 image_data_phenopype.update(
@@ -439,6 +460,18 @@ class Project:
                         path_and_type=True
                         )
                     )
+                if all([
+                        os.path.isfile(os.path.join(dir_path, "attributes.yaml")),
+                        flags.overwrite in ["file", "files", "image", True]
+                        ]):
+                    print(
+                        "Found image "
+                        + relpath
+                        + " - "
+                        + "overwriting attributes in "
+                        + dir_name
+                        + ' (overwrite={})'.format(flags.overwrite)
+                    )
 
             ## write attributes file
             attributes = {
@@ -453,11 +486,18 @@ class Project:
         project_attributes = utils_lowlevel._load_yaml(
             os.path.join(self.root_dir, "attributes.yaml")
         )
-        project_attributes["project_data"] = os.listdir(
-            os.path.join(self.root_dir, "data")
-        )
+        if any([flags.overwrite,
+                project_attributes["project_data"].__class__.__name__ in ["CommentedSeq","list"]]):
+            project_attributes["project_data"] = {}
+            
+        project_attributes["project_data"]["dirnames"] = utils_lowlevel._yaml_flow_style(
+            os.listdir(os.path.join(self.root_dir, "data")
+        ))
+        project_attributes["project_data"]["filenames"] = utils_lowlevel._yaml_flow_style(filenames)
+        
         utils_lowlevel._save_yaml(
-            project_attributes, os.path.join(self.root_dir, "attributes.yaml")
+            project_attributes, 
+            os.path.join(self.root_dir, "attributes.yaml")
         )
 
         ## add dirlist to project object (always overwrite)
