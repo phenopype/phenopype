@@ -336,7 +336,7 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
 
     """
     
-    flag_verbose = kwargs.get("verbose", settings.flag_verbose)
+    flag_verbose = kwargs.get("verbose", False)
 
     ## load annotation file
     if os.path.isfile(filepath):

@@ -10,17 +10,16 @@ from radiomics import featureextractor
 import SimpleITK as sitk
 from tqdm import tqdm as _tqdm
 
-from phenopype import __version__
 from phenopype import utils_lowlevel
 from phenopype import settings
 from phenopype.core import preprocessing
 
-from phenopype import plugins
-
+from phenopype import __version__
+from phenopype.utils_lowlevel import annotation_function
 
 #%% methods
 
-
+@annotation_function
 def set_landmark(
     image,
     point_colour="default",
@@ -32,10 +31,10 @@ def set_landmark(
     **kwargs,
 ):
     """
-    Place landmarks. Note that modifying the appearance of the points will only 
-    be effective for the placement, not for subsequent drawing, visualization, 
+    Place landmarks. Note that modifying the appearance of the points will only
+    be effective for the placement, not for subsequent drawing, visualization,
     and export.
-    
+
     Parameters
     ----------
     image : ndarray
@@ -63,17 +62,9 @@ def set_landmark(
     # annotation management
 
     fun_name = sys._getframe().f_code.co_name
-
-    annotations = kwargs.get("annotations", {})
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
-    annotation_id = kwargs.get("annotation_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
-        annotations=annotations,
-        annotation_type=annotation_type,
-        annotation_id=annotation_id,
-        kwargs=kwargs,
-    )
+    annotation = kwargs.get("annotation")
 
     gui_data = {settings._coord_type: utils_lowlevel._get_GUI_data(annotation)}
     gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
@@ -138,19 +129,12 @@ def set_landmark(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
-        annotations=annotations,
-        annotation=annotation,
-        annotation_type=annotation_type,
-        annotation_id=annotation_id,
-        kwargs=kwargs,
-    )
-
+    return annotation
 
 def set_polyline(image, line_width="auto", line_colour="default", **kwargs):
     """
-    Set points, draw a connected line between them, and measure its length. Note 
-    that modifying the appearance of the lines will only be effective for the 
+    Set points, draw a connected line between them, and measure its length. Note
+    that modifying the appearance of the lines will only be effective for the
     placement, not for subsequent drawing, visualization, and export.
 
     Parameters
@@ -161,7 +145,7 @@ def set_polyline(image, line_width="auto", line_colour="default", **kwargs):
         width of polyline
     line_colour : str, optional
         poly line colour (for options see pp.colour)
-        
+
     Returns
     -------
     annotations: dict
@@ -240,9 +224,9 @@ def set_polyline(image, line_width="auto", line_colour="default", **kwargs):
 
 def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
     """
-    Applies a binary blob thinning operation, to achieve a skeletization of 
+    Applies a binary blob thinning operation, to achieve a skeletization of
     the input image using the technique, i.e. retrieve the topological skeleton
-    (https://en.wikipedia.org/wiki/Topological_skeleton), using the algorithms 
+    (https://en.wikipedia.org/wiki/Topological_skeleton), using the algorithms
     of Thang-Suen or Guo-Hall.
 
     Parameters
@@ -253,7 +237,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
         phenopype annotation containing contours
     thinning: {"zhangsuen", "guohall"} str, optional
         type of thinning algorithm to apply
-        
+
     Returns
     -------
     annotations: dict
@@ -335,25 +319,25 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
 
 def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kwargs):
     """
-    Collects a set of 41 shape descriptors from every contour. There are three sets of 
+    Collects a set of 41 shape descriptors from every contour. There are three sets of
     descriptors: basic shape descriptors, moments, and hu moments. Two additional features,
     contour area and diameter are already provided by the find_contours function.
     https://docs.opencv.org/3.4.9/d3/dc0/group__imgproc__shape.html
 
-    Of the basic shape descriptors, all 12 are translational invariants, 8 are rotation 
-    invariant (rect_height and rect_width are not) and  4 are also scale invariant 
+    Of the basic shape descriptors, all 12 are translational invariants, 8 are rotation
+    invariant (rect_height and rect_width are not) and  4 are also scale invariant
     (circularity, compactness, roundness, solidity).
-    https://en.wikipedia.org/wiki/Shape_factor_(image_analysis_and_microscopy)  
-                                
+    https://en.wikipedia.org/wiki/Shape_factor_(image_analysis_and_microscopy)
+
     The moments set encompasses 10 raw spatial moments (some are translation and rotation
-    invariants, but not all), 7 central moments (all translational invariant) and 7 central 
+    invariants, but not all), 7 central moments (all translational invariant) and 7 central
     normalized moments (all translational and scale invariant).
     https://en.wikipedia.org/wiki/Image_moment
-    
-    The 7 hu moments are derived of the central moments, and are all translation, scale 
+
+    The 7 hu moments are derived of the central moments, and are all translation, scale
     and rotation invariant.
     http://www.sci.utah.edu/~gerig/CS7960-S2010/handouts/Hu.pdf
-        
+
     Basic shape descriptors:
         - circularity = 4 * np.pi * contour_area / contour_perimeter_length^2
         - compactness = √(4 * contour_area / pi) / contour_diameter
@@ -368,7 +352,7 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
 
     Moments:
         - raw moments = m00, m10, m01, m20, m11, m02, m30, m21,  m12, m03
-        - central moments = mu20, mu11, mu02, mu30, mu21, mu12, mu03,  
+        - central moments = mu20, mu11, mu02, mu30, mu21, mu12, mu03,
         - normalized central moments = nu20, nu11, nu02, nu30, nu21, nu12, nu03
 
     Hu moments:
@@ -379,9 +363,9 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
     ----------
     image : ndarray
         input image
-    features: ["basic", "moments", "hu_moments"]    
+    features: ["basic", "moments", "hu_moments"]
         type of shape features to extract
-        
+
     Returns
     -------
     annotations: dict
@@ -481,7 +465,7 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
             "annotation_type": annotation_type,
         },
         "settings": {
-            "features": features, 
+            "features": features,
             "min_diameter": min_diameter,
             "contour_id": contour_id,
             },
@@ -510,8 +494,8 @@ def compute_texture_features(
 ):
     """
     Collects 120 texture features using the pyradiomics feature extractor
-    ( https://pyradiomics.readthedocs.io/en/latest/features.html ): 
-    
+    ( https://pyradiomics.readthedocs.io/en/latest/features.html ):
+
     - firstorder: First Order Statistics (19 features)
     - shape2d: Shape-based (2D) (16 features)
     - glcm: Gray Level Cooccurence Matrix (24 features)
@@ -519,13 +503,13 @@ def compute_texture_features(
     - glrm: Gray Level Run Length Matrix (16 features)
     - glszm: Gray Level Size Zone Matrix (16 features)
     - ngtdm: Neighbouring Gray Tone Difference Matrix (5 features)
-    
-    Features are collected from every contour that is supplied along with the raw
-    image. Depending on the amount of contours inside an image, this may result 
-    in very large dataframes. 
 
-    The specified channels correspond to the channels that can be selected in 
-    phenopype.core.preprocessing.decompose_image. 
+    Features are collected from every contour that is supplied along with the raw
+    image. Depending on the amount of contours inside an image, this may result
+    in very large dataframes.
+
+    The specified channels correspond to the channels that can be selected in
+    phenopype.core.preprocessing.decompose_image.
 
 
     Parameters
@@ -540,7 +524,7 @@ def compute_texture_features(
         image channel to extract texture features from
     min_diameter: int, optional
         minimum diameter of the contour (shouldn't be too small for sensible feature extraction')
-        
+
     Returns
     -------
     annotations: dict
@@ -596,32 +580,32 @@ def compute_texture_features(
             "Computing texture features",
             total=len(contours),
     ):
-        
+
         output = {}
 
         if support["diameter"] > min_diameter:
 
             for channel in channels:
-                
-                image_slice = preprocessing.decompose_image(image, channel, verbose=False)            
+
+                image_slice = preprocessing.decompose_image(image, channel, verbose=False)
 
                 rx, ry, rw, rh = cv2.boundingRect(coords)
-    
+
                 data = image_slice[ry : ry + rh, rx : rx + rw]
                 mask = foreground_mask_inverted[ry : ry + rh, rx : rx + rw]
                 sitk_data = sitk.GetImageFromArray(data)
                 sitk_mask = sitk.GetImageFromArray(mask)
-    
+
                 extractor = featureextractor.RadiomicsFeatureExtractor()
                 extractor.disableAllFeatures()
                 extractor.enableFeaturesByName(**feature_activation)
                 detected_features = extractor.execute(sitk_data, sitk_mask, label=255)
-    
-    
+
+
                 for key, val in detected_features.items():
                     if not "diagnostics" in key:
                         output[channel + "_" + key.split("_", 1)[1]] = float(val)
-    
+
         texture_features.append(output)
 
     # =============================================================================

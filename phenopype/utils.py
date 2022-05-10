@@ -28,14 +28,14 @@ from pkg_resources import resource_filename
 
 class Container(object):
     """
-    A phenopype container is a Python class where loaded images, dataframes, 
-    detected contours, intermediate output, etc. are stored so that they are 
-    available for inspection or storage at the end of the analysis. The 
-    advantage of using containers is that they don’t litter the global environment 
-    and namespace, while still containing all intermediate steps (e.g. binary 
-    masks or contour DataFrames). Containers can be used manually to analyse images, 
-    but typically they are created dynamically within the pype-routine. 
-    
+    A phenopype container is a Python class where loaded images, dataframes,
+    detected contours, intermediate output, etc. are stored so that they are
+    available for inspection or storage at the end of the analysis. The
+    advantage of using containers is that they don’t litter the global environment
+    and namespace, while still containing all intermediate steps (e.g. binary
+    masks or contour DataFrames). Containers can be used manually to analyse images,
+    but typically they are created dynamically within the pype-routine.
+
     Parameters
     ----------
     image_path : ndarray
@@ -55,7 +55,7 @@ class Container(object):
         self.image = copy.deepcopy(self.image_copy)
         self.canvas = copy.deepcopy(self.image_copy)
 
-        ## attributes
+        ## attributes (needs more order/cleaning)
         self.tag = kwargs.get("tag")
         self.file_prefix = kwargs.get("file_prefix")
         self.file_suffix = kwargs.get("file_suffix")
@@ -70,7 +70,7 @@ class Container(object):
         Autoload function for container: loads results files with given file_suffix
         into the container. Can be used manually, but is typically used within the
         pype routine.
-        
+
         Parameters
         ----------
         file_suffix : str, optional
@@ -188,14 +188,14 @@ class Container(object):
         kwargs_function["annotation_type"] = fun_kwargs.get("annotation_type",annotation_type)
         kwargs_function["annotation_id"] = fun_kwargs.get("annotation_id",annotation_id)
         kwargs_function["annotation_counter"] = annotation_counter
-        
+
         ## use pype tag
         kwargs_function["tag"] = self.tag
 
         ## verbosity
         if settings.flag_verbose:
             kwargs_function["verbose"] = True
-            
+
         ## enable zoom-config memory
         kwargs_function["pype_mode"] = True
 
@@ -229,7 +229,7 @@ class Container(object):
                         print(print_msg + ": overwriting (edit=overwrite)")
                         annotations[annotation_type][annotation_id] = {}
                         pass
-                    
+
         ## preprocessing
         if fun == "blur":
             self.image = core.preprocessing.blur(self.image, **kwargs_function)
@@ -281,7 +281,16 @@ class Container(object):
 
         ## core.measurement
         if fun == "set_landmark":
-            annotations_updated = core.measurement.set_landmark(self.canvas, **kwargs_function)
+            annotations_updated = core.measurement.set_landmark(image=self.canvas, **kwargs_function)
+
+            # utils_lowlevel.annotation_fun(
+            #     fun=measurement.set_landmark,
+            #     fun_kwargs=kwargs_function,
+            #     image=self.canvas,
+            #     )
+
+
+            # annotations_updated = measurement.set_landmark(self.canvas, **kwargs_function)
         if fun == "set_polyline":
             annotations_updated = core.measurement.set_polyline(self.canvas, **kwargs_function)
         if fun == "detect_skeleton":
@@ -292,7 +301,7 @@ class Container(object):
             annotations_updated = core.measurement.compute_texture_features(
                 self.image_copy, **kwargs_function
             )
-            
+
         ## plugins.measurement
         if fun == "detect_landmark":
             annotations_updated = plugins.measurement.detect_landmark(
@@ -339,7 +348,7 @@ class Container(object):
                 dir_path=self.dir_path,
                 **kwargs_function,
             )
-            
+
         if fun == "export_csv":
             core.export.export_csv(
                 dir_path=self.dir_path,
@@ -357,24 +366,24 @@ class Container(object):
 
             annotations[annotation_type][annotation_id] = annotations_updated[annotation_type][annotation_id]
             self.annotations.update(annotations)
-            
-            
+
+
     def save(self, dir_path=None, export_list=[], overwrite=False, **kwargs):
         """
-        Autosave function for container. 
-        
+        Autosave function for container.
+
         Parameters
         ----------
         dir_path: str, optional
-            provide a custom directory where files should be save - overwrites 
+            provide a custom directory where files should be save - overwrites
             dir_path provided from container, if applicable
         export_list: list, optional
             used in pype rountine to check against already performed saving operations.
             running container.save() with an empty export_list will assumed that nothing
-            has been saved so far, and will try 
+            has been saved so far, and will try
         overwrite : bool, optional
             gloabl overwrite flag in case file exists
-            
+
         """
 
         ## kwargs
@@ -423,6 +432,9 @@ class Container(object):
         return prefix + stem + suffix + ext
 
 
+
+
+
 #%% functions
 
 
@@ -441,16 +453,16 @@ def load_image(path, mode="default", **kwargs):
             - default: load image as is
             - colour: convert image to 3-channel (BGR)
             - gray: convert image to single channel (grayscale)
-    kwargs: 
+    kwargs:
         developer options
 
     Returns
     -------
     container: container
-        A phenopype container is a Python class where loaded images, 
-        dataframes, detected contours, intermediate output, etc. are stored 
-        so that they are available for inspection or storage at the end of 
-        the analysis. 
+        A phenopype container is a Python class where loaded images,
+        dataframes, detected contours, intermediate output, etc. are stored
+        so that they are available for inspection or storage at the end of
+        the analysis.
     image: ndarray
         original image (resized, if selected)
 
@@ -609,16 +621,16 @@ def load_template(
 
     if ret_path:
         return config_path
-    
-    
-    
+
+
+
 def print_colours():
-    
+
     colours_path = os.path.join(resource_filename("phenopype", "assets"), "wc3_colours.html")
     webbrowser.open_new_tab(colours_path)
 
 
-    
+
 
 
 def save_image(
@@ -631,7 +643,7 @@ def save_image(
     **kwargs
 ):
     """Save an image (array) to jpg.
-    
+
     Parameters
     ----------
     image: array
@@ -649,7 +661,7 @@ def save_image(
     resize: float, optional
         resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
         original size).
-    kwargs: 
+    kwargs:
         developer options
     """
 
@@ -710,27 +722,27 @@ def show_image(
     **kwargs
 ):
     """
-    Show one or multiple images by providing path string or array or list of 
+    Show one or multiple images by providing path string or array or list of
     either.
-    
+
     Parameters
     ----------
     image: array, list of arrays
-        the image or list of images to be displayed. can be array-type, 
+        the image or list of images to be displayed. can be array-type,
         or list or arrays
     window_max_dim: int, optional
         maximum dimension on either acis
     window_aspect: {"fixed", "free"} str, optional
         type of opencv window ("free" is resizeable)
     position_reset: bool, optional
-        flag whether image positions should be reset when reopening list of 
+        flag whether image positions should be reset when reopening list of
         images
     position_offset: int, optional
-        if image is list, the distance in pixels betweeen the positions of 
-        each newly opened window (only works in conjunction with 
+        if image is list, the distance in pixels betweeen the positions of
+        each newly opened window (only works in conjunction with
         "position_reset")
     check: bool, optional
-        user input required when more than 10 images are opened at the same 
+        user input required when more than 10 images are opened at the same
         time
     """
     ## kwargs

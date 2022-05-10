@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 
 from pprint import PrettyPrinter
-from phenopype import utils_lowlevel
 
 
 #%% helper-class
@@ -219,12 +218,46 @@ _annotation_types = list(set(_annotation_functions.values()))
 
 #%% GUI definitions
 
-g = utils_lowlevel._GUI(np.zeros((1, 1, 1), dtype="uint8"), window_control="external")
-cv2.waitKey(1)
-cv2.destroyAllWindows()
+## find better solution
+# from phenopype import utils_lowlevel
+# g = utils_lowlevel._GUI(np.zeros((1, 1, 1), dtype="uint8"), window_control="external")
+# cv2.waitKey(1)
+# cv2.destroyAllWindows()
+# _GUI_settings_args = list(g.settings.__dict__)
+# _GUI_data_args = list(g.data.keys())
 
-_GUI_settings_args = list(g.settings.__dict__)
-_GUI_data_args = list(g.data.keys())
+_GUI_settings_args = [
+    'show_label',
+    'label_colour',
+    'label_size',
+    'label_width',
+    'line_colour',
+    'line_width',
+    'point_colour',
+    'point_size',
+    'overlay_blend',
+    'overlay_line_width',
+    'overlay_colour_left',
+    'overlay_colour_right',
+    'passive',
+    'pype_mode',
+    'zoom_mode',
+    'zoom_magnification',
+    'zoom_n_steps',
+    'wait_time',
+    'window_aspect',
+    'window_control',
+    'window_max_dim',
+    'window_name',
+ ]
+
+_GUI_data_args = [
+    'comment', 
+    'contour', 
+    'points', 
+    'polygons', 
+    'drawings'
+    ]
 
 
 #%% legacy fun-names

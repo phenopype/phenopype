@@ -16,6 +16,9 @@ import ruamel.yaml
 from ruamel.yaml.constructor import SafeConstructor
 from ruamel.yaml import YAML
 
+import inspect
+from functools import wraps
+ 
 from math import cos
 from pathlib import Path
 from PIL import Image
@@ -1002,6 +1005,35 @@ class _YamlFileMonitor:
 #%% functions - ANNOTATION helpers
 
 
+def annotation_function(fun, *args, **kwargs):
+       
+    def annotation_function_wrapper(*args, **kwargs):
+        
+        ## determine the annotation type from function nam,e
+        kwargs["annotation_type"] = _get_annotation_type(fun.__name__)
+
+        ## get annotation using 
+        if "annotations" in kwargs:
+            if kwargs["annotations"].__class__.__name__ in ["dict"]:
+                if len(kwargs["annotations"]) > 0:                      
+                    kwargs["annotation_id"] = _get_annotation_id(**kwargs)   
+                    kwargs["annotation"] = _get_annotation2(**kwargs)
+                else:
+                    print("empty annotations supplied")
+            else:
+                print("wrong annotations data supplied - need dict")
+                
+        ## run function
+        kwargs["annotation"] = fun(*args, **kwargs)
+        
+        ## return annotations        
+        return _update_annotations(**kwargs)
+    
+    ## close function wrapper
+    return annotation_function_wrapper
+    
+
+
 def _get_annotation(
     annotations,
     annotation_type,
@@ -1017,6 +1049,9 @@ def _get_annotation(
     verbose = kwargs.get("verbose", "")
 
     annotations = copy.deepcopy(annotations)
+    
+    if annotations.__class__.__name__ == "NoneType":
+        annotations = {}
 
     if not annotation_type.__class__.__name__ == "NoneType":
         annotation_id_str = annotation_type + "_id"
@@ -1089,6 +1124,7 @@ def _get_annotation(
             )
             annotation = {}
 
+
         ## cleaned feedback (skip identical messages)
         while True:
             if print_msg and verbose:
@@ -1109,12 +1145,80 @@ def _get_annotation(
         annotation = {}
 
     return annotation
+    
 
+def _get_annotation_id(
+    annotations,
+    annotation_type,
+    annotation_id=None,
+    reduce_counter=False,
+    **kwargs,
+):
+
+    ## setup
+    pype_mode = kwargs.get("pype_mode", False)
+    annotation_counter = kwargs.get("annotation_counter", None)
+    print_msg = None
+    
+    if annotation_id.__class__.__name__ == "NoneType":
+        if annotation_counter:
+            annotation_counter = kwargs.get("annotation_counter")
+            annotation_id = string.ascii_lowercase[
+                annotation_counter[annotation_type]
+            ]
+            if annotation_id == "z":
+                print_msg = '- no precursing annotations of type "{}" found'.format(annotation_type)
+                annotation_id = "a"
+            else:
+                if reduce_counter:
+                    annotation_id = chr(ord(annotation_id) - 1)
+                print_msg = '- using last created annotation of type \"{}\" with ID "{}"'.format(
+                    annotation_type, annotation_id
+                    )
+        else:
+            if annotation_type in annotations:
+                annotation_id = max(list(annotations[annotation_type].keys()))
+                print_msg = '- using endmost annotation of type "{}" with ID "{}"'.format(
+                    annotation_type, annotation_id
+                )
+
+            else:
+                annotation_id = "a"
+                print_msg = '- annotation_id not specified and annotation of type "{}" not found'.format(
+                    annotation_type
+                )
+    else:
+        pass
+                
+    _printer(print_msg, pype_mode)                
+
+    return annotation_id
 
 def _get_annotation_type(fun_name):
 
-    return settings._annotation_functions[fun_name]
+    annotation_type = settings._annotation_functions[fun_name]    
 
+    return annotation_type
+
+
+def _get_annotation2(annotations, annotation_type, annotation_id, **kwargs):
+    
+    flag_failed = False
+    
+    if annotation_type in annotations:
+        if annotation_id in annotations[annotation_type]:
+            annotation = copy.deepcopy(annotations[annotation_type][annotation_id])     
+        else:
+            flag_failed = True
+    else:
+        flag_failed = True
+        
+    if flag_failed:   
+        print('"get_annotation" failed!')
+        annotation = {}
+        
+    return annotation
+    
 
 def _get_GUI_data(annotation):
 
@@ -1150,11 +1254,39 @@ def _get_GUI_settings(kwargs, annotation=None):
     return GUI_settings
 
 
+def _printer(print_msg, pype_mode=False,**kwargs):
+    
+    ## cleaned feedback (skip identical messages)
+    while True:
+        if print_msg and settings.flag_verbose:
+            # if prep_msg:
+            #     print_msg = prep_msg + "\n\t" + print_msg
+            if pype_mode:
+                if not print_msg == _config.last_print_msg:
+                    _config.last_print_msg = print_msg
+                    break
+                else:
+                    pass
+            else:
+                pass
+            print(print_msg)
+            break
+        break
+
+
+
 def _update_annotations(
-    annotations, annotation, annotation_type, annotation_id, kwargs,
+    annotations, 
+    annotation, 
+    annotation_type, 
+    annotation_id, 
+    **kwargs,
 ):
 
     annotations = copy.deepcopy(annotations)
+    
+    if annotations.__class__.__name__ == "NoneType":
+        annotations = {}
         
     if not annotation_type in annotations:
         annotations[annotation_type] = {}

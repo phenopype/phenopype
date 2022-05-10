@@ -1,18 +1,18 @@
 Installing phenopype
 -----------------------
 
-(These instructions are valid across operating systems).
+(These instructions are valid across operating systems, and use :code:`mamba` instead of :code:`conda`).
 
 
 Initial installation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Open a terminal. Then create a virtual environment with `conda`. Using such environments will give you full control over which Python packages are installed, and reduces the change of package related issues. Note that phenopype requires Python v3.7, which needs to be explicitly specified. For example, for an environment named "pp", type:
+Open a terminal. Then create a virtual environment with `mamba`. Using such environments will give you full control over which Python packages are installed, and reduces the change of package related issues. Note that phenopype requires Python v3.7, which needs to be explicitly specified. For example, for an environment named "pp", type:
 
 
 .. code-block:: bash
 
-	conda create -n "pp" python=3.7
+	mamba create -n "pp" python=3.7
 
 
 You can now activate your environment. **This needs to be done every time you are using phenopype**:
@@ -31,13 +31,13 @@ Now install phenopype to the environment using :code:`pip` (`pip` is the package
 
 .. tip::
 
-	If you prefer an "Rstudio-like" environment, you can use Phenopype from a Python Integrated Development Environment (IDE), such as `Spyder <https://www.spyder-ide.org/>`_. `Spyder` needs to be installed with `conda` directly to the environment you created before. Using the example from above:
+	If you prefer an "Rstudio-like" environment, you can use Phenopype from a Python Integrated Development Environment (IDE), such as `Spyder <https://www.spyder-ide.org/>`_. `Spyder` needs to be installed with `mamba` directly to the environment you created before. Using the example from above:
 
 
 	.. code-block:: bash
 
 		conda activate pp
-		conda install spyder
+		mamba install spyder -c conda-forge
 
 
 	Once installed, you can run `Spyder` by typing :code:`spyder`
