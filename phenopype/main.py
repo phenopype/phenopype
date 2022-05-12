@@ -1053,7 +1053,216 @@ class Project:
                     if os.path.isfile(file_path):
                         if not file_path == save_path:
                             arc_name = os.path.join(os.path.relpath(root, relroot), file)
-                            zip.write(file_path, arc_name)
+                            zip.write(file_path, arc_name)                            
+
+    def export_training_data(
+            self, 
+            tag,
+            framework, 
+            folder, 
+            annotation_id=None, 
+            overwrite=False, 
+            img_size=224,
+            parameters=None,
+            **kwargs):
+        """
+        
+
+        Parameters
+        ----------
+        tag : str
+            The Pype tag from which training data should be extracted.
+        framework :  {"ml-morph"} str
+            For which machine learning framwork should training data be created.
+            Currently instructions for the following architectures are supported:
+            
+            - "ml-morph" - Machine-learning tools for landmark-based morphometrics 
+              https://github.com/agporto/ml-morph
+            
+        folder : str
+            Name of the folder under "root/training_data" where the formatted 
+            training data will be stored under.
+        annotation_id : str, optional
+            select a specific annotation id. The default is None.
+        overwrite : bool, optional
+            Should an existing training data set be overwritten. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        # =============================================================================
+        # setup
+        
+        flags = make_dataclass(
+            cls_name="flags", fields=[("overwrite", bool, overwrite)]
+        )
+    
+        if annotation_id.__class__.__name__ == "NoneType":
+            print("No annotation id set - will use last one in annotations file.")
+            time.sleep(2)
+
+        training_data_path = os.path.join(self.root_dir, "training_data", folder)
+    
+        if not os.path.isdir(training_data_path):
+            os.makedirs(training_data_path)
+            print("Created " + training_data_path)
+            
+            
+        parameters_defaults = {
+            "ml-morph": {
+                "export_mask": False,
+                "flip_y": False,
+                "mask_id": None,
+                "resize_factor": 1,
+                },
+            "keras-cnn-semantic": {
+                }
+            }
+
+        framework_parameters = copy.deepcopy(parameters_defaults)
+
+
+        # =============================================================================
+        ## ml-morph
+        
+        if framework=="ml-morph":
+
+            annotation_type = settings._landmark_type
+            df_summary = pd.DataFrame()
+            file_path_save = os.path.join(training_data_path, "landmarks_ml-morph_" + tag + ".csv")
+
+            if not utils_lowlevel._overwrite_check_file(file_path_save, flags.overwrite):
+                return
+            
+            if not parameters.__class__.__name__ == "NoneType":
+                framework_parameters["ml-morph"].update(parameters["ml-morph"])
+                
+                
+            flags.export_mask = framework_parameters["ml-morph"]["export_mask"]
+            flags.resize_factor = framework_parameters["ml-morph"]["resize_factor"]
+            flags.flip_y = framework_parameters["ml-morph"]["flip_y"]
+
+            if flags.export_mask:  
+                img_dir = os.path.join(training_data_path, "images")
+                if not os.path.isdir(img_dir):
+                    os.makedirs(img_dir)
+            
+            for idx1, dirpath in enumerate(self.dir_paths, 1):
+                            
+                ## load data
+                attributes = utils_lowlevel._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                annotations = export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
+                filename = attributes["image_original"]["filename"]
+                image_height = attributes["image_phenopype"]["height"]
+                
+                print("Preparing training data for: ({}/{}) ".format(idx1, len(self.dir_paths)) + filename)
+    
+                ## checks and feedback
+                if annotations.__class__.__name__ == "NoneType": 
+                    print("No annotations found for {}".format(filename))
+                    continue
+                if not annotation_type in annotations:
+                    print("No annotation of type {} found for {}".format(annotation_type, filename))
+                    continue
+                if annotation_id.__class__.__name__ == "NoneType":
+                    annotation_id = max(list(annotations[annotation_type].keys()))
+                    
+                ## load landmarks
+                data = annotations[annotation_type][annotation_id]["data"][annotation_type]
+                lm_tuple_list = list(zip(*data))
+                
+                ## load image if masking or resizing
+                if flags.export_mask or flags.resize_factor != 1:
+                    image = utils.load_image(dirpath)
+                    
+                    ## select last mask if no id is given
+                    if framework_parameters["ml-morph"]["mask_id"].__class__.__name__ == "NoneType":
+                        mask_id = max(list(annotations[settings._mask_type].keys()))
+                        
+                    ## get bounding rectangle and crop image to mask coords
+                    if flags.export_mask and settings._mask_type in annotations:
+                        coords = annotations[settings._mask_type][mask_id]["data"][settings._mask_type][0]
+                        rx, ry, rw, rh = cv2.boundingRect(np.asarray(coords, dtype="int32"))
+                        image = image[ry : ry + rh, rx : rx + rw]
+                        image_height = image.shape[0]
+
+                        ## subtract top left coord from bounding box from all landmarks
+                        lm_tuple_list[0] = tuple(c - rx for c in lm_tuple_list[0])
+                        lm_tuple_list[1] = tuple(c - ry for c in lm_tuple_list[1])
+                        
+                    ## resize image or cropped image
+                    if flags.resize_factor != 1:
+                        image = utils_lowlevel._resize_image(image, factor=flags.resize_factor, interpolation="cubic")
+                        image_height = int(image_height * flags.resize_factor)
+                        
+                        ## multiply all landmarks with resize factor
+                        lm_tuple_list[0] = tuple(int(c * flags.resize_factor) for c in lm_tuple_list[0])
+                        lm_tuple_list[1] = tuple(int(c * flags.resize_factor) for c in lm_tuple_list[1])
+                    
+                    ## save resized image or cropped image
+                    utils.save_image(image, dir_path=img_dir, file_name=filename)
+                    
+                ## add to dataframe
+                coord_row, colnames = list(), list()
+                colnames.append("id")
+                for  idx2, (x_coord, y_coord) in enumerate(zip(lm_tuple_list[0], lm_tuple_list[1]),1):
+                    coord_row.append(x_coord)
+                    if flags.flip_y:
+                        coord_row.append(int((y_coord - image_height) * -1))
+                    else: 
+                        coord_row.append(y_coord)
+                    colnames.append("X" + str(idx2))
+                    colnames.append("Y" + str(idx2))
+                df = pd.DataFrame([filename] + coord_row).transpose()
+                df_summary = pd.concat([df_summary, df])
+                
+            ## save dataframe
+            df_summary.set_axis(colnames, axis=1, inplace=True)
+            df_summary.to_csv(file_path_save, index=False)
+            
+            
+        # =============================================================================
+        ## keras-cnn-semantic
+        
+        if framework=="keras-cnn-semantic":
+            
+            annotation_type = kwargs.get("annotation_type", "mask")
+            
+            img_dir = os.path.join(training_data_path, "images")
+            mask_dir = os.path.join(training_data_path, "masks")
+            
+            if not os.path.isdir(img_dir):
+                os.makedirs(img_dir)
+            if not os.path.isdir(mask_dir):
+                os.makedirs(mask_dir)  
+
+            for idx, dirpath in enumerate(self.dir_paths, 1):
+                            
+                attributes = utils_lowlevel._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                annotations = export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
+                filename = attributes["image_original"]["filename"]               
+                
+                print("Preparing training data for: ({}/{}) ".format(idx, len(self.dir_paths)) + filename)
+
+                shape = (attributes["image_original"]["width"], attributes["image_original"]["height"], 3)
+                mask = np.zeros(shape, dtype="uint8")
+                if not annotation_type in annotations:
+                    print("No annotation of type {} found in dataset - aborting".format(annotation_type))
+                    return
+                if annotation_id.__class__.__name__ == "NoneType":
+                    annotation_id = max(list(annotations[annotation_type].keys()))
+                    
+                mask = visualization.draw_contour(image=mask, annotations=annotations, contour_id=annotation_id, line_width=0, line_colour=1, fill=1)
+                mask_resized = cv2.resize(mask, (img_size, img_size))
+                
+                image = utils.load_image(dirpath)
+                image_resized = cv2.resize(image, (img_size, img_size))
+                
+                utils.save_image(image_resized, dir_path=img_dir, file_name=filename, ext="png")
+                utils.save_image(mask_resized, dir_path=mask_dir, file_name=filename, ext="png")
     
     def init_plugin(self, plugin_name, tag=None):
         
@@ -1343,6 +1552,8 @@ class Pype(object):
         ## skip directories that already contain specified files
         if skip_pattern.__class__.__name__ == "str":
             skip_pattern = [skip_pattern]
+        elif skip_pattern.__class__.__name__ == "bool":
+            skip_pattern = ""
         elif skip_pattern.__class__.__name__ in ["list", "CommentedSeq"]:
             skip_pattern = skip_pattern
 
