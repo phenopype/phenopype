@@ -1177,7 +1177,8 @@ class Project:
                 ## load image if masking or resizing
                 if flags.export_mask or flags.resize_factor != 1:
                     image = utils.load_image(dirpath)
-                    
+                    image_height, image_width = image.shape[0:2]
+
                     ## select last mask if no id is given
                     if framework_parameters["ml-morph"]["mask_id"].__class__.__name__ == "NoneType":
                         mask_id = max(list(annotations[settings._mask_type].keys()))
@@ -1186,7 +1187,8 @@ class Project:
                     if flags.export_mask and settings._mask_type in annotations:
                         coords = annotations[settings._mask_type][mask_id]["data"][settings._mask_type][0]
                         rx, ry, rw, rh = cv2.boundingRect(np.asarray(coords, dtype="int32"))
-                        image = image[ry : ry + rh, rx : rx + rw]
+                        image = image[
+                            max(ry,0) : min(ry + rh, image_height), max(rx,1) : min(rx + rw, image_width)]
                         image_height = image.shape[0]
 
                         ## subtract top left coord from bounding box from all landmarks
@@ -1203,7 +1205,7 @@ class Project:
                         lm_tuple_list[1] = tuple(int(c * flags.resize_factor) for c in lm_tuple_list[1])
                     
                     ## save resized image or cropped image
-                    utils.save_image(image, dir_path=img_dir, file_name=filename)
+                    utils.save_image(image, dir_path=img_dir, file_name=filename, overwrite=overwrite)
                     
                 ## add to dataframe
                 coord_row, colnames = list(), list()
