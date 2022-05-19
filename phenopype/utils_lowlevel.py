@@ -1152,6 +1152,7 @@ def _get_annotation_id(
     annotation_type,
     annotation_id=None,
     reduce_counter=False,
+    verbose=True,
     **kwargs,
 ):
 
@@ -1189,8 +1190,8 @@ def _get_annotation_id(
                 )
     else:
         pass
-                
-    _printer(print_msg, pype_mode)                
+    if verbose:
+        _printer(print_msg, pype_mode)                
 
     return annotation_id
 
