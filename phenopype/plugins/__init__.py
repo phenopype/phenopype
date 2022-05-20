@@ -2,7 +2,7 @@
 
 
 # from .libraries import ml_morph
-from . import measurement
+from . import measurement, segmentation
 
 clean_namespace = dir()
 

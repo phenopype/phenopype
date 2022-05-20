@@ -29,7 +29,4 @@ from phenopype.core import (
     visualization,
 )
 
-import phenomorph as ml_morph
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
-import dlib
+

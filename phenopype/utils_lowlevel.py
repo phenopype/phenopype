@@ -1841,7 +1841,14 @@ def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize
     ## return image data
     return image_data
 
-def _resize_image(image, factor=1, max_dim=None, interpolation="cubic"):
+def _resize_image(
+        image, 
+        factor=1, 
+        width=None,
+        height=None,
+        max_dim=None, 
+        interpolation="cubic"
+        ):
     """
     Resize image by resize factor 
 
@@ -1867,7 +1874,18 @@ def _resize_image(image, factor=1, max_dim=None, interpolation="cubic"):
     image_height, image_width, _ = image.shape
 
     ## method
-    if not max_dim.__class__.__name__ == "NoneType":
+    
+    if not all([
+            width.__class__.__name__ == "NoneType",
+            height.__class__.__name__ == "NoneType",
+            ]):
+        image = cv2.resize(
+            image,
+            (width, height),
+            interpolation=settings.opencv_interpolation_flags[interpolation],
+        )
+    
+    elif not max_dim.__class__.__name__ == "NoneType":
         if image_height > max_dim or image_width > max_dim:
             if image_width >= image_height:
                 new_image_width, new_image_height = (

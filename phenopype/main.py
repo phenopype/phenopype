@@ -613,6 +613,156 @@ class Project:
                 template_save_path = os.path.join(template_dir, template_file_name)
                 if utils_lowlevel._save_prompt("template", template_save_path, False):
                     utils_lowlevel._save_yaml(p.config, template_save_path)
+                      
+    
+    def add_model(
+        self,
+        model_path,
+        model_id="a",
+        model_type="segmentation",
+        mode="link",
+        activate=True,
+        overwrite=False,
+        **kwargs
+    ):
+        """
+        Add pype configuration presets to all project directories. 
+
+        Parameters
+        ----------
+
+        reference_image: str
+            name of template image, either project directory or file link. template 
+            image gets stored in root directory, and information appended to all 
+            attributes files in the project directories
+        activate: bool, optional
+            writes the setting for the currently active reference to the attributes 
+            files of all directories within the project. can be used in conjunction
+            with overwrite=False so that the actual reference remains unchanced. this
+            setting useful when managing multiple references per project
+        overwrite: bool, optional
+            overwrite option, if a given pype config-file already exist
+        template: bool, optional
+            should a template for reference detection be created. with an existing 
+            template, phenopype can try to find a reference card in a given image,
+            measure its dimensions, and adjust pixel-to-mm-ratio and colour space
+        """
+        # =============================================================================
+        # setup
+
+        ## set flags
+        flags = make_dataclass(
+            cls_name="flags",
+            fields=[
+                ("overwrite", bool, overwrite), 
+                ("activate", bool, activate),
+                ],
+        )
+
+        print_save_msg = "== no msg =="
+
+
+        ## load reference image
+        if model_path.__class__.__name__ == "str":
+            if os.path.isfile(model_path):
+                pass
+            else:
+                print("Did not find model {}.")
+                return
+        else:
+            print("Wrong input - need path to a segmentation model.")
+            return
+
+        model_folder_path = os.path.join(self.root_dir, "models")
+        if not os.path.isdir(model_folder_path):
+            os.mkdir(model_folder_path)
+        
+        while True:
+
+            ## generate model name and check if exists
+            phenopype_model_name = "model_" + model_id + os.path.splitext(model_path)[1]
+            phenopype_model_path = os.path.join(
+                model_folder_path, phenopype_model_name
+            )
+
+            if os.path.isfile(phenopype_model_path) and flags.overwrite == False:
+                print_save_msg = (
+                    "Model not saved, file already exists "
+                    + '- use "overwrite=True" or chose different model_id.'
+                )
+                break
+            elif os.path.isfile(phenopype_model_path) and flags.overwrite == True:
+                print_save_msg = (
+                    "Model saved under "
+                    + phenopype_model_path
+                    + " (overwritten)."
+                )
+                pass
+            elif not os.path.isfile(phenopype_model_path):
+                print_save_msg = "Model saved under " + phenopype_model_path
+                pass
+
+            ## copying / path management
+            model_source_name = os.path.basename(model_path)
+            
+            ## save all after successful completion of all method-steps
+            if mode == "copy":
+                shutil.copy(model_path, phenopype_model_path)
+                phenopype_model_path = os.path.relpath(phenopype_model_path, self.root_dir)
+            elif mode == "link":
+                phenopype_model_path = os.path.abspath(model_path)
+ 
+            
+            ## create reference attributes
+            model_info = {
+                "model_source_path": model_path,
+                "model_source_name": model_source_name,
+                "model_phenopype_path": phenopype_model_path,
+                "model_type": model_type,
+                "date_added": datetime.today().strftime(settings.strftime_format),
+            }
+
+            ## load project attributes and temporarily drop project data list to
+            ## be reattched later, so it is always at then end of the file
+            model_dict = {}
+            project_attributes = utils_lowlevel._load_yaml(
+                os.path.join(self.root_dir, "attributes.yaml")
+            )
+            if "project_data" in project_attributes:
+                project_data = project_attributes["project_data"]
+                project_attributes.pop("project_data", None)
+            if "models" in project_attributes:
+                model_dict = project_attributes["models"]
+            if "active" in project_attributes:
+                pass 
+            else:
+                project_attributes["active"] = {}
+            project_attributes["active"]["model"] = model_id
+                
+            model_dict[model_id] = model_info
+            project_attributes["models"] = model_dict
+            project_attributes["project_data"] = project_data
+
+
+
+            utils_lowlevel._save_yaml(
+                project_attributes, os.path.join(self.root_dir, "attributes.yaml")
+            )
+
+            print_save_msg = (
+                print_save_msg + "\nSaved model info to project attributes."
+            )
+            break
+
+        print(print_save_msg)
+
+        if flags.activate == True:
+            _config.active_model_path = phenopype_model_path
+            print('- setting active project model to {}'.format(model_id))
+        else:
+            print(
+                "- could not set active project model (overwrite=False/activate=False)"
+            )
 
     def add_reference(
         self,

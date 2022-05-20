@@ -15,6 +15,7 @@ import io
 from contextlib import redirect_stdout
 import ruamel.yaml
 
+from phenopype import _config
 from phenopype import assets
 from phenopype import core
 from phenopype import plugins
@@ -112,6 +113,13 @@ class Container(object):
                 )
             )
 
+        ## global attributes
+        attr_proj_path = os.path.abspath(
+            os.path.join(self.dir_path, r"../../", "attributes.yaml")
+        )
+        if os.path.isfile(attr_proj_path):
+            self.attr_proj = utils_lowlevel._load_yaml(attr_proj_path)
+
         ## load attributes
         attr_local_path = os.path.join(self.dir_path, "attributes.yaml")
         if os.path.isfile(attr_local_path):
@@ -154,6 +162,14 @@ class Container(object):
                     self.reference_unit = attr_proj["reference"][active_ref]["unit"]
 
                     loaded.append("reference template image loaded from root directory")
+                    
+            if "models" in self.attr_proj and "active" in self.attr_proj:
+                if "model" in self.attr_proj["active"]:
+                    model_id = self.attr_proj["active"]["model"]
+                    model_path = self.attr_proj["models"][model_id]["model_phenopype_path"]
+                    
+                _config.current_model_path = model_path    
+                self.active_model_path = model_path
 
         ## feedback
         if len(loaded) > 0:
@@ -263,7 +279,11 @@ class Container(object):
         if fun == "decompose_image":
             self.image = core.preprocessing.decompose_image(self.image, **kwargs_function)
 
-        ## segmentation
+        ## plugins.segmentation
+        if fun == "detect_object":
+            self.image = plugins.segmentation.detect_object(self.image, self.active_model_path, **kwargs_function)
+
+        ## core.segmentation
         if fun == "contour_to_mask":
             annotations_updated = core.segmentation.contour_to_mask(**kwargs_function)
         if fun == "threshold":
