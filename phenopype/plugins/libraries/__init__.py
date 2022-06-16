@@ -3,7 +3,7 @@
 clean_namespace = dir()
 import_list = []
 
-import importlib.util
+import importlib
 
 ## phenomorph
 if not importlib.util.find_spec("phenomorph") is None:
@@ -14,11 +14,14 @@ if not importlib.util.find_spec("phenomorph") is None:
     clean_namespace.extend(["phenomorph", "dlib"])
 
 ## keras
-if not importlib.util.find_spec("keras") is None:
+if not any([
+        importlib.util.find_spec("keras") is None,
+        importlib.util.find_spec("tensorflow") is None,
+        ]):
     
     import tensorflow as tensorflow
     
-    import_list.append("keras")
+    import_list.extend(["keras", "tensorflow"])
     clean_namespace.append("tensorflow")
     
 
