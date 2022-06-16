@@ -3,6 +3,11 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.3.1
+-----
+bugfix:
+	- plugin imports not working
+	- added manifest to include assets folder with html color overview
 
 3.3.0
 -----
@@ -12,6 +17,7 @@ bugfix:
 new functionality:
 	- plugins! phenopype can now check for external packages and, if available, load functions that utilize them. currently, this includes "phenomorph" for automatic landmark detection (using a dlib backend), and keras (using a tensorflow backend) for deep learning based segmentation. if the packages are not installed to the same python environment as phenopype they simply wont work (with a warning). 
 - option "visualize" for the Pype class is now "autoshow" and can be used independently from "feedback"
+- new function: pp.print_colours() will show the names from W3 colour palette that can be used for all functions accepting colour arguments as strings
 
 3.2.3
 -----

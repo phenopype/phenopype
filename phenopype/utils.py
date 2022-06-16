@@ -1,18 +1,20 @@
 #%% modules
 
+clean_namespace = dir()
+
 import copy
 import cv2
+import io
 import os
 import sys
 import json
 import webbrowser
 
-from dataclasses import make_dataclass
-
 from pathlib import Path
 from datetime import datetime
-import io
+from dataclasses import make_dataclass
 from contextlib import redirect_stdout
+from pkg_resources import resource_filename
 import ruamel.yaml
 
 from phenopype import _config
@@ -22,7 +24,11 @@ from phenopype import plugins
 from phenopype import settings
 from phenopype import utils_lowlevel
 
-from pkg_resources import resource_filename
+classes = ["Container"]
+functions = ['load_image', "load_template", "print_colours", "save_image", "show_image"]
+
+def __dir__():
+    return clean_namespace + classes + functions
 
 #%% classes
 
