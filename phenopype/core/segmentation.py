@@ -550,7 +550,6 @@ def threshold(
     ----------
     image : ndarray
         input image
-
     method : {"otsu", "adaptive", "binary"} str, optional
         type of thresholding algorithm to be used
     blocksize: int, optional

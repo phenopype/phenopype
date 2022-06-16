@@ -2,6 +2,7 @@
 
 clean_namespace = dir()
 
+import copy
 import cv2
 import math
 import numpy as np
@@ -9,15 +10,10 @@ import os
 import sys
 
 from phenopype import __version__
-
 from phenopype import plugins
 from phenopype import settings
 from phenopype import utils
 from phenopype import utils_lowlevel
-
-if hasattr(plugins, "ml_morph"):
-    import phenomorph
-    import dlib
 
 #%% namespace cleanup
 
@@ -83,7 +79,7 @@ def detect_landmark(
     landmark_tuple_list = []
     
     ## initate model
-    model = phenomorph.model.Model(rootdir=model_folder)
+    model = plugins.phenomorph.model.Model(rootdir=model_folder)
   
     if kwargs.get("tag") and not model_id:
         model_id = kwargs.get("tag")

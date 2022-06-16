@@ -4,10 +4,14 @@ Known bugs
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
 
+3.3.0
 -----
 bugfix:
 	- added "gray" option back to select_canvas
 - images added to the project with "copy" or "mod" mode will, by default, keep their file ending. there is also a new resizing option for mod, which will downsize the images to the specified "resize_max_dim" while maintaining aspect ratio
+new functionality:
+	- plugins! phenopype can now check for external packages and, if available, load functions that utilize them. currently, this includes "phenomorph" for automatic landmark detection (using a dlib backend), and keras (using a tensorflow backend) for deep learning based segmentation. if the packages are not installed to the same python environment as phenopype they simply wont work (with a warning). 
+- option "visualize" for the Pype class is now "autoshow" and can be used independently from "feedback"
 
 3.2.3
 -----

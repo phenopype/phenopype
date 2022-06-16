@@ -35,7 +35,7 @@ def test_pype(settings, all_annotations, reference_detected):
         tag=pytest.tag_1, 
         reference_image_path=pytest.reference_image_path,
         reference_tag="ref1",
-        passive=True,
+        feedback=False,
         overwrite=True,
         annotations=annotations,
         )

@@ -140,7 +140,7 @@ opencv_morphology_flags = {
         "open": cv2.MORPH_OPEN,
         "close": cv2.MORPH_CLOSE,
         "gradient": cv2.MORPH_GRADIENT,
-        "tophat ": cv2.MORPH_TOPHAT,
+        "tophat": cv2.MORPH_TOPHAT,
         "blackhat": cv2.MORPH_BLACKHAT,
         "hitmiss": cv2.MORPH_HITMISS,
     },
@@ -227,6 +227,7 @@ _annotation_types = list(set(_annotation_functions.values()))
 # _GUI_data_args = list(g.data.keys())
 
 _GUI_settings_args = [
+    'feedback',
     'show_label',
     'label_colour',
     'label_size',
@@ -239,7 +240,6 @@ _GUI_settings_args = [
     'overlay_line_width',
     'overlay_colour_left',
     'overlay_colour_right',
-    'passive',
     'pype_mode',
     'zoom_mode',
     'zoom_magnification',

@@ -43,7 +43,7 @@ class _GUI:
         self,
         image,
         tool=None,
-        passive=False,
+        feedback=True,
         wait_time=500,
         window_aspect="normal",
         window_control="internal",
@@ -118,7 +118,7 @@ class _GUI:
             ('overlay_colour_left', tuple, kwargs.get('overlay_colour_left',settings._default_overlay_left)),
             ('overlay_colour_right', tuple, kwargs.get('overlay_colour_right',settings._default_overlay_right)),
             
-            ('passive', bool, passive),
+            ('feedback', bool, feedback),
             ('pype_mode', bool, kwargs.get('pype_mode', False)),
             
             ('zoom_mode', str, zoom_mode),
@@ -272,7 +272,7 @@ class _GUI:
         # window control
         # =============================================================================
 
-        if self.settings.passive == True:
+        if self.settings.feedback == False:
 
             self.flags.end = True
             self.flags.end_pype = True
@@ -291,7 +291,7 @@ class _GUI:
 
             if self.settings.window_control == "internal":
                 while not any([self.flags.end, self.flags.end_pype]):
-                    if self.settings.passive == False:
+                    if self.settings.feedback:
                         
                         ## sync zoom settings with config
                         if self.settings.pype_mode == True:
@@ -821,7 +821,7 @@ class _GUI:
         self.canvas_copy = copy.deepcopy(self.canvas)
 
         ## refresh canvas
-        if refresh and not self.settings.passive:
+        if refresh and self.settings.feedback:
             cv2.imshow(self.settings.window_name, self.canvas)
 
     def _canvas_renew(self):
@@ -1242,14 +1242,14 @@ def _get_GUI_settings(kwargs, annotation=None):
         if "settings" in annotation:
             if "GUI" in annotation["settings"]:
                 for key, value in annotation["settings"]["GUI"].items():
-                    if not key in ["passive"]:
+                    if not key in ["feedback"]:
                         GUI_settings[key] = value
 
     if kwargs:
         for key, value in kwargs.items():
             if key in settings._GUI_settings_args:
                 GUI_settings[key] = value
-            # elif key in ["passive"]:
+            # elif key in ["feedback"]:
             #     pass
 
     return GUI_settings
@@ -1847,7 +1847,7 @@ def _resize_image(
         width=None,
         height=None,
         max_dim=None, 
-        interpolation="cubic"
+        interpolation="cubic",
         ):
     """
     Resize image by resize factor 
@@ -1871,7 +1871,7 @@ def _resize_image(
         resized image
 
     """
-    image_height, image_width, _ = image.shape
+    image_height, image_width = image.shape[0:2]
 
     ## method
     

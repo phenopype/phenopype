@@ -50,12 +50,7 @@ def test_project_add_files(project, settings):
     
     
 def test_project_add_config(project, settings):
-    
-    project.add_config(
-        tag=pytest.tag_1, 
-        template_path=None
-        )
-    
+       
     project.add_config(
         tag=pytest.tag_1, 
         template_path="wrong-template"
@@ -85,7 +80,7 @@ def test_project_add_reference(project, reference_detected, mask_polygon, settin
         tag=pytest.tag_1, 
         reference_image_path=pytest.reference_image_path,
         reference_tag="ref1",
-        passive=True,
+        feedback=False,
         overwrite=True,
         annotations=annotations,
         )

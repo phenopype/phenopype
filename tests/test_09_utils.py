@@ -77,13 +77,13 @@ def test_template(settings, project):
 
 def test_show_image(image):
 
-    pp.show_image(image, passive=True)
+    pp.show_image(image, feedback=False)
 
     with mock.patch('builtins.input', return_value="y"):
         pp.show_image([image, image, image, image, image, 
                        image, image, image, image, image, 
                        image],
-                      passive=True)
+                      feedback=False)
     
     
 def test_save_image(image):

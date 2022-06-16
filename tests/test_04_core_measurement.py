@@ -11,7 +11,7 @@ def test_set_landmark(image, landmarks):
     annotations = pp.measurement.set_landmark(
         image, 
         annotations=annotations,
-        passive=True,
+        feedback=False,
         ) 
     
     assert len(annotations) > 0
@@ -24,7 +24,7 @@ def test_set_polyline(image, polyline):
     annotations = pp.measurement.set_polyline(
         image, 
         annotations=annotations,
-        passive=True,
+        feedback=False,
         ) 
     
     assert len(annotations) > 0

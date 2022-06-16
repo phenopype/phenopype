@@ -63,6 +63,9 @@ class Container(object):
         self.dir_path = dir_path
         self.image_name = kwargs.get("image_name")
 
+        ## active objects
+        self.active_model_path = None
+
         ## annotations
         self.annotations = {}
 
@@ -83,11 +86,16 @@ class Container(object):
 
         ## load annotations
         annotations_file_name = self._construct_file_name("annotations", ".json")
-
+        
         if annotations_file_name in os.listdir(self.dir_path):
             annotations_loaded = core.export.load_annotation(
                 os.path.join(self.dir_path, annotations_file_name)
             )
+            
+            if contours == False:
+                if settings._contour_type in annotations_loaded:
+                    annotations_loaded.pop(settings._contour_type)
+            
             if annotations_loaded:
                 self.annotations.update(annotations_loaded)
 
@@ -188,7 +196,13 @@ class Container(object):
         self.image = copy.deepcopy(self.image_copy)
         self.canvas = copy.deepcopy(self.image_copy)
 
-    def run(self, fun, fun_kwargs={}, annotation_kwargs={}, annotation_counter={}):
+    def run(
+            self, 
+            fun,
+            fun_kwargs={}, 
+            annotation_kwargs={}, 
+            annotation_counter={},
+            ):
 
         ## annotation kwargs
         annotations = copy.deepcopy(self.annotations)
@@ -236,7 +250,7 @@ class Container(object):
                     elif flag_edit == False:
                         print(print_msg + ": skipping (edit=False)")
                         if annotation_type in ["drawing"]:
-                            kwargs_function["passive"] = True
+                            kwargs_function["feedback"] = False
                             annotations_updated, self.image = core.segmentation.edit_contour(
                                 self.canvas, ret_image=True, **kwargs_function
                             )

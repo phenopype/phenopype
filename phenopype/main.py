@@ -1,10 +1,14 @@
-#%% modules
+#%% imports
+
 import copy
 import os
 import numpy as np
 import pandas as pd
 import platform
 import string
+import io 
+import sys
+import logging
 
 from dataclasses import make_dataclass
 
@@ -1481,11 +1485,11 @@ class Pype(object):
         tag,
         config_path=None,
         skip=False,
-        autosave=True,
         autoload=True,
+        autosave=True,
+        autoshow=True,
         fix_names=True,
         feedback=True,
-        visualize=True,
         debug=False,
         **kwargs
     ):
@@ -1505,16 +1509,20 @@ class Pype(object):
             cls_name="flags",
             fields=[
                 ("debug", bool, debug),
-                ("autosave", bool, autosave),
                 ("autoload", bool, autoload),
+                ("autosave", bool, autosave),
+                ("autoshow", bool, autoshow),
                 ("feedback", bool, feedback),
                 ("fix_names", bool, fix_names),
                 ("skip", bool, skip),
                 ("terminate", bool, False),
-                ("visualize", bool, visualize),
                 ("dry_run", bool, kwargs.get("dry_run", False)),
             ],
         )
+        
+        ## don't autoshow if feedback is off
+        if not self.flags.feedback:
+            self.flags.autoshow = False
         
         if image_path.__class__.__name__ == "str":
             image_path = os.path.abspath(image_path)
@@ -1528,7 +1536,7 @@ class Pype(object):
         if self.flags.dry_run:
             self._load_pype_config(image_path, tag, config_path)
             self._iterate(config=self.config, annotations=copy.deepcopy(settings._annotation_types),
-                      execute=False, visualize=False, feedback=True)
+                      execute=False, autoshow=False, feedback=True)
             return
 
         ## check whether directory is skipped
@@ -1547,7 +1555,7 @@ class Pype(object):
             config=self.config,
             annotations=self.container.annotations,
             execute=False,
-            visualize=False,
+            autoshow=False,
             feedback=False,
         )
         time.sleep(sleep)
@@ -1556,7 +1564,7 @@ class Pype(object):
         self._check_final()
 
         # open config file with system viewer
-        if self.flags.feedback and self.flags.visualize:
+        if self.flags.feedback and self.flags.autoshow:
             self._start_file_monitor(delay=delay)
 
         ## start log
@@ -1573,7 +1581,7 @@ class Pype(object):
             _config.pype_restart = False
 
             ## refresh config
-            if self.flags.feedback and self.flags.visualize:
+            if self.flags.feedback and self.flags.autoshow:
 
                 ## to stop infinite loop without opening new window
                 if not self.YFM.content:
@@ -1595,11 +1603,11 @@ class Pype(object):
                 config=self.config,
                 annotations=self.container.annotations,
                 feedback=self.flags.feedback,
-                visualize=self.flags.visualize,
+                autoshow=self.flags.autoshow,
             )
 
             ## terminate & cleanup
-            if self.flags.visualize:
+            if self.flags.feedback:
                 if self.flags.terminate:
                     
                     ## stope file monitoring
@@ -1749,14 +1757,19 @@ class Pype(object):
             return
 
     def _iterate(
-        self, config, annotations, execute=True, visualize=True, feedback=True,
+        self, 
+        config, 
+        annotations, 
+        execute=True, 
+        autoshow=True, 
+        feedback=True,
     ):
 
         flags = make_dataclass(
             cls_name="flags",
             fields=[
                 ("execute", bool, execute),
-                ("visualize", bool, visualize),
+                ("autoshow", bool, autoshow),
                 ("feedback", bool, feedback),
             ],
         )
@@ -1796,8 +1809,12 @@ class Pype(object):
             if method_list.__class__.__name__ == "NoneType":
                 continue
 
+            # =============================================================================
+            # implement logging function here
+            # =============================================================================
+            
             ## print current step
-            if flags.execute:
+            if flags.execute and flags.feedback:
                 print("\n")
                 print(step_name.upper())
 
@@ -1812,9 +1829,10 @@ class Pype(object):
                     self.container.canvas.__class__.__name__ == "NoneType"
                     and not "select_canvas" in vis_list
                 ):
-                    print("select_canvas (autoselect)")
                     self.container.run("select_canvas")
-
+                    if flags.feedback:
+                        print("select_canvas (autoselect)")
+                        
             ## iterate through step list
             for method_idx, method in enumerate(method_list):
 
@@ -1833,10 +1851,10 @@ class Pype(object):
                 elif method.__class__.__name__ == "str":
                     method_name = method
                     method_args = {}
-                
 
                 ## feedback
                 if flags.execute:
+                    method_args["feedback"] = flags.feedback
                     print(method_name)
 
                 ## check if method exists
@@ -1917,10 +1935,7 @@ class Pype(object):
 
                 ## run method with error handling
                 if flags.execute:
-
-                    if not flags.feedback:
-                        method_args["passive"] = True
-
+                
                     try:
 
                         ## excecute
@@ -1950,9 +1965,11 @@ class Pype(object):
                     if _config.pype_restart:
                         print("BREAK")
                         return
+                    
+        # sys.stdout = self.old_stdout
 
         # =============================================================================
-        # CONFIG-UPDATE; FEEDBACK; FINAL VISUALIZATION
+        # CONFIG-UPDATE AND AUTOSHO (optional)
         # =============================================================================
 
         if not self.config_updated == self.config:
@@ -1965,7 +1982,7 @@ class Pype(object):
                 "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
             )
 
-        if flags.visualize and flags.feedback:
+        if flags.autoshow:
             try:
                 print("AUTOSHOW")
                 if self.container.canvas.__class__.__name__ == "NoneType":

@@ -108,7 +108,7 @@ def test_edit_contour(image_binary, image, drawing):
     annotations = pp.segmentation.edit_contour(
         image, 
         annotations=annotations,
-        passive=True,
+        feedback=False,
         )
 
     assert len(annotations) > 0

@@ -844,7 +844,6 @@ def decompose_image(
 def write_comment(
     image,
     label="ID",
-    tool="rectangle",
     label_colour="default",
     label_size="auto",
     label_width="auto",
@@ -887,7 +886,7 @@ def write_comment(
     gui_data = {settings._comment_type: utils_lowlevel._get_GUI_data(annotation)}
     if annotation:
         label = annotation["data"]["label"]
-
+        
     # =============================================================================
     # setup
 

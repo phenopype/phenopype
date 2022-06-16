@@ -1,0 +1,28 @@
+#%% imports
+
+clean_namespace = dir()
+import_list = []
+
+import importlib.util
+
+## phenomorph
+if not importlib.util.find_spec("phenomorph") is None:
+    
+    import phenomorph, dlib
+    
+    import_list.append("phenomorph")
+    clean_namespace.extend(["phenomorph", "dlib"])
+
+## keras
+if not importlib.util.find_spec("keras") is None:
+    
+    import tensorflow as tensorflow
+    
+    import_list.append("keras")
+    clean_namespace.append("tensorflow")
+    
+
+#%% feedback
+
+def __dir__():
+    return clean_namespace 

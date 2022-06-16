@@ -103,7 +103,7 @@ def test_load_annotation(settings, image):
     annotations = pp.preprocessing.create_mask(
         image, 
         annotations=annotations, 
-        passive=True,
+        feedback=False,
         )
 
     assert not (image==canvas_mod).all() and len(annotations) > 0
