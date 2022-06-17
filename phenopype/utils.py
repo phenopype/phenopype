@@ -346,7 +346,7 @@ class Container(object):
         if fun == "detect_landmark":
             annotations_updated = plugins.measurement.detect_landmark(
                 image = self.image,
-                model_folder = os.path.join(self.dir_path, r"../../ml_morph/"),
+                model_path = self.active_model_path,
                 **kwargs_function)
 
         ## visualization

@@ -10,6 +10,7 @@ import os
 import sys
 
 from phenopype import __version__
+from phenopype import _config
 from phenopype import plugins
 from phenopype import settings
 from phenopype import utils
@@ -26,8 +27,7 @@ def __dir__():
 
 def detect_landmark(
     image,
-    model_id=None,
-    model_folder=None,
+    model_path,
     mask=True,
     **kwargs,
 ):
@@ -75,15 +75,12 @@ def detect_landmark(
         kwargs=kwargs,
     )
     
+        
+    # =============================================================================
+    # execute
     
     landmark_tuple_list = []
-    
-    ## initate model
-    model = plugins.phenomorph.model.Model(rootdir=model_folder)
-  
-    if kwargs.get("tag") and not model_id:
-        model_id = kwargs.get("tag")
-    
+        
     if mask:        
         if not annotations:
             print("- no mask coordinates provided - cannot detect within mask")
@@ -98,12 +95,12 @@ def detect_landmark(
             )
             
             bbox_coords = cv2.boundingRect(np.asarray(annotation_mask["data"][settings._mask_type], dtype="int32"))
-            landmark_tuple_list = model.predict_image(tag=model_id, img=image,  bbox_coords = bbox_coords, plot=False)
     else:
-        landmark_tuple_list = model.predict_image(tag=model_id, img=image, plot=False)
+        bbox_coords = None
+        
+    landmark_tuple_list = plugins.libraries.phenomorph.main.predict_image(img=image, model_path=model_path, bbox_coords=bbox_coords, plot=False)
 
-
-    print("- using ml-morph landmark predictor: found {} points".format(len(landmark_tuple_list)))
+    print("- found {} points".format(len(landmark_tuple_list)))
 
     annotation = {
         "info": {
