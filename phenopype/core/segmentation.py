@@ -633,8 +633,8 @@ def threshold(
     # =============================================================================
     # execute masking
     if mask:
-        if "data" in annotation_mask:
-            if settings._mask_type in annotation_mask["data"]:
+        if "data" in annotation_mask:               
+            if len(annotation_mask["data"][settings._mask_type]) > 0:
                 mask_bool, include_idx, exclude_idx = (
                     np.zeros(thresh.shape, dtype=bool),
                     0,
