@@ -311,9 +311,10 @@ class _GUI:
                                 if len(
                                     self.data[settings._coord_type]
                                 ) > 2 and not self.tool in ["point"]:
-                                    self.data[settings._coord_type].append(
-                                        self.data[settings._coord_type][0]
-                                    )
+                                    if not self.tool in ["polyline"]:
+                                        self.data[settings._coord_type].append(
+                                            self.data[settings._coord_type][0]
+                                        )
                                     self.data[settings._coord_list_type].append(
                                         self.data[settings._coord_type]
                                     )
@@ -1249,8 +1250,8 @@ def _get_GUI_settings(kwargs, annotation=None):
         for key, value in kwargs.items():
             if key in settings._GUI_settings_args:
                 GUI_settings[key] = value
-            # elif key in ["feedback"]:
-            #     pass
+            elif key in ["feedback"]:
+                pass
 
     return GUI_settings
 

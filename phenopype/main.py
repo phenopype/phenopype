@@ -1713,7 +1713,7 @@ class Pype(object):
         if skip_pattern.__class__.__name__ == "str":
             skip_pattern = [skip_pattern]
         elif skip_pattern.__class__.__name__ == "bool":
-            skip_pattern = ""
+            skip_pattern = [""]
         elif skip_pattern.__class__.__name__ in ["list", "CommentedSeq"]:
             skip_pattern = skip_pattern
 
@@ -1729,8 +1729,11 @@ class Pype(object):
             pype_mode=True,
         )
 
-        if len(filepaths) == len(file_pattern):
-            print('\nFound existing files "' + str(file_pattern) + '" - skipped\n')
+        if len(filepaths) > 0:
+            files = []
+            for file in filepaths:
+                files.append(os.path.basename(file))
+            print('\nFound existing files {} - skipped\n'.format((*files,)))
             return True
         else:
             return False
@@ -1854,7 +1857,6 @@ class Pype(object):
 
                 ## feedback
                 if flags.execute:
-                    method_args["feedback"] = flags.feedback
                     print(method_name)
 
                 ## check if method exists
@@ -1937,6 +1939,9 @@ class Pype(object):
                 if flags.execute:
                 
                     try:
+                        
+                        ## ensure feedback in GUI is active
+                        method_args["feedback"] = flags.feedback                        
 
                         ## excecute
                         self.container.run(
