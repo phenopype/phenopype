@@ -3,6 +3,13 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.3.2
+-----
+bugfix:
+	- skip=True in pype now works with any produced annotation or canvas file (or specified annotation, e.g. skip="contours")
+	- polyline would be converted to polygon
+	- internal feedback argument would be accidentally included in pype config
+	
 3.3.1
 -----
 bugfix:
