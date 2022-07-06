@@ -1,28 +1,27 @@
 Tutorials
 =========
 
-The tutorials are written as `jupyter notebooks` - browser based Python kernels to run, document, and visualize code (`https://jupyter.org/ <https://jupyter.org/>`_). If you installed Python using Anaconda, it is possible that `jupyter` is already installed (check with :code:`jupyter --version` - you should see something like :code:`notebook : 6.4.11` in the list that appears). If no list appears, your need to install jupyter notebook first.
+The tutorials are written as jupyter `notebooks` - browser based Python kernels to run, document, and visualize code (`https://jupyter.org/ <https://jupyter.org/>`_). If you installed Python using Anaconda, it is possible that jupyter is already installed (check with :code:`jupyter --version` - you should see something like :code:`notebook : 6.4.11` in the list that appears). If no list appears, your need to install jupyter notebook first.
 
-#. Install phenopype (see `installation instructions <installation.html>`_) and jupyter notebook (:code:`pip install jupyter notebook`)
-#. `Download <https://github.com/phenopype/phenopype-tutorials/archive/refs/heads/main.zip>`_ and unpack the tutorials from github
-#. Open a terminal in the unpacked phenopype repository - don't forget to activate your conda environment (see warning below).
-#. Start the notebooks with :code:`jupyter notebook` and click on one of the tutorial files.
-#. Run the code cell by cell inside the browser window (Shift + Enter to run cell and advance).
+Instructions
+------------
 
-.. tip::
-	You may get a warning when you open jupyter in the browser that the page is not secure - this is fine, the browser simply does not recognize that you are "browsing" the notebooks on your local computer where no ssl / https security certificate is issued, as it should be when browsing the open web.
+1. Install phenopype` (see `installation instructions <installation.html>`_) and :code:`jupyter notebook` (:code:`pip install jupyter notebook`).
+2. `Download <https://github.com/phenopype/phenopype-tutorials/archive/refs/heads/main.zip>`_ and unpack the github archive containing the data and code. 
+3. Open a terminal in the unpacked folder - don't forget to activate your conda environment (see warning below).
+4. Start the notebooks with :code:`jupyter notebook` and click on one of the tutorial files (your browser might give you a security warning - you can ignore it).
+5. Run the code cell by cell inside the browser window (Shift + Enter to run cell and advance).
 
 .. warning::
 
-	Make sure you install jupyter notebook to your specific environment (i.e. activate it first using :code:`conda activate pp`. If `jupyter` is not installed in a specific environment, running :code:`jupyter notebook` will fall back on the conda base environment where phenopype may not be installed (this is a common source of confusion).
+	Make sure you install jupyter notebook to your specific environment (i.e. activate it first using :code:`conda activate pp`. If not installed in a specific environment, running :code:`jupyter notebook` will fall back on the conda base environment where phenopype may not be installed (this is a common source of confusion).
 
 Tutorials (read-only)
 ---------------------
 
-These are html / read-only versions of the jupyter notebooks containing the tutorials which are stored under (`https://github.com/phenopype/phenopype-tutorials <https://github.com/phenopype/phenopype-tutorials>`_). To run the notebooks yourself, follow the above instructions.
+Below are the read-only html versions of the code contained in the notebooks - to run them yourself, follow the above instructions. If you want to use the notebooks as a blueprint for your own project, you can also save them as a Python script from a running jupyter notebook using :code:`File > Download as > Python (.py)`.
 
-.. tip::
-	If you want to use the tutorials or any exampe from the `phenopype gallery <https://www.phenopype.org/gallery>`_ as a blueprint for your own project, simply save them as a Python script from juypter notebook using File > Download as > Python (.py).
+|
 
 .. grid:: 2
 	:gutter: 2
