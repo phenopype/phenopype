@@ -69,9 +69,6 @@ class Container(object):
         self.dir_path = dir_path
         self.image_name = kwargs.get("image_name")
 
-        ## active objects
-        self.active_model_path = None
-
         ## annotations
         self.annotations = {}
 
@@ -177,13 +174,23 @@ class Container(object):
 
                     loaded.append("reference template image loaded from root directory")
                     
-            if "models" in self.attr_proj and "active" in self.attr_proj:
-                if "model" in self.attr_proj["active"]:
-                    model_id = self.attr_proj["active"]["model"]
-                    model_path = self.attr_proj["models"][model_id]["model_phenopype_path"]
-                    
-                _config.current_model_path = model_path    
-                self.active_model_path = model_path
+            if "models" in self.attr_proj:
+                               
+                if len(self.attr_proj["models"]) > 0:
+                    for model_info in self.attr_proj["models"].items():
+                        if not model_info[0] in _config.models:
+                            _config.models[model_info[0]] = model_info[1]
+                        else:
+                            _config.models[model_info[0]].update(model_info[1])    
+                    loaded.append("loaded info for {} models {} ".format(len(_config.models.keys()),(*list(_config.models.keys()),)))
+                        
+                if "active" in self.attr_proj:
+                    if "model" in self.attr_proj["active"]:
+                        model_id = self.attr_proj["active"]["model"]
+                        model_path = self.attr_proj["models"][model_id]["model_phenopype_path"]
+                        _config.active_model_path = model_path    
+                        loaded.append('set model "{}" as default model (change with "activate=True")'.format(model_id))
+
 
         ## feedback
         if len(loaded) > 0:
@@ -301,7 +308,9 @@ class Container(object):
 
         ## plugins.segmentation
         if fun == "detect_object":
-            self.image = plugins.segmentation.detect_object(self.image, self.active_model_path, **kwargs_function)
+            if len(self.image.shape) == 2:
+                self.image = copy.deepcopy(self.image_copy)
+            self.image = plugins.segmentation.detect_object(self.image, _config.active_model_path, **kwargs_function)
 
         ## core.segmentation
         if fun == "contour_to_mask":

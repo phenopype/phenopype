@@ -627,6 +627,7 @@ class Project:
         mode="link",
         activate=True,
         overwrite=False,
+        copy=True,
         **kwargs
     ):
         """
@@ -1491,6 +1492,7 @@ class Pype(object):
         fix_names=True,
         feedback=True,
         debug=False,
+        load_contours=False,
         **kwargs
     ):
 
@@ -1548,7 +1550,7 @@ class Pype(object):
 
         ## load existing annotations through container
         if self.flags.autoload:
-            self.container.load()
+            self.container.load(contours=load_contours)
 
         ## check pype config for annotations
         self._iterate(

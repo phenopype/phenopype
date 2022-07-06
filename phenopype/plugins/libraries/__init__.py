@@ -19,10 +19,11 @@ if not any([
         importlib.util.find_spec("tensorflow") is None,
         ]):
     
-    import tensorflow as tensorflow
+    # import tensorflow
+    import keras 
     
-    import_list.extend(["keras", "tensorflow"])
-    clean_namespace.append("tensorflow")
+    import_list.extend(["keras"])
+    clean_namespace.extend(["keras"])
     
 
 #%% feedback

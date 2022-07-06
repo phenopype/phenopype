@@ -19,6 +19,8 @@ from phenopype.utils_lowlevel import annotation_function
 def detect_object(
     image,
     model_path,
+    model_id=None,
+    threshold=True,
     threshold_method="otsu",
     threshold_value=127,
     threshold_blocksize=99,
@@ -42,6 +44,11 @@ def detect_object(
         input image
     model_path : str
         path to a detection model (currently only keras h5 objects are supported)
+    model_id : str, optional
+        id for a model that has been added to a phenopype project (overrides model_path)
+    threshold : bool, optional
+        perform thresholding on returned grayscale segmentation mask to create binary image.
+        default is True.
     threshold_method : {"otsu", "adaptive", "binary"} str, optional
         type of thresholding algorithm to be used on the model output
     threshold_blocksize: int, optional
@@ -76,12 +83,19 @@ def detect_object(
         print("No model provided - did you set an active model?")
         return image
     
-    if not _config.current_model_path == model_path or _config.active_model.__class__.__name__ == "NoneType" or force_reload==True:
-        _config.current_model_path = model_path
-        _config.active_model = plugins.libraries.tensorflow.keras.models.load_model(model_path)
-        print("==> loading model <==")
-        
-    print("Using current model at " + _config.current_model_path)
+    if not model_id.__class__.__name__ == "NoneType":
+        model_path = _config.models[model_id]["model_phenopype_path"]
+        if not "model_loaded" in _config.models[model_id]:
+            print("loading model " + model_id)
+            _config.models[model_id]["model_loaded"] = plugins.libraries.keras.models.load_model(model_path)
+        _config.active_model = _config.models[model_id]["model_loaded"]
+        _config.active_model_path = model_path
+    
+    elif not _config.active_model_path == model_path or _config.active_model.__class__.__name__ == "NoneType" or force_reload==True:
+        _config.active_model = plugins.libraries.keras.models.load_model(model_path)
+        _config.active_model_path = model_path
+
+    print("Using current model at " + _config.active_model_path)
     
     model = _config.active_model
 
@@ -93,13 +107,17 @@ def detect_object(
     mask_predicted = mask_predicted.astype(np.uint8)
     mask_predicted = utils_lowlevel._resize_image(mask_predicted, width=image.shape[1], height=image.shape[0], interpolation="linear")
     
-    mask_predicted = segmentation.threshold(
-        mask_predicted, 
-        invert=True,
-        method=threshold_method,
-        value=threshold_value, 
-        blocksize=threshold_blocksize,
-        constant=threshold_constant
-        )
-       
+    if threshold:
+        mask_predicted = segmentation.threshold(
+            mask_predicted, 
+            invert=True,
+            method=threshold_method,
+            value=threshold_value, 
+            blocksize=threshold_blocksize,
+            constant=threshold_constant
+            )
+           
+
+    # tf.keras.backend.clear_session()
+    
     return mask_predicted
