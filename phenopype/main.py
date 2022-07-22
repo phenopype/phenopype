@@ -987,6 +987,21 @@ class Project:
                 
                 
     def check_files(self, ask=True):
+        """
+        Check all project files for completeness by comparing the images in the
+        "data" folder to the file list the project attributes. Will attempt to 
+        fix discrepancies, but ask for feedback first.
+
+        Parameters
+        ----------
+        ask : bool, optional
+            Asks whether project attributes should be updated. The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
                 
         ## load filenames
         if "filenames" in self.attributes["project_data"]:
