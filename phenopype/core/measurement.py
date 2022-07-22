@@ -56,6 +56,7 @@ def set_landmark(
     -------
     annotations: dict
         phenopype annotation containing landmarks
+        
     """
 
     # =============================================================================

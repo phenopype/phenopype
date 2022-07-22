@@ -1007,7 +1007,8 @@ class _YamlFileMonitor:
 
 
 def annotation_function(fun, *args, **kwargs):
-       
+    
+    @wraps(fun)
     def annotation_function_wrapper(*args, **kwargs):
         
         ## determine the annotation type from function nam,e
