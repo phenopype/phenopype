@@ -55,7 +55,7 @@ auto_point_size_factor = 0.0025
 auto_text_width_factor = 0.0005
 auto_text_size_factor = 0.00025
 
-confirm_options = ["True", "true", "y", "yes"]
+confirm_options = ["True", "true", "y", "yes", True]
 
 _default_label_colour = "lime"
 _default_line_colour = "lime"

@@ -173,7 +173,7 @@ class Project:
                 
                 file_names_attr = project_attributes["project_data"]["filenames"]
                 dir_names_attr = project_attributes["project_data"]["dirnames"]
-    
+
                 if len(dir_names_attr) == len(file_names_attr) == len(dir_names_counted):
                     flags.checked = True
                     print("\nChecks for directory completeness passed!")
@@ -199,15 +199,17 @@ class Project:
         self.root_dir = root_dir
         self.dir_paths = dir_paths
         if flags.checked:
-            self.dir_names = dir_names_attr
             self.file_names = file_names_attr
-        
+            
+        ## add attributes
+        self.attributes = project_attributes
+        self.attributes_path = project_attributes_path
+
         # self.file_names, self.file_paths = [], []
         # for dir_path in self.dir_paths:
         #     attributes = utils_lowlevel._load_yaml(os.path.join(dir_path, "attributes.yaml"))
         #     self.file_paths.append(attributes["image_phenopype"]["filepath"])
-        #     self.file_names.append(attributes["image_phenopype"]["filename"])
-            
+        #     self.file_names.append(attributes["image_phenopype"]["filename"])          
 
     def add_files(
         self,
@@ -217,6 +219,7 @@ class Project:
         include_all=True,
         exclude=[],
         mode="copy",
+        n_max=None,
         image_format=None,
         recursive=False,
         overwrite=False,
@@ -337,7 +340,16 @@ class Project:
             + str(unique)
             + "\n"
         )
-
+        
+        ## subnsetting
+        n_total_found = len(filepaths)
+        if not n_max.__class__.__name__ == "NoneType":
+            n_cut = min(n_max, n_total_found)
+            filepaths = filepaths[:n_cut]
+            n_max = str(n_max)
+        else:
+            n_max = "all"
+            
         ## loop through files
         filenames = []
         for file_path in filepaths:
@@ -494,17 +506,15 @@ class Project:
                 project_attributes["project_data"].__class__.__name__ in ["CommentedSeq","list"]]):
             project_attributes["project_data"] = {}
             
-        project_attributes["project_data"]["dirnames"] = utils_lowlevel._yaml_flow_style(
-            os.listdir(os.path.join(self.root_dir, "data")
-        ))
-        project_attributes["project_data"]["filenames"] = utils_lowlevel._yaml_flow_style(filenames)
+        project_attributes["project_data"]["filenames"] = filenames
+        project_attributes["project_data"]["dirnames"] =  os.listdir(os.path.join(self.root_dir, "data"))
         
         utils_lowlevel._save_yaml(
             project_attributes, 
             os.path.join(self.root_dir, "attributes.yaml")
         )
 
-        ## add dirlist to project object (always overwrite)
+        ## add dirlists to project object (always overwrite)
         dir_names = os.listdir(os.path.join(self.root_dir, "data"))
         dir_paths = []
         for dir_name in dir_names:
@@ -512,7 +522,7 @@ class Project:
         self.dir_names = dir_names
         self.dir_paths = dir_paths
 
-        print("\nFound {} files".format(len(filepaths)))
+        print("\nFound {} files - using {}".format(n_total_found, n_max))
         print("--------------------------------------------")
 
     def add_config(
@@ -973,6 +983,81 @@ class Project:
                     + dir_name
                     + " (overwrite=False/activate=False)"
                 )
+                
+                
+    def check_files(self, ask=True):
+                
+        ## load filenames
+        if "filenames" in self.attributes["project_data"]:
+            filenames = self.attributes["project_data"]["filenames"]
+            dirnames = self.attributes["project_data"]["dirnames"]
+        elif self.attributes["project_data"].__class__.__name__ in ["list","CommentedSeq"]:
+             dirnames = self.attributes["project_data"]
+             filenames = []
+             self.attributes["project_data"] = {}
+        else:
+            print("could not read project attributes file!")
+            return
+        
+        filenames_check, dirnames_check = [], []
+
+        for dirpath in self.dir_paths:
+            attributes = utils_lowlevel._load_yaml(os.path.join(dirpath, "attributes.yaml"))
+            filename = attributes["image_original"]["filename"]
+            filenames_check.append(filename)
+            dirnames_check.append(os.path.basename(dirpath))
+            
+        filenames_unmatched, dirnames_unmatched = [], []
+        
+        for filename in filenames:
+            if not filename in filenames_check:
+                filenames_unmatched.append(filename)
+
+        for dirname in dirnames:
+            if not filename in dirnames_check:
+                dirnames_unmatched.append(filename)  
+                
+        if len(filenames_unmatched) > 0:
+            print(filenames_unmatched)
+            print("\n")
+            print("--------------------------------------------")
+            print("phenopype found {} files in the data folder, but {} from the project attributes are unaccounted for.".format(
+                len(filenames_check),
+                len(filenames_unmatched)))
+            time.sleep(1)
+            if ask:
+                check = input("remove these files from project attributes (y/n)?")
+            else:
+                check = "y"
+        elif len(filenames) == 0:
+            print("\n")
+            print("--------------------------------------------")
+            print("phenopype found {} files in the data folder, but 0 are listed in the project attributes.".format(len(filenames_check)))
+            time.sleep(1)
+            if ask:
+                check = input("add found files to project attributes (y/n)?")
+            else:
+                check = "y"
+        else:
+            print("All checks passed - numbers in data folder and attributes file match.")
+            return
+
+        if check in settings.confirm_options:
+            
+            self.attributes["project_data"].pop("filenames", None)
+            self.attributes["project_data"].pop("dirnames", None)
+            self.attributes["project_data"]["filenames"] = filenames_check
+            self.attributes["project_data"]["dirnames"] = dirnames_check
+            self.file_names = filenames_check
+            self.dir_names = dirnames_check
+            
+            utils_lowlevel._save_yaml(self.attributes, self.attributes_path)
+            
+            print("project attributes updated; now has {} files".format(len(filenames_check)))
+        else:
+            print("project attributes not updated")
+        print("--------------------------------------------")    
+        
 
     def collect_results(self, tag, files, folder, overwrite=False, **kwargs):
 
@@ -1388,8 +1473,8 @@ class Project:
             
             annotation_type = kwargs.get("annotation_type", "mask")
             
-            img_dir = os.path.join(training_data_path, "images")
-            mask_dir = os.path.join(training_data_path, "masks")
+            img_dir = os.path.join(training_data_path, "images", "all")
+            mask_dir = os.path.join(training_data_path, "masks", "all")
             
             if not os.path.isdir(img_dir):
                 os.makedirs(img_dir)
