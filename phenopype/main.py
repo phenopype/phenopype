@@ -109,6 +109,7 @@ class Project:
                                 root_dir
                             )
                         )
+                        time.sleep(1)
                         query1 = input("overwrite (y/n)?")
                         if query1 in settings.confirm_options:
                             pass
