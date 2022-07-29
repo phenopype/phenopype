@@ -10,6 +10,6 @@ These YAML configuration files can be copied or downloaded and used as templates
 	gallery
 	various
 	
-If you would like to download all available templates, `click here <https://raw.githubusercontent.com/phenopype/phenopype-templates/main>`_ to download the entire phenopype template repository. 
+If you would like to download all available templates, `click here <https://github.com/phenopype/phenopype-templates/archive/refs/heads/main.zip>`_ to download the entire phenopype template repository. 
 
 
