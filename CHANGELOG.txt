@@ -3,6 +3,14 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.3.4
+-----
+bugfix:
+	- removed "zoom memory" when running Pype, as this wasn't working properly
+	- Project.quick_files() now also accounts for missing filenames in the project attributes file
+- "show_nodes=true" argument for all polygon-related drawing tools (polygon mask, rectangle mask, polyline)
+
+
 3.3.3
 -----
 - new function: class method project.check_files; will all project files for completeness by comparing the images in the
