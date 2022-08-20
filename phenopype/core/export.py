@@ -648,7 +648,7 @@ def save_ROI(
     # =============================================================================
     # annotation management
 
-    annotation_type = settings._mask_type
+    annotation_type = kwargs.get("annotation_type", settings._mask_type)
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = utils_lowlevel._get_annotation(
@@ -658,12 +658,19 @@ def save_ROI(
         kwargs=kwargs,
     )
 
-    masks = annotation["data"][annotation_type]
+    data = annotation["data"][annotation_type]
+    
+    # print(len(data))
 
-    for idx, roi_coords in enumerate(masks):
+
+    for idx, roi_coords in enumerate(data):
         
-        coords = utils_lowlevel._convert_tup_list_arr(roi_coords)[0]
-        
+        if annotation_type == settings._mask_type:
+            coords = utils_lowlevel._convert_tup_list_arr(roi_coords)[0]
+        else:
+            coords = copy.deepcopy(roi_coords)
+            
+
         rx, ry, rw, rh = cv2.boundingRect(coords)
         roi_rect = image[ry : ry + rh, rx : rx + rw]
 

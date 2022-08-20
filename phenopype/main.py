@@ -1042,7 +1042,7 @@ class Project:
                 len(filenames_unmatched)))
             time.sleep(1)
             if ask:
-                check = input("remove these files from project attributes (y/n)?")
+                check = input("update project attributes (y/n)?")
             else:
                 check = "y"
         elif len(filenames) == 0:
@@ -1051,7 +1051,19 @@ class Project:
             print("phenopype found {} files in the data folder, but 0 are listed in the project attributes.".format(len(filenames_check)))
             time.sleep(1)
             if ask:
-                check = input("add found files to project attributes (y/n)?")
+                check = input("update project attributes (y/n)?")
+            else:
+                check = "y"
+        elif len(filenames) < len(filenames_check):
+            print("\n")
+            print("--------------------------------------------")
+            print("phenopype found {} files in the data folder, but only {} are listed in the project attributes.".format(
+                len(filenames_check),
+                len(filenames)
+                ))
+            time.sleep(1)
+            if ask:
+                check = input("update project attributes (y/n)?")
             else:
                 check = "y"
         else:

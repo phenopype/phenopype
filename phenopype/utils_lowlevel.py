@@ -107,6 +107,10 @@ class _GUI:
             ('label_size', int, kwargs.get('label_size', _auto_text_size(image))),
             ('label_width', int, kwargs.get('label_width',_auto_text_width(image))),
             
+            ('show_nodes', bool, kwargs.get('show_nodes', False)),
+            ('node_colour', tuple, _get_bgr(kwargs.get('node_colour',settings._default_point_colour))),
+            ('node_size', int, kwargs.get('node_size', _auto_point_size(image))),
+            
             ('line_colour', tuple, kwargs.get('line_colour', settings._default_line_colour)),
             ('line_width', int, kwargs.get('line_width', _auto_line_width(image))),
             
@@ -230,9 +234,9 @@ class _GUI:
             )
 
         # ## update zoom from previous call
-        if hasattr(_config, "gui_zoom_config") and self.settings.pype_mode == True:
-            if not _config.gui_zoom_config.__class__.__name__ == "NoneType":
-                self.zoom = _config.gui_zoom_config
+        # if hasattr(_config, "gui_zoom_config") and self.settings.pype_mode == True:
+        #     if not _config.gui_zoom_config.__class__.__name__ == "NoneType":
+        #         self.zoom = _config.gui_zoom_config
                 
         # if kwargs.get("ImageViewer_previous"):
         #     prev_attr = kwargs.get("ImageViewer_previous").__dict__
@@ -253,16 +257,33 @@ class _GUI:
         self._canvas_renew()
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
             self._canvas_draw(
-                tool="line", coord_list=self.data[settings._coord_list_type]
-            )
+                tool="line", 
+                coord_list=self.data[settings._coord_list_type],
+                colour=self.settings.line_colour, 
+                width=self.settings.line_width,
+                )
+            if self.settings.show_nodes:
+                for coord_list in self.data[settings._coord_list_type]:
+                    self._canvas_draw(
+                        tool="point", 
+                        coord_list=coord_list,
+                        size=self.settings.node_size,
+                        colour=self.settings.node_colour,
+                        )
         if self.tool in ["point"]:
-            self._canvas_draw(tool="point", coord_list=self.data[settings._coord_type])
+            self._canvas_draw(
+                tool="point", 
+                coord_list=self.data[settings._coord_type],
+                size=self.settings.point_size,
+                colour=self.settings.point_colour,
+                )
         if self.tool in ["draw"]:
             self._canvas_draw(
-                tool="line_bin", coord_list=self.data[settings._sequence_type]
+                tool="line_bin", 
+                coord_list=self.data[settings._sequence_type],
             )
             self._canvas_blend()
-            self._canvas_add_lines()
+            self._canvas_draw_contours()
         self._canvas_mount()
 
         ## local control vars
@@ -303,6 +324,16 @@ class _GUI:
                             self._comment_tool()
                         else:
                             self.keypress = cv2.waitKey(self.settings.wait_time)
+                            
+                        ## draw nodes
+                        if self.tool in ["rectangle", "polygon", "polyline"] and self.settings.show_nodes:
+                            for coord_list in self.data[settings._coord_list_type]:
+                                self._canvas_draw(
+                                    tool="point", 
+                                    coord_list=coord_list,
+                                    size=self.settings.node_size,
+                                    colour=self.settings.node_colour,
+                                    )
 
                         ## Enter = close window and redo
                         if self.keypress == 13:
@@ -343,7 +374,7 @@ class _GUI:
                                 coord_list=self.data[settings._sequence_type],
                             )
                             self._canvas_blend()
-                            self._canvas_add_lines()
+                            self._canvas_draw_contours()
                             self._canvas_mount()
 
                         ## external window close
@@ -424,7 +455,12 @@ class _GUI:
 
             ## apply tool and refresh canvas
             self._canvas_renew()
-            self._canvas_draw(tool="point", coord_list=self.data[settings._coord_type])
+            self._canvas_draw(
+                tool="point", 
+                coord_list=self.data[settings._coord_type],
+                size=self.settings.point_size,
+                colour=self.settings.point_colour,
+                )
             self._canvas_mount()
 
         if event == cv2.EVENT_RBUTTONDOWN:
@@ -435,7 +471,12 @@ class _GUI:
 
             ## apply tool and refresh canvas
             self._canvas_renew()
-            self._canvas_draw(tool="point", coord_list=self.data[settings._coord_type])
+            self._canvas_draw(
+                tool="point", 
+                coord_list=self.data[settings._coord_type],
+                size=self.settings.point_size,
+                colour=self.settings.point_colour,
+                )
             self._canvas_mount()
 
     def _on_mouse_polygon(self, event, x, y, flags, **kwargs):
@@ -473,7 +514,14 @@ class _GUI:
                     self.settings.line_colour,
                     self.settings.line_width,
                 )
-
+                if self.settings.show_nodes:
+                    cv2.circle(
+                        self.canvas,
+                        self.coords_prev,
+                        self.settings.node_size,
+                        self.settings.node_colour,
+                        -1,
+                        )
             ## if in reference mode, don't connect
             elif (
                 (reference or flag_draw)
@@ -499,12 +547,22 @@ class _GUI:
             self.data[settings._coord_type].append(self.coords_original)
 
             ## apply tool and refresh canvas
-            self._canvas_renew()
+            self._canvas_renew()            
             self._canvas_draw(
-                tool="line",
-                coord_list=self.data[settings._coord_list_type]
-                + [self.data[settings._coord_type]],
-            )
+                tool="line", 
+                coord_list=self.data[settings._coord_list_type] + [self.data[settings._coord_type]],
+                colour=self.settings.line_colour, 
+                width=self.settings.line_width,
+                )
+            
+            if self.settings.show_nodes:
+                for coord_list in self.data[settings._coord_list_type] + [self.data[settings._coord_type]]:
+                    self._canvas_draw(
+                        tool="point", 
+                        coord_list=coord_list,
+                        size=self.settings.node_size,
+                        colour=self.settings.node_colour,
+                        )
             self._canvas_mount()
 
             ## if in reference mode, append to ref coords
@@ -525,10 +583,19 @@ class _GUI:
             print("remove")
             self._canvas_renew()
             self._canvas_draw(
-                tool="line",
-                coord_list=self.data[settings._coord_list_type]
-                + [self.data[settings._coord_type]],
-            )
+                tool="line", 
+                coord_list=self.data[settings._coord_list_type] + [self.data[settings._coord_type]],
+                colour=self.settings.line_colour, 
+                width=self.settings.line_width,
+                )
+            if self.settings.show_nodes:
+                for coord_list in self.data[settings._coord_list_type] + [self.data[settings._coord_type]]:
+                    self._canvas_draw(
+                        tool="point", 
+                        coord_list=coord_list,
+                        size=self.settings.node_size,
+                        colour=self.settings.node_colour,
+                        )
             self._canvas_mount()
 
         if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.data[settings._coord_type]) > 2:
@@ -547,10 +614,11 @@ class _GUI:
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line",
-                coord_list=self.data[settings._coord_list_type]
-                + [self.data[settings._coord_type]],
-            )
+                tool="line", 
+                coord_list=self.data[settings._coord_list_type] + [self.data[settings._coord_type]],
+                colour=self.settings.line_colour, 
+                width=self.settings.line_width,
+                )
             self._canvas_mount()
 
     def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
@@ -567,6 +635,15 @@ class _GUI:
             ## start drawing temporary rectangle
             self.flags.rect_start = x, y
             self.canvas_copy = copy.deepcopy(self.canvas)
+            
+            if self.settings.show_nodes:
+                for coord_list in self.data[settings._coord_list_type]:
+                    self._canvas_draw(
+                        tool="point", 
+                        coord_list=coord_list,
+                        size=self.settings.node_size,
+                        colour=self.settings.node_colour,
+                        )
 
         if event == cv2.EVENT_LBUTTONUP:
 
@@ -598,8 +675,19 @@ class _GUI:
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
-                tool="line", coord_list=self.data[settings._coord_list_type]
-            )
+                tool="line", 
+                coord_list=self.data[settings._coord_list_type],
+                colour=self.settings.line_colour, 
+                width=self.settings.line_width,
+                )
+            if self.settings.show_nodes:
+                for coord_list in self.data[settings._coord_list_type]:
+                    self._canvas_draw(
+                        tool="point", 
+                        coord_list=coord_list,
+                        size=self.settings.node_size,
+                        colour=self.settings.node_colour,
+                        )
             self._canvas_mount(refresh=False)
 
         if event == cv2.EVENT_RBUTTONDOWN:
@@ -613,8 +701,19 @@ class _GUI:
                 ## apply tool and refresh canvas
                 self._canvas_renew()
                 self._canvas_draw(
-                    tool="line", coord_list=self.data[settings._coord_list_type]
-                )
+                    tool="line", 
+                    coord_list=self.data[settings._coord_list_type],
+                    colour=self.settings.line_colour, 
+                    width=self.settings.line_width,
+                    )
+                if self.settings.show_nodes:
+                    for coord_list in self.data[settings._coord_list_type]:
+                        self._canvas_draw(
+                            tool="point", 
+                            coord_list=coord_list,
+                            size=self.settings.node_size,
+                            colour=self.settings.node_colour,
+                            )
                 self._canvas_mount()
 
         ## draw temporary rectangle
@@ -680,7 +779,7 @@ class _GUI:
                 tool="line_bin", coord_list=self.data[settings._sequence_type]
             )
             self._canvas_blend()
-            self._canvas_add_lines()
+            self._canvas_draw_contours()
             self._canvas_mount()
 
         ## drawing mode
@@ -726,25 +825,6 @@ class _GUI:
             )
             cv2.imshow(self.settings.window_name, self.canvas)
 
-    def _canvas_add_lines(self):
-
-        _, self.contours, self.hierarchies = cv2.findContours(
-            image=self.image_bin_copy,
-            mode=cv2.RETR_CCOMP,
-            method=cv2.CHAIN_APPROX_SIMPLE,
-        )
-
-        for contour in self.contours:
-            cv2.drawContours(
-                image=self.image_copy,
-                contours=[contour],
-                contourIdx=0,
-                thickness=self.settings.overlay_line_width,
-                color=self.settings.overlay_colour_left,
-                maxLevel=3,
-                offset=None,
-            )
-
     def _canvas_blend(self):
 
         ## create coloured overlay from binary image
@@ -762,7 +842,7 @@ class _GUI:
             0,
         )
 
-    def _canvas_draw(self, tool, coord_list):
+    def _canvas_draw(self, tool, coord_list, colour=None, size=None, width=None):
 
         ## apply coords to tool and draw on canvas
         for idx, coords in enumerate(coord_list):
@@ -773,8 +853,8 @@ class _GUI:
                     self.image_copy,
                     np.array([coords]),
                     False,
-                    self.settings.line_colour,
-                    self.settings.line_width,
+                    colour,
+                    width,
                 )
             elif tool == "line_bin":
                 cv2.polylines(
@@ -787,9 +867,9 @@ class _GUI:
             elif tool == "point":
                 cv2.circle(
                     self.image_copy,
-                    coords,
-                    self.settings.point_size,
-                    self.settings.point_colour,
+                    tuple(coords),
+                    size,
+                    colour,
                     -1,
                 )
                 if self.label:
@@ -803,6 +883,25 @@ class _GUI:
                         self.settings.label_width,
                         cv2.LINE_AA,
                     )
+                    
+    def _canvas_draw_contours(self):
+
+        _, self.contours, self.hierarchies = cv2.findContours(
+            image=self.image_bin_copy,
+            mode=cv2.RETR_CCOMP,
+            method=cv2.CHAIN_APPROX_SIMPLE,
+        )
+
+        for contour in self.contours:
+            cv2.drawContours(
+                image=self.image_copy,
+                contours=[contour],
+                contourIdx=0,
+                thickness=self.settings.overlay_line_width,
+                color=self.settings.overlay_colour_left,
+                maxLevel=3,
+                offset=None,
+            )
 
     def _canvas_mount(self, refresh=True):
 
