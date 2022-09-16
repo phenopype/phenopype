@@ -332,13 +332,6 @@ class Container(object):
         if fun == "set_landmark":
             annotations_updated = core.measurement.set_landmark(image=self.canvas, **kwargs_function)
 
-            # utils_lowlevel.annotation_fun(
-            #     fun=measurement.set_landmark,
-            #     fun_kwargs=kwargs_function,
-            #     image=self.canvas,
-            #     )
-
-
             # annotations_updated = measurement.set_landmark(self.canvas, **kwargs_function)
         if fun == "set_polyline":
             annotations_updated = core.measurement.set_polyline(self.canvas, **kwargs_function)
@@ -393,7 +386,7 @@ class Container(object):
                 ext = kwargs_function.get("ext", ".jpg")
                 kwargs_function["file_name"] = self._construct_file_name("canvas", ext)
             core.export.save_ROI(
-                self.image,
+                self.image_copy,
                 dir_path=self.dir_path,
                 **kwargs_function,
             )

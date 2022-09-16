@@ -59,7 +59,7 @@ confirm_options = ["True", "true", "y", "yes", True]
 
 _default_label_colour = "lime"
 _default_line_colour = "lime"
-_default_point_colour = "lime"
+_default_point_colour = "red"
 _default_overlay_left = "green"
 _default_overlay_right = "red"
 
@@ -232,6 +232,9 @@ _GUI_settings_args = [
     'label_colour',
     'label_size',
     'label_width',
+    'show_nodes',
+    'node_colour',
+    'node_size',
     'line_colour',
     'line_width',
     'point_colour',
