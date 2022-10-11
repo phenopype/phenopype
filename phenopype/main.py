@@ -221,6 +221,7 @@ class Project:
         exclude=[],
         mode="copy",
         n_max=None,
+        nested=False,
         image_format=None,
         recursive=False,
         overwrite=False,
@@ -354,6 +355,12 @@ class Project:
         ## loop through files
         filenames = []
         for file_path in filepaths:
+            
+            ## image name and extension
+            image_name = os.path.basename(file_path)
+            image_name_stem = os.path.splitext(image_name)[0]
+            image_ext = os.path.splitext(image_name)[1]
+            filenames.append(image_name)
 
             ## generate folder paths by flattening nested directories; one
             ## folder per file
@@ -364,12 +371,16 @@ class Project:
                 subfolder_prefix = str(depth) + "__" + relpath_flat + "__"
             else:
                 subfolder_prefix = str(depth) + "__"
+                
+            ## check if image exists
+            if image_name in self.file_names:
+                image_idx = self.file_names.index(image_name)
+                dir_name = self.dir_names[image_idx]
+            else:
+                dir_name = (subfolder_prefix + image_name_stem)
 
-            dir_name = (
-                subfolder_prefix + os.path.splitext(os.path.basename(file_path))[0]
-            )
             dir_path = os.path.join(self.root_dir, "data", dir_name)
-
+                
             ## make image-specific directories
             if os.path.isdir(dir_path):
                 if flags.overwrite == False:
@@ -396,23 +407,8 @@ class Project:
                         + ' created (overwrite="dir")'
                     )
                     os.mkdir(dir_path)
-            else:
-                print(
-                    "Found image "
-                    + relpath
-                    + " - "
-                    + "phenopype-project folder "
-                    + dir_name
-                    + " created"
-                )
-                os.mkdir(dir_path)
-            
-            ## load image, image-data, and image-meta-data
-            image_name = os.path.basename(file_path)
-            image_name_root = os.path.splitext(image_name)[0]
-            image_ext = os.path.splitext(image_name)[1]
-            filenames.append(image_name)
-                        
+
+            ## generate image attributes
             image_data_original = utils_lowlevel._load_image_data(file_path)
             image_data_phenopype = {
                 "date_added": datetime.today().strftime(settings.strftime_format),
@@ -422,7 +418,7 @@ class Project:
             ## copy or link raw files
             if flags.mode == "copy":
                 image_phenopype_path = os.path.join(
-                    self.root_dir, "data", dir_name, image_name_root + "_copy" + image_ext,
+                    self.root_dir, "data", dir_name, image_name_stem + "_copy" + image_ext,
                 )
                 shutil.copyfile(file_path, image_phenopype_path)
                 image_data_phenopype.update(
@@ -444,7 +440,7 @@ class Project:
                 else:
                     ext = image_ext
                 image_phenopype_path = os.path.join(
-                    self.root_dir, "data", dir_name, image_name_root + "_mod" + ext,
+                    self.root_dir, "data", dir_name, image_name_stem + "_mod" + ext,
                 )
                 if all([
                         os.path.isfile(image_phenopype_path),
@@ -1778,8 +1774,8 @@ class Pype(object):
 
         if config_path.__class__.__name__ == "NoneType":
             if os.path.isfile(image_path):
-                image_name_root = os.path.splitext(os.path.basename(image_path))[0]
-                prepend = image_name_root + "_"
+                image_name_stem = os.path.splitext(os.path.basename(image_path))[0]
+                prepend = image_name_stem + "_"
             elif os.path.isdir(image_path):
                 prepend = ""
 
