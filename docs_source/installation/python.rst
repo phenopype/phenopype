@@ -34,7 +34,7 @@ For instance, to create a new Python 3.7 environment and install spyder:
 
 	mamba create -n new_env python=3.7
 	mamba activate new_env
-	mamba install -c source-forge spyder
+	mamba install -c conda-forge spyder
 
 
 Troubleshooting references
