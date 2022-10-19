@@ -93,6 +93,13 @@ def draw_contour(
 
     contours = annotation["data"][annotation_type]
     contours_support = annotation["data"]["support"]
+    
+    if "contour_idx" in kwargs:
+        contour_idx = kwargs.get("contour_idx")
+        if contour_idx.__class__.__name__ == "int":
+            contour_idx = [contour_idx]
+        contours = [contours[i-1] for i in contour_idx]
+        contours_support = [contours_support[i-1] for i in contour_idx]
 
     # =============================================================================
     # setup

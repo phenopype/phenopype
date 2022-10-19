@@ -201,7 +201,8 @@ class Project:
         self.dir_paths = dir_paths
         if flags.checked:
             self.file_names = file_names_attr
-            
+        else:
+            self.file_names = []
         ## add attributes
         self.attributes = project_attributes
         self.attributes_path = project_attributes_path
@@ -375,11 +376,11 @@ class Project:
             ## check if image exists
             if image_name in self.file_names:
                 image_idx = self.file_names.index(image_name)
-                dir_name = self.dir_names[image_idx]
+                dir_name = (subfolder_prefix + image_name_stem)
+                dir_path = self.dir_paths[image_idx]
             else:
                 dir_name = (subfolder_prefix + image_name_stem)
-
-            dir_path = os.path.join(self.root_dir, "data", dir_name)
+                dir_path = os.path.join(self.root_dir, "data", dir_name)
                 
             ## make image-specific directories
             if os.path.isdir(dir_path):
@@ -407,7 +408,17 @@ class Project:
                         + ' created (overwrite="dir")'
                     )
                     os.mkdir(dir_path)
-
+            else:
+                print(
+                    "Found image "
+                    + relpath
+                    + " - "
+                    + "phenopype-project folder "
+                    + dir_name
+                    + " created"
+                )
+                os.mkdir(dir_path)
+                
             ## generate image attributes
             image_data_original = utils_lowlevel._load_image_data(file_path)
             image_data_phenopype = {
