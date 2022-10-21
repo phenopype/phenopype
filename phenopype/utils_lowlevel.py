@@ -3,23 +3,20 @@
 import cv2, copy, os, sys, warnings
 import json
 import numpy as np
-import pandas as pd
 from dataclasses import make_dataclass
 import string
 import re
 from _ctypes import PyObj_FromPtr
 from colour import Color
-from colour import RGB_TO_COLOR_NAMES
 
 from timeit import default_timer as timer
 import ruamel.yaml
 from ruamel.yaml.constructor import SafeConstructor
 from ruamel.yaml import YAML
 
-import inspect
 from functools import wraps
  
-from math import cos
+from math import sqrt
 from pathlib import Path
 from PIL import Image
 from stat import S_IWRITE
@@ -489,7 +486,6 @@ class _GUI:
         if event == cv2.EVENT_MOUSEMOVE:
             if (
                 (reference or flag_draw)
-                and self.tool == "line"
                 and len(self.data[settings._coord_type]) == 2
             ):
                 return
@@ -598,7 +594,7 @@ class _GUI:
                         )
             self._canvas_mount()
 
-        if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.data[settings._coord_type]) > 2:
+        if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.data[settings._coord_type]) >= 2:
 
             ## close polygon
             if not polyline:
@@ -1590,6 +1586,16 @@ def _overwrite_check_dir(path, overwrite):
 
 #%% functions - VARIOUS
 
+def _calc_distance_2point(x1,x2,y1,y2):
+    return sqrt((x2-x1)**2 + (y2-y1)**2)
+    
+def _calc_distance_polyline(coords):
+    distances = []
+    for i in range(len(coords)-1):
+        current_line = coords[i]
+        next_line = coords[i+1]
+        distances.append(_calc_distance_2point(current_line[0],next_line[0],current_line[1],next_line[1]))
+    return sum(distances)
 
 def _convert_arr_tup_list(arr_list, add_first=False):
 

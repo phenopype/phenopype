@@ -14,7 +14,7 @@ If this doesn't show the conda version, please refer to the references for troub
 	
 
 Installing mamba
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 Next, install the `mamba <https://github.com/mamba-org/mamba>`_ package manager, which replaces :code:`conda` and is `much` faster. For detailed installation instructions and user guide refer to the `documentation <https://mamba.readthedocs.io/en/latest/#>`_. In short, do the following:
 
@@ -33,7 +33,7 @@ For instance, to create a new Python 3.7 environment and install spyder:
 .. code-block:: bash
 
 	mamba create -n new_env python=3.7
-	mamba activate new_env
+	conda activate new_env  				## still need 'conda' to activate
 	mamba install -c conda-forge spyder
 
 

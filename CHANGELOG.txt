@@ -3,18 +3,26 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.3.5
+-----
+bugfix:
+	- polyline wouldn't finish with CTRL when only two points are selected
+- "show_nodes=true" argument for all polygon-related visualization tools (polygon mask, rectangle mask, polyline)
+- now possible to export polyline and reference annotation to csv
+-
+
 3.3.4
 -----
 bugfix:
 	- removed "zoom memory" when running Pype, as this wasn't working properly
 	- Project.quick_files() now also accounts for missing filenames in the project attributes file
-- "show_nodes=true" argument for all polygon-related drawing tools (polygon mask, rectangle mask, polyline)
+- "show_nodes=true" argument for all polygon-related measurement tools (polygon mask, rectangle mask, polyline)
 
 
 3.3.3
 -----
 - new function: class method project.check_files; will all project files for completeness by comparing the images in the
-        "data" folder to the file list the project attributes. Will attempt to 
+        "data" folder to the file list the project attributes. Will attempt to
         fix discrepancies, but ask for feedback first.
 - project class method add_files now takes n_max argument, to limit the amount of images being added to the project
 
@@ -24,7 +32,7 @@ bugfix:
 	- skip=True in pype now works with any produced annotation or canvas file (or specified annotation, e.g. skip="contours")
 	- polyline would be converted to polygon
 	- internal feedback argument would be accidentally included in pype config
-	
+
 3.3.1
 -----
 bugfix:
@@ -37,7 +45,7 @@ bugfix:
 	- added "gray" option back to select_canvas
 - images added to the project with "copy" or "mod" mode will, by default, keep their file ending. there is also a new resizing option for mod, which will downsize the images to the specified "resize_max_dim" while maintaining aspect ratio
 new functionality:
-	- plugins! phenopype can now check for external packages and, if available, load functions that utilize them. currently, this includes "phenomorph" for automatic landmark detection (using a dlib backend), and keras (using a tensorflow backend) for deep learning based segmentation. if the packages are not installed to the same python environment as phenopype they simply wont work (with a warning). 
+	- plugins! phenopype can now check for external packages and, if available, load functions that utilize them. currently, this includes "phenomorph" for automatic landmark detection (using a dlib backend), and keras (using a tensorflow backend) for deep learning based segmentation. if the packages are not installed to the same python environment as phenopype they simply wont work (with a warning).
 - option "visualize" for the Pype class is now "autoshow" and can be used independently from "feedback"
 - new function: pp.print_colours() will show the names from W3 colour palette that can be used for all functions accepting colour arguments as strings
 
@@ -46,23 +54,23 @@ new functionality:
 bugfix:
 	- training data exported for "ml-morph" framework wasn't formatted correctly
 - new training data export for convolutional neural networks in keras (using "keras-cnn-semantic")
-	
+
 3.2.2
 -----
 bugfix:
 	- when selecting canvas or channel, b/g/r were sliced incorrectly!
-	
+
 3.2.1
 -----
 bugfix:
 	- when specifying multiple masks in the detection settings they were overwritten (also updated tutorial 7 and gallery proj. 4)
-	
+
 3.2.0
 -----
 bugfix:
 	- adding image files in "link" mode to a projet will now use relative links instead of absolute
 new functionality:
-	- project.create_training_data(): exports a set of annotations that can be used for training machine learning models. The method extracts a specific set of annotations from the entire project (for a specified tag) and formats them in a specific way so that the data can be immediately processed by a given architecture or framework. The first implementation is for "ml-morph" (https://github.com/agporto/ml-morph / Machine-learning tools for landmark-based morphometrics), a Python toolchain for automatic landmark detection in images. 
+	- project.create_training_data(): exports a set of annotations that can be used for training machine learning models. The method extracts a specific set of annotations from the entire project (for a specified tag) and formats them in a specific way so that the data can be immediately processed by a given architecture or framework. The first implementation is for "ml-morph" (https://github.com/agporto/ml-morph / Machine-learning tools for landmark-based morphometrics), a Python toolchain for automatic landmark detection in images.
 
 3.1.0
 -----
@@ -83,7 +91,7 @@ new functionality:
 -----
 - edit_contour is now directly applied to binary image when used in Pype (accumulative)
 - improved pype name check
-	
+
 3.0.0
 -----
 new major release - breaks all existing versions
@@ -116,14 +124,14 @@ changes that are INCOMPATIBLE with past versions:
 
 --------------------------------------------------------------------------------------------
 
-1.0.9 
+1.0.9
 -----
 bugfix:
     - last scroll while zoom out scrambles the shown canvas
 	- draw/mask in edit mode: indexing issues that would remove previously created drawings or masks
-	- remove duplicate mask coordinate feedback 
+	- remove duplicate mask coordinate feedback
 - added docstrings for texture features
-- reworked yaml-parser: now also duplicate "steps" (segmentation, visualization, etc.) possible 
+- reworked yaml-parser: now also duplicate "steps" (segmentation, visualization, etc.) possible
 - pype: finish now with CTRL+ENTER, otherwise the pype-operation starts over
 - create_mask and draw have new mode (edit): allows to pick up on previous work and add or remove masks and drawings
 - draw: print all drawings in the same function, for previewing
@@ -159,7 +167,7 @@ bugfix:
 1.0.5
 -----
 bugfix:
-	- data_dir on project load 
+	- data_dir on project load
 - new feature in measurement module: shape_features calculates 41 shape features
 - example 3 added
 
@@ -184,7 +192,7 @@ bugfix:
 
 1.0.2
 -----
-bugfix: 
+bugfix:
 	- pype: check if container has image or is NoneType
 - Tutorials 1 + 2 improved
 - Example 2 added (low throughput
@@ -216,12 +224,12 @@ bugfix:
 - New feature: scale (former scale_maker) can now automatically equalize histograms via interpolation. Was mostly inspired by this SO question: https://stackoverflow.com/questions/32655686/histogram-matching-of-two-images-in-python-2-x
 - renamed "scale_maker" method to "scale", and subfunctions, too. tutorials updated. more name changes to come towards a more intuitive naming convention
 - show_img can now show multiple images when list is provided
-- 
+-
 
 0.8.0
 ------
 - scale_maker is completely reworked: now has zoom and onscreen notifications for mm/pixel info. measuring scale and making a template for detection are now two separate functions (measure_scale and make_scale_template)
-- documentation and API reference for tracking module added 
+- documentation and API reference for tracking module added
 - test for scale added
 
 0.7.2
@@ -238,7 +246,7 @@ bugfix:
 ------
 - full landmark functionality added (refer to "landmark_maker" readme in the docs)
 - additionally: measure length of curvy specimens from within the landmarking function ("arc")
-- generic image registration (aka feature recognition) added, will be properly introduced and documented in the next version 
+- generic image registration (aka feature recognition) added, will be properly introduced and documented in the next version
 
 
 0.6.1
@@ -264,14 +272,14 @@ Known bugs:
 0.5.1
 ------
 - functions take numpy array in addition to string with path to image
-- bugfix: opencv-contrib-python version 3.* 
+- bugfix: opencv-contrib-python version 3.*
 
 
 0.5.0
 ------
 - object_finder functions streamlined and "skeletonize" algorithm added
-- better documentation with docstrings 
-- docstring integration with sphinx 
+- better documentation with docstrings
+- docstring integration with sphinx
 - __init__ rework for sphinx integration
 
 

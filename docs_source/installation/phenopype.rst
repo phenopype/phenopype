@@ -1,11 +1,11 @@
 Installing phenopype
------------------------
+--------------------
 
 (These instructions are valid across operating systems, and use :code:`mamba` instead of :code:`conda`).
 
 
 Initial installation
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 Open a terminal. Then create a virtual environment with `mamba`. Using such environments will give you full control over which Python packages are installed, and reduces the change of package related issues. Note that phenopype requires Python v3.7, which needs to be explicitly specified. For example, for an environment named "pp", type:
 
@@ -47,7 +47,7 @@ That's it - happy `phenopyping`! You can now use phenopype by after loading :cod
 
 
 Installing updates
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 For regular major and minor releases, use the :code:`-U` flag with :code:`pip`:
 
@@ -56,7 +56,7 @@ For regular major and minor releases, use the :code:`-U` flag with :code:`pip`:
 	pip install phenopype -U
 
 Installing past versions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Major releases are not backwards compatible, so if you have existing phenopype projects that were created with a previous version you need to download that specific version. You can tell `pip` to do so, for example, for version `1.0.0`:
 

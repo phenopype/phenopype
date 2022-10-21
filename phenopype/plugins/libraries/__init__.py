@@ -5,9 +5,11 @@ import_list = []
 
 import importlib
 
-## phenomorph
-if not importlib.util.find_spec("phenomorph") is None:
-    
+if not any([
+        importlib.util.find_spec("phenomorph") is None,
+        importlib.util.find_spec("dlib") is None,
+        ]):
+        
     import phenomorph, dlib
     
     import_list.append("phenomorph")

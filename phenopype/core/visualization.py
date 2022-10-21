@@ -439,6 +439,7 @@ def draw_polyline(
     annotations, 
     line_colour="default", 
     line_width="auto", 
+    
     **kwargs
 ):
     """
@@ -461,6 +462,17 @@ def draw_polyline(
     image: ndarray
         canvas with lines
     """
+    
+    # =============================================================================
+    # setup
+
+    show_nodes = kwargs.get("show_nodes", False)
+    node_colour = kwargs.get("node_colour", "default")
+    node_size = kwargs.get("node_size", "auto")
+
+    ## flags
+    flags = make_dataclass(cls_name="flags", 
+                           fields=[("show_nodes", bool, show_nodes)])
 
     # =============================================================================
     # annotation management
@@ -480,14 +492,21 @@ def draw_polyline(
     # =============================================================================
     # setup
 
-    ## line settings
     if line_width == "auto":
         line_width = utils_lowlevel._auto_line_width(image)
 
     if line_colour == "default":
         line_colour = settings._default_line_colour
-
     line_colour = utils_lowlevel._get_bgr(line_colour)
+
+    if flags.show_nodes:
+        if node_colour == "default":
+            node_colour = settings._default_point_colour
+        node_colour = utils_lowlevel._get_bgr(node_colour)
+        if node_size == "auto":
+            node_size = utils_lowlevel._auto_point_size(image)
+
+
 
     # =============================================================================
     # execute
@@ -496,8 +515,25 @@ def draw_polyline(
 
     ## draw lines
     for coords in lines:
-        cv2.polylines(canvas, np.array([coords]), False, line_colour, line_width)
-
+        cv2.polylines(
+            canvas, 
+            np.array([coords]), 
+            False, 
+            line_colour, 
+            line_width
+            )
+        if flags.show_nodes:
+            for node in coords:
+                print(node)
+                cv2.circle(
+                    canvas,
+                    tuple(node),
+                    node_size,
+                    node_colour,
+                    -1
+                    )
+                   
+                   
     # =============================================================================
     # return
 

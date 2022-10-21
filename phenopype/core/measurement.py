@@ -15,7 +15,7 @@ from phenopype import settings
 from phenopype.core import preprocessing
 
 from phenopype import __version__
-from phenopype.utils_lowlevel import annotation_function
+from phenopype.utils_lowlevel import annotation_function, _calc_distance_polyline
 
 #%% methods
 
@@ -132,7 +132,12 @@ def set_landmark(
 
     return annotation
 
-def set_polyline(image, line_width="auto", line_colour="default", **kwargs):
+def set_polyline(
+        image, 
+        line_width="auto", 
+        line_colour="default", 
+        **kwargs
+        ):
     """
     Set points, draw a connected line between them, and measure its length. Note
     that modifying the appearance of the lines will only be effective for the
@@ -194,9 +199,17 @@ def set_polyline(image, line_width="auto", line_colour="default", **kwargs):
         **gui_settings,
     )
 
+
+    
+    line_coords = gui.data[settings._coord_list_type]
+    n_lines = len(line_coords)
+    line_lengths = []
+    for line in line_coords:
+        line_lengths.append(round(_calc_distance_polyline(line), 3))
+    
     # =============================================================================
     # assemble results
-
+    
     annotation = {
         "info": {
             "phenopype_function": fun_name,
@@ -204,7 +217,11 @@ def set_polyline(image, line_width="auto", line_colour="default", **kwargs):
             "annotation_type": annotation_type,
         },
         "settings": {"line_width": line_width, "line_colour": line_colour,},
-        "data": {annotation_type: gui.data[settings._coord_list_type],},
+        "data": {
+            "n": n_lines,
+            annotation_type: line_coords,
+            "lengths": line_lengths,
+            },
     }
 
     if len(gui_settings) > 0:

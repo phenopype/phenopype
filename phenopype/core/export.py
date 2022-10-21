@@ -31,28 +31,29 @@ def convert_annotation(
 ):
     """
     
-
+    
     Parameters
     ----------
-    annotations : TYPE
-        DESCRIPTION.
-    annotation_type : TYPE
-        DESCRIPTION.
-    annotation_id : TYPE
-        DESCRIPTION.
-    annotation_type_new : TYPE
-        DESCRIPTION.
-    annotation_id_new : TYPE
-        DESCRIPTION.
-    overwrite : TYPE, optional
-        DESCRIPTION. The default is False.
-    **kwargs : TYPE
-        DESCRIPTION.
+
+    annotations : dict
+        A phenopype annotation dictionary.
+    annotation_type : str | list of str
+        If dict contains multiple annotation types, select one or more to 
+        load. None will load all types. 
+    annotation_id : str | list of str
+        If file contains multiple annotation IDs, select one or more to 
+        load. None will load all IDs within a type. 
+    annotation_type_new : str 
+       target annotation type 
+    annotation_id_new : str | list of str, optional
+       target annotation id 
+    overwrite : bool, optional
+        if target exists, overwrite? The default is False.
 
     Returns
     -------
-    TYPE
-        DESCRIPTION.
+    None.
+
 
     """
 
@@ -258,13 +259,54 @@ def export_csv(
                         },
                     )
                 )
+                
+        ## polyline
+        if annotation_type == settings._line_type:
+            for annotation_id in annotations[annotation_type].keys():
+                for idx, (coords, length) in enumerate(zip(
+                    annotations[annotation_type][annotation_id]["data"][annotation_type],
+                    annotations[annotation_type][annotation_id]["data"]["lengths"],
+                ), 1):
+                    line_tuple_list = list(zip(*coords))
+                    list_flattened.append(
+                        pd.DataFrame.from_dict(
+                            {
+                                **{"image_name": image_name},
+                                **{"annotation_type": annotation_type},
+                                **{"annotation_id": annotation_id},
+                                **{"line_idx": idx},
+                                **{"node_idx": range(1,len(line_tuple_list[0])+1)},
+                                **{"x_coords": line_tuple_list[0]},
+                                **{"y_coords": line_tuple_list[1]},
+                                **{"length": length},
+                            },
+                        )
+                    )
+                    
+        ## reference
+        if annotation_type == settings._reference_type:
+            for annotation_id in annotations[annotation_type].keys():
+                distance = annotations[annotation_type][annotation_id]["data"][annotation_type][0]
+                unit = annotations[annotation_type][annotation_id]["data"][annotation_type][1]
+                list_flattened.append(
+                    pd.DataFrame(
+                        {
+                            **{"image_name": image_name},
+                            **{"annotation_type": annotation_type},
+                            **{"annotation_id": annotation_id},
+                            **{"distance": distance},
+                            **{"unit": unit},
+                        },
+                        index=[0],
+
+                    )
+                )
+
 
         ## shape_features
         if annotation_type == settings._shape_feature_type:
             for annotation_id in annotations[annotation_type].keys():
-                
                 contour_id = annotations[annotation_type][annotation_id]["settings"][settings._contour_type + "_id"]
-            
                 for idx, annotation in enumerate(
                     annotations[annotation_type][annotation_id]["data"][annotation_type], 1
                 ):
