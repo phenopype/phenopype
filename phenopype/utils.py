@@ -308,9 +308,9 @@ class Container(object):
 
         ## plugins.segmentation
         if fun == "detect_object":
-            if len(self.image.shape) == 2:
-                self.image = copy.deepcopy(self.image_copy)
-            self.image = plugins.segmentation.detect_object(self.image, _config.active_model_path, **kwargs_function)
+            # if len(self.image.shape) == 2:
+            #     self.image = copy.deepcopy(self.image_copy)
+            self.image = plugins.segmentation.detect_object(self.image_copy, _config.active_model_path, **kwargs_function)
 
         ## core.segmentation
         if fun == "contour_to_mask":
@@ -331,8 +331,6 @@ class Container(object):
         ## core.measurement
         if fun == "set_landmark":
             annotations_updated = core.measurement.set_landmark(image=self.canvas, **kwargs_function)
-
-            # annotations_updated = measurement.set_landmark(self.canvas, **kwargs_function)
         if fun == "set_polyline":
             annotations_updated = core.measurement.set_polyline(self.canvas, **kwargs_function)
         if fun == "detect_skeleton":

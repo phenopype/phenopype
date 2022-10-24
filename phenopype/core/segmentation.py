@@ -9,8 +9,9 @@ from math import inf
 
 from phenopype import __version__
 from phenopype import settings
+from phenopype import utils
 from phenopype import utils_lowlevel
-from phenopype.core import preprocessing
+from phenopype.core import preprocessing, visualization
 
 
 #%% functions
@@ -136,6 +137,7 @@ def detect_contour(
     image,
     approximation="simple",
     retrieval="ext",
+    match_against=None,
     apply_drawing=True,
     offset_coords=[0, 0],
     min_nodes=3,
@@ -195,6 +197,11 @@ def detect_contour(
     """
 
     # =============================================================================
+    # setup
+    
+    fun_name = sys._getframe().f_code.co_name
+    
+    # =============================================================================
     # annotation management
 
     annotations = kwargs.get("annotations", {})
@@ -211,12 +218,9 @@ def detect_contour(
         prep_msg="- combining contours and drawing:",
     )
 
-    ## contours
-    fun_name = sys._getframe().f_code.co_name
-
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
-
+        
     # =============================================================================
     # setup
 
@@ -238,6 +242,18 @@ def detect_contour(
                 cv2.polylines(
                     image_bin, np.array([coords[0]]), False, coords[1], coords[2],
                 )
+                
+    if not match_against.__class__.__name__ == "NoneType":
+        match_image_bin = np.zeros(image_bin.shape, dtype="uint8")                        
+        match_image_bin = visualization.draw_contour(
+            image=match_image_bin, 
+            annotations=annotations, 
+            contour_id=match_against, 
+            line_colour=255,
+            line_width=0,
+            fill=1)
+        image_bin = cv2.bitwise_and(image_bin, match_image_bin)
+        print("- match detected contours against existing contour \"{}´\"".format(match_against))
 
     # =============================================================================
     # execute

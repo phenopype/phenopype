@@ -487,9 +487,9 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
             "min_diameter": min_diameter,
             "contour_id": contour_id,
             },
-        "data": {annotation_type: shape_features,},
+        "data": {annotation_type: shape_features},
     }
-
+    
     # =============================================================================
     # return
 

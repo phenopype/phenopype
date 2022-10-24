@@ -157,7 +157,11 @@ class Project:
                     "date_changed": datetime.today().strftime(settings.strftime_format),
                     "phenopype_version": __version__,
                 },
-                "project_data": {},
+                "project_data": {
+                    "filenames": [],
+                    "dirnames": [],
+                    
+                    },
             }
             utils_lowlevel._save_yaml(
                 project_attributes, os.path.join(root_dir, "attributes.yaml")

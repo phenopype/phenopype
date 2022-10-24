@@ -5,12 +5,14 @@ import cv2
 import numpy as np
 import sys
 
+from dataclasses import make_dataclass
+
 from phenopype import __version__
 from phenopype import _config
 from phenopype import plugins
 from phenopype import settings
 from phenopype import utils_lowlevel
-from phenopype.core import segmentation
+from phenopype.core import segmentation, visualization
 from phenopype.utils_lowlevel import annotation_function
 
 
@@ -20,6 +22,7 @@ def detect_object(
     image,
     model_path,
     model_id=None,
+    binary_mask=False,
     threshold=True,
     threshold_method="otsu",
     threshold_value=127,
@@ -70,18 +73,55 @@ def detect_object(
 
     """
     # =============================================================================
-    # import checks
+    # setup
     
     fun_name = sys._getframe().f_code.co_name
-
+    
+    ## flags
+    flags = make_dataclass(cls_name="flags", 
+                           fields=[("binary_mask", bool, binary_mask)])
+    
+    # =============================================================================
+    # annotation management
+    if flags.binary_mask:
+        
+        annotations = kwargs.get("annotations", {})
+        annotation_type = kwargs.get("annotation_type", settings._mask_type)
+        annotation_id = kwargs.get(annotation_type + "_id", None)
+        
+        print(annotation_type)
+    
     # =============================================================================
     # execute
     
     image_source = copy.deepcopy(image)
-         
+    
+    if flags.binary_mask:
+        binary_mask = np.zeros(image_source.shape, dtype="uint8")
+        if annotation_type == settings._mask_type:
+            print("mask")
+            binary_mask = visualization.draw_mask(
+                image=binary_mask, 
+                annotations=annotations, 
+                contour_id=annotation_id, 
+                line_colour=255,
+                line_width=0,
+                fill=1)
+        elif annotation_type == settings._contour_type:
+            print("contour")
+            binary_mask = visualization.draw_contour(
+                image=binary_mask, 
+                annotations=annotations, 
+                contour_id=annotation_id, 
+                line_colour=255,
+                line_width=0,
+                fill=1)
+
+        image_source = cv2.bitwise_and(image_source, binary_mask)
+    
     if model_path.__class__.__name__ == "NoneType":
         print("No model provided - did you set an active model?")
-        return image
+        return image_source
     
     if not model_id.__class__.__name__ == "NoneType":
         model_path = _config.models[model_id]["model_phenopype_path"]
@@ -99,7 +139,7 @@ def detect_object(
     
     model = _config.active_model
 
-    image_source = utils_lowlevel._resize_image(image, width=model.input.shape[1], height=model.input.shape[2])/255
+    image_source = utils_lowlevel._resize_image(image_source, width=model.input.shape[1], height=model.input.shape[2])/255
     image_source = np.expand_dims(image_source, axis=0)
     pred = model.predict(image_source)
      
