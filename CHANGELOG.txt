@@ -9,7 +9,8 @@ bugfix:
 	- polyline wouldn't finish with CTRL when only two points are selected
 - "show_nodes=true" argument for all polygon-related visualization tools (polygon mask, rectangle mask, polyline)
 - now possible to export polyline and reference annotation to csv
--
+- new "match_against" argument in "core.segmentation.detect_contours": contours must be inside existing mask or contour
+- new "binary_mask" argument in "plugins.segmentation.detect_object": mask out background to help detection algorithms  
 
 3.3.4
 -----
