@@ -1187,7 +1187,7 @@ class Project:
                 shutil.copyfile(file_path, path)
                 break
             
-    def copy_tag(self, tag_src, tag_dst, copy_annotations=True, overwrite=False,**kwargs):
+    def copy_tag(self, tag_src, tag_dst, copy_annotations=True, overwrite=False, skip_missing=False, **kwargs):
         """
         
 
@@ -1220,6 +1220,14 @@ class Project:
             new_config_path = os.path.join(
                 self.root_dir, "data", dir_name, "pype_config_" + tag_dst + ".yaml"
             )   
+            
+            if not os.path.isfile(config_path): 
+                if skip_missing:
+                    print("Missing tag for config file {} - skipping".format(dir_name))
+                    continue
+                else:
+                    print("Missing tag for config file{} - aborting".format(dir_name))
+                    break
                         
             if utils_lowlevel._overwrite_check_file(new_config_path, overwrite):
                 shutil.copyfile(config_path, new_config_path)
@@ -1232,6 +1240,14 @@ class Project:
                 new_annotations_path = os.path.join(
                     self.root_dir, "data", dir_name, "annotations_" + tag_dst + ".json"
                 )
+                
+                if not os.path.isfile(annotations_path): 
+                    if skip_missing:
+                        print("Missing tag for {} - skipping".format(dir_name))
+                        continue
+                    else:
+                        print("Missing tag for {} - aborting".format(dir_name))
+                        break
                 
                 if utils_lowlevel._overwrite_check_file(new_annotations_path, overwrite):
                     shutil.copyfile(annotations_path, new_annotations_path)
