@@ -439,7 +439,9 @@ def draw_polyline(
     annotations, 
     line_colour="default", 
     line_width="auto", 
-    
+    show_nodes=False,
+    node_colour="default",
+    node_size="auto",   
     **kwargs
 ):
     """
@@ -456,12 +458,20 @@ def draw_polyline(
         contour line colour - default colour as specified in settings
     line_width: {"auto", ... int > 0} int, optional 
         contour line width - automatically scaled to image by default
+        DESCRIPTION. The default is "auto".
+    show_nodes : bool, optional
+        show nodes of polyline. The default is False.
+    node_colour : str, optional
+        colour of node points. The default is "default".
+    node_size : int, optional
+        size of node points. The default is "auto".
 
     Returns
     -------
     image: ndarray
         canvas with lines
     """
+
     
     # =============================================================================
     # setup
