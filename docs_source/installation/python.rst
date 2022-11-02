@@ -1,52 +1,63 @@
-Installing Python
------------------
+Installing Python with Anaconda
+###############################
 
-Installing miniconda
-~~~~~~~~~~~~~~~~~~~~
+Python can be installed in many ways or may even already be installed on your machine (e.g., on some Unix distros). However, since phenopype is a scientific Python package, only the installation procedure using Anaconda, a scientific Python distribution, is described here. Anaconda, more specifically, its terminal interface :code:`conda`, is both a Python package and environment manager. To avoid conflicts between package dependencies, and for a cleaner and more reproducible workflow, phenopype should *always* be installed inside a Python virtual environment that you create first `(read about virtual envs here) <https://docs.python.org/3/tutorial/venv.html>`_. This procedure is explained here. 
 
-Download and install `Miniconda3 <https://docs.conda.io/en/latest/miniconda.html>`_ to create virtual environments using the :code:`conda` manager. A virtual environment is a Python environment such that the Python kernel, all libraries and scripts installed into it are isolated from those installed in other virtual environments. Miniconda is a scientific python distribution which comes with the some scientific Python packages already built in. Follow the  `OS-specific installation instructions <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_. Test if conda was successfully installed with the following
+Installing :code:`conda`
+========================
+
+Download and install `Miniconda3 <https://docs.conda.io/en/latest/miniconda.html>`_ to create virtual environments using the :code:`conda` manager. Miniconda is a scientific Python distribution that comes with some packages already built in. Follow the  `OS-specific installation instructions <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_. Test if conda was successfully installed:
 
 .. code-block:: bash
 
 	conda --version
-	
-If this doesn't show the conda version, please refer to the references for troubleshooting below. 
-	
 
-Installing mamba
-~~~~~~~~~~~~~~~~
+If this doesn't show the current conda version, please refer to the references below for troubleshooting. 
 
-Next, install the `mamba <https://github.com/mamba-org/mamba>`_ package manager, which replaces :code:`conda` and is `much` faster. For detailed installation instructions and user guide refer to the `documentation <https://mamba.readthedocs.io/en/latest/#>`_. In short, do the following:
+.. admonition:: Troubleshooting references
+	:class: note
+	
+	Consult these references if you have trouble installing Miniconda (they are discussing Anaconda, but the same applies for Miniconda):
+
+	- https://docs.anaconda.com/anaconda/install/
+	- https://docs.anaconda.com/anaconda/user-guide/troubleshooting/
+	- https://stackoverflow.com/questions/28612500/why-anaconda-does-not-recognize-conda-command
+	- https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10
+	- https://askubuntu.com/questions/908827/variable-path-issue-conda-command-not-found
+
+Installing :code:`mamba` (optional)
+===================================
+
+This step is optional, but highly recommended! The `mamba <https://github.com/mamba-org/mamba>`_ package manager replaces :code:`conda` and is `much` faster. For detailed installation instructions and user guide refer to the `documentation <https://mamba.readthedocs.io/en/latest/#>`_. In short, do the following:
 
 .. code-block:: bash
 
 	conda install -c conda-forge mamba
 	
-and test the installation with 
+Test the installation with 
 
 .. code-block:: bash
 
 	mamba --version
 	
-For instance, to create a new Python 3.7 environment and install spyder:
+
+Creating a virtual environment with :code:`conda` (or :code:`mamba`)
+====================================================================
+
+.. note:: If you have installed mamba, use :code:`mamba` instead of :code:`conda` here (except when activating and environment: there you still need to use :code:`conda activate`).
+
+Use :code:`conda` to create a new Python virtual environment (needs to be Python 3.7 for phenopype):
 
 .. code-block:: bash
 
-	mamba create -n new_env python=3.7
-	conda activate new_env  				## still need 'conda' to activate
-	mamba install -c conda-forge spyder
+	conda create -n <NAME> python=3.7  # <NAME> == chosen name, e.g. "pp-env"	
+	conda activate <NAME>  			   # activates the new environment 
 
 
-Troubleshooting references
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+After successful installation and activation, you should see the name of the environment in the console - e.g.:
 
-Consult these references if you have trouble installing Miniconda (they are discussing Anaconda, but the same applies for Miniconda):
+.. code-block:: bash
 
-- https://docs.anaconda.com/anaconda/install/
-- https://docs.anaconda.com/anaconda/user-guide/troubleshooting/
-- https://stackoverflow.com/questions/28612500/why-anaconda-does-not-recognize-conda-command
-- https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10
-- https://askubuntu.com/questions/908827/variable-path-issue-conda-command-not-found
+	(pp-env) D:\projects>
 
-
- 
+Now all libraries installed into this environment will be isolated from those installed in other virtual environments. 
