@@ -474,7 +474,7 @@ def edit_contour(
     )
 
     if kwargs.get("ret_image", False):
-        return annotation, gui.image_bin
+        return annotation, gui.image_bin_copy
     else:
         return annotation
 

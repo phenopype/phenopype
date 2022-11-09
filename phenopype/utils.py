@@ -327,7 +327,12 @@ class Container(object):
             annotations_updated, self.image = core.segmentation.edit_contour(
                 self.canvas, ret_image=True, **kwargs_function
             )
+            if "inplace" in kwargs_function:
+                annotations[settings._contour_type][kwargs_function["contour_id"]] = core.segmentation.detect_contour(self.image)[settings._contour_type]["a"]
+                self.image = copy.deepcopy(self.image_copy)
+                # self.annotations.update(annotations)
 
+                
         ## core.measurement
         if fun == "set_landmark":
             annotations_updated = core.measurement.set_landmark(image=self.canvas, **kwargs_function)
@@ -582,15 +587,22 @@ def load_template(
     flags = make_dataclass(cls_name="flags", fields=[("overwrite", bool, overwrite)])
 
     ## create config from template
-    if template_path.__class__.__name__ == "str":
-        if os.path.isfile(template_path):
-            template_loaded = utils_lowlevel._load_yaml(template_path)
+    if not _config.template_path_current == template_path:
+
+        if template_path.__class__.__name__ == "str":
+            if os.path.isfile(template_path):
+                template_loaded = utils_lowlevel._load_yaml(template_path)
+                _config.template_path_current = template_path
+                _config.template_loaded_current = utils_lowlevel._load_yaml(template_path)
+
+            else:
+                print("Could not find template_path")
+                return
         else:
-            print("Could not find template_path")
+            print("Wrong input format for template_path")
             return
     else:
-        print("Wrong input format for template_path")
-        return
+        template_loaded =  _config.template_loaded_current
 
     ## construct config-name
     if (

@@ -6,3 +6,5 @@ gui_zoom_config = None
 active_model_path = None
 active_model = None
 models = {}
+template_path_current = None
+template_loaded_current = None

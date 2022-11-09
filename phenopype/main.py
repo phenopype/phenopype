@@ -619,6 +619,9 @@ class Project:
                     tag=tag,
                     overwrite=flag_overwrite,
                 )
+            _config.template_path_current = None
+            _config.template_loaded_current = None
+            
         else:
             print("Could not find template_path")
             return
@@ -1228,7 +1231,14 @@ class Project:
                 shutil.copyfile(file_path, path)
                 break
             
-    def copy_tag(self, tag_src, tag_dst, copy_annotations=True, overwrite=False, skip_missing=False, **kwargs):
+    def copy_tag(
+            self, 
+            tag_src, 
+            tag_dst, 
+            copy_annotations=True, 
+            copy_config=True,
+            overwrite=False, 
+            **kwargs):
         """
         
 
@@ -1255,25 +1265,6 @@ class Project:
         for directory in self.dir_paths:
             dir_name = os.path.basename(directory)
 
-            config_path = os.path.join(
-                self.root_dir, "data", dir_name, "pype_config_" + tag_src + ".yaml"
-            )
-            new_config_path = os.path.join(
-                self.root_dir, "data", dir_name, "pype_config_" + tag_dst + ".yaml"
-            )   
-            
-            if not os.path.isfile(config_path): 
-                if skip_missing:
-                    print("Missing tag for config file {} - skipping".format(dir_name))
-                    continue
-                else:
-                    print("Missing tag for config file{} - aborting".format(dir_name))
-                    break
-                        
-            if utils_lowlevel._overwrite_check_file(new_config_path, overwrite):
-                shutil.copyfile(config_path, new_config_path)
-                print("Copy config file for {}".format(dir_name))
-
             if copy_annotations:
                 annotations_path = os.path.join(
                     self.root_dir, "data", dir_name, "annotations_" + tag_src + ".json"
@@ -1282,17 +1273,29 @@ class Project:
                     self.root_dir, "data", dir_name, "annotations_" + tag_dst + ".json"
                 )
                 
-                if not os.path.isfile(annotations_path): 
-                    if skip_missing:
-                        print("Missing tag for {} - skipping".format(dir_name))
-                        continue
-                    else:
-                        print("Missing tag for {} - aborting".format(dir_name))
-                        break
+                if os.path.isfile(annotations_path): 
+                    if utils_lowlevel._overwrite_check_file(new_annotations_path, overwrite):
+                        shutil.copyfile(annotations_path, new_annotations_path)
+                        print("Copy annotations for {}".format(dir_name))
+                else:
+                    print("Missing annotations for {} - skipping".format(dir_name))
+
+                    
+            if copy_config:
+                config_path = os.path.join(
+                    self.root_dir, "data", dir_name, "pype_config_" + tag_src + ".yaml"
+                )
+                new_config_path = os.path.join(
+                    self.root_dir, "data", dir_name, "pype_config_" + tag_dst + ".yaml"
+                )
                 
-                if utils_lowlevel._overwrite_check_file(new_annotations_path, overwrite):
-                    shutil.copyfile(annotations_path, new_annotations_path)
-                    print("Copy annotations file for {}".format(dir_name))
+                if os.path.isfile(config_path): 
+                    if utils_lowlevel._overwrite_check_file(new_config_path, overwrite):
+                        shutil.copyfile(config_path, new_config_path)
+                        print("Copy config for {}".format(dir_name))
+                else:
+                    print("Missing config for {} - skipping".format(dir_name))
+
                 
     def edit_config(self, tag, target, replacement, **kwargs):
         """
@@ -1901,6 +1904,10 @@ class Pype(object):
                         
                     ## reset zoom settings
                     _config.gui_zoom_config = None
+                    
+                    ## add timestamp
+                    self.config["config_info"]["date_last_modified"] = datetime.today().strftime(settings.strftime_format)
+                    utils_lowlevel._save_yaml(self.config, self.config_path)
                         
                     ## feedback
                     print("\n\nTERMINATE")
@@ -2063,11 +2070,13 @@ class Pype(object):
         )
 
         ## new iteration
-        if flags.execute:
+        if flags.execute and not self.flags.dry_run:
             print(
                 "\n\n------------+++ new pype iteration "
                 + datetime.today().strftime(settings.strftime_format)
-                + " +++--------------\n\n"
+                + " +++--------------\n\n" +
+                "==> image name: "
+                + str(self.container.image_name)
             )
 
         # reset values
@@ -2259,7 +2268,7 @@ class Pype(object):
         # sys.stdout = self.old_stdout
 
         # =============================================================================
-        # CONFIG-UPDATE AND AUTOSHO (optional)
+        # CONFIG-UPDATE AND AUTOSHOW (optional)
         # =============================================================================
 
         if not self.config_updated == self.config:

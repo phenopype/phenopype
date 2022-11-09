@@ -1885,9 +1885,16 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
 
     ## return
     if as_container:
-        return utils.Container(image=image, dir_path=dir_path, file_suffix=tag, tag=tag)
+        return utils.Container(
+            image=image, 
+            dir_path=dir_path, 
+            file_suffix=tag, 
+            tag=tag,
+            image_name = attributes["image_original"]["filename"],
+            )
     else:
         return image
+
 
 def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize=1):
     """

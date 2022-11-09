@@ -8,7 +8,7 @@ Phenopype's high throughout workflow currently requires a text editor to be inst
 	Your OS needs to know how to handle `.yaml` files. Make sure that the default app to open these files is set. Otherwise, phenopype will be unable to open YAML configuration files (this is a common error source).
 
 
-For Windows, `Notepad` works. However, I highly recommend `Notepad++`, which supports syntax highlighting and has many other useful features: https://notepad-plus-plus.org/downloads/.
+For Windows, `Notepad` works. However, I highly recommend `Notepad++`, which supports syntax highlighting and has many other useful features: https://notepad-plus-plus.org/downloads/. Check this SO post to deactivate refresh-popups: https://superuser.com/a/34553/970488
 
 Another popular editor is `Atom <https://atom.io/>`_. `Atom` works across all platforms: https://flight-manual.atom.io/getting-started/sections/installing-atom/
 
