@@ -997,7 +997,12 @@ class Project:
                 )
                 
                 
-    def check_files(self, ask=True):
+    def check_files(
+            self, 
+            feedback=True,
+            image_links=False,
+
+            ):
         """
         Check all project files for completeness by comparing the images in the
         "data" folder to the file list the project attributes. Will attempt to 
@@ -1005,14 +1010,32 @@ class Project:
 
         Parameters
         ----------
-        ask : bool, optional
+        feedback : bool, optional
             Asks whether project attributes should be updated. The default is True.
+        images : bool, optional
+            checks whether image can be loaded from path, otherwise tries to load 
+            from original filepath (will ask first). The default is False.
+            
 
         Returns
         -------
         None.
 
         """
+        
+        # =============================================================================
+        # setup
+
+        ## set flags
+        flags = make_dataclass(
+            cls_name="flags",
+            fields=[
+                ("image_links", bool, image_links), 
+                ("feedback", bool, feedback),
+                ("check", bool, None),
+                ],
+        )
+
                 
         ## load filenames
         if "filenames" in self.attributes["project_data"]:
@@ -1029,11 +1052,29 @@ class Project:
         filenames_check, dirnames_check = [], []
 
         for dirpath in self.dir_paths:
-            attributes = utils_lowlevel._load_yaml(os.path.join(dirpath, "attributes.yaml"))
+            attributes_path = os.path.join(dirpath, "attributes.yaml")
+            attributes = utils_lowlevel._load_yaml(attributes_path)
             filename = attributes["image_original"]["filename"]
             filenames_check.append(filename)
             dirnames_check.append(os.path.basename(dirpath))
             
+            if flags.image_links:
+                filepath = attributes["image_phenopype"]["filepath"]
+                if attributes["image_phenopype"]["mode"] == "link":
+                    if not os.path.isfile(os.path.join(dirpath, filepath)):
+                        print("Could not find image(s) saved or linked to phenopype project:{}".format(filename))
+                        if flags.check.__class__.__name__ == "NoneType":
+                            flags.check = input("\nCheck original filepath and relink if possible [also for all other broken paths] (y/n)?\n")
+                        if flags.check in settings.confirm_options:
+                            filepath = attributes["image_original"]["filepath"]
+                            if os.path.isfile(filepath):
+                                attributes["image_phenopype"]["filepath"] = os.path.relpath(filepath, dirpath)
+                                print("Re-linking successful - saving new path to attributes!")
+                                utils_lowlevel._save_yaml(attributes, attributes_path)
+    
+                            else:
+                                print("File not found - could not re-link!")
+
         filenames_unmatched, dirnames_unmatched = [], []
         
         for filename in filenames:
@@ -1052,7 +1093,7 @@ class Project:
                 len(filenames_check),
                 len(filenames_unmatched)))
             time.sleep(1)
-            if ask:
+            if flags.feedback:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
@@ -1061,7 +1102,7 @@ class Project:
             print("--------------------------------------------")
             print("phenopype found {} files in the data folder, but 0 are listed in the project attributes.".format(len(filenames_check)))
             time.sleep(1)
-            if ask:
+            if flags.feedback:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
@@ -1073,7 +1114,7 @@ class Project:
                 len(filenames)
                 ))
             time.sleep(1)
-            if ask:
+            if flags.feedback:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
@@ -1312,12 +1353,22 @@ class Project:
                     
             
 
-    def export_zip(self, no_imgs=True, **kwargs):
+    def export_zip(
+            self, 
+            tag=None, 
+            results=False,
+            models=False, 
+            images=False, 
+            overwrite=True,
+            **kwargs
+            ):
         """
     
         Parameters
         ----------
-        no_imgs : bool, optional
+        tag: str, optional
+            Export only files associated with a specified tag. The default is None.
+        images : bool, optional
             Don't include images from the data folder. The default is True.
 
         Returns
@@ -1325,30 +1376,122 @@ class Project:
         None.
 
         """
-        ## save suffix
+
+
+            
+            
+        # =============================================================================
+        # setup
+
+        ## set flags
+        flags = make_dataclass(
+            cls_name="flags",
+            fields=[
+                ("tag", str, tag), 
+                ("results", bool, results),
+                ("models", bool, models),
+                ("images", bool, images),
+                ("overwrite", bool, overwrite),
+                ],
+        )
+
         if kwargs.get("save_suffix"):
             save_suffix = "_" + kwargs.get("save_suffix")
         else:
-            save_suffix = ""    
-
+            save_suffix = ""
+            
         ## construct save path
-        basename = os.path.basename(self.root_dir) 
-        save_path = os.path.join(self.root_dir, basename + save_suffix + ".zip")
+        root_dir = os.path.basename(self.root_dir) 
+        save_path = os.path.join(self.root_dir, root_dir + save_suffix + ".zip")
         
-        ## loop through the file tree
-        relroot = os.path.abspath(os.path.join(self.root_dir, os.pardir))
-        with zipfile.ZipFile(save_path, "w", zipfile.ZIP_DEFLATED) as zip:
-            for root, dirs, files in os.walk(self.root_dir):
-                for file in files:
-                    basename_data = os.path.join(os.path.basename(self.root_dir), "data")
-                    if no_imgs==True and (basename_data in root or "canvas" in root):
-                        if os.path.splitext(file)[1].replace(".","") in settings.default_filetypes:
+        if os.path.isfile(save_path) and flags.overwrite:
+            os.remove(save_path)
+
+        # =============================================================================
+        # execute
+
+        ## start zip process
+        zf = zipfile.ZipFile(save_path, "w", zipfile.ZIP_DEFLATED)
+
+        ## project root dir
+        zf.write(os.path.join(self.root_dir), root_dir)    
+
+        ## project attributes
+        zf.write(
+            os.path.join(self.root_dir, "attributes.yaml"), 
+            os.path.join(root_dir, "attributes.yaml")
+            )    
+        
+        ## data folder
+        data_dir_abspath = os.path.join(self.root_dir, "data")       
+        data_dir_relpath = os.path.join(root_dir, "data")       
+        zf.write(data_dir_abspath, data_dir_relpath)    
+        
+        ## loop thropugh data folder               
+        for folder in os.listdir(data_dir_abspath):
+
+            folder_abspath = os.path.join(data_dir_abspath, folder)
+            folder_relpath = os.path.join(data_dir_relpath, folder)
+            zf.write(folder_abspath, folder_relpath)                            
+
+            for file in os.listdir(folder_abspath):
+                
+                file_name, file_ext  = os.path.splitext(file)
+                
+                if not file in ["attributes.yaml"]:
+                    if not flags.tag.__class__.__name__ == "NoneType":
+                        test_pattern = file_name[-len(flags.tag):len(file_name)]
+                        if not flags.tag == test_pattern:
+                            continue        
+                    if file_ext.strip(".") in settings.default_filetypes:
+                        if not flags.images:
                             continue
-                    file_path = os.path.join(root, file)
-                    if os.path.isfile(file_path):
-                        if not file_path == save_path:
-                            arc_name = os.path.join(os.path.relpath(root, relroot), file)
-                            zip.write(file_path, arc_name)                            
+
+                file_abspath = os.path.join(data_dir_abspath, folder, file)
+                file_relpath = os.path.join(data_dir_relpath, folder, file)
+                zf.write(file_abspath, file_relpath)                            
+                
+        if flags.models:
+            
+            models_dir_abspath = os.path.join(self.root_dir, "models")       
+            models_dir_relpath = os.path.join(root_dir, "models") 
+            zf.write(models_dir_abspath, models_dir_relpath)    
+            
+            for file in os.listdir(models_dir_abspath):
+                
+                file_abspath = os.path.join(models_dir_abspath, file)
+                file_relpath = os.path.join(models_dir_relpath, file)
+                zf.write(file_abspath, file_relpath)                      
+
+        if flags.results:
+       
+            results_dir_abspath = os.path.join(self.root_dir, "results")       
+            results_dir_relpath = os.path.join(root_dir, "results")       
+            zf.write(results_dir_abspath, results_dir_relpath)    
+            
+            ## loop thropugh data folder               
+            for folder in os.listdir(results_dir_abspath):
+                    
+                folder_abspath = os.path.join(results_dir_abspath, folder)
+                folder_relpath = os.path.join(results_dir_relpath, folder)
+                zf.write(folder_abspath, folder_relpath)                            
+    
+                for file in os.listdir(folder_abspath):
+                    
+                    file_name, file_ext  = os.path.splitext(file)
+                                            
+                    if file_ext.strip(".") in settings.default_filetypes:
+                        if not flags.images:
+                            continue
+                    
+                    file_abspath = os.path.join(results_dir_abspath, folder, file)
+                    file_relpath = os.path.join(results_dir_relpath, folder, file)
+                    zf.write(file_abspath, file_relpath)   
+
+            
+        zf.close()
+
+                        
 
     def export_training_data(
             self, 

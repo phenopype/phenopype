@@ -1493,7 +1493,7 @@ def _load_yaml(filepath, typ="rt", pure=False, legacy=False):
                 return yaml.load(file)
 
         else:
-            print("Cannot load config from specified filepath")
+            print("Cannot load file from specified filepath")
     else:
         print("Not a valid path - couldn't load yaml.")
         return
