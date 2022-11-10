@@ -88,9 +88,7 @@ def detect_object(
         annotations = kwargs.get("annotations", {})
         annotation_type = kwargs.get("annotation_type", settings._mask_type)
         annotation_id = kwargs.get(annotation_type + "_id", None)
-        
-        print(annotation_type)
-    
+            
     # =============================================================================
     # execute
     
@@ -118,7 +116,7 @@ def detect_object(
                 fill=1)
 
         image_source = cv2.bitwise_and(image_source, binary_mask)
-    
+
     if model_path.__class__.__name__ == "NoneType":
         print("No model provided - did you set an active model?")
         return image_source

@@ -1362,6 +1362,7 @@ class Project:
             results=False,
             models=False, 
             images=False, 
+            exports=False,
             overwrite=True,
             **kwargs
             ):
@@ -1394,6 +1395,7 @@ class Project:
                 ("results", bool, results),
                 ("models", bool, models),
                 ("images", bool, images),
+                ("exports", bool, exports),
                 ("overwrite", bool, overwrite),
                 ],
         )
@@ -1414,88 +1416,85 @@ class Project:
         # execute
 
         ## start zip process
-        zf = zipfile.ZipFile(save_path, "w", zipfile.ZIP_DEFLATED)
-
-        ## project root dir
-        zf.write(os.path.join(self.root_dir), root_dir)    
-
-        ## project attributes
-        zf.write(
-            os.path.join(self.root_dir, "attributes.yaml"), 
-            os.path.join(root_dir, "attributes.yaml")
-            )    
-        
-        ## data folder
-        data_dir_abspath = os.path.join(self.root_dir, "data")       
-        data_dir_relpath = os.path.join(root_dir, "data")       
-        zf.write(data_dir_abspath, data_dir_relpath)    
-        
-        ## loop thropugh data folder               
-        for folder in os.listdir(data_dir_abspath):
-
-            folder_abspath = os.path.join(data_dir_abspath, folder)
-            folder_relpath = os.path.join(data_dir_relpath, folder)
-            zf.write(folder_abspath, folder_relpath)                            
-
-            for file in os.listdir(folder_abspath):
-                
-                file_name, file_ext  = os.path.splitext(file)
-                
-                if not file in ["attributes.yaml"]:
-                    if not flags.tag.__class__.__name__ == "NoneType":
-                        test_pattern = file_name[-len(flags.tag):len(file_name)]
-                        if not flags.tag == test_pattern:
-                            continue        
-                    if file_ext.strip(".") in settings.default_filetypes:
-                        if not flags.images:
-                            continue
-
-                file_abspath = os.path.join(data_dir_abspath, folder, file)
-                file_relpath = os.path.join(data_dir_relpath, folder, file)
-                zf.write(file_abspath, file_relpath)                            
-                
-        if flags.models:
+        with zipfile.ZipFile(save_path, "w", zipfile.ZIP_DEFLATED) as zip:
+    
+            ## project root dir
+            zip.write(os.path.join(self.root_dir), root_dir)    
+    
+            ## project attributes
+            zip.write(
+                os.path.join(self.root_dir, "attributes.yaml"), 
+                os.path.join(root_dir, "attributes.yaml")
+                )    
             
-            models_dir_abspath = os.path.join(self.root_dir, "models")       
-            models_dir_relpath = os.path.join(root_dir, "models") 
-            zf.write(models_dir_abspath, models_dir_relpath)    
-            
-            for file in os.listdir(models_dir_abspath):
-                
-                file_abspath = os.path.join(models_dir_abspath, file)
-                file_relpath = os.path.join(models_dir_relpath, file)
-                zf.write(file_abspath, file_relpath)                      
-
-        if flags.results:
-       
-            results_dir_abspath = os.path.join(self.root_dir, "results")       
-            results_dir_relpath = os.path.join(root_dir, "results")       
-            zf.write(results_dir_abspath, results_dir_relpath)    
+            ## data folder
+            data_dir_abspath = os.path.join(self.root_dir, "data")       
+            data_dir_relpath = os.path.join(root_dir, "data")       
+            zip.write(data_dir_abspath, data_dir_relpath)    
             
             ## loop thropugh data folder               
-            for folder in os.listdir(results_dir_abspath):
-                    
-                folder_abspath = os.path.join(results_dir_abspath, folder)
-                folder_relpath = os.path.join(results_dir_relpath, folder)
-                zf.write(folder_abspath, folder_relpath)                            
+            for folder in os.listdir(data_dir_abspath):
+    
+                folder_abspath = os.path.join(data_dir_abspath, folder)
+                folder_relpath = os.path.join(data_dir_relpath, folder)
+                zip.write(folder_abspath, folder_relpath)                            
     
                 for file in os.listdir(folder_abspath):
                     
                     file_name, file_ext  = os.path.splitext(file)
-                                            
-                    if file_ext.strip(".") in settings.default_filetypes:
-                        if not flags.images:
-                            continue
                     
-                    file_abspath = os.path.join(results_dir_abspath, folder, file)
-                    file_relpath = os.path.join(results_dir_relpath, folder, file)
-                    zf.write(file_abspath, file_relpath)   
-
-            
-        zf.close()
-
+                    if not file in ["attributes.yaml"]:
+                        if not flags.tag.__class__.__name__ == "NoneType":
+                            test_pattern = file_name[-len(flags.tag):len(file_name)]
+                            if not flags.tag == test_pattern:
+                                continue        
+                        if file_ext.strip(".") in settings.default_filetypes:
+                            if not flags.images:
+                                continue
+                        if file_ext.strip(".") == "csv" and flags.exports == False:
+                            continue
                         
-
+                    file_abspath = os.path.join(data_dir_abspath, folder, file)
+                    file_relpath = os.path.join(data_dir_relpath, folder, file)
+                    zip.write(file_abspath, file_relpath)                            
+                    
+            if flags.models:
+                
+                models_dir_abspath = os.path.join(self.root_dir, "models")       
+                models_dir_relpath = os.path.join(root_dir, "models") 
+                zip.write(models_dir_abspath, models_dir_relpath)    
+                
+                for file in os.listdir(models_dir_abspath):
+                    
+                    file_abspath = os.path.join(models_dir_abspath, file)
+                    file_relpath = os.path.join(models_dir_relpath, file)
+                    zip.write(file_abspath, file_relpath)                      
+    
+            if flags.results:
+           
+                results_dir_abspath = os.path.join(self.root_dir, "results")       
+                results_dir_relpath = os.path.join(root_dir, "results")       
+                zip.write(results_dir_abspath, results_dir_relpath)    
+                
+                ## loop thropugh data folder               
+                for folder in os.listdir(results_dir_abspath):
+                        
+                    folder_abspath = os.path.join(results_dir_abspath, folder)
+                    folder_relpath = os.path.join(results_dir_relpath, folder)
+                    zip.write(folder_abspath, folder_relpath)                            
+        
+                    for file in os.listdir(folder_abspath):
+                        
+                        file_name, file_ext  = os.path.splitext(file)
+                                                
+                        if file_ext.strip(".") in settings.default_filetypes:
+                            if not flags.images:
+                                continue
+                        
+                        file_abspath = os.path.join(results_dir_abspath, folder, file)
+                        file_relpath = os.path.join(results_dir_relpath, folder, file)
+                        zip.write(file_abspath, file_relpath)   
+    
     def export_training_data(
             self, 
             tag,
