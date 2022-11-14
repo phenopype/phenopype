@@ -31,6 +31,11 @@ from phenopype import main
 from phenopype import settings
 from phenopype import utils
 
+#%% options
+
+Image.MAX_IMAGE_PIXELS = 999999999
+
+
 #%% classes
 
 
@@ -1941,7 +1946,6 @@ def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize
     else:
         raise TypeError("Not a valid image file - cannot read image data.")
 
-    # Image.MAX_IMAGE_PIXELS = 999999999
 
     ## issue warnings for large images
     if width * height > 125000000:
