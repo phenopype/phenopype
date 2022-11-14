@@ -650,11 +650,20 @@ def save_annotation(
 
 
 def save_ROI(
-    image, annotations, dir_path, file_name, prefix=None, suffix="roi", **kwargs
+    image, 
+    annotations, 
+    dir_path, 
+    file_name, 
+    counter=True,
+    prefix=None, 
+    suffix=None, 
+    extension=None,
+    white_background=False,
+    **kwargs
 ):
     """
-    save a region of interes (ROI) indicated by contour or mask coordinates. will
-    save the bounding box region
+    save a region of interest (ROI) indicated by contour or mask coordinates as 
+    a crop of the original image, optionally with white background
 
     Parameters
     ----------
@@ -692,6 +701,13 @@ def save_ROI(
     else:
         suffix = "_" + suffix
 
+    file_name, ext = os.path.splitext(file_name)
+
+    if extension is None:
+        pass
+    else:
+        ext = "." + extension
+
     # =============================================================================
     # annotation management
 
@@ -717,11 +733,28 @@ def save_ROI(
         else:
             coords = copy.deepcopy(roi_coords)
             
-
         rx, ry, rw, rh = cv2.boundingRect(coords)
-        roi_rect = image[ry : ry + rh, rx : rx + rw]
+        roi_rect = copy.deepcopy(image[ry : ry + rh, rx : rx + rw])
 
-        roi_name = prefix + file_name + suffix + "_" + str(idx).zfill(2) + ".tif"
+        if white_background:
+        
+            roi_rect_mask = np.zeros(roi_rect.shape, dtype="uint8")              
+            roi_rect_mask = cv2.drawContours(
+                image=roi_rect_mask,
+                contours=[coords],
+                contourIdx=0,
+                thickness=-1,
+                color=(255,255,255),
+                offset=(-rx, -ry),
+            )
+
+            roi_rect = cv2.bitwise_and(roi_rect_mask, roi_rect)
+            roi_rect = cv2.bitwise_xor(roi_rect, cv2.bitwise_not(roi_rect_mask))
+
+        if counter:
+            roi_name = prefix + file_name + suffix + "_" + str(idx).zfill(2) + ext
+        else:
+            roi_name = prefix + file_name + suffix + ext
 
         save_path = os.path.join(dir_path, roi_name)
         cv2.imwrite(save_path, roi_rect)

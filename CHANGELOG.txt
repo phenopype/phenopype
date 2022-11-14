@@ -3,6 +3,12 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.3.6
+-----
+-  "edit_contours" now has the function to change the target contour directly when using the "Pype": the option "inplace: True" will return the edited contour to be used throughout the current pype run, but not overwrite it in the saved annotations file. for that, a successive "detect_contours" needs to be run
+- added more options to select what gets added to the archive when exporting a project with "export_zip"
+- added more docstrings for functions to autogenerate API
+
 3.3.5
 -----
 bugfix:
@@ -16,7 +22,7 @@ bugfix:
 -----
 bugfix:
 	- removed "zoom memory" when running Pype, as this wasn't working properly
-	- Project.quick_files() now also accounts for missing filenames in the project attributes file
+	- Project.check_files() now also accounts for missing filenames in the project attributes file
 - "show_nodes=true" argument for all polygon-related measurement tools (polygon mask, rectangle mask, polyline)
 
 
