@@ -404,7 +404,7 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
     )
     contours = annotation["data"][settings._contour_type]
     contours_support = annotation["data"]["support"]
-
+    
     ##  features
     fun_name = sys._getframe().f_code.co_name
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)

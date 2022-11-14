@@ -14,6 +14,7 @@ from phenopype import __version__
 from phenopype import settings
 from phenopype import utils_lowlevel
 from phenopype import utils
+from phenopype.core import preprocessing
 
 #%% functions
 
@@ -654,6 +655,7 @@ def save_ROI(
     annotations, 
     dir_path, 
     file_name, 
+    channel="raw",
     counter=True,
     prefix=None, 
     suffix=None, 
@@ -722,19 +724,17 @@ def save_ROI(
     )
 
     data = annotation["data"][annotation_type]
+    image = preprocessing.decompose_image(image, channel)
     
-    # print(len(data))
-
-
     for idx, roi_coords in enumerate(data):
-        
+                
         if annotation_type == settings._mask_type:
             coords = utils_lowlevel._convert_tup_list_arr(roi_coords)[0]
         else:
             coords = copy.deepcopy(roi_coords)
             
         rx, ry, rw, rh = cv2.boundingRect(coords)
-        roi_rect = copy.deepcopy(image[ry : ry + rh, rx : rx + rw])
+        roi_rect = image[ry : ry + rh, rx : rx + rw]
 
         if white_background:
         
@@ -752,7 +752,7 @@ def save_ROI(
             roi_rect = cv2.bitwise_xor(roi_rect, cv2.bitwise_not(roi_rect_mask))
 
         if counter:
-            roi_name = prefix + file_name + suffix + "_" + str(idx).zfill(2) + ext
+            roi_name = prefix + file_name + suffix + "_" + str(idx+1).zfill(3) + ext
         else:
             roi_name = prefix + file_name + suffix + ext
 

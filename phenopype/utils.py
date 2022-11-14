@@ -387,10 +387,13 @@ class Container(object):
         if fun == "save_ROI":
             if not "file_name" in kwargs_function:
                 ext = kwargs_function.get("ext", ".jpg")
-                kwargs_function["file_name"] = self._construct_file_name("canvas", ext)
+                kwargs_function["file_name"] = self._construct_file_name("roi", ext)
+            if not "dir_path" in kwargs_function:
+                kwargs_function["dir_path"] = os.path.join(self.dir_path, "ROI")
+                if not os.path.isdir(kwargs_function["dir_path"]):
+                    os.makedirs(kwargs_function["dir_path"])
             core.export.save_ROI(
                 self.image_copy,
-                dir_path=self.dir_path,
                 **kwargs_function,
             )
 
