@@ -30,7 +30,8 @@ def convert_annotation(
     **kwargs
 ):
     """
-    
+    convert coordinates from one annotation type to another. currently, only 
+    converting from contour to mask format is possible
     
     Parameters
     ----------
@@ -132,7 +133,7 @@ def export_csv(
     **kwargs
 ):
     """
-    
+    export annotations from json to csv format. 
 
     Parameters
     ----------
@@ -359,6 +360,7 @@ def export_csv(
 
 def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None,**kwargs):
     """
+    load phenopype annotations file
 
     Parameters
     ----------
@@ -481,6 +483,7 @@ def save_annotation(
     **kwargs
 ):
     """  
+    save phenopype annotations file
     
     Parameters
     ----------
@@ -650,6 +653,8 @@ def save_ROI(
     image, annotations, dir_path, file_name, prefix=None, suffix="roi", **kwargs
 ):
     """
+    save a region of interes (ROI) indicated by contour or mask coordinates. will
+    save the bounding box region
 
     Parameters
     ----------

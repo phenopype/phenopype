@@ -1240,20 +1240,25 @@ class Project:
             overwrite=False, 
             **kwargs):
         """
-        
+        Make a copy of data generated under a specific tag and save it under a 
+        new tag - e.g.: 
+            annotations_v1.json ==> annotations_v2.json
+            pype_config_v1.yaml ==> pype_config_v2.yaml
 
         Parameters
         ----------
-        tag_src : TYPE
-            DESCRIPTION.
-        tag_dst : TYPE
-            DESCRIPTION.
-        copy_annotations : TYPE, optional
-            DESCRIPTION. The default is True.
-        overwrite : TYPE, optional
-            DESCRIPTION. The default is False.
-        **kwargs : TYPE
-            DESCRIPTION.
+        tag_src : str
+            name of tag to be copied (source tag)
+        tag_dst : str
+            name of new tag (destination tag)
+        copy_annotations : bool, optional
+            copy annotations file. The default is True.
+        copy_annotations : bool, optional
+            copy config file. The default is True.
+        overwrite : bool, optional
+             overwrites if tag exists. The default is False.
+        kwargs: 
+            developer options
 
         Returns
         -------
@@ -1518,7 +1523,8 @@ class Project:
             
             - "ml-morph" - Machine-learning tools for landmark-based morphometrics 
               https://github.com/agporto/ml-morph
-            
+            - "keras-cnn-semantic" - Images and masks to be used for training an
+            image segmentation model in Keras
         folder : str
             Name of the folder under "root/training_data" where the formatted 
             training data will be stored under.
@@ -1705,15 +1711,7 @@ class Project:
                 
                 utils.save_image(image_resized, dir_path=img_dir, file_name=filename, ext="png")
                 utils.save_image(mask_resized, dir_path=mask_dir, file_name=filename, ext="png")
-    
-    def init_plugin(self, plugin_name, tag=None):
-        
-        if plugin_name in ["ml-morph","ml_morph","mlmorph"]:
-            self.ml_morph = plugins.ml_morph.ProjectLink(projects=self, root_dir=self.root_dir, tag=tag, multi=False)
-                        
-        if plugin_name in ["keras-cnn", "keras_cnn"]:
-            self.keras_cnn = plugins.keras_cnn._ProjectLink(self, tag)
-            
+
             
 
 class Pype(object):
