@@ -1242,6 +1242,7 @@ class Project:
         """
         Make a copy of data generated under a specific tag and save it under a 
         new tag - e.g.: 
+            
             annotations_v1.json ==> annotations_v2.json
             pype_config_v1.yaml ==> pype_config_v2.yaml
 
@@ -1524,7 +1525,8 @@ class Project:
             - "ml-morph" - Machine-learning tools for landmark-based morphometrics 
               https://github.com/agporto/ml-morph
             - "keras-cnn-semantic" - Images and masks to be used for training an
-            image segmentation model in Keras
+              image segmentation model in Keras
+            
         folder : str
             Name of the folder under "root/training_data" where the formatted 
             training data will be stored under.
