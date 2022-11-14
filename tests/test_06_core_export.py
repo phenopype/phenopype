@@ -122,6 +122,7 @@ def test_save_ROI(image, mask_polygon, settings):
         file_name="test",
         annotations=annotations,
         dir_path=save_dir,
+        extension="jpg"
         )
 
     assert len(os.listdir(save_dir)) == len(annotations["mask"]["a"]["data"]["mask"])
