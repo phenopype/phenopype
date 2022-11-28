@@ -46,10 +46,12 @@ class _GUI:
         image,
         tool=None,
         feedback=True,
+        pype_mode=False,
         wait_time=500,
         window_aspect="normal",
         window_control="internal",
         window_name="phenopype",
+        zoom_memory=False,
         zoom_magnification=0.5,
         zoom_mode="continuous",
         zoom_n_steps=20,
@@ -125,8 +127,9 @@ class _GUI:
             ('overlay_colour_right', tuple, kwargs.get('overlay_colour_right',settings._default_overlay_right)),
             
             ('feedback', bool, feedback),
-            ('pype_mode', bool, kwargs.get('pype_mode', False)),
+            ('pype_mode', bool, pype_mode),
             
+            ('zoom_memory', bool, zoom_memory),
             ('zoom_mode', str, zoom_mode),
             ('zoom_magnification', float, zoom_magnification),
             ('zoom_n_steps', int, zoom_n_steps),
@@ -236,9 +239,9 @@ class _GUI:
             )
 
         # ## update zoom from previous call
-        # if hasattr(_config, "gui_zoom_config") and self.settings.pype_mode == True:
-        #     if not _config.gui_zoom_config.__class__.__name__ == "NoneType":
-        #         self.zoom = _config.gui_zoom_config
+        if hasattr(_config, "gui_zoom_config") and self.settings.zoom_memory == True:
+            if not _config.gui_zoom_config.__class__.__name__ == "NoneType":
+                self.zoom = _config.gui_zoom_config
                 
         # if kwargs.get("ImageViewer_previous"):
         #     prev_attr = kwargs.get("ImageViewer_previous").__dict__
@@ -317,8 +320,7 @@ class _GUI:
                     if self.settings.feedback:
                         
                         ## sync zoom settings with config
-                        if self.settings.pype_mode == True:
-                            _config.gui_zoom_config = self.zoom
+                        _config.gui_zoom_config = self.zoom
 
                         ## comment tool
                         if self.tool == "comment":
