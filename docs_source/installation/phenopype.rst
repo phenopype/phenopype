@@ -32,6 +32,20 @@ For regular major and minor releases, use the :code:`-U` flag with :code:`pip`:
 .. code-block:: bash
 
 	pip install phenopype -U
+	
+	
+Installing from dev branch
+==========================
+
+You can install phenopype directly from the latest commit developmental branch to test experimental features and new implementations. 
+
+.. warning::
+   This is generally not recommended and should only be done if you know what you're doing, or if you have been contacted by the phenopype developers.
+
+.. code-block:: bash
+
+	pip install https://github.com/phenopype/phenopype/archive/dev.zip
+	
 
 Installing past versions
 ========================
@@ -47,3 +61,10 @@ Or, for the latest phenopype version that is still 1.x.x:
 .. code-block:: bash
 
 		pip install "phenopype < 2"
+		
+		
+		
+		
+		
+
+

@@ -239,7 +239,7 @@ class Container(object):
         if settings.flag_verbose:
             kwargs_function["verbose"] = True
 
-        ## enable zoom-config memory
+        ## indicate pype use 
         kwargs_function["pype_mode"] = True
 
         ## attributes

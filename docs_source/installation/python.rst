@@ -6,7 +6,7 @@ Python can be installed in many ways or may even already be installed on your ma
 Installing :code:`conda`
 ========================
 
-Download and install `Miniconda3 <https://docs.conda.io/en/latest/miniconda.html>`_ to create virtual environments using the :code:`conda` manager. Miniconda is a scientific Python distribution that comes with some packages already built in. Follow the  `OS-specific installation instructions <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_. Test if conda was successfully installed:
+Download and install `Miniconda3 <https://docs.conda.io/en/latest/miniconda.html>`_ to create virtual environments using the :code:`conda` manager. Miniconda is a scientific Python distribution that comes with some packages already built in. Follow the  `OS-specific installation instructions <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_. WINDOWS USERS: install miniconda directly to the top level of your drive so you don't run into privilege issues - e.g. :code:`C:\miniconda3`. Test if conda was successfully installed:
 
 .. code-block:: bash
 

@@ -1776,8 +1776,9 @@ class Pype(object):
         autoshow=True,
         fix_names=True,
         feedback=True,
-        debug=False,
         load_contours=False,
+        zoom_memory=False,
+        debug=False,
         **kwargs
     ):
 
@@ -1802,8 +1803,11 @@ class Pype(object):
                 ("feedback", bool, feedback),
                 ("fix_names", bool, fix_names),
                 ("skip", bool, skip),
-                ("terminate", bool, False),
+                ("zoom_memory", bool, zoom_memory),
+                
                 ("dry_run", bool, kwargs.get("dry_run", False)),
+                
+                ("terminate", bool, False),
             ],
         )
         
@@ -1857,6 +1861,9 @@ class Pype(object):
         ## start log
         self.log = []
 
+        ## clear old zoom memory
+        _config.gui_zoom_config = None
+
         # =============================================================================
         # PYPE LOOP
         # =============================================================================
@@ -1902,7 +1909,8 @@ class Pype(object):
                         self.YFM._stop()
                         
                     ## reset zoom settings
-                    _config.gui_zoom_config = None
+                    if not self.flags.zoom_memory:
+                        _config.gui_zoom_config = None
                     
                     ## add timestamp
                     self.config["config_info"]["date_last_modified"] = datetime.today().strftime(settings.strftime_format)
@@ -2235,6 +2243,7 @@ class Pype(object):
                         
                         ## ensure feedback in GUI is active
                         method_args["feedback"] = flags.feedback                        
+                        method_args["zoom_memory"] = self.flags.zoom_memory                 
 
                         ## excecute
                         self.container.run(
@@ -2281,13 +2290,14 @@ class Pype(object):
             )
 
         if flags.autoshow:
+                        
             try:
                 print("AUTOSHOW")
                 if self.container.canvas.__class__.__name__ == "NoneType":
                     self.container.run(fun="select_canvas")
                     print("- autoselect canvas")
 
-                self.gui = utils_lowlevel._GUI(self.container.canvas)
+                self.gui = utils_lowlevel._GUI(self.container.canvas, zoom_memory=self.flags.zoom_memory, pype_mode=True)
                 self.flags.terminate = self.gui.flags.end_pype
 
             except Exception as ex:

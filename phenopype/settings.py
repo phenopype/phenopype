@@ -244,6 +244,7 @@ _GUI_settings_args = [
     'overlay_colour_left',
     'overlay_colour_right',
     'pype_mode',
+    'zoom_memory',
     'zoom_mode',
     'zoom_magnification',
     'zoom_n_steps',
