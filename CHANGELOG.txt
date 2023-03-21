@@ -3,9 +3,14 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+3.3.7
+-----
+- improved "check_files" method for "project" class; allows to relink files to a new folder
+- minor fixes related to console feedback    
+
 3.3.6
 -----
--  "edit_contours" now has the function to change the target contour directly when using the "Pype": the option "inplace: True" will return the edited contour to be used throughout the current pype run, but not overwrite it in the saved annotations file. for that, a successive "detect_contours" needs to be run
+- "edit_contours" now has the function to change the target contour directly when using the "Pype": the option "inplace: True" will return the edited contour to be used throughout the current pype run, but not overwrite it in the saved annotations file. for that, a successive "detect_contours" needs to be run
 - added more options to select what gets added to the archive when exporting a project with "export_zip"
 - added more options for "save_ROI", e.g., to export image crops with a white background
 - added more docstrings for functions to autogenerate API
@@ -17,7 +22,7 @@ bugfix:
 - "show_nodes=true" argument for all polygon-related visualization tools (polygon mask, rectangle mask, polyline)
 - now possible to export polyline and reference annotation to csv
 - new "match_against" argument in "core.segmentation.detect_contours": contours must be inside existing mask or contour
-- new "binary_mask" argument in "plugins.segmentation.detect_object": mask out background to help detection algorithms  
+- new "binary_mask" argument in "plugins.segmentation.detect_object": mask out background to help detection algorithms
 
 3.3.4
 -----

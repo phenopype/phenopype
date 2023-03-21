@@ -1819,8 +1819,9 @@ def _file_walker(
     ## check if files found
     filepaths = filepaths4
     if len(filepaths) == 0 and not pype_mode:
-        sys.exit("No files found under the given location that match given criteria.")
-
+        print("No files found under the given location that match given criteria.")
+        return [], []
+    
     ## allow unique filenames filepath or by filename only
     filenames, unique_filename, unique, duplicate = [], [], [], []
     for filepath in filepaths:

@@ -102,8 +102,6 @@ class Container(object):
             if annotations_loaded:
                 self.annotations.update(annotations_loaded)
 
-            self.annotations["data"] = {}
-
             annotation_types_loaded = {}
             for annotation_type in self.annotations.keys():
                 id_list = []
