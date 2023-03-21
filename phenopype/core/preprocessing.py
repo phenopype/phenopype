@@ -903,8 +903,6 @@ def write_comment(
     # =============================================================================
     # execute
 
-    print(label)
-
     gui = utils_lowlevel._GUI(
         image,
         tool="comment",
@@ -926,7 +924,10 @@ def write_comment(
             "annotation_type": annotation_type,
         },
         "settings": {},
-        "data": {"label": label, annotation_type: gui.data[settings._comment_type],},
+        "data": {
+            "label": label, 
+            annotation_type: gui.data[settings._comment_type],
+            },
     }
 
     if len(gui_settings) > 0:

@@ -656,15 +656,11 @@ class Project:
         **kwargs
     ):
         """
-        Add pype configuration presets to all project directories. 
+        Add a deep learning model. 
 
         Parameters
         ----------
 
-        reference_image: str
-            name of template image, either project directory or file link. template 
-            image gets stored in root directory, and information appended to all 
-            attributes files in the project directories
         activate: bool, optional
             writes the setting for the currently active reference to the attributes 
             files of all directories within the project. can be used in conjunction
@@ -697,7 +693,7 @@ class Project:
             if os.path.isfile(model_path):
                 pass
             else:
-                print("Did not find model {}.")
+                print("Did not find model {}.".format(model_path))
                 return
         else:
             print("Wrong input - need path to a segmentation model.")
@@ -1004,7 +1000,7 @@ class Project:
             self, 
             feedback=True,
             image_links=False,
-
+            new_dir=None,
             ):
         """
         Check all project files for completeness by comparing the images in the
@@ -1015,7 +1011,7 @@ class Project:
         ----------
         feedback : bool, optional
             Asks whether project attributes should be updated. The default is True.
-        images : bool, optional
+        image_links : bool, optional
             checks whether image can be loaded from path, otherwise tries to load 
             from original filepath (will ask first). The default is False.
             
@@ -1052,8 +1048,12 @@ class Project:
             print("could not read project attributes file!")
             return
         
-        filenames_check, dirnames_check = [], []
+        ## make lists
+        filenames_check, dirnames_check, new_dir_files = [], [], None
 
+        if os.path.isdir(str(new_dir)):
+            new_dir_files = os.listdir(new_dir)
+            
         for dirpath in self.dir_paths:
             attributes_path = os.path.join(dirpath, "attributes.yaml")
             attributes = utils_lowlevel._load_yaml(attributes_path)
@@ -1066,14 +1066,25 @@ class Project:
                 if attributes["image_phenopype"]["mode"] == "link":
                     if not os.path.isfile(os.path.join(dirpath, filepath)):
                         print("Could not find image(s) saved or linked to phenopype project:{}".format(filename))
-                        if flags.check.__class__.__name__ == "NoneType":
-                            flags.check = input("\nCheck original filepath and relink if possible [also for all other broken paths] (y/n)?\n")
-                        if flags.check in settings.confirm_options:
-                            filepath = attributes["image_original"]["filepath"]
-                            if os.path.isfile(filepath):
-                                attributes["image_phenopype"]["filepath"] = os.path.relpath(filepath, dirpath)
-                                print("Re-linking successful - saving new path to attributes!")
+                        if new_dir_files:
+                            print("- attempting to relink from {}".format(os.path.basename(new_dir)))
+                            if filename in new_dir_files:
+                                new_file_path = os.path.join(new_dir, filename)
+                                attributes["image_phenopype"]["filepath"] = os.path.relpath(new_file_path, dirpath) 
                                 utils_lowlevel._save_yaml(attributes, attributes_path)
+                                print("File found and successfully relinked!")
+                            else:
+                                print("File not found in provided new_dir!")
+                        else:
+                            print("No directory provided for relinking!")
+                            if flags.check.__class__.__name__ == "NoneType":
+                                flags.check = input("\nCheck original filepath and relink if possible [also for all other broken paths] (y/n)?\n")
+                            if flags.check in settings.confirm_options:
+                                filepath = attributes["image_original"]["filepath"]
+                                if os.path.isfile(filepath):
+                                    attributes["image_phenopype"]["filepath"] = os.path.relpath(filepath, dirpath)
+                                    print("Re-linking successful - saving new path to attributes!")
+                                    utils_lowlevel._save_yaml(attributes, attributes_path)
     
                             else:
                                 print("File not found - could not re-link!")
@@ -1254,7 +1265,7 @@ class Project:
             name of new tag (destination tag)
         copy_annotations : bool, optional
             copy annotations file. The default is True.
-        copy_annotations : bool, optional
+        copy_config : bool, optional
             copy config file. The default is True.
         overwrite : bool, optional
              overwrites if tag exists. The default is False.

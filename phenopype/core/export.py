@@ -4,7 +4,7 @@ from collections import defaultdict
 import copy
 import json
 import os
-import sys 
+import sys
 
 import cv2
 import numpy as np
@@ -31,24 +31,24 @@ def convert_annotation(
     **kwargs
 ):
     """
-    convert coordinates from one annotation type to another. currently, only 
+    convert coordinates from one annotation type to another. currently, only
     converting from contour to mask format is possible
-    
+
     Parameters
     ----------
 
     annotations : dict
         A phenopype annotation dictionary.
     annotation_type : str | list of str
-        If dict contains multiple annotation types, select one or more to 
-        load. None will load all types. 
+        If dict contains multiple annotation types, select one or more to
+        load. None will load all types.
     annotation_id : str | list of str
-        If file contains multiple annotation IDs, select one or more to 
-        load. None will load all IDs within a type. 
-    annotation_type_new : str 
-       target annotation type 
+        If file contains multiple annotation IDs, select one or more to
+        load. None will load all IDs within a type.
+    annotation_type_new : str
+       target annotation type
     annotation_id_new : str | list of str, optional
-       target annotation id 
+       target annotation id
     overwrite : bool, optional
         if target exists, overwrite? The default is False.
 
@@ -69,10 +69,10 @@ def convert_annotation(
         kwargs=kwargs,
         prep_msg="- extracting annotation:",
     )
-   
+
     # =============================================================================
     # setup
-    
+
     ## convert_annotation
     fun_name = sys._getframe().f_code.co_name
 
@@ -80,21 +80,21 @@ def convert_annotation(
     # method
 
     if annotation_type_new == settings._mask_type:
-                
+
         ## method setup
         if "label" in annotation["data"]:
             label = annotation["data"]["label"]
         else:
             label = kwargs.get("label", "mask1")
-        include = kwargs.get("include", True)    
-        
+        include = kwargs.get("include", True)
+
         annotation_old_data = annotation["data"][annotation_type]
-        
+
         annotation_new_data = []
         for idx, coord_list in enumerate(annotation_old_data):
             annotation_new_data.append(utils_lowlevel._convert_arr_tup_list(coord_list,  add_first=True))
-        
-        
+
+
         annotation = {
             "info": {
                 "annotation_type": annotation_type_new,
@@ -111,8 +111,6 @@ def convert_annotation(
                 annotation_type_new: annotation_new_data,
             },
         }
-
-    # print(annotations)
 
     return utils_lowlevel._update_annotations(
         annotations=annotations,
@@ -134,18 +132,18 @@ def export_csv(
     **kwargs
 ):
     """
-    export annotations from json to csv format. 
+    export annotations from json to csv format.
 
     Parameters
     ----------
     annotations : dict
         A phenopype annotation dictionary.
     dir_path : str
-        To which folder should the csv file be exported. 
+        To which folder should the csv file be exported.
         PYPE: Automatically set to the current image directory
     annotation_type : str / list, optional
         Which annotation types should be exported - can be string or list of strings.
-    image_name : str 
+    image_name : str
        Image name to be added as a column
        PYPE: Automatically adds the image name.
     overwrite : bool, optional
@@ -199,9 +197,9 @@ def export_csv(
         list_flattened = []
 
         ## comment
-        if annotation_type == settings._comment_type:
+        if annotation_type == settings._comment_type and annotation_type in annotations.keys():
             for annotation_id in annotations[annotation_type].keys():
-                
+
                 label = annotations[annotation_type][annotation_id]["data"]["label"]
                 comment = annotations[annotation_type][annotation_id]["data"][annotation_type]
                 list_flattened.append(
@@ -242,8 +240,8 @@ def export_csv(
                             index=[0],
                         )
                     )
-                    
-                    
+
+
         ## landmark
         if annotation_type == settings._landmark_type:
             for annotation_id in annotations[annotation_type].keys():
@@ -261,7 +259,7 @@ def export_csv(
                         },
                     )
                 )
-                
+
         ## polyline
         if annotation_type == settings._line_type:
             for annotation_id in annotations[annotation_type].keys():
@@ -284,7 +282,7 @@ def export_csv(
                             },
                         )
                     )
-                    
+
         ## reference
         if annotation_type == settings._reference_type:
             for annotation_id in annotations[annotation_type].keys():
@@ -300,7 +298,6 @@ def export_csv(
                             **{"unit": unit},
                         },
                         index=[0],
-
                     )
                 )
 
@@ -329,9 +326,9 @@ def export_csv(
         ## texture_features
         if annotation_type == settings._texture_feature_type:
             for annotation_id in annotations[annotation_type].keys():
-                
+
                 contour_id = annotations[annotation_type][annotation_id]["settings"][settings._contour_type + "_id"]
-                
+
                 for idx, annotation in enumerate(
                     annotations[annotation_type][annotation_id]["data"][annotation_type], 1
                 ):
@@ -358,7 +355,6 @@ def export_csv(
             df.to_csv(filepath, index=False)
 
 
-
 def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None,**kwargs):
     """
     load phenopype annotations file
@@ -368,10 +364,10 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
     filepath : str
         Path to JSON file containing annotations
     annotation_type : str | list of str, optional
-        If file contains multiple annotation types, select one or more to 
+        If file contains multiple annotation types, select one or more to
         load. None will load all types. The default is None.
     annotation_id : str | list of str, optional
-        If file contains multiple annotation IDs, select one or more to 
+        If file contains multiple annotation IDs, select one or more to
         load. None will load all IDs within a type. The default is None.
 
     Returns
@@ -380,7 +376,7 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
         Loaded annotations.
 
     """
-    
+
     flag_verbose = kwargs.get("verbose", False)
 
     ## load annotation file
@@ -394,7 +390,7 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
                 )
                 return
         annotation_file = defaultdict(dict, annotation_file)
-        
+
     elif os.path.isdir(filepath):
         if tag.__class__.__name__ == "NoneType":
             print("Attempting to load directory without specifying tag - aborting")
@@ -483,14 +479,14 @@ def save_annotation(
     overwrite=False,
     **kwargs
 ):
-    """  
+    """
     save phenopype annotations file
-    
+
     Parameters
     ----------
     annotation : dict
-        Annotation dictionary formatted by phenopype specifications: 
-            
+        Annotation dictionary formatted by phenopype specifications:
+
         .. code-block:: python
 
             {
@@ -506,29 +502,29 @@ def save_annotation(
                     },
                 ...
             }
-            
+
     annotation_id : str, optional
-        String ("a"-"z") specifying the annotation ID to be saved. None will 
+        String ("a"-"z") specifying the annotation ID to be saved. None will
         save all IDs. The default is None.
     dir_path : str, optional
-        Path to folder where annotation should be saved. None will save the 
+        Path to folder where annotation should be saved. None will save the
         annotation in the current Python working directory. The default is None.
     file_name : str, optional
-        Filename for JSON file containing annotation. The default is 
+        Filename for JSON file containing annotation. The default is
         "annotations.json".
     overwrite : bool, optional
         Overwrite options should file or annotation entry in file exist:
-            
+
             - False = Neither file or entry will be overwritten
             - True or "entry" = A single entry will be overwritten
-            - "file" = The whole will be overwritten. 
-            
+            - "file" = The whole will be overwritten.
+
         The default is False.
 
     Returns
     -------
     None.
-    
+
     """
 
     ## kwargs
@@ -581,7 +577,7 @@ def save_annotation(
         annotation_types = [annotation_type]
     elif annotation_type.__class__.__name__ in ["list", "CommentedSeq"]:
         annotation_types = annotation_type
-        
+
     for annotation_type in annotation_types:
 
     ## write annotations to output dict
@@ -651,20 +647,20 @@ def save_annotation(
 
 
 def save_ROI(
-    image, 
-    annotations, 
-    dir_path, 
-    file_name, 
+    image,
+    annotations,
+    dir_path,
+    file_name,
     channel="raw",
     counter=True,
-    prefix=None, 
-    suffix=None, 
+    prefix=None,
+    suffix=None,
     extension=None,
     white_background=False,
     **kwargs
 ):
     """
-    save a region of interest (ROI) indicated by contour or mask coordinates as 
+    save a region of interest (ROI) indicated by contour or mask coordinates as
     a crop of the original image, optionally with white background
 
     Parameters
@@ -679,7 +675,7 @@ def save_ROI(
         which is specified with prefix or suffix arguments). The contour index
         will be added as a numeric string at the end of the filename.
     dir_path : str, optional
-        Path to folder where annotation should be saved. None will save the 
+        Path to folder where annotation should be saved. None will save the
         annotation in the current Python working directory. The default is None.
     prefix : str, optional
         Prefix to prepend to individual ROI filenames. The default is None.
@@ -725,20 +721,20 @@ def save_ROI(
 
     data = annotation["data"][annotation_type]
     image = preprocessing.decompose_image(image, channel)
-    
+
     for idx, roi_coords in enumerate(data):
-                
+
         if annotation_type == settings._mask_type:
             coords = utils_lowlevel._convert_tup_list_arr(roi_coords)[0]
         else:
             coords = copy.deepcopy(roi_coords)
-            
+
         rx, ry, rw, rh = cv2.boundingRect(coords)
         roi_rect = image[ry : ry + rh, rx : rx + rw]
 
         if white_background:
-        
-            roi_rect_mask = np.zeros(roi_rect.shape, dtype="uint8")              
+
+            roi_rect_mask = np.zeros(roi_rect.shape, dtype="uint8")
             roi_rect_mask = cv2.drawContours(
                 image=roi_rect_mask,
                 contours=[coords],
@@ -768,7 +764,7 @@ def save_ROI(
 
 def save_canvas(image, dir_path, file_name="canvas", **kwargs):
     """
-    
+
 
     Parameters
     ----------
