@@ -280,7 +280,8 @@ class Container(object):
             annotations_updated = core.preprocessing.create_reference(self.image, **kwargs_function)
         if fun == "detect_mask":
             annotations_updated = core.preprocessing.detect_mask(self.image, **kwargs_function)
-            # print(annotations_updated)
+        if fun == "detect_QRcode":
+            annotations_updated = core.preprocessing.detect_QRcode(self.image, **kwargs_function)
         if fun == "write_comment":
             annotations_updated = core.preprocessing.write_comment(self.image, **kwargs_function)
         if fun == "detect_reference":
@@ -363,6 +364,8 @@ class Container(object):
             self.canvas = core.visualization.draw_mask(self.canvas, **kwargs_function)
         if fun == "draw_polyline":
             self.canvas = core.visualization.draw_polyline(self.canvas, **kwargs_function)
+        if fun == "draw_QRcode":
+            self.canvas = core.visualization.draw_QRcode(self.canvas, **kwargs_function)
         if fun == "draw_reference":
             self.canvas = core.visualization.draw_reference(self.canvas, **kwargs_function)
 

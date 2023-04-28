@@ -720,9 +720,10 @@ def save_ROI(
     )
 
     data = annotation["data"][annotation_type]
-    image = preprocessing.decompose_image(image, channel)
-
+    image = preprocessing.decompose_image(image, channel, **kwargs)
+    
     for idx, roi_coords in enumerate(data):
+        
 
         if annotation_type == settings._mask_type:
             coords = utils_lowlevel._convert_tup_list_arr(roi_coords)[0]
@@ -751,10 +752,16 @@ def save_ROI(
             roi_name = prefix + file_name + suffix + "_" + str(idx+1).zfill(3) + ext
         else:
             roi_name = prefix + file_name + suffix + ext
+            
 
         save_path = os.path.join(dir_path, roi_name)
-        cv2.imwrite(save_path, roi_rect)
-
+        saved = cv2.imwrite(save_path, roi_rect)
+        
+        if saved:
+            print("saving ROI: {}".format(roi_name))
+        else:
+            print("something went wrong - didn't save ROI")
+               
         # roi_new_coords = []
         # for coord in roi_coords:
         #     new_coord = [coord[0][0] - rx, coord[0][1] - ry]

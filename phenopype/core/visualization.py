@@ -550,6 +550,84 @@ def draw_polyline(
     return canvas
 
 
+def draw_QRcode(
+    image,
+    annotations,
+    line_colour="default",
+    line_width="auto",
+    label=False,
+    label_colour="default",
+    label_size="auto",
+    label_width="auto",
+    **kwargs,
+):   
+    
+    # =============================================================================
+    # setup
+
+    flags = make_dataclass(cls_name="flags", fields=[("label", bool, label)])
+    
+    if line_width == "auto":
+        line_width = utils_lowlevel._auto_line_width(image)
+    if label_size == "auto":
+        label_size = utils_lowlevel._auto_text_size(image)
+    if label_width == "auto":
+        label_width = utils_lowlevel._auto_text_width(image)
+
+    if line_colour == "default":
+        line_colour = settings._default_line_colour
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
+
+    label_colour = utils_lowlevel._get_bgr(label_colour)
+    line_colour = utils_lowlevel._get_bgr(line_colour)
+
+    # =============================================================================
+    # annotation management
+
+    annotation_type = settings._comment_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
+
+    points = annotation["data"][settings._mask_type]
+    label = annotation["data"][annotation_type]
+
+    
+    canvas = cv2.polylines(
+        image, 
+        [np.asarray(points, np.int32)], 
+        True, 
+        line_colour, 
+        line_width)
+
+    if flags.label:
+        
+        (x,y), _ = cv2.minEnclosingCircle(np.array(points))
+
+        label_coords = (int(x),int(y))
+
+        cv2.putText(
+            canvas,
+            label,
+            label_coords,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            label_size,
+            label_colour,
+            label_width,
+            cv2.LINE_AA,
+        )
+
+    # =============================================================================
+    # return
+
+    return canvas
+
 def draw_reference(
     image,
     annotations,
@@ -634,6 +712,7 @@ def draw_reference(
     canvas = copy.deepcopy(image)
 
     ## draw referenc mask outline
+    print([polygons[0]])
     cv2.polylines(canvas, np.array([polygons[0]]), False, line_colour, line_width)
 
     ## draw scale

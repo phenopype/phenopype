@@ -1357,7 +1357,7 @@ class Project:
             if flag_checked == False:
                 print(new_config_string)
                 check = input(
-                    "This is what the new config may look like (can differ beteeen files) - proceed?"
+                    "This is what the new config may look like (can differ between files) - proceed?"
                 )
 
             ## replace for all config files after positive user check

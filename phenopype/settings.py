@@ -183,6 +183,7 @@ _texture_feature_type = "texture_features"
 _annotation_functions = {
     ## comments
     "write_comment": _comment_type,
+    "detect_QRcode": _comment_type,
     
     ## contours
     "detect_contour": _contour_type,
