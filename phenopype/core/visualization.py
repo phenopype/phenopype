@@ -689,6 +689,8 @@ def draw_reference(
         contour label font size - automatically scaled to image by default
     label_width:  {"auto", ... int > 0} int, optional 
         contour label font thickness - automatically scaled to image by default
+    label_width : TYPE, optional
+        DESCRIPTION. The default is "auto".
 
     Returns
     -------
@@ -739,7 +741,6 @@ def draw_reference(
     canvas = copy.deepcopy(image)
 
     ## draw referenc mask outline
-    print([polygons[0]])
     cv2.polylines(canvas, np.array([polygons[0]]), False, line_colour, line_width)
 
     ## draw scale

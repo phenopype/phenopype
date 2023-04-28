@@ -170,7 +170,7 @@ def create_mask(
         data=gui_data,
         **gui_settings,
     )
-        
+
     # =============================================================================
     # assemble results
 
