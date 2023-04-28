@@ -16,6 +16,7 @@ from ruamel.yaml import YAML
 
 from functools import wraps
  
+from math import pi
 from math import sqrt
 from pathlib import Path
 from PIL import Image
@@ -191,10 +192,11 @@ class _GUI:
                         offset=(0, 0),
                     )
             else:
-                raise AttributeError(
+                print(
                     "Could not find contours to edit - check annotations."
                 )
-
+                return
+            
         ## get canvas dimensions
         if self.image_height > window_max_dim or self.image_width > window_max_dim:
             if self.image_width >= self.image_height:
@@ -1112,8 +1114,8 @@ def annotation_function(fun, *args, **kwargs):
     
     @wraps(fun)
     def annotation_function_wrapper(*args, **kwargs):
-        
-        ## determine the annotation type from function nam,e
+                
+        ## determine the annotation type from function name
         kwargs["annotation_type"] = _get_annotation_type(fun.__name__)
 
         ## get annotation using 
@@ -1129,9 +1131,12 @@ def annotation_function(fun, *args, **kwargs):
                 
         ## run function
         kwargs["annotation"] = fun(*args, **kwargs)
-        
-        ## return annotations        
-        return _update_annotations(**kwargs)
+    
+        ## return and update annotations    
+        if "annotations" in kwargs:
+            return _update_annotations(**kwargs)
+        else:
+            return kwargs["annotation"]
     
     ## close function wrapper
     return annotation_function_wrapper
@@ -2038,6 +2043,26 @@ def _resize_image(
 
     ## return results
     return image
+
+def _rotate_image(image, angle, ret_center=False):
+    
+    row, col = image.shape[1::-1]
+    center = tuple(np.array([row, col]) / 2)
+    rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1)
+    rotated_image = cv2.warpAffine(image, rotation_matrix, (col, row), flags=cv2.INTER_LINEAR)
+    
+    if ret_center:
+        return rotated_image, center
+    else:
+        return rotated_image
+
+def _rotate_2Darray(array, center, angle):
+        
+    radian = angle * (pi/180)
+    rotation_matrix = np.array([[np.cos(radian),np.sin(radian)],[-np.sin(radian),np.cos(radian)]])
+    rotated_array = np.dot(array - center, rotation_matrix)+center
+    
+    return rotated_array
 
 
 def _save_prompt(object_type, filepath, ow_flag):

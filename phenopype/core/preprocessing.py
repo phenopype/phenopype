@@ -10,8 +10,10 @@ import math
 
 from phenopype import __version__
 from phenopype import settings
+from phenopype import utils
 from phenopype import utils_lowlevel
 from phenopype.core import segmentation
+from phenopype.utils_lowlevel import annotation_function
 
 #%% functions
 
@@ -168,7 +170,7 @@ def create_mask(
         data=gui_data,
         **gui_settings,
     )
-
+        
     # =============================================================================
     # assemble results
 
@@ -769,6 +771,132 @@ def detect_reference(
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
+
+@annotation_function
+def detect_QRcode(
+    image,
+    rot_steps=20,
+    enter_manually=False,
+    show_results=False,
+    label_colour="default",
+    label_size="auto",
+    label_width="auto",
+    **kwargs,
+):
+    
+    # =============================================================================
+    # annotation management
+
+    fun_name = sys._getframe().f_code.co_name
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+
+    annotation = kwargs.get("annotation")
+    
+    gui_data = {settings._comment_type: utils_lowlevel._get_GUI_data(annotation)}
+    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+
+    # =============================================================================
+    # setup
+    
+    flags = make_dataclass(
+        cls_name="flags",
+        fields=[("found", bool, False), 
+                ("enter_manually",bool, enter_manually),
+                ("show_results",bool, show_results)
+                ],
+    )
+    
+    if label_size == "auto":
+        label_size = utils_lowlevel._auto_text_size(image)
+    if label_width == "auto":
+        label_width = utils_lowlevel._auto_text_width(image)
+
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
+
+    label_colour = utils_lowlevel._get_bgr(label_colour)
+    
+
+    # =============================================================================
+    # execute
+    
+    ## init QR-code detector
+    qrCodeDetector = cv2.QRCodeDetector()
+    
+    ## rotate image 
+    print("rotating image to detect code:")
+    for angle in range(0, 360, rot_steps):
+        print("- rotating image - {} degrees".format(angle))
+        image_rot, image_center = utils_lowlevel._rotate_image(image, angle, ret_center=True)  
+        decodedText, points_rot, _ = qrCodeDetector.detectAndDecode(image_rot)
+        if not decodedText == "" and not points_rot.__class__.__name__ == 'NoneType':
+            flags.found = True
+            break
+            
+    if flags.found:
+        points = utils_lowlevel._rotate_2Darray(points_rot, image_center, angle)  
+        points = utils_lowlevel._convert_arr_tup_list(points)
+        print("found text: {}".format(decodedText))
+    else:
+        print("did not find QR-code - enter code manually")
+        if flags.enter_manually:
+            gui = utils_lowlevel._GUI(
+                image,
+                tool="comment",
+                label="code",
+                label_size=label_size,
+                label_width=label_width,
+                label_colour=label_colour,
+                data=gui_data,
+                **gui_settings,
+            )
+            decodedText = gui.data[settings._comment_type]
+        else:
+            print("did not find QR-code")
+        points = None
+        
+    # =============================================================================
+    # execute
+    
+    if flags.show_results and flags.found:
+        canvas = cv2.polylines(
+            image, 
+            [np.asarray(points, np.int32)], 
+            True, 
+            label_colour, 
+            5)
+        utils.show_image(canvas)
+        
+    # =============================================================================
+    # assemble results
+
+    annotation = {
+        "info": {
+            "annotation_type": annotation_type,
+            "phenopype_function": fun_name,
+            "phenopype_version": __version__,
+        },
+        "settings": {
+            "rotation_steps": rot_steps,
+            "angle": angle,
+            "label_size": label_size,
+            "label_width": label_width,
+            "label_colour": label_colour,
+        },
+        "data": {
+            annotation_type: decodedText,
+            "label": "QRcode",
+            settings._mask_type: points,
+            },
+    }
+
+    if len(gui_settings) > 0:
+        annotation["settings"]["GUI"] = gui_settings
+
+    # =============================================================================
+    # return
+
+    return annotation
 
 
 def decompose_image(
