@@ -82,7 +82,7 @@ def test_motion_tracker(motion_tracker):
 
 def test_video_output(motion_tracker):
     with mock.patch('builtins.input', return_value='y'):
-        motion_tracker.video_output(video_format="DIVX", dirpath=pytest.test_dir)
+        motion_tracker.video_output(video_format="mp4v", dirpath=pytest.test_dir)
     assert os.path.isfile(os.path.join(pytest.test_dir, 
                                        os.path.splitext(os.path.basename(pytest.video_path))[0] 
                                        + "_out" 
