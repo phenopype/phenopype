@@ -23,7 +23,9 @@ install:
 - pip install tox #coveralls
 
 test_script:
-- tox
+- tox coveralls 
+
+
 
 # on_finish:
 # - coveralls 
