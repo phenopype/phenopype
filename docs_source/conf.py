@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'phenopype'
-project_copyright = '2022, Moritz Lürig'
+project_copyright = '2023, Moritz Lürig'
 author = 'Moritz Lürig'
 
 from phenopype._version import __version__ as version

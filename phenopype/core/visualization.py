@@ -561,7 +561,36 @@ def draw_QRcode(
     label_width="auto",
     **kwargs,
 ):   
+    """
     
+
+    Parameters
+    ----------
+    image : ndarray
+        image used as canvas 
+    annotation: dict
+        phenopype annotation containing QR-code (comment)
+    line_colour: {"default", ... see phenopype.print_colours()} str, optional
+        contour line colour - default colour as specified in settings
+    line_width: {"auto", ... int > 0} int, optional 
+        contour line width - automatically scaled to image by default
+    label : bool, optional
+        draw reference label
+    label_colour : {"default", ... see phenopype.print_colours()} str, optional
+        contour label colour - default colour as specified in settings
+    label_size: {"auto", ... int > 0} int, optional 
+        contour label font size - automatically scaled to image by default
+    label_width:  {"auto", ... int > 0} int, optional 
+        contour label font thickness - automatically scaled to image by default
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    canvas : TYPE
+        DESCRIPTION.
+
+    """
     # =============================================================================
     # setup
 
@@ -660,8 +689,6 @@ def draw_reference(
         contour label font size - automatically scaled to image by default
     label_width:  {"auto", ... int > 0} int, optional 
         contour label font thickness - automatically scaled to image by default
-    label_width : TYPE, optional
-        DESCRIPTION. The default is "auto".
 
     Returns
     -------
