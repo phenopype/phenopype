@@ -689,8 +689,6 @@ def draw_reference(
         contour label font size - automatically scaled to image by default
     label_width:  {"auto", ... int > 0} int, optional 
         contour label font thickness - automatically scaled to image by default
-    label_width : TYPE, optional
-        DESCRIPTION. The default is "auto".
 
     Returns
     -------
