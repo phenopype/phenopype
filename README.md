@@ -1,7 +1,7 @@
 
 ![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo_text.png)
 
-| Code review | Windows build | Linux build | OSX build | Code coverage for CI| Code Style |
+| Code review | Windows | Linux | OSX | Code coverage | Code Style |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 |[![pyOpenSci](https://tinyurl.com/y22nb8up)](https://github.com/pyOpenSci/software-review/issues/24) | [![Build status](https://ci.appveyor.com/api/projects/status/20ncgfq137mmvbgb?svg=true)](https://ci.appveyor.com/project/mluerig/phenopype-9386w) | *soon to come* | *none* | [![Coverage Status](https://coveralls.io/repos/github/phenopype/phenopype/badge.svg?branch=main)](https://coveralls.io/github/phenopype/phenopype?branch=main) | [![Code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) |  
 
