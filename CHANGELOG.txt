@@ -3,10 +3,12 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
-3.3.7
+3.4.0
 -----
+- new function: preprocesing.detect_QRcode; will find and read out a QR code that is contained inside an image, with the option to enter code manually if detection fails. visualized with visualization.draw_QRcode
 - improved "check_files" method for "project" class; allows to relink files to a new folder
 - minor fixes related to console feedback    
+- bugs in documentation fixed (dead links in tutorials)
 
 3.3.6
 -----

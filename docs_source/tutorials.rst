@@ -27,7 +27,7 @@ Below are the read-only html versions of the code contained in the notebooks - t
 	:gutter: 2
 
 	.. grid-item-card::  Tutorial 1
-			:link: tutorial_1
+			:link: tutorial_1/
 
 			A (very) brief python introduction
 
@@ -37,7 +37,7 @@ Below are the read-only html versions of the code contained in the notebooks - t
 
 
 	.. grid-item-card::   Tutorial 2
-			:link: tutorial_2
+			:link: tutorial_2/
 
 			Interacting with images in phenopype
 
@@ -47,7 +47,7 @@ Below are the read-only html versions of the code contained in the notebooks - t
 
 
 	.. grid-item-card::  Tutorial 3
-			:link: tutorial_3
+			:link: tutorial_3/
 
 			Image analysis workflow
 
@@ -57,7 +57,7 @@ Below are the read-only html versions of the code contained in the notebooks - t
 
 
 	.. grid-item-card:: Tutorial 4
-			:link: tutorial_4
+			:link: tutorial_4/
 
 			The Pype class
 
@@ -67,7 +67,7 @@ Below are the read-only html versions of the code contained in the notebooks - t
 
 
 	.. grid-item-card:: Tutorial 5
-			:link: tutorial_5
+			:link: tutorial_5/
 
 			Setting up and managing projects
 
@@ -77,7 +77,7 @@ Below are the read-only html versions of the code contained in the notebooks - t
 
 
 	.. grid-item-card:: Tutorial 6
-			:link: tutorial_6
+			:link: tutorial_6/
 
 			Creating and detecting a reference
 
@@ -86,7 +86,7 @@ Below are the read-only html versions of the code contained in the notebooks - t
 
 
 	.. grid-item-card:: Tutorial 7
-			:link: tutorial_7
+			:link: tutorial_7/
 
 			Video analysis
 

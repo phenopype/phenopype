@@ -271,7 +271,7 @@ def detect_mask(
     Returns
     -------
     annotations: dict
-        phenopype annotation containing mask coordinates
+        phenopype annotation
 
     """
 
@@ -424,10 +424,8 @@ def create_reference(
         
     Returns
     -------
-    annotation_ref: dict
-        phenopype annotation containing mask coordinates pixel to mm ratio
-    annotation_mask: dict
-        phenopype annotation containing mask coordinates
+    annotations: dict
+        phenopype annotation
 
     """
     # =============================================================================
@@ -603,10 +601,8 @@ def detect_reference(
 
     Returns
     -------
-    annotation_ref: dict
-        phenopype annotation containing mask coordinates pixel to mm ratio
-    annotation_mask: dict
-        phenopype annotation containing mask coordinates
+    annotations: dict
+        phenopype annotation
     """
 
     # =============================================================================
@@ -783,6 +779,33 @@ def detect_QRcode(
     label_width="auto",
     **kwargs,
 ):
+    """
+    Find and read out a QR code that is contained inside an image. Rotate image
+    until code is detected, or enter code manually if detection fails.
+
+    Parameters
+    ----------
+    image: ndarray 
+        input image
+    rot_steps : TYPE, optional
+        angle by which image is rotated (until 360 is reached). The default is 20.
+    enter_manually : TYPE, optional
+        enter code manually of detection fails. The default is False.
+    show_results : TYPE, optional
+        show the detection results. The default is False.
+    label_colour : {"default", ... see phenopype.print_colours()} str, optional
+        text colour - default colour as specified in settings
+    label_size: {"auto", ... int > 0} int, optional 
+        text label font size - automatically scaled to image by default
+    label_width:  {"auto", ... int > 0} int, optional 
+        text label font thickness - automatically scaled to image by default
+
+    Returns
+    -------
+    annotations: dict
+        phenopype annotation
+
+    """
     
     # =============================================================================
     # annotation management
