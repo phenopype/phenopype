@@ -20,10 +20,15 @@ install:
 - SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%"
 - python --version
 - python -m pip install -U pip
-- pip install tox
+- pip install tox #coveralls
 
 test_script:
 - tox coveralls 
+
+
+
+# on_finish:
+# - coveralls 
 
 
 

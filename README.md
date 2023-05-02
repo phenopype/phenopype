@@ -1,9 +1,11 @@
 
 ![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo_text.png)
 
-| Project status | Windows build | Linux build | OSX build | Coverage | Style |
+| Code review | Windows build | Linux build | OSX build | Code coverage for CI| Code Style |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| [![Project Status: Active](http://www.repostatus.org/badges/latest/active.svg)](http://www.repostatus.org/#active) | [![Build status](https://ci.appveyor.com/api/projects/status/20ncgfq137mmvbgb?svg=true)](https://ci.appveyor.com/project/mluerig/phenopype-9386w) | *soon to come* | *none* | [![Coverage Status](https://coveralls.io/repos/github/phenopype/phenopype/badge.svg?branch=main)](https://coveralls.io/github/phenopype/phenopype?branch=main) | [![Code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) |  
+|[![pyOpenSci](https://tinyurl.com/y22nb8up)](https://github.com/pyOpenSci/software-review/issues/24) | [![Build status](https://ci.appveyor.com/api/projects/status/20ncgfq137mmvbgb?svg=true)](https://ci.appveyor.com/project/mluerig/phenopype-9386w) | *soon to come* | *none* | [![Coverage Status](https://coveralls.io/repos/github/phenopype/phenopype/badge.svg?branch=main)](https://coveralls.io/github/phenopype/phenopype?branch=main) | [![Code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) |  
+
+
 
 **Author:** [Moritz Lürig](https://luerig.net)  
 **License:** [LGPL](https://opensource.org/licenses/LGPL-3.0)  
@@ -61,15 +63,20 @@ phenopype development is ongoing and contributions towards making it more broadl
 #### How to cite phenopype
 
 Lürig, M. D. (2021). phenopype : A phenotyping pipeline for Python. Methods in Ecology and Evolution. https://doi.org/10.1111/2041-210x.13771
-
-	@ARTICLE{Lurig2021,
+	
+	@ARTICLE{Lurig2022-pb,
 	  title     = "phenopype : A phenotyping pipeline for Python",
 	  author    = "L{\"u}rig, Moritz D",
-	  journal   = "Methods in Ecology and Evolution",
+	  journal   = "Methods in ecology and evolution / British Ecological Society",
 	  publisher = "Wiley",
-	  month     =  dec,
-	  year      =  2021,
+	  volume    =  13,
+	  number    =  3,
+	  pages     = "569--576",
+	  month     =  mar,
+	  year      =  2022,
 	  copyright = "http://creativecommons.org/licenses/by-nc/4.0/",
 	  language  = "en",
+	  issn      = "2041-210X",
 	  doi       = "10.1111/2041-210x.13771"
 	}
+
