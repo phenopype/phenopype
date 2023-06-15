@@ -739,7 +739,6 @@ def draw_reference(
     canvas = copy.deepcopy(image)
 
     ## draw referenc mask outline
-    print([polygons[0]])
     cv2.polylines(canvas, np.array([polygons[0]]), False, line_colour, line_width)
 
     ## draw scale

@@ -620,10 +620,14 @@ def detect_reference(
     ## kwargs
     flags = make_dataclass(
         cls_name="flags",
-        fields=[("mask", bool, get_mask), ("equalize", bool, correct_colours)],
+        fields=[
+            ("mask", bool, get_mask), 
+            ("equalize", bool, correct_colours),
+            ("no_homo", bool, False),
+            ],
     )
 
-    px_ratio_template = px_ratio
+    px_ratio_template = float(px_ratio)
 
     ## if image diameter bigger than 5000 px, then automatically resize
     if (image.shape[0] + image.shape[1]) / 2 > 5000 and resize == 1:
@@ -680,6 +684,10 @@ def detect_reference(
                 dtype=np.float32,
             )
 
+            if M.__class__.__name__ == "NoneType":
+                flags.no_homo = True          
+                break
+            
             rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
 
             # calculate template diameter
@@ -692,6 +700,10 @@ def detect_reference(
 
             ## calculate ratios
             diameter_ratio = diameter_new / diameter_old
+            
+            
+            print(px_ratio_template)
+            
             px_ratio_detected = round(diameter_ratio * px_ratio_template, 3)
 
             ## feedback
@@ -715,11 +727,13 @@ def detect_reference(
 
             break
 
-    if len(good) == 0:
+    if len(good) == 0 or flags.no_homo:
 
         ## feedback
         print("---------------------------------------------------")
         print("Reference card not found - %d keypoint matches:" % len(good))
+        if flags.no_homo:
+            print("No homography found!")
         print('Setting "current reference" to None')
         print("---------------------------------------------------")
         px_ratio_detected = None

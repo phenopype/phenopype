@@ -205,8 +205,10 @@ class Project:
         self.dir_paths = dir_paths
         if flags.checked:
             self.file_names = file_names_attr
+            self.dir_names = dir_names_attr
         else:
             self.file_names = []
+            self.dir_names = []
         ## add attributes
         self.attributes = project_attributes
         self.attributes_path = project_attributes_path

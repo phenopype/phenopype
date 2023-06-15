@@ -127,6 +127,9 @@ class _GUI:
             ('overlay_colour_left', tuple, kwargs.get('overlay_colour_left',settings._default_overlay_left)),
             ('overlay_colour_right', tuple, kwargs.get('overlay_colour_right',settings._default_overlay_right)),
             
+            ('return_input', bool, kwargs.get('return_input',False)),
+
+            
             ('feedback', bool, feedback),
             ('pype_mode', bool, pype_mode),
             
@@ -324,6 +327,13 @@ class _GUI:
                         ## sync zoom settings with config
                         _config.gui_zoom_config = self.zoom
 
+                        ## directly return key input
+                        if self.settings.return_input:
+                            self.keypress = cv2.waitKey(0)
+                            self._keyboard_input()
+                            self.flags.end = True
+                            cv2.destroyAllWindows()
+
                         ## comment tool
                         if self.tool == "comment":
                             self.keypress = cv2.waitKey(1)
@@ -387,6 +397,10 @@ class _GUI:
                         elif _config.window_close:
                             self.flags.end = True
                             cv2.destroyAllWindows()
+
+    def _keyboard_input(self):
+        self.keypress_trans = chr(self.keypress)
+        return self
 
     def _comment_tool(self):
 
@@ -2049,7 +2063,7 @@ def _rotate_image(image, angle, ret_center=False):
     row, col = image.shape[1::-1]
     center = tuple(np.array([row, col]) / 2)
     rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1)
-    rotated_image = cv2.warpAffine(image, rotation_matrix, (col, row), flags=cv2.INTER_LINEAR)
+    rotated_image = cv2.warpAffine(image, rotation_matrix, (row, col), flags=cv2.INTER_LINEAR)
     
     if ret_center:
         return rotated_image, center

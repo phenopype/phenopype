@@ -205,7 +205,7 @@ def set_polyline(
     n_lines = len(line_coords)
     line_lengths = []
     for line in line_coords:
-        line_lengths.append(round(_calc_distance_polyline(line), 3))
+        line_lengths.append(round(_calc_distance_polyline(line), 1))
     
     # =============================================================================
     # assemble results
@@ -219,8 +219,8 @@ def set_polyline(
         "settings": {"line_width": line_width, "line_colour": line_colour,},
         "data": {
             "n": n_lines,
-            annotation_type: line_coords,
             "lengths": line_lengths,
+            annotation_type: line_coords,
             },
     }
 
@@ -289,7 +289,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
     # =============================================================================
     # execute
 
-    lines = []
+    lines, line_lengths = [], []
 
     for coords in contours:
         rx, ry, rw, rh = cv2.boundingRect(coords)
@@ -307,9 +307,10 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
         skel_contour = skel_contour[0]
         skel_contour[:, :, 0] = skel_contour[:, :, 0] + rx - padding
         skel_contour[:, :, 1] = skel_contour[:, :, 1] + ry - padding
+        skel_contour = utils_lowlevel._convert_arr_tup_list(skel_contour)[0]
 
         lines.append(skel_contour)
-
+        line_lengths.append(round((_calc_distance_polyline(skel_contour)/2),1))
     # =============================================================================
     # assemble results
 
@@ -320,7 +321,11 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
             "annotation_type": annotation_type,
         },
         "settings": {},
-        "data": {annotation_type: lines,},
+        "data": {
+            "n": len(lines),
+            "lengths": line_lengths,
+            annotation_type: lines,
+            },
     }
 
     # =============================================================================

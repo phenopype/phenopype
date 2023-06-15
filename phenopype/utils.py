@@ -771,6 +771,7 @@ def save_image(
 
 def show_image(
     image,
+    return_input=False,
     position_reset=True,
     position_offset=25,
     window_aspect="normal",
@@ -854,14 +855,15 @@ def show_image(
             cv2.destroyAllWindows()
             break
         else:
-            utils_lowlevel._GUI(
+            out = utils_lowlevel._GUI(
                 image=image,
                 mode="",
+                return_input=return_input,
                 window_aspect=window_aspect,
                 window_name="phenopype",
                 window_control="internal",
                 **kwargs,
             )
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            if return_input:
+                return out.keypress_trans
             break
