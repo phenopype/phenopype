@@ -53,5 +53,5 @@ setup(
             "pyyaml"
         ]
     },
-    setup_requires=["pytest-runner"],
+    setup_requires=[], #"pytest-runner"
 )

@@ -267,19 +267,20 @@ def export_csv(
                     annotations[annotation_type][annotation_id]["data"][annotation_type],
                     annotations[annotation_type][annotation_id]["data"]["lengths"],
                 ), 1):
-                    line_tuple_list = list(zip(*coords))
+                    # line_tuple_list = list(zip(*coords))
                     list_flattened.append(
-                        pd.DataFrame.from_dict(
+                        pd.DataFrame(
                             {
                                 **{"image_name": image_name},
                                 **{"annotation_type": annotation_type},
                                 **{"annotation_id": annotation_id},
                                 **{"line_idx": idx},
-                                **{"node_idx": range(1,len(line_tuple_list[0])+1)},
-                                **{"x_coords": line_tuple_list[0]},
-                                **{"y_coords": line_tuple_list[1]},
+                                # **{"node_idx": range(1,len(line_tuple_list[0])+1)},
+                                # **{"x_coords": line_tuple_list[0]},
+                                # **{"y_coords": line_tuple_list[1]},
                                 **{"length": length},
                             },
+                            index=[0],
                         )
                     )
                     
