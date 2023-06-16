@@ -709,9 +709,8 @@ def draw_reference(
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
-
+    
     px_ratio, unit = annotation["data"][annotation_type]
-    polygons = annotation["data"][settings._mask_type]
 
     # =============================================================================
     # setup
@@ -739,7 +738,14 @@ def draw_reference(
     canvas = copy.deepcopy(image)
 
     ## draw referenc mask outline
-    cv2.polylines(canvas, np.array([polygons[0]]), False, line_colour, line_width)
+    if len(annotation["data"][settings._mask_type]) > 0:
+        mask_coord_list = annotation["data"][settings._mask_type]
+        cv2.polylines(canvas, np.array([mask_coord_list[0]]), False, line_colour, line_width)
+    
+    if "support" in annotation["data"]:
+        point_coord_list = annotation["data"]["support"]
+        cv2.polylines(canvas, np.array([point_coord_list]), False, line_colour, line_width)
+
 
     ## draw scale
     if flags.label:

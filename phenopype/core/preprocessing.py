@@ -455,11 +455,7 @@ def create_reference(
     gui_data = {}
     if annotation:
         gui_data.update({settings._coord_type: annotation["data"]["support"]})
-        gui_data.update(
-            {settings._comment_type: annotation["data"][annotation_type][0]}
-        )
-        unit = annotation["data"][annotation_type][0]
-        label = annotation["data"]["label"]
+        unit = annotation["data"][annotation_type][1]
         if "mask" in annotation["data"]:
             gui_data.update(
                 {settings._coord_list_type: annotation["data"][settings._mask_type]}
@@ -484,7 +480,7 @@ def create_reference(
 
     # =============================================================================
     # execute
-
+        
     ## measure length
     gui = utils_lowlevel._GUI(
         image,
@@ -566,6 +562,7 @@ def detect_reference(
     px_ratio,
     unit,
     get_mask=True,
+    manual_fallback=True,
     correct_colours=False,
     min_matches=10,
     resize=1,
@@ -586,8 +583,14 @@ def detect_reference(
     image: ndarray 
         input image
     template : array
-        reference image of reference
-    equalize : bool, optional
+        template image-crop containing reference card
+    px_ratio:
+        px-mm-ratio of template image
+    get_mask: bool
+        retrieve mask and create annotation. The default is True.
+    manual_fallback: bool
+        use manual reference-tool in case detection fails. The default is True.
+    correct_colours : bool, optional
         should the provided image be colour corrected to match the template 
         images' histogram
     min_matches : int, optional
@@ -596,8 +599,6 @@ def detect_reference(
         resize image to speed up detection process. default: 0.5 for 
         images with diameter > 5000px (WARNING: too low values may 
         result in poor detection performance or even crashes)
-    px_mm_ratio_template : int, optional
-        pixel-to-mm-ratio of the template image
 
     Returns
     -------
@@ -623,7 +624,8 @@ def detect_reference(
         fields=[
             ("mask", bool, get_mask), 
             ("equalize", bool, correct_colours),
-            ("no_homo", bool, False),
+            ("success", bool, False),
+            ("homo", bool, False),
             ],
     )
 
@@ -651,107 +653,111 @@ def detect_reference(
     kp2, des2 = akaze.detectAndCompute(image_resized, None)
     matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_BRUTEFORCE_HAMMING)
 
-    good = []
-
+    good,coord_list,px_ratio_detected = [], [], None
+    
     while True:
-
-        if not des2.__class__.__name__ == "NoneType":
-            matches = matcher.knnMatch(des1, des2, 2)
-        else:
+        if des2.__class__.__name__ == "NoneType":
             break
-
+        
         # keep only good matches
+        matches = matcher.knnMatch(des1, des2, 2)
         for m, n in matches:
             if m.distance < 0.7 * n.distance:
                 good.append(m)
-
+                
         # find and transpose coordinates of matches
-        if len(good) >= min_matches:
-
-            ## find homography betweeen detected keypoints
-            src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-            dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
-            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-
-            ## transform boundary box of template
-            rect_old = np.array(
-                [
-                    [[0, 0]],
-                    [[0, template.shape[0]]],
-                    [[template.shape[1], template.shape[0]]],
-                    [[template.shape[1], 0]],
-                ],
-                dtype=np.float32,
-            )
-
-            if M.__class__.__name__ == "NoneType":
-                flags.no_homo = True          
-                break
-            
-            rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
-
-            # calculate template diameter
-            (x, y), radius = cv2.minEnclosingCircle(rect_new.astype(np.int32))
-            diameter_new = radius * 2
-
-            # calculate transformed diameter
-            (x, y), radius = cv2.minEnclosingCircle(rect_old.astype(np.int32))
-            diameter_old = radius * 2
-
-            ## calculate ratios
-            diameter_ratio = diameter_new / diameter_old
-            
-            
-            print(px_ratio_template)
-            
-            px_ratio_detected = round(diameter_ratio * px_ratio_template, 3)
-
-            ## feedback
-            print("---------------------------------------------------")
-            print("Reference card found with {} keypoint matches:".format(len(good)))
-            print(
-                "template image has {} pixel per {}.".format(
-                    round(px_ratio_template, 3), unit
-                )
-            )
-            print(
-                "current image has {} pixel per mm.".format(round(px_ratio_detected, 3))
-            )
-            print("= {} %% of template image.".format(round(diameter_ratio * 100, 3)))
-            print("---------------------------------------------------")
-
-            ## create mask from new coordinates
-            rect_new = rect_new.astype(int)
-            coord_list = utils_lowlevel._convert_arr_tup_list(rect_new)
-            coord_list[0].append(coord_list[0][0])
-
+        if len(good) < min_matches:
             break
 
-    if len(good) == 0 or flags.no_homo:
+        ## find homography betweeen detected keypoints
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
+        ## transform boundary box of template
+        rect_old = np.array(
+            [
+                [[0, 0]],
+                [[0, template.shape[0]]],
+                [[template.shape[1], template.shape[0]]],
+                [[template.shape[1], 0]],
+            ],
+            dtype=np.float32,
+        )
+
+        if M.__class__.__name__ == "NoneType":
+            break
+        else:
+            flags.homo = True          
+
+        rect_new = cv2.perspectiveTransform(rect_old, M) / resize_factor
+
+        # calculate template diameter
+        (x, y), radius = cv2.minEnclosingCircle(rect_new.astype(np.int32))
+        diameter_new = radius * 2
+
+        # calculate transformed diameter
+        (x, y), radius = cv2.minEnclosingCircle(rect_old.astype(np.int32))
+        diameter_old = radius * 2
+
+        ## calculate ratios
+        diameter_ratio = diameter_new / diameter_old
+        px_ratio_detected = round(diameter_ratio * px_ratio_template, 3)
+        
+        ## end
+        flags.success = True
+        break
+        
+        
+    if flags.success:
+
+
+        ## feedback
+        print("---------------------------------------------------")
+        print("Reference card found with {} keypoint matches:".format(len(good)))
+        print(
+            "template image has {} pixel per {}.".format(
+                round(px_ratio_template, 3), unit
+            )
+        )
+        print(
+            "current image has {} pixel per mm.".format(px_ratio_detected)
+        )
+        print("= {} %% of template image.".format(round(diameter_ratio * 100, 3)))
+        print("---------------------------------------------------")
+    
+        ## create mask from new coordinates
+        rect_new = rect_new.astype(int)
+        coord_list = utils_lowlevel._convert_arr_tup_list(rect_new)
+        coord_list[0].append(coord_list[0][0])
+        
+        ## do histogram equalization
+        if flags.equalize:
+            detected_rect_mask = np.zeros(image.shape, np.uint8)
+            cv2.fillPoly(
+                detected_rect_mask, [np.array(rect_new)], utils_lowlevel._get_bgr("white")
+            )
+            (rx, ry, rw, rh) = cv2.boundingRect(np.array(rect_new))
+            detected_rect_mask = np.ma.array(
+                data=image[ry : ry + rh, rx : rx + rw],
+                mask=detected_rect_mask[ry : ry + rh, rx : rx + rw],
+            )
+            image = utils_lowlevel._equalize_histogram(image, detected_rect_mask, template)
+            print("histograms equalized")
+    
+
+    else:
 
         ## feedback
         print("---------------------------------------------------")
         print("Reference card not found - %d keypoint matches:" % len(good))
-        if flags.no_homo:
+        if not flags.homo:
             print("No homography found!")
         print('Setting "current reference" to None')
         print("---------------------------------------------------")
-        px_ratio_detected = None
         return
 
-    ## do histogram equalization
-    if flags.equalize:
-        detected_rect_mask = np.zeros(image.shape, np.uint8)
-        cv2.fillPoly(
-            detected_rect_mask, [np.array(rect_new)], utils_lowlevel._get_bgr("white")
-        )
-        (rx, ry, rw, rh) = cv2.boundingRect(np.array(rect_new))
-        detected_rect_mask = np.ma.array(
-            data=image[ry : ry + rh, rx : rx + rw],
-            mask=detected_rect_mask[ry : ry + rh, rx : rx + rw],
-        )
-        image = utils_lowlevel._equalize_histogram(image, detected_rect_mask, template)
-        print("histograms equalized")
+
 
     annotation = {
         "info": {
@@ -768,7 +774,7 @@ def detect_reference(
         "data": {annotation_type: (px_ratio_detected, unit),},
     }
 
-    if flags.mask:
+    if flags.success and flags.mask:
         annotation["data"][settings._mask_type] = coord_list
 
     # =============================================================================

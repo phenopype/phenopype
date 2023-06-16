@@ -416,7 +416,7 @@ class _GUI:
         self.canvas = copy.deepcopy(self.canvas_copy)
         cv2.putText(
             self.canvas,
-            "Enter " + self.label + ": " + self.data[settings._comment_type],
+            "Enter " + str(self.label) + ": " + str(self.data[settings._comment_type]),
             (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
             cv2.FONT_HERSHEY_SIMPLEX,
             self.settings.label_size,
