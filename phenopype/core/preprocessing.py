@@ -455,8 +455,11 @@ def create_reference(
     gui_data = {}
     if annotation:
         gui_data.update({settings._coord_type: annotation["data"]["support"]})
-        gui_data.update({settings._comment_type: annotation["data"][annotation_type][0]})
-        unit = annotation["data"][annotation_type][1]
+        gui_data.update(
+            {settings._comment_type: annotation["data"][annotation_type][0]}
+        )
+        unit = annotation["data"][annotation_type][0]
+        label = annotation["data"]["label"]
         if "mask" in annotation["data"]:
             gui_data.update(
                 {settings._coord_list_type: annotation["data"][settings._mask_type]}
@@ -481,7 +484,7 @@ def create_reference(
 
     # =============================================================================
     # execute
-        
+
     ## measure length
     gui = utils_lowlevel._GUI(
         image,
@@ -600,7 +603,7 @@ def detect_reference(
         resize image to speed up detection process. default: 0.5 for 
         images with diameter > 5000px (WARNING: too low values may 
         result in poor detection performance or even crashes)
-
+  
     Returns
     -------
     annotations: dict

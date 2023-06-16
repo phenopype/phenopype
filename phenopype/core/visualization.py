@@ -709,8 +709,9 @@ def draw_reference(
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
-    
+
     px_ratio, unit = annotation["data"][annotation_type]
+    polygons = annotation["data"][settings._mask_type]
 
     # =============================================================================
     # setup
