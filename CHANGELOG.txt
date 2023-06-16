@@ -3,6 +3,13 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+
+3.4.2
+-----
+bugfix:
+	- detect_reference was stuck in while loop
+- scale can now be drawn using the info collected with create_reference
+
 3.4.1
 -----
 bugfix:

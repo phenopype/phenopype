@@ -455,6 +455,7 @@ def create_reference(
     gui_data = {}
     if annotation:
         gui_data.update({settings._coord_type: annotation["data"]["support"]})
+        gui_data.update({settings._comment_type: annotation["data"][annotation_type][0]})
         unit = annotation["data"][annotation_type][1]
         if "mask" in annotation["data"]:
             gui_data.update(
