@@ -18,9 +18,6 @@ from phenopype.core import preprocessing
 
 #%% functions
 
-
-
-
 def convert_annotation(
     annotations,
     annotation_type,

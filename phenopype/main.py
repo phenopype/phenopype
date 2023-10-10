@@ -543,6 +543,7 @@ class Project:
         self,
         tag,
         template_path,
+        subset=[],
         interactive=False,
         image_number=1,
         overwrite=False,
@@ -562,6 +563,9 @@ class Project:
             identifier of a specific analysis pipeline
         template_path: str, optional
             path to a template or config-file in yaml-format
+        subset: list, optional
+            provide a list of images or folders in the project where the config should be 
+            added. useful if you do not want to modify the config for all images
         interactive: bool, optional
             start a pype and modify template before saving it to phenopype directories
         interactive_image: str, optional
@@ -574,16 +578,38 @@ class Project:
             developer options
         """
 
-        ## kwargs and setup
-        flag_interactive = interactive
-        flag_overwrite = overwrite
+        # =============================================================================
+        ## setup
 
+        flags = make_dataclass(
+            cls_name="flags",
+            fields=[
+                ("interactive", bool, interactive), 
+                ("overwrite", bool, overwrite),
+                ],
+        )
+
+        ## apply subset if given 
+        if len(subset) > 0:
+            indices = [i for i, item in enumerate(subset) if item in set(self.dir_paths)]
+            if len(indices) == 0:
+                indices = [i for i, item in enumerate(subset) if item in set(self.file_names)]
+            if len(indices) == 0:
+                print("No directories or files found using given subset - aborting.")
+                return
+            flags.dir_paths = [self.dir_paths[i] for i in indices]
+        else: 
+            flags.dir_paths = self.dir_paths
+
+        ## check tag sanity
         utils_lowlevel._check_pype_tag(tag)
-
+        
+        # =============================================================================
         ## interactive template modification
-        if flag_interactive:
-            if len(self.dir_paths) > 0:
-                dir_path = self.dir_paths[image_number - 1]
+        
+        if flags.interactive:
+            if len(flags.dir_paths) > 0:
+                dir_path = flags.dir_paths[image_number - 1]
             else:
                 print(
                     "Project contains no images - could not add config files in interactive mode."
@@ -612,14 +638,16 @@ class Project:
             p = Pype(container, tag="template-mod", config_path=config_path,)
             template_path = p.config_path
 
+        # =============================================================================
         ## save config to each directory
+        
         if os.path.isfile(template_path):
-            for dir_path in self.dir_paths:
+            for dir_path in flags.dir_paths:
                 utils.load_template(
                     template_path=template_path,
                     dir_path=dir_path,
                     tag=tag,
-                    overwrite=flag_overwrite,
+                    overwrite=flags.overwrite,
                 )
             _config.template_path_current = None
             _config.template_loaded_current = None
@@ -628,7 +656,7 @@ class Project:
             print("Could not find template_path")
             return
 
-        if flag_interactive:
+        if flags.interactive:
             q = input("Save modified template? ")
             if q in settings.confirm_options:
                 template_dir = os.path.join(self.root_dir, "templates")
@@ -1316,7 +1344,13 @@ class Project:
                     print("Missing config for {} - skipping".format(dir_name))
 
                 
-    def edit_config(self, tag, target, replacement, **kwargs):
+    def edit_config(
+            self, 
+            tag, 
+            target, 
+            replacement, 
+            subset=[],
+            **kwargs):
         """
         Add or edit functions in all configuration files of a project. Finds and
         replaces single or multiline string-patterns. Ideally this is done via 
@@ -1331,13 +1365,38 @@ class Project:
             string pattern to be replaced. should be in triple-quotes to be exact
         replacement: str
             string pattern for replacement. should be in triple-quotes to be exact
+        subset: list, optional
+            provide a list of images or folders in the project where the config should be 
+            modified. useful if you do not want to modify the config for all images
         """
 
+        # =============================================================================
         ## setup
-        flag_checked = False
+        
+        ## kwargs and setup
+        flags = make_dataclass(
+            cls_name="flags",
+            fields=[
+                ("checked", bool, False), 
+                ],
+        )
 
+        ## apply subset if given 
+        if len(subset) > 0:
+            indices = [i for i, item in enumerate(subset) if item in set(self.dir_paths)]
+            if len(indices) == 0:
+                indices = [i for i, item in enumerate(subset) if item in set(self.file_names)]
+            if len(indices) == 0:
+                print("No directories or files found using given subset - aborting.")
+                return
+            flags.dir_paths = [self.dir_paths[i] for i in indices]
+        else: 
+            flags.dir_paths = self.dir_paths
+            
+        # =============================================================================
         ## go through project directories
-        for directory in self.dir_paths:
+        
+        for directory in flags.dir_paths:
             dir_name = os.path.basename(directory)
 
             ## get config path
@@ -1356,7 +1415,7 @@ class Project:
             new_config_string = config_string.replace(target, replacement)
 
             ## show user replacement-result and ask for confirmation
-            if flag_checked == False:
+            if flags.checked == False:
                 print(new_config_string)
                 check = input(
                     "This is what the new config may look like (can differ between files) - proceed?"
@@ -1364,7 +1423,7 @@ class Project:
 
             ## replace for all config files after positive user check
             if check in settings.confirm_options:
-                flag_checked = True
+                flags.checked = True
                 with open(config_path, "w") as config_text:
                     config_text.write(new_config_string)
 

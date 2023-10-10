@@ -798,6 +798,7 @@ def detect_QRcode(
     rot_steps=20,
     enter_manually=False,
     show_results=False,
+    label = "QR-code",
     label_colour="default",
     label_size="auto",
     label_width="auto",
@@ -932,7 +933,7 @@ def detect_QRcode(
         },
         "data": {
             annotation_type: decodedText,
-            "label": "QRcode",
+            "label": label,
             settings._mask_type: points,
             },
     }
