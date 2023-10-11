@@ -11,9 +11,9 @@ Follow these instructions step by step:
 	:maxdepth: 1
 
 	python
-	spyder
 	phenopype
 	text
+	spyder
 
 For advanced users
 ==================
@@ -29,12 +29,7 @@ Install phenopype with :code:`pip install phenopype`.
 
 .. code-block:: bash
 
-	conda activate <NAME>  			   
+	mamba activate <NAME>  			   
 	pip install phenopype
 
-To work interactively, I strongly recommend to use `Spyder <https://docs.spyder-ide.org/current/index.html>`_ (best installed via conda-forge): 
-
-.. code-block:: bash
-
-	mamba install spyder -c conda-forge
-
+To work interactively, I strongly recommend to use `VScode <https://code.visualstudio.com/>`_ or `Spyder <https://docs.spyder-ide.org/current/index.html>`_.

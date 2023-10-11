@@ -1,12 +1,12 @@
-Installing Python with Anaconda
-###############################
+Installing and managing Python 
+##############################
 
-Python can be installed in many ways or may even already be installed on your machine (e.g., on some Unix distros). However, to avoid conflicts between package dependencies, and for a cleaner and more reproducible workflow, phenopype should *always* be installed inside a Python virtual environment that you create first. For use, use package and environment management systems like `(conda) <https://docs.conda.io/en/latest/>`_. 
+Python can be installed in many ways or may even already be installed on your machine (e.g., on some Unix distros). However, to avoid conflicts between package dependencies, and for a cleaner and more reproducible workflow, phenopype should *always* be installed inside a Python virtual environment that you create first. To do so, use a package and environment management system like `conda <https://docs.conda.io/en/latest/>`_. 
 
 Install conda/mamba through miniforge
 =====================================
 
-Download and install `miniforge3 <https://github.com/conda-forge/miniforge#miniforge3>`_ to create virtual environments using mamba (which is like conda but much faster). miniforge is a scientific Python distribution that comes with some packages already built in. Download the installer for your os, open the Miniforge prompt, and type:
+Download and install miniforge to create virtual environments using mamba (like conda but much faster), which is a scientific Python distribution that comes with some packages already built in. `Download the miniforge3 installer <https://github.com/conda-forge/miniforge#miniforge3>`_ for your os and follow installation instructions. Then, open the Miniforge prompt and type:
 
 .. code-block:: bash
 
@@ -29,7 +29,7 @@ If you get an error, refer to the references below for troubleshooting.
 Create a virtual environment with mamba
 =======================================
 
-Use :code:`mamba` to create a new Python virtual environment (needs to be Python 3.7 for phenopype):
+Use mamba to create a new Python virtual environment (needs to be Python 3.7 for phenopype):
 
 .. code-block:: bash
 
@@ -43,4 +43,5 @@ After successful installation and activation, you should see the name of the env
 
 	(pp-env) D:\projects>
 
-Now all libraries installed into this environment will be isolated from those installed in other virtual environments. 
+Now all libraries installed into this environment will be isolated from those installed in other virtual environments. You can now move on to install phenopype.
+
