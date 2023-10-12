@@ -591,9 +591,9 @@ class Project:
 
         ## apply subset if given 
         if len(subset) > 0:
-            indices = [i for i, item in enumerate(subset) if item in set(self.dir_paths)]
+            indices = [i for i, item in enumerate(self.dir_paths) if item in set(subset)]
             if len(indices) == 0:
-                indices = [i for i, item in enumerate(subset) if item in set(self.file_names)]
+                indices = [i for i, item in enumerate(self.file_names) if item in set(subset)]
             if len(indices) == 0:
                 print("No directories or files found using given subset - aborting.")
                 return
