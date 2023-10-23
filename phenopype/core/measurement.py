@@ -300,7 +300,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
         skeleton = cv2.ximgproc.thinning(
             mask, thinningType=settings.opencv_skeletonize_flags[thinning]
         )
-        skel_ret, skel_contour, skel_hierarchy = cv2.findContours(
+        skel_contour, skel_hierarchy = cv2.findContours(
             skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 

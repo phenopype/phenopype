@@ -905,7 +905,7 @@ class _GUI:
                     
     def _canvas_draw_contours(self):
 
-        _, self.contours, self.hierarchies = cv2.findContours(
+        self.contours, self.hierarchies = cv2.findContours(
             image=self.image_bin_copy,
             mode=cv2.RETR_CCOMP,
             method=cv2.CHAIN_APPROX_SIMPLE,

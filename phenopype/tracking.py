@@ -496,9 +496,11 @@ class motion_tracker(object):
                         )
                         self.frame_df.insert(2, "mins", mins)
                         self.frame_df.insert(3, "secs", secs)
-                        self.df = self.df.append(
-                            self.frame_df, ignore_index=True, sort=False
-                        )
+                        # self.df = self.df.append(
+                        #     self.frame_df, ignore_index=True, sort=False
+                        # )
+                        self.df = pd.concat([self.df, self.frame_df], ignore_index=True, sort=False)
+
 
                 ## select canvas
                 if "methods" in vars(self):
@@ -689,7 +691,7 @@ class tracking_method:
         )
 
         ## find contours
-        ret, contours, hierarchy = cv2.findContours(
+        contours, hierarchy = cv2.findContours(
             fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 

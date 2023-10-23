@@ -258,7 +258,7 @@ def detect_contour(
     # =============================================================================
     # execute
 
-    _, contours_det, hierarchies_det = cv2.findContours(
+    contours_det, hierarchies_det = cv2.findContours(
         image=image_bin,
         mode=settings.opencv_contour_flags["retrieval"][retrieval],
         method=settings.opencv_contour_flags["approximation"][approximation],

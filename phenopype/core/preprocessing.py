@@ -330,7 +330,7 @@ def detect_mask(
             for idx, circle in enumerate(circles[0]):
                 x, y, radius = circle / resize
                 mask = np.zeros(image.shape[:2], dtype=np.uint8)
-                mask = cv2.circle(mask, (x, y), radius, 255, -1)
+                mask = cv2.circle(mask, (int(x), int(y)), int(radius), 255, -1)
                 mask_contours = segmentation.detect_contour(
                     mask, retrieval="ext", approximation="KCOS", verbose=False,
                 )

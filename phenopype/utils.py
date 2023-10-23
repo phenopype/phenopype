@@ -846,8 +846,8 @@ def show_image(
                     if position_reset == True:
                         cv2.moveWindow(
                             "phenopype" + " - " + str(idx),
-                            idx + idx * position_offset,
-                            idx + idx * position_offset,
+                            int(idx + idx * position_offset),
+                            int(idx + idx * position_offset),
                         )
                 else:
                     print("skipped showing list item of type " + i.__class__.__name__)
