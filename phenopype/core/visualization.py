@@ -803,7 +803,7 @@ def draw_reference(
     return canvas
 
 
-def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
+def select_canvas(image, canvas="raw", multi_channel=True, invert=False, **kwargs):
     """
     Isolate a colour channel from an image or select canvas for the pype method.
 
@@ -827,7 +827,7 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
     """
 
     if image.__class__.__name__ == "Container":
-
+        
         ## method
         if canvas == "mod":
             image.canvas = copy.deepcopy(image.image)
@@ -853,6 +853,11 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
         else:
             print("- invalid selection - defaulting to raw image")
             image.canvas = copy.deepcopy(image.image_copy)
+            
+        if invert == True:
+            image.canvas = cv2.bitwise_not(image.canvas)
+            print("- inverted image")
+
 
     elif image.__class__.__name__ == "ndarray":
         if canvas == "raw":
@@ -873,6 +878,10 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
         else:
             canvas = copy.deepcopy(image)
             print("- invalid selection - defaulting to raw image")
+            
+        if invert == True:
+            canvas = cv2.bitwise_not(canvas)
+            print("- inverted image")
 
     ## check if colour
     if multi_channel:
@@ -882,5 +891,5 @@ def select_canvas(image, canvas="raw", multi_channel=True, **kwargs):
         elif image.__class__.__name__ == "ndarray":
             if len(canvas.shape) < 3:
                 canvas = cv2.cvtColor(canvas, cv2.COLOR_GRAY2BGR)
-
+                
     return canvas

@@ -1010,6 +1010,7 @@ def decompose_image(
     if invert == True:
         image = cv2.bitwise_not(image)
         print("- inverted image")
+        
 
     # =============================================================================
     # return
