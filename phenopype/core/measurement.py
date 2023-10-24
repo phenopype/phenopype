@@ -511,7 +511,7 @@ def compute_texture_features(
     image,
     annotations,
     features=["firstorder"],
-    channels=["gray"],
+    channels=["blue", "green", "red"],
     min_diameter=5,
     **kwargs,
 ):
@@ -528,8 +528,8 @@ def compute_texture_features(
     - ngtdm: Neighbouring Gray Tone Difference Matrix (5 features)
 
     Features are collected from every contour that is supplied along with the raw
-    image. Depending on the amount of contours inside an image, this may result
-    in very large dataframes.
+    image, which, depending on the number of contours, may result in long computing 
+    time and very large dataframes.
 
     The specified channels correspond to the channels that can be selected in
     phenopype.core.preprocessing.decompose_image.
@@ -543,8 +543,8 @@ def compute_texture_features(
         phenopype annotation containing contours
     features: ["firstorder", "shape", "glcm", "gldm", "glrlm", "glszm", "ngtdm"] list, optional
         type of texture features to extract
-    channels : {"raw", "gray", "red", "green", "blue", "hue", "saturation", "value"}  str, optional
-        image channel to extract texture features from
+    channels : list, optional
+        image channel to extract texture features from. if none is given, will extract from all channels in image
     min_diameter: int, optional
         minimum diameter of the contour (shouldn't be too small for sensible feature extraction')
 
@@ -568,7 +568,7 @@ def compute_texture_features(
     )
     contours = annotation["data"][settings._contour_type]
     contours_support = annotation["data"]["support"]
-
+    
     ##  features
     fun_name = sys._getframe().f_code.co_name
     annotation_type = utils_lowlevel._get_annotation_type(fun_name)
@@ -576,9 +576,6 @@ def compute_texture_features(
 
     # =============================================================================
     # setup
-
-    if not isinstance(channels, list):
-        channels = [channels]
 
     feature_activation = {}
     for feature in features:
@@ -596,8 +593,7 @@ def compute_texture_features(
         foreground_mask_inverted = cv2.fillPoly(foreground_mask_inverted, [coords], 255)
 
     texture_features = []
-
-
+    
     for idx1, (coords, support) in _tqdm(
             enumerate(zip(contours, contours_support)),
             "Computing texture features",
@@ -605,24 +601,27 @@ def compute_texture_features(
     ):
 
         output = {}
-
+        
         if support["diameter"] > min_diameter:
 
-            for channel in channels:
-
-                image_slice = preprocessing.decompose_image(image, channel, verbose=False)
+            for idx2, channel in enumerate(channels):
 
                 rx, ry, rw, rh = cv2.boundingRect(coords)
 
-                data = image_slice[ry : ry + rh, rx : rx + rw]
+                data = image[ry : ry + rh, rx : rx + rw, idx2]
                 mask = foreground_mask_inverted[ry : ry + rh, rx : rx + rw]
                 sitk_data = sitk.GetImageFromArray(data)
                 sitk_mask = sitk.GetImageFromArray(mask)
-
-                extractor = featureextractor.RadiomicsFeatureExtractor()
-                extractor.disableAllFeatures()
-                extractor.enableFeaturesByName(**feature_activation)
-                detected_features = extractor.execute(sitk_data, sitk_mask, label=255)
+                
+                if len(np.unique(mask)) > 1:
+                
+                    extractor = featureextractor.RadiomicsFeatureExtractor()
+                    extractor.disableAllFeatures()
+                    extractor.enableFeaturesByName(**feature_activation)
+                    detected_features = extractor.execute(sitk_data, sitk_mask, label=255)
+                    
+                else:
+                    continue
 
 
                 for key, val in detected_features.items():
@@ -630,6 +629,8 @@ def compute_texture_features(
                         output[channel + "_" + key.split("_", 1)[1]] = float(val)
 
         texture_features.append(output)
+        
+        
 
     # =============================================================================
     # return

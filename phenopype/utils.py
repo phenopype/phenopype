@@ -304,6 +304,8 @@ class Container(object):
                 print("- missing project level reference information, cannot detect")
         if fun == "decompose_image":
             self.image = core.preprocessing.decompose_image(self.image, **kwargs_function)
+        if fun == "manage_channels":
+            self.image_channels = core.preprocessing.manage_channels(self.image, **kwargs_function)
 
         ## plugins.segmentation
         if fun == "detect_object":
@@ -489,7 +491,7 @@ class Container(object):
 
 
 
-def load_image(path, mode="default", **kwargs):
+def load_image(path, mode="unchanged", **kwargs):
     """
     Create ndarray from image path or return or resize exising array.
 
@@ -525,8 +527,8 @@ def load_image(path, mode="default", **kwargs):
         if os.path.isfile(path):
             ext = os.path.splitext(path)[1]
             if ext.replace(".", "") in settings.default_filetypes:
-                if flags.mode == "default":
-                    image = cv2.imread(path)
+                if flags.mode == "unchanged":
+                    image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
                 elif flags.mode == "colour":
                     image = cv2.imread(path, cv2.IMREAD_COLOR)
                 elif flags.mode == "gray":
