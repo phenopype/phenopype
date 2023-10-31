@@ -479,6 +479,114 @@ def edit_contour(
         return annotation
 
 
+def mask_to_contour(
+    annotations,
+    include=True,
+    box_margin=0,
+    **kwargs,
+):
+
+    """
+    Converts a mask to contour annotation, e.g. for the purpose of extracting information
+    from this mask.  
+
+    Parameters
+    ----------
+    annotation: dict
+        phenopype annotation containing masks
+    include : bool, optional
+        include or exclude area inside contour
+    box_margin : int, optional
+        margin that is added between the outer perimeter of the mask and the box
+
+    Returns
+    -------
+    annotation: dict
+        phenopype annotation containing contours
+    """
+    ## fun name
+    fun_name = sys._getframe().f_code.co_name
+
+    # =============================================================================
+    # annotation management
+
+    ## get contours
+    annotation_type = settings._mask_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+    
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
+
+    masks = annotation["data"][annotation_type]
+    
+    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_id = kwargs.get("annotation_id", None)
+
+    # =============================================================================
+    # setup
+        
+    # =============================================================================
+    # process
+
+    contours, support = [], []
+    for mask in masks:
+        
+        ## convert contour
+        contour = utils_lowlevel._convert_tup_list_arr(mask)
+        contours.append(contour)
+        
+        ## support variables
+        print(contour)
+        center, radius = cv2.minEnclosingCircle(contour)
+        center = [int(center[0]), int(center[1])]
+        diameter = int(radius * 2)
+        area = int(cv2.contourArea(contour))
+        hierarchy_level = "parent"
+        support.append(
+            {
+                "center": center,
+                "area": area,
+                "diameter": diameter,
+                "hierarchy_level": hierarchy_level,
+                "hierarchy_idx_child": "NA",
+                "hierarchy_idx_parent": "NA",
+            }
+        )
+
+    # =============================================================================
+    # assemble results
+
+    annotation = {
+        "info": {
+            "phenopype_function": fun_name,
+            "phenopype_version": __version__,
+            "annotation_type": annotation_type,
+        },
+        "settings": {
+        },
+        "data": {
+            "n": len(masks),
+            annotation_type: contours,
+            "support": support,
+            },
+    }
+    
+    # =============================================================================
+    # return
+    
+    return utils_lowlevel._update_annotations(
+        annotations=annotations,
+        annotation=annotation,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
+
+
 def morphology(
     image, kernel_size=5, shape="rect", operation="close", iterations=1, **kwargs
 ):

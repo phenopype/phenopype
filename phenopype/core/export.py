@@ -324,9 +324,7 @@ def export_csv(
         ## texture_features
         if annotation_type == settings._texture_feature_type:
             for annotation_id in annotations[annotation_type].keys():
-
                 contour_id = annotations[annotation_type][annotation_id]["settings"][settings._contour_type + "_id"]
-
                 for idx, annotation in enumerate(
                     annotations[annotation_type][annotation_id]["data"][annotation_type], 1
                 ):

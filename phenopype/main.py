@@ -2193,21 +2193,21 @@ class Pype(object):
             if flags.execute and flags.feedback:
                 print("\n")
                 print(step_name.upper())
-
+                        
             if step_name == "visualization" and flags.execute:
 
                 ## check if canvas is selected, and otherwise execute with default values
-                vis_list = [
+                check_list = [
                     list(dict(i).keys())[0] if not isinstance(i, str) else i
                     for i in method_list
                 ]
                 if (
                     self.container.canvas.__class__.__name__ == "NoneType"
-                    and not "select_canvas" in vis_list
+                    and not "select_canvas" in check_list
                 ):
                     self.container.run("select_canvas")
                     if flags.feedback:
-                        print("select_canvas (autoselect)")
+                        print("select_canvas (DEFAULT)")
                         
             ## iterate through step list
             for method_idx, method in enumerate(method_list):

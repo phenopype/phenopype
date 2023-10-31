@@ -1658,9 +1658,9 @@ def _convert_tup_list_arr(tup_list):
             point_list = []
             for point in points:
                 point_list.append([list(point)])
-            array_list.append(np.asarray(point_list, dtype="int32"))
-    elif type(tup_list[0]) == tuple or type(tup_list[0]) == list:
-        array_list.append(np.asarray(tup_list, dtype="int32"))
+            array_list.append(np.asarray(point_list, dtype=np.int32))
+    elif type(tup_list[0]) == list or type(tup_list[0]) == tuple:
+        array_list = np.array([np.array([elem], dtype=np.int32) for elem in tup_list], dtype=np.int32)
         
     return array_list
 

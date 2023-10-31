@@ -1018,6 +1018,7 @@ def decompose_image(
     return image
 
 
+
 def write_comment(
     image,
     label="ID",
