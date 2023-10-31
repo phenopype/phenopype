@@ -434,11 +434,8 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
                 ## retrieve area and diameter, needed for calculation
                 cnt_diameter = support["diameter"]
                 cnt_area = support["area"]
-
                 tri_area, tri_coords = cv2.minEnclosingTriangle(coords)
-                min_rect_center, min_rect_min_max, min_rect_angle = cv2.minAreaRect(
-                    coords
-                )
+                min_rect_center, min_rect_min_max, min_rect_angle = cv2.minAreaRect(coords)
                 min_rect_max, min_rect_min = min_rect_min_max[0], min_rect_min_max[1]
                 rect_x, rect_y, rect_width, rect_height = cv2.boundingRect(coords)
                 perimeter_length = cv2.arcLength(coords, closed=True)
@@ -589,6 +586,7 @@ def compute_texture_features(
 
     ## create forgeround mask
     foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)
+    # print(contours)
     for coords in contours:
         foreground_mask_inverted = cv2.fillPoly(foreground_mask_inverted, [coords], 255)
 
@@ -619,10 +617,9 @@ def compute_texture_features(
                     extractor.disableAllFeatures()
                     extractor.enableFeaturesByName(**feature_activation)
                     detected_features = extractor.execute(sitk_data, sitk_mask, label=255)
-                    
+
                 else:
                     continue
-
 
                 for key, val in detected_features.items():
                     if not "diagnostics" in key:

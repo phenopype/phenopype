@@ -91,36 +91,39 @@ class Container(object):
         annotations_file_name = self._construct_file_name("annotations", ".json")
         
         if annotations_file_name in os.listdir(self.dir_path):
-            annotations_loaded = core.export.load_annotation(
-                os.path.join(self.dir_path, annotations_file_name)
-            )
-            
-            if contours == False:
-                if settings._contour_type in annotations_loaded:
-                    annotations_loaded.pop(settings._contour_type)
-            
-            if annotations_loaded:
-                self.annotations.update(annotations_loaded)
-
-            annotation_types_loaded = {}
-            for annotation_type in self.annotations.keys():
-                id_list = []
-                for annotation_id in self.annotations[annotation_type].keys():
-                    id_list.append(annotation_id)
-                if len(id_list) > 0:
-                    annotation_types_loaded[annotation_type] = utils_lowlevel._NoIndent(
-                        id_list
-                    )
-
-            loaded.append(
-                "annotations loaded:\n{}".format(
-                    json.dumps(
-                        annotation_types_loaded,
-                        indent=0,
-                        cls=utils_lowlevel._NoIndentEncoder,
+            try:
+                annotations_loaded = core.export.load_annotation(
+                    os.path.join(self.dir_path, annotations_file_name)
+                )
+                
+                if contours == False:
+                    if settings._contour_type in annotations_loaded:
+                        annotations_loaded.pop(settings._contour_type)
+                
+                if annotations_loaded:
+                    self.annotations.update(annotations_loaded)
+    
+                annotation_types_loaded = {}
+                for annotation_type in self.annotations.keys():
+                    id_list = []
+                    for annotation_id in self.annotations[annotation_type].keys():
+                        id_list.append(annotation_id)
+                    if len(id_list) > 0:
+                        annotation_types_loaded[annotation_type] = utils_lowlevel._NoIndent(
+                            id_list
+                        )
+    
+                loaded.append(
+                    "annotations loaded:\n{}".format(
+                        json.dumps(
+                            annotation_types_loaded,
+                            indent=0,
+                            cls=utils_lowlevel._NoIndentEncoder,
+                        )
                     )
                 )
-            )
+            except:
+                print("WARNING - BROKEN ANNOTATIONS FILE")
 
         ## global attributes
         attr_proj_path = os.path.abspath(
@@ -307,12 +310,6 @@ class Container(object):
         if fun == "manage_channels":
             self.image_channels = core.preprocessing.manage_channels(self.image, **kwargs_function)
 
-        ## plugins.segmentation
-        if fun == "detect_object":
-            # if len(self.image.shape) == 2:
-            #     self.image = copy.deepcopy(self.image_copy)
-            self.image = plugins.segmentation.detect_object(self.image_copy, _config.active_model_path, **kwargs_function)
-
         ## core.segmentation
         if fun == "contour_to_mask":
             annotations_updated = core.segmentation.contour_to_mask(**kwargs_function)
@@ -320,6 +317,8 @@ class Container(object):
             self.image = core.segmentation.threshold(self.image, **kwargs_function)
         if fun == "watershed":
             self.image = core.segmentation.watershed(self.image, **kwargs_function)
+        if fun == "mask_to_contour":
+            annotations_updated = core.segmentation.mask_to_contour(**kwargs_function)
         if fun == "morphology":
             self.image = core.segmentation.morphology(self.image, **kwargs_function)
         if fun == "detect_contour":
@@ -333,6 +332,11 @@ class Container(object):
                 self.image = copy.deepcopy(self.image_copy)
                 # self.annotations.update(annotations)
 
+        ## plugins.segmentation
+        if fun == "detect_object":
+            # if len(self.image.shape) == 2:
+            #     self.image = copy.deepcopy(self.image_copy)
+            self.image = plugins.segmentation.detect_object(self.image_copy, _config.active_model_path, **kwargs_function)
                 
         ## core.measurement
         if fun == "set_landmark":
@@ -411,10 +415,10 @@ class Container(object):
 
         ## save annotation to dict
         if annotations_updated:
-
+            
             if not annotation_type in annotations:
                 annotations[annotation_type] = {}
-
+                
             annotations[annotation_type][annotation_id] = annotations_updated[annotation_type][annotation_id]
             self.annotations.update(annotations)
 
