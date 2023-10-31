@@ -540,7 +540,6 @@ def mask_to_contour(
         contours.append(contour)
         
         ## support variables
-        print(contour)
         center, radius = cv2.minEnclosingCircle(contour)
         center = [int(center[0]), int(center[1])]
         diameter = int(radius * 2)
