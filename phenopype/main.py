@@ -1183,7 +1183,16 @@ class Project:
         print("--------------------------------------------")    
         
 
-    def collect_results(self, tag, files, folder, overwrite=False, **kwargs):
+    def collect_results(
+            self,
+            tag, 
+            files, 
+            folder=None, 
+            aggregate_csv=True,
+            overwrite=False,
+            save_suffix="",
+            **kwargs
+            ):
 
         """
         Collect canvas from each folder in the project tree. Search by 
@@ -1191,86 +1200,107 @@ class Project:
 
         Parameters
         ----------
-        name : str
-            name of the pype or save_suffix
-        folder : str, optional
-            folder in the root directory where the results are stored
+        tag : str
+            pype tag / save_suffix
+        files : str 
+            list results (canvas, annotation-file, or csv-files) to be aggregated to a single directory 
+            at the project root
+        folder : str, optional {default: <annotation-name>_<tag> }
+            folder in the root directory where the aggregated results are stored
+        aggregate_csv : bool, optional 
+            concatenate csv files of the same type and store in results folder instead
+            of each file separately
         overwrite : bool, optional
             should the results be overwritten
-
+    
         """
-
+        
+        # =============================================================================
+        # setup
+                
         ## set flags
         flags = make_dataclass(
-            cls_name="flags", fields=[("overwrite", bool, overwrite)]
-        )
+            cls_name="flags", 
+            fields=[
+                ("folder", str, folder),
+                ("aggregate_csv", bool, aggregate_csv),
+                ("overwrite", bool, overwrite),
+                ])
 
-        results_path = os.path.join(self.root_dir, "results", folder)
-
-        if not os.path.isdir(results_path):
-            os.makedirs(results_path)
-            print("Created " + results_path)
+        ## create results folder
+        results_dir = os.path.join(self.root_dir, "results")
+        if not os.path.isdir(results_dir):
+            os.makedirs(results_dir)
+            
+        ## save suffix
+        if not save_suffix == "":
+            save_suffix = "_" + save_suffix
+            
+        # =============================================================================
+        # execute
 
         ## search string
-        if not files.__class__.__name__ == "NoneType":
-            if not files.__class__.__name__ == "list":
-                files = [files]
-            search_strings = []
-            for file in files:
-                if not tag == "":
-                    search_strings.append(file + "_" + tag)
-                else:
-                    search_strings.append(file)
-        else:
-            search_strings = tag
-
-        ## append name
-        print("Search string: " + str(search_strings))
+        if not files.__class__.__name__ == "list":
+            files = [files]
 
         ## exclude strings
         exclude = kwargs.get("exclude", [])
         if not exclude.__class__.__name__ == "NoneType":
             if exclude.__class__.__name__ == "str":
                 exclude = [exclude]
+        exclude=exclude + ["pype_config", "attributes"]
 
         ## search
-        found, duplicates = utils_lowlevel._file_walker(
-            os.path.join(self.root_dir, "data"),
-            recursive=True,
-            include=search_strings,
-            exclude=["pype_config"] + exclude,
-        )
-
-        ## collect
-        for file_path in found:
-            print(
-                "Collected "
-                + os.path.basename(file_path)
-                + " from "
-                + os.path.basename(os.path.dirname(file_path))
+        results = {}
+        for file in files:
+            search_string = [file, tag]
+            results, duplicates = utils_lowlevel._file_walker(
+                os.path.join(self.root_dir, "data"),
+                recursive=True,
+                include=search_string,
+                include_all=True,
+                exclude=exclude,
             )
-            filename = (
-                os.path.basename(os.path.dirname(file_path))
-                + "_"
-                + os.path.basename(file_path)
-            )
-            path = os.path.join(results_path, filename)
 
-            ## overwrite check
-            while True:
-                if os.path.isfile(path) and flags.overwrite == False:
-                    print(
-                        filename + " not saved - file already exists (overwrite=False)."
+            ## search feedback
+            print("file \"{}\": found {} results in {} project folders".format(
+                file, len(results), len(self.dir_names)))
+
+            ## save to csv
+            if flags.aggregate_csv and results[0].endswith(".csv"):
+                result_list = []
+                for path in results:
+                    result_list.append(pd.read_csv(path))
+                result = pd.concat(result_list)
+                csv_name = file + "_" + tag + save_suffix + ".csv"
+                csv_path = os.path.join(results_dir, csv_name)
+                
+                ## overwrite check
+                if os.path.isfile(csv_path) and not flags.overwrite:
+                    print("Results file {} not saved: already exists (overwrite=False)".format(csv_name))
+                else:
+                    print("Saving file {}".format(csv_name))
+                    result.to_csv(csv_path, index=False)
+                    
+            ## copy files to subfolders
+            else:
+                folder_path = os.path.join(results_dir, file + "_" + tag + save_suffix)
+                if not os.path.isdir(folder_path):
+                    os.makedirs(folder_path)
+                for old_path in results:
+                    new_file = (
+                        os.path.basename(os.path.dirname(old_path))
+                        + "_"
+                        + os.path.basename(old_path)
                     )
-                    break
-                elif os.path.isfile(path) and flags.overwrite == True:
-                    print(filename + " saved under " + path + " (overwritten).")
-                    pass
-                elif not os.path.isfile(path):
-                    print(filename + " saved under " + path + ".")
-                    pass
-                shutil.copyfile(file_path, path)
-                break
+                    new_path = os.path.join(folder_path, new_file)
+
+                    ## overwrite check
+                    if os.path.isfile(new_path) and flags.overwrite == False:
+                        print(new_file + " not saved - file already exists (overwrite=False).")
+                    else:
+                        shutil.copyfile(old_path, new_path)
+                    
             
     def copy_tag(
             self, 
@@ -1561,17 +1591,18 @@ class Project:
                     folder_relpath = os.path.join(results_dir_relpath, folder)
                     zip.write(folder_abspath, folder_relpath)                            
         
-                    for file in os.listdir(folder_abspath):
-                        
-                        file_name, file_ext  = os.path.splitext(file)
-                                                
-                        if file_ext.strip(".") in settings.default_filetypes:
-                            if not flags.images:
-                                continue
-                        
-                        file_abspath = os.path.join(results_dir_abspath, folder, file)
-                        file_relpath = os.path.join(results_dir_relpath, folder, file)
-                        zip.write(file_abspath, file_relpath)   
+                    if os.path.isdir(os.path.join(results_dir_abspath, folder)):
+                        for file in os.listdir(folder_abspath):
+                            
+                            file_name, file_ext  = os.path.splitext(file)
+                                                    
+                            if file_ext.strip(".") in settings.default_filetypes:
+                                if not flags.images:
+                                    continue
+                            
+                            file_abspath = os.path.join(results_dir_abspath, folder, file)
+                            file_relpath = os.path.join(results_dir_relpath, folder, file)
+                            zip.write(file_abspath, file_relpath)   
     
     def export_training_data(
             self, 

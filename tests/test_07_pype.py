@@ -61,3 +61,5 @@ def test_pype(settings, all_annotations, reference_detected):
 
     
     assert p.__class__.__name__ == "Pype"
+    
+    

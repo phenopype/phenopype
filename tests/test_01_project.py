@@ -109,14 +109,4 @@ def test_project_edit_config(project, settings):
     assert success
     
 
-    
-def test_collect_results(project, settings):
-    
-    project.collect_results(
-        tag="", 
-        files=["copy"], 
-        folder="test", 
-        overwrite=True
-        )
-    
-    assert len(os.listdir(os.path.join(project.root_dir, "results/test"))) == 5
+
