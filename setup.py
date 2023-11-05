@@ -29,7 +29,7 @@ setup(
     install_requires=[
         "colour",
         "numpy",
-        "opencv-contrib-python", # ==3.4.9.33
+        "opencv-contrib-python==4.5.2.54",
         "pandas",
         "pillow",
         "pyradiomics==3.0.1",

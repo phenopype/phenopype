@@ -18,6 +18,42 @@ from phenopype.utils_lowlevel import annotation_function
 #%% functions
 
 
+def clip_histogram(image, percent=1, **kwargs):
+    
+    # Calculate grayscale histogram
+    hist = cv2.calcHist([image],[0],None,[256],[0,256])
+    hist_size = len(hist)
+    
+    # Calculate cumulative distribution from the histogram
+    accumulator = []
+    accumulator.append(float(hist[0][0]))
+    for index in range(1, hist_size):
+        accumulator.append(accumulator[index -1] + float(hist[index][0]))
+    
+    # Locate points to clip
+    maximum = accumulator[-1]
+    percent *= (maximum/100.0)
+    percent /= 2.0
+    
+    # Locate left cut
+    minimum_gray = 0
+    while accumulator[minimum_gray] < percent:
+        minimum_gray += 1
+    
+    # Locate right cut
+    maximum_gray = hist_size -1
+    while accumulator[maximum_gray] >= (maximum - percent):
+        maximum_gray -= 1
+    
+    # Calculate alpha and beta values
+    alpha = 255 / (maximum_gray - minimum_gray)
+    beta = -minimum_gray * alpha
+    
+    image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+    
+    return image
+
+
 def blur(
     image, kernel_size=5, method="averaging", sigma_color=75, sigma_space=75, **kwargs
 ):
@@ -946,7 +982,6 @@ def detect_QRcode(
 
     return annotation
 
-
 def decompose_image(
     image, channel="gray", invert=False, **kwargs,
 ):
@@ -1010,7 +1045,6 @@ def decompose_image(
     if invert == True:
         image = cv2.bitwise_not(image)
         print("- inverted image")
-        
 
     # =============================================================================
     # return

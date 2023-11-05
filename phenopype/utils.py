@@ -277,6 +277,8 @@ class Container(object):
         ## preprocessing
         if fun == "blur":
             self.image = core.preprocessing.blur(self.image, **kwargs_function)
+        if fun == "clip_histogram":
+            self.image = core.preprocessing.clip_histogram(self.image, **kwargs_function)
         if fun == "create_mask":
             annotations_updated = core.preprocessing.create_mask(self.image, **kwargs_function)
         if fun == "create_reference":

@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import sys
 
+from dataclasses import make_dataclass
 from math import inf
 
 from phenopype import __version__
@@ -655,6 +656,7 @@ def threshold(
     channel=None,
     mask=True,
     invert=False,
+    adjust=False,
     **kwargs,
 ):
     """
@@ -696,40 +698,30 @@ def threshold(
     # =============================================================================
     # setup
 
+    ## set flags
+    flags = make_dataclass(
+        cls_name="flags",
+        fields=[("mask", bool, mask), 
+                ("invert", bool, invert),
+                ],
+    )
+
+
     verbose = kwargs.get("verbose", settings.flag_verbose)
 
     if len(image.shape) == 3:
         if not channel:
             channel = "gray"
             print("- multichannel image supplied, converting to grayscale")
-        image = preprocessing.decompose_image(image, channel, verbose=verbose)
+        image = preprocessing.decompose_image(image, channel, verbose=verbose, adjust=adjust)
         
     if blocksize % 2 == 0:
         blocksize = blocksize + 1
         print("- even blocksize supplied, adding 1 to make odd")
 
-    if invert:
+    if flags.invert:
         image = cv2.bitwise_not(image)
-
-    # =============================================================================
-    # execute
-
-    if method in "otsu":
-        ret, thresh = cv2.threshold(
-            image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
-        )
-    elif method == "adaptive":
-        thresh = cv2.adaptiveThreshold(
-            image,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY_INV,
-            blocksize,
-            constant,
-        )
-    elif method == "binary":
-        ret, thresh = cv2.threshold(image, value, 255, cv2.THRESH_BINARY_INV)
-
+        
     # =============================================================================
     # annotation management
 
@@ -752,44 +744,64 @@ def threshold(
         annotation_id_mask,
         prep_msg="- masking regions in thresholded image:",
     )
-
+        
     # =============================================================================
     # execute masking
-    if mask:
-        if "data" in annotation_mask:               
-            if len(annotation_mask["data"][settings._mask_type]) > 0:
-                mask_bool, include_idx, exclude_idx = (
-                    np.zeros(thresh.shape, dtype=bool),
-                    0,
-                    0,
-                )
+    if flags.mask:
+
+        roi_list, roi_coords = [], []
     
-                polygons = annotation_mask["data"][settings._mask_type]
-                include = annotation_mask["data"]["include"]
-    
-                if include == True:
-                    for coords in polygons:
-                        mask_bool = np.logical_or(
-                            mask_bool, utils_lowlevel._create_mask_bool(thresh, coords)
-                        )
-                        include_idx += 1
-                    thresh[mask_bool == False] = 0
-                elif include == False:
-                    for coords in polygons:
-                        thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
-                        exclude_idx += 1
-    
-                if exclude_idx > 0 and verbose:
-                    print("- excluding pixels from " + str(exclude_idx) + " drawn masks ")
-                if include_idx > 0 and verbose:
-                    print("- including pixels from " + str(include_idx) + " drawn masks ")
-    
-        if "data" in annotation_ref:
-            if settings._mask_type in annotation_ref["data"]:
-                polygons = annotation_ref["data"][settings._mask_type]
+        if "data" in annotation_mask:     
+            
+            mask_coords = len(annotation_mask["data"][settings._mask_type]) > 0 
+            include = annotation_mask["data"]["include"]
+            
+            if mask_coords and include:
+                
+                polygons = annotation_mask["data"][settings._mask_type]   
+               
                 for coords in polygons:
-                    thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
-                print("- excluding pixels from reference")
+                    coords = utils_lowlevel._convert_tup_list_arr(coords)
+                    roi_coords.append(coords)
+                    rx, ry, rw, rh = cv2.boundingRect(coords)
+                    roi_list.append(image[ry : ry + rh, rx : rx + rw])
+
+
+        
+    # =============================================================================
+    # execute
+    
+    thresh = np.zeros(image.shape, dtype=np.uint8)
+    
+    for roi, coords in zip(roi_list, roi_coords):
+    
+        if method in "otsu":
+            ret, roi_thresh = cv2.threshold(
+                roi, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+            )
+        elif method == "adaptive":
+            roi_thresh = cv2.adaptiveThreshold(
+                roi,
+                255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY_INV,
+                blocksize,
+                constant,
+            )
+        elif method == "binary":
+            ret, roi_thresh = cv2.threshold(roi, value, 255, cv2.THRESH_BINARY_INV)
+                    
+        thresh[ry : ry + rh, rx : rx + rw] = roi_thresh
+        
+    # =============================================================================
+    # exclude masks or references
+    
+    if "data" in annotation_ref:
+        if settings._mask_type in annotation_ref["data"]:
+            polygons = annotation_ref["data"][settings._mask_type]
+            for coords in polygons:
+                thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
+            print("- excluding pixels from reference")
 
     # =============================================================================
     # return

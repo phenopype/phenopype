@@ -1100,32 +1100,30 @@ class _YamlFileMonitor:
         self.time_start = None
         self.time_diff = 10
 
-    # def _on_update(self, event):
-
-    #     if not self.time_start.__class__.__name__ == "NoneType":
-    #         self.time_end = timer()
-    #         self.time_diff = self.time_end - self.time_start
-
-    #     if self.time_diff > 1:
-    #         self.content = _load_yaml(self.filepath)
-    #         _config.window_close, _config.pype_restart = True, True
-    #         print("destroy")
-    #         cv2.destroyAllWindows()
-    #         # cv2.destroyWindow("phenopype")
-    #         cv2.waitKey(self.delay)
-    #     else:
-    #         pass
-
-    #     self.time_start = timer()
-        
     def _on_update(self, event):
-        print("action")
-        while cv2.getWindowProperty('phenopype', cv2.WND_PROP_VISIBLE) >= 0:
-            print("waiting")
-            cv2.destroyAllWindows()
-            cv2.waitKey(self.delay)
 
-            # _config.window_close, _config.pype_restart = True, True
+        if not self.time_start.__class__.__name__ == "NoneType":
+            self.time_end = timer()
+            self.time_diff = self.time_end - self.time_start
+
+        if self.time_diff > 1:
+            self.content = _load_yaml(self.filepath)
+            _config.window_close, _config.pype_restart = True, True
+            # cv2.destroyAllWindows()
+            cv2.destroyWindow("phenopype")
+            cv2.waitKey(self.delay)
+        else:
+            pass
+
+        self.time_start = timer()
+        
+    # def _on_update(self, event):
+    #     print("action")
+    #     while cv2.getWindowProperty('phenopype', cv2.WND_PROP_VISIBLE) >= 0:
+    #         print("waiting")
+    #         cv2.destroyAllWindows()
+    #         cv2.waitKey(self.delay)
+    #         _config.window_close, _config.pype_restart = True, True
 
 
     def _stop(self):
