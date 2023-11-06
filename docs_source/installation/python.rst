@@ -1,12 +1,12 @@
-Installing and managing Python 
-##############################
+Installing Python
+#################
 
-Python can be installed in many ways or may even already be installed on your machine (e.g., on some Unix distros). However, to avoid conflicts between package dependencies, and for a cleaner and more reproducible workflow, phenopype should *always* be installed inside a Python virtual environment that you create first. To do so, use a package and environment management system like `conda <https://docs.conda.io/en/latest/>`_. 
+Python can be installed in many ways or may even already be installed on your machine (e.g., on some Unix distros). However, to avoid conflicts between package dependencies, and for a cleaner and more reproducible workflow, phenopype should *always* be installed inside a Python virtual environment that you create first. To do so, use a package and environment management system like "mamba" (see below), "pipenv", or "conda". 
 
-Install conda/mamba through miniforge
+Install mamba through miniforge
 =====================================
 
-Download and install miniforge to create virtual environments using mamba (like conda but much faster), which is a scientific Python distribution that comes with some packages already built in. `Download the miniforge3 installer <https://github.com/conda-forge/miniforge#miniforge3>`_ for your os and follow installation instructions. Then, open the Miniforge prompt and type:
+Download and install miniforge to create virtual environments using mamba (it's like conda but *a lot* faster), which is a scientific Python distribution that comes with some packages already built in. `Download the Miniforge3 installer <https://github.com/conda-forge/miniforge#miniforge3>`_ (under "Latest installers with Python 3.10 in the base environment") for your OS and follow the installation instructions. Then, open the Miniforge prompt or terminal, and type:
 
 .. code-block:: bash
 
@@ -17,19 +17,16 @@ If you get an error, refer to the references below for troubleshooting.
 .. admonition:: Troubleshooting references
 	:class: note
 	
-	Consult these references if you have trouble installing Miniconda (they are discussing Anaconda, but the same applies for Miniconda):
+	Consult these references for troubleshooting:
 
-	- https://docs.anaconda.com/anaconda/install/
-	- https://docs.anaconda.com/anaconda/user-guide/troubleshooting/
-	- https://stackoverflow.com/questions/28612500/why-anaconda-does-not-recognize-conda-command
-	- https://stackoverflow.com/questions/44597662/conda-command-is-not-recognized-on-windows-10
-	- https://askubuntu.com/questions/908827/variable-path-issue-conda-command-not-found
+	- https://mamba.readthedocs.io/en/latest/mamba-installation.html
+	- https://mamba.readthedocs.io/en/latest/user_guide/troubleshooting.html
 
 
 Create a virtual environment with mamba
 =======================================
 
-Use mamba to create a new Python virtual environment (needs to be Python 3.7 for phenopype):
+Use mamba to create a new Python virtual environment (needs to be Python 3.9 for phenopype):
 
 .. code-block:: bash
 

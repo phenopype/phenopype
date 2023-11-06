@@ -42,23 +42,23 @@ def test_threshold(image, reference_detected, mask_polygon):
     
     thresh = pp.segmentation.threshold(
         image, 
-        method="binary",
+        method="otsu",
         annotations=annotations,
+        )
+    
+    thresh = pp.segmentation.threshold(
+        image, 
+        method="binary"
         )
     
     annotations["mask"]["a"]["data"]["include"] = False
     
     thresh = pp.segmentation.threshold(
         image, 
-        method="binary",
+        method="otsu",
         annotations=annotations,
         )
-    
-    thresh = pp.segmentation.threshold(
-        image, 
-        method="otsu"
-        )
-    
+        
     unique, counts = np.unique(thresh, return_counts=True)
     
     assert len(unique) == 2

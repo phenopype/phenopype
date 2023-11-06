@@ -10,5 +10,4 @@ Phenopype's high throughout workflow currently requires a text editor to be inst
 
 For Windows, `Notepad` works. However, I highly recommend `Notepad++`, which supports syntax highlighting and has many other useful features: https://notepad-plus-plus.org/downloads/. Check this SO post to deactivate refresh-popups: https://superuser.com/a/34553/970488
 
-Another popular editor is `Atom <https://atom.io/>`_. `Atom` works across all platforms: https://flight-manual.atom.io/getting-started/sections/installing-atom/
 

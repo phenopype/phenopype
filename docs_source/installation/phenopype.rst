@@ -8,20 +8,28 @@ Activate your virtual environment:
 
 .. code-block:: bash
 
-	conda activate <NAME>  			   	# <NAME> == chosen name, e.g. "pp-env"	
+	mamba activate <NAME>  			   	# <NAME> == chosen name, e.g. "pp-env"	
 
 
-Install phenopype to your environment using :code:`pip` (`pip` is the main package manager for Python):
+Install phenopype to your environment using :code:`pip` (`pip` is the standard package manager for Python):
 
 .. code-block:: bash
 
 	pip install phenopype
 
-That's it - happy `phenopyping`! You can now use phenopype by after loading :code:`python` or :code:`spyder` from the terminal. You can also use phenopype from a `jupyter notebook` - for more details, give the `tutorials <tutorial_0.html>`_ a try. 
+That's it - happy `phenopyping`! You can now use phenopype, e.g. by typing:
+
+.. code-block:: bash
+
+	python
+	import phenopype as pp
+	
+
+You can also use phenopype interactively (recommended), e.g. using a code editor like Spyder or vscode, or from a `jupyter notebook` - see the tutorials-section for more details. 
 
 .. warning:: 
 
-	Always remember to activate your environment before trying to run Spyder or phenopype.
+	Always remember to activate your environment before running phenopype from Python, Spyder or a jupyter notebook.
 
 
 Installing updates

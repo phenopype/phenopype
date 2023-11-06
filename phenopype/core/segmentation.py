@@ -656,7 +656,6 @@ def threshold(
     channel=None,
     mask=True,
     invert=False,
-    adjust=False,
     **kwargs,
 ):
     """
@@ -706,14 +705,11 @@ def threshold(
                 ],
     )
 
-
-    verbose = kwargs.get("verbose", settings.flag_verbose)
-
     if len(image.shape) == 3:
         if not channel:
             channel = "gray"
             print("- multichannel image supplied, converting to grayscale")
-        image = preprocessing.decompose_image(image, channel, verbose=verbose, adjust=adjust)
+        image = preprocessing.decompose_image(image, channel)
         
     if blocksize % 2 == 0:
         blocksize = blocksize + 1
@@ -744,30 +740,32 @@ def threshold(
         annotation_id_mask,
         prep_msg="- masking regions in thresholded image:",
     )
+    
+    
         
     # =============================================================================
     # execute masking
-    if flags.mask:
-
-        roi_list, roi_coords = [], []
     
-        if "data" in annotation_mask:     
-            
-            mask_coords = len(annotation_mask["data"][settings._mask_type]) > 0 
-            include = annotation_mask["data"]["include"]
-            
-            if mask_coords and include:
-                
+    ## no masks / exclude
+    height, width = image.shape
+    rx, ry, rw, rh = 0, 0, width, height
+    roi_list, roi_coords = [image], [(rx, ry, rw, rh)]
+    
+    ## with include masks 
+    if all([flags.mask, "data" in annotation_mask]):
+        
+        if annotation_mask["data"]["include"]:
+
+            roi_list, roi_coords = [], []
+            if len(annotation_mask["data"][settings._mask_type]) > 0:
                 polygons = annotation_mask["data"][settings._mask_type]   
                
                 for coords in polygons:
                     coords = utils_lowlevel._convert_tup_list_arr(coords)
-                    roi_coords.append(coords)
                     rx, ry, rw, rh = cv2.boundingRect(coords)
                     roi_list.append(image[ry : ry + rh, rx : rx + rw])
-
-
-        
+                    roi_coords.append((rx, ry, rw, rh))
+                
     # =============================================================================
     # execute
     
@@ -775,10 +773,13 @@ def threshold(
     
     for roi, coords in zip(roi_list, roi_coords):
     
-        if method in "otsu":
+        if method == "otsu":
             ret, roi_thresh = cv2.threshold(
-                roi, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
-            )
+                roi, 
+                0, 
+                255, 
+                cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+                )
         elif method == "adaptive":
             roi_thresh = cv2.adaptiveThreshold(
                 roi,
@@ -787,10 +788,16 @@ def threshold(
                 cv2.THRESH_BINARY_INV,
                 blocksize,
                 constant,
-            )
+                )
         elif method == "binary":
-            ret, roi_thresh = cv2.threshold(roi, value, 255, cv2.THRESH_BINARY_INV)
-                    
+            ret, roi_thresh = cv2.threshold(
+                roi, 
+                value, 
+                255,
+                cv2.THRESH_BINARY_INV,
+                )
+        
+        rx, ry, rw, rh = coords
         thresh[ry : ry + rh, rx : rx + rw] = roi_thresh
         
     # =============================================================================
@@ -802,6 +809,17 @@ def threshold(
             for coords in polygons:
                 thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
             print("- excluding pixels from reference")
+            
+    ## with exclude masks 
+    if all([flags.mask, "data" in annotation_mask]):
+        if not annotation_mask["data"]["include"]:
+            
+            if len(annotation_mask["data"][settings._mask_type]) > 0:
+                polygons = annotation_mask["data"][settings._mask_type]   
+               
+            for coords in polygons:
+                thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
+            print("- excluding pixels from mask")
 
     # =============================================================================
     # return

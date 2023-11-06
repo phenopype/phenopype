@@ -77,13 +77,17 @@ def pytest_configure(config):
 @pytest.fixture(scope="session")
 def project():
     with mock.patch('builtins.input', return_value="y"):
+        
         test_project = pp.Project(root_dir=pytest.project_root_dir_1)
+        
     return test_project
     
 
 @pytest.fixture(scope="session")
 def image():
+    
     image = pp.load_image(pytest.image_path)
+    
     return image
 
     
@@ -99,7 +103,7 @@ def mask_polygon():
         'label_size': 1,
         'label_width': 1,
         'label_colour': (0, 255, 0)},
-       'data': {'label': "armour-plates",
+       'data': {'label': "armor-plates",
         'include': True,
         'n': 1,
         'mask': [[(1377, 273),
@@ -159,7 +163,7 @@ def reference_created():
 @pytest.fixture(scope="session")
 def reference_detected():
     
-    return {'reference': {'a': {'info': {'annotation_type': 'reference',
+    reference_detected = {'reference': {'a': {'info': {'annotation_type': 'reference',
         'phenopype_function': 'detect_reference',
         'phenopype_version': '3.0.dev0'},
        'settings': {'get_mask': True,
@@ -172,6 +176,7 @@ def reference_detected():
           (380, 694),
           (335, 1508),
           (1202, 1555)]]}}}}
+    return reference_detected
 
 @pytest.fixture(scope="session")
 def landmarks():

@@ -18,11 +18,11 @@ Follow these instructions step by step:
 For advanced users
 ==================
 
-Create a new Python (3.7) environment with :code:`conda` or :code:`mamba`:
+Create a new Python (3.9) environment with :code:`conda` or :code:`mamba`:
 
 .. code-block:: bash
 
-	mamba create -n <NAME> python=3.7  # <NAME> == chosen name, e.g. "pp-env"	
+	mamba create -n <NAME> python=3.9  # <NAME> == chosen name, e.g. "pp-env"	
 
 
 Install phenopype with :code:`pip install phenopype`. 

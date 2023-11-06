@@ -3,6 +3,15 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+4.0.0
+-----
+- phenopype now requires python 3.9.* and opencv-contrib-python 4.5.2.54
+- new function: segmentation.mask_to_contour allows the conversion from a mask to contour
+- save_ROI can now export masks as transparent PNGs or with custom background color
+- compute_texture_features now can extract features from any range of channels 
+- thresholding now operates within masks only, if provided, which is MUCH faster when adaptive mode is used
+
+--------------------------------------------------------------------------------------------
 
 3.4.2
 -----
