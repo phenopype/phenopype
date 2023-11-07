@@ -33,7 +33,7 @@ setup(
         "opencv-contrib-python==4.5.2.54",
         "pandas",
         "pillow",
-        "pyradiomics==3.0.1",
+        "pyradiomics==3.1.0",
         "ruamel.yaml==0.16.12",
         "tqdm",
         "watchdog",
