@@ -30,7 +30,7 @@ Use mamba to create a new Python virtual environment (needs to be Python 3.9 for
 
 .. code-block:: bash
 
-	mamba create -n <NAME> python=3.7  # <NAME> == chosen name, e.g. "pp-env"	
+	mamba create -n <NAME> python=3.9  # <NAME> == chosen name, e.g. "pp-env"	
 	mamba activate <NAME>  			   # activates the new environment 
 
 

@@ -336,10 +336,11 @@ class Container(object):
 
         ## plugins.segmentation
         if fun == "detect_object":
-            # if len(self.image.shape) == 2:
-            #     self.image = copy.deepcopy(self.image_copy)
             self.image = plugins.segmentation.detect_object(self.image_copy, _config.active_model_path, **kwargs_function)
+        if fun == "predict_SAM":
+            self.image = plugins.segmentation.predict_SAM(self.image_copy, _config.active_model_path, **kwargs_function)
                 
+            
         ## core.measurement
         if fun == "set_landmark":
             annotations_updated = core.measurement.set_landmark(image=self.canvas, **kwargs_function)

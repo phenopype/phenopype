@@ -741,8 +741,6 @@ def threshold(
         prep_msg="- masking regions in thresholded image:",
     )
     
-    
-        
     # =============================================================================
     # execute masking
     

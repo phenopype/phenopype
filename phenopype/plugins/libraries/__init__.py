@@ -5,6 +5,7 @@ import_list = []
 
 import importlib
 
+## dlib
 if not any([
         importlib.util.find_spec("phenomorph") is None,
         importlib.util.find_spec("dlib") is None,
@@ -21,12 +22,36 @@ if not any([
         importlib.util.find_spec("tensorflow") is None,
         ]):
     
-    # import tensorflow
     import keras 
     
     import_list.extend(["keras"])
     clean_namespace.extend(["keras"])
     
+## pytorch
+if not any([
+         importlib.util.find_spec("torch") is None,
+         importlib.util.find_spec("torchvision") is None,
+         ]):
+     
+     import torch 
+     
+     import_list.extend(["torch"])
+     clean_namespace.extend(["torch"])
+     
+## fastsam
+if not any([
+         importlib.util.find_spec("fastsam") is None,
+         importlib.util.find_spec("ultralytics") is None,
+         importlib.util.find_spec("torch") is None,
+         importlib.util.find_spec("torchvision") is None,
+         ]):
+     
+     import fastsam 
+     
+     import_list.extend(["fastsam"])
+     clean_namespace.extend(["fastsam"])
+        
+        
 
 #%% feedback
 

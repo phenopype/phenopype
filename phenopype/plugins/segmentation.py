@@ -18,6 +18,149 @@ from phenopype.utils_lowlevel import annotation_function
 
 #%% functions
 
+def convert_box_xywh_to_xyxy(box):
+    if len(box) == 4:
+        return [box[0], box[1], box[0] + box[2], box[1] + box[3]]
+    else:
+        result = []
+        for b in box:
+            b = convert_box_xywh_to_xyxy(b)
+            result.append(b)               
+    return result
+
+def predict_SAM(
+        image,
+        model_path,
+        model_id=None,
+        prompt="local",
+        resize=0.5,
+        force_reload=False,
+        **kwargs,
+        ):
+        
+    # =============================================================================
+    # setup
+        
+    ## set flags
+    flags = make_dataclass(
+        cls_name="flags",
+        fields=[("prompt", str, prompt), 
+                ],
+    )
+    
+    image_copy = copy.deepcopy(image) 
+
+    # =============================================================================
+    # model management
+
+    if model_path.__class__.__name__ == "NoneType":
+        print("No model provided - did you set an active model?")
+        return image_copy
+    
+    if not model_id.__class__.__name__ == "NoneType":
+        model_path = _config.models[model_id]["model_phenopype_path"]
+        if not "model_loaded" in _config.models[model_id]:
+            print("loading model " + model_id)
+            _config.models[model_id]["model_loaded"] = plugins.libraries.fastsam.FastSAM(model_path)
+        _config.active_model = _config.models[model_id]["model_loaded"]
+        _config.active_model_path = model_path
+    
+    elif not _config.active_model_path == model_path or _config.active_model.__class__.__name__ == "NoneType" or force_reload==True:
+        _config.active_model = plugins.libraries.fastsam.FastSAM(model_path)
+        _config.active_model_path = model_path
+
+    print("Using current model at " + _config.active_model_path)
+    
+    ## init model and device
+    device = plugins.libraries.torch.device("cuda" if plugins.libraries.torch.cuda.is_available() else "cpu")
+    model = _config.active_model
+        
+    # =============================================================================
+    # annotation management
+    
+    annotations = kwargs.get("annotations", {})
+    
+    ## masks
+    annotation_id_mask = kwargs.get(settings._mask_type + "_id", None)
+    annotation_mask = utils_lowlevel._get_annotation(
+        annotations,
+        settings._mask_type,
+        annotation_id_mask,
+        prep_msg="- masking regions in thresholded image:",
+    )
+    
+    # =============================================================================
+    # execute
+
+    if flags.prompt == "local":
+    
+        coords = annotation_mask["data"]["mask"]
+        coords = utils_lowlevel._convert_tup_list_arr(coords)
+        rx, ry, rw, rh = cv2.boundingRect(coords[0])
+            
+        roi = image[ry : ry + rh, rx : rx + rw]
+        roi_downsized = utils_lowlevel._resize_image(roi, resize)
+    
+        everything_results = model(
+            roi_downsized,
+            device=device,
+            retina_masks=True,
+            imgsz=[int(roi.shape[1]), int(roi.shape[0])],
+            conf=0.8,
+            iou=0.65,
+        )
+        
+        box_prompt = [[0, 0, int(roi_downsized.shape[1]), int(roi_downsized.shape[0])]]
+        box_prompt = convert_box_xywh_to_xyxy(box_prompt)
+        prompt_process = plugins.libraries.fastsam.FastSAMPrompt(roi, everything_results, device=device)
+        ann = prompt_process.box_prompt(bboxes=box_prompt)
+        
+        # Extract mask and original image
+        mask = (ann[0] * 255).astype(np.uint8)
+
+        mask_upsized = utils_lowlevel._resize_image(
+            mask, width=roi.shape[1], height=roi.shape[0])
+
+        ## full mask
+        mask_predicted = np.zeros(image.shape[:2], dtype=np.uint8)
+        mask_predicted[ry : ry + rh, rx : rx + rw] = mask_upsized
+        
+    elif flags.prompt == "global":
+        if resize.__class__.__name__ in ["list", "tuple", "CommentedSeq"]:
+            width, height = resize
+            roi = utils_lowlevel._resize_image(image, width=width, height=height)
+        else:
+            roi = utils_lowlevel._resize_image(image, resize)
+
+        everything_results = model(
+            roi,
+            device=device,
+            retina_masks=True,
+            imgsz=[int(roi.shape[1]), int(roi.shape[0])],
+            conf=0.8,
+            iou=0.65,
+        )
+        
+        box_prompt = [[0, 0, int(roi.shape[1]), int(roi.shape[0])]]
+        print(box_prompt)
+        
+        box_prompt = convert_box_xywh_to_xyxy(box_prompt)
+        prompt_process = plugins.libraries.fastsam.FastSAMPrompt(roi, everything_results, device=device)
+        ann = prompt_process.box_prompt(bboxes=box_prompt)
+
+        if len(ann) == 0:  # Check if ann is empty
+            print("SAM: no object found - moving on")
+            return image
+            
+        # Extract mask and original image
+        mask = (ann[0] * 255).astype(np.uint8)
+
+        mask_predicted = utils_lowlevel._resize_image(
+            mask, width=image_copy.shape[1], height=image_copy.shape[0])
+        
+    return mask_predicted
+
+
 def detect_object(
     image,
     model_path,
