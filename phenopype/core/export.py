@@ -655,6 +655,8 @@ def save_ROI(
     background="original",
     bg_color="white",
     bg_transparent=False,
+    max_dim=False,
+    padding=True,
     **kwargs
     
 ):
@@ -739,35 +741,62 @@ def save_ROI(
             coords = copy.deepcopy(roi_coords)
 
         rx, ry, rw, rh = cv2.boundingRect(coords)
-        roi_rect = copy.deepcopy(image[ry : ry + rh, rx : rx + rw])
-
-        if not background=="original":
+        roi_orig = copy.deepcopy(image[ry : ry + rh, rx : rx + rw])
+        
+        roi_orig_mask = np.zeros(roi_orig.shape[:2], dtype="uint8")
+        roi_orig_mask = cv2.drawContours(
+            image=roi_orig_mask,
+            contours=[coords],
+            contourIdx=0,
+            thickness=-1,
+            color=255,
+            offset=(-rx, -ry),
+        )
+        
+        ## resizing
+        if max_dim:
             
-            roi_rect_mask = np.zeros(roi_rect.shape[:2], dtype="uint8")
-            roi_rect_mask = cv2.drawContours(
-                image=roi_rect_mask,
-                contours=[coords],
-                contourIdx=0,
-                thickness=-1,
-                color=255,
-                offset=(-rx, -ry),
-            )
-                    
-            if background=="transparent":                  
-                roi_rect_trans = np.zeros((roi_rect.shape[0], roi_rect.shape[1], 4), dtype=np.uint8)
-                roi_rect_trans[:,:,0:3] = roi_rect
-                roi_rect_trans[:, :, 3] = roi_rect_mask
-                roi_rect = roi_rect_trans
-            else:
-                roi_rect[roi_rect_mask==0] = utils_lowlevel._get_bgr(background)
+            ## resize roi and mask
+            roi = utils_lowlevel._resize_image(
+                roi_orig, max_dim=max_dim)
+            roi_mask = utils_lowlevel._resize_image(
+                roi_orig_mask, max_dim=max_dim)
+            
+            if padding:
+                ## calc padding
+                roi_height, roi_width = roi.shape[:2]
+                tb_sides = int((max_dim - roi_height)/2)
+                top, bottom = tb_sides, max_dim - tb_sides - roi_height
+                lr_sides = int((max_dim - roi_width)/2)
+                left, right = lr_sides, max_dim - lr_sides - roi_width
                 
+                ## pad roi and mask
+                roi = cv2.copyMakeBorder(roi, top, bottom, left, right,  cv2.BORDER_REPLICATE)    
+                roi_mask = cv2.copyMakeBorder(roi_mask, top, bottom, left, right,  cv2.BORDER_CONSTANT, value=0)    
+        else:
+            roi = roi_orig
+            roi_mask = roi_orig_mask
+            
+        ## background handling
+        if background=="original":           
+            pass
+        elif background=="transparent":           
+            roi_alpha = np.zeros((roi.shape[0], roi.shape[1], 4), dtype=np.uint8)
+            roi_alpha[:,:,0:3] = roi
+            roi_alpha[:, :, 3] = roi_mask
+            roi = roi_alpha
+        else:
+            roi[roi_mask==0] = utils_lowlevel._get_bgr(background)
+                
+        ## add counter
         if counter:
             roi_name = prefix + file_name + suffix + "_" + str(idx+1).zfill(3) + extension
         else:
             roi_name = prefix + file_name + suffix + extension
-        
+            
+
         save_path = os.path.join(dir_path, roi_name)
-        saved = cv2.imwrite(save_path, roi_rect)
+        saved = cv2.imwrite(save_path, roi)
         
         if saved:
             print("saving ROI: {}".format(roi_name))

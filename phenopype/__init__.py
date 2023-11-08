@@ -6,6 +6,8 @@ from . import core
 from . import plugins 
 from . import utils 
 from . import tracking
+from . import _config
+
 
 ## this might be removed in the future
 from .main import Project, Pype

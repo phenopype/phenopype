@@ -1994,6 +1994,7 @@ def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize
 def _resize_image(
         image, 
         factor=1, 
+        factor_ret=False,
         width=None,
         height=None,
         max_dim=None, 
@@ -2038,13 +2039,15 @@ def _resize_image(
     elif not max_dim.__class__.__name__ == "NoneType":
         if image_height > max_dim or image_width > max_dim:
             if image_width >= image_height:
+                factor = max_dim / image_width
                 new_image_width, new_image_height = (
                     max_dim,
-                    int((max_dim / image_width) * image_height),
+                    int(factor * image_height),
                 )
             elif image_height > image_width:
+                factor = max_dim / image_height
                 new_image_width, new_image_height = (
-                    int((max_dim / image_height) * image_width),
+                    int(factor * image_width),
                     max_dim,
                 )
             image = cv2.resize(
@@ -2066,7 +2069,21 @@ def _resize_image(
             )
 
     ## return results
-    return image
+    if factor_ret:
+        return image, factor    
+    else:
+        return image
+    
+    
+def _resize_contour(contour, img_orig, img_resized):
+
+    coef_y = img_orig.shape[0] / img_resized.shape[0]
+    coef_x = img_orig.shape[1] / img_resized.shape[1]
+    
+    contour[:, :, 0] = contour[:, :, 0] * coef_x
+    contour[:, :, 1] = contour[:, :,  1] * coef_y
+
+    return contour
 
 def _rotate_image(image, angle, ret_center=False):
     

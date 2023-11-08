@@ -3,6 +3,11 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+4.1.0
+-----
+- new plugin: predict_SAM uses the fastSAM model for prompt based image segmentation
+- fixed dependency: pyradiomics==3.1
+
 4.0.0
 -----
 - phenopype now requires python 3.9.* and opencv-contrib-python 4.5.2.54

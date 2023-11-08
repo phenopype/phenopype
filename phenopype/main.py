@@ -1267,20 +1267,21 @@ class Project:
                 file, len(results), len(self.dir_names)))
 
             ## save to csv
-            if flags.aggregate_csv and results[0].endswith(".csv"):
-                result_list = []
-                for path in results:
-                    result_list.append(pd.read_csv(path))
-                result = pd.concat(result_list)
-                csv_name = file + "_" + tag + save_suffix + ".csv"
-                csv_path = os.path.join(results_dir, csv_name)
-                
-                ## overwrite check
-                if os.path.isfile(csv_path) and not flags.overwrite:
-                    print("Results file {} not saved: already exists (overwrite=False)".format(csv_name))
-                else:
-                    print("Saving file {}".format(csv_name))
-                    result.to_csv(csv_path, index=False)
+            if flags.aggregate_csv and len(results) > 0:
+                if results[0].endswith(".csv"):
+                    result_list = []
+                    for path in results:
+                        result_list.append(pd.read_csv(path))
+                    result = pd.concat(result_list)
+                    csv_name = file + "_" + tag + save_suffix + ".csv"
+                    csv_path = os.path.join(results_dir, csv_name)
+                    
+                    ## overwrite check
+                    if os.path.isfile(csv_path) and not flags.overwrite:
+                        print("Results file {} not saved: already exists (overwrite=False)".format(csv_name))
+                    else:
+                        print("Saving file {}".format(csv_name))
+                        result.to_csv(csv_path, index=False)
                     
             ## copy files to subfolders
             else:

@@ -15,6 +15,7 @@ from phenopype import utils_lowlevel
 from phenopype.core import segmentation, visualization
 from phenopype.utils_lowlevel import annotation_function
 
+from phenopype import utils
 
 #%% functions
 
@@ -33,7 +34,11 @@ def predict_SAM(
         model_path,
         model_id=None,
         prompt="local",
-        resize=0.5,
+        prompt_type="box",
+        resize_roi=1024,
+        center=0.9,
+        confidence=0.8,
+        iou=0.65,
         force_reload=False,
         **kwargs,
         ):
@@ -45,17 +50,16 @@ def predict_SAM(
     flags = make_dataclass(
         cls_name="flags",
         fields=[("prompt", str, prompt), 
+                ("max_dim", str, kwargs.get("max_dim")), 
                 ],
     )
     
-    image_copy = copy.deepcopy(image) 
-
     # =============================================================================
     # model management
 
     if model_path.__class__.__name__ == "NoneType":
         print("No model provided - did you set an active model?")
-        return image_copy
+        return image
     
     if not model_id.__class__.__name__ == "NoneType":
         model_path = _config.models[model_id]["model_phenopype_path"]
@@ -74,90 +78,94 @@ def predict_SAM(
     ## init model and device
     device = plugins.libraries.torch.device("cuda" if plugins.libraries.torch.cuda.is_available() else "cpu")
     model = _config.active_model
-        
-    # =============================================================================
-    # annotation management
-    
-    annotations = kwargs.get("annotations", {})
-    
-    ## masks
-    annotation_id_mask = kwargs.get(settings._mask_type + "_id", None)
-    annotation_mask = utils_lowlevel._get_annotation(
-        annotations,
-        settings._mask_type,
-        annotation_id_mask,
-        prep_msg="- masking regions in thresholded image:",
-    )
-    
+                            
     # =============================================================================
     # execute
-
-    if flags.prompt == "local":
     
-        coords = annotation_mask["data"]["mask"]
-        coords = utils_lowlevel._convert_tup_list_arr(coords)
-        rx, ry, rw, rh = cv2.boundingRect(coords[0])
+    if prompt_type == "box":
+
+        ## local masking
+        if flags.prompt == "local":
             
-        roi = image[ry : ry + rh, rx : rx + rw]
-        roi_downsized = utils_lowlevel._resize_image(roi, resize)
+            ## masks        
+            annotations = kwargs.get("annotations", {})
+            annotation_id_mask = kwargs.get(settings._mask_type + "_id", None)
+            annotation_mask = utils_lowlevel._get_annotation(
+                annotations,
+                settings._mask_type,
+                annotation_id_mask,
+                prep_msg="- masking regions in thresholded image:",
+            )
+        
+            ## mask coords to roi
+            coords = annotation_mask["data"]["mask"]
+            coords = utils_lowlevel._convert_tup_list_arr(coords)
+            rx, ry, rw, rh = cv2.boundingRect(coords[0])  
+            
+            ## roi
+            roi_orig = image[ry : ry + rh, rx : rx + rw]
+            
+        ## image centered
+        elif flags.prompt == "global-center":
+                
+            ## crop edge of image
+            height, width = image.shape[:2]
+            rx, ry = int(round((1 - center) * 0.5 * width)), int(round((1 - center) * 0.5 * height))
+            rh, rw = int(round(center * height)), int(round(center * width))
     
-        everything_results = model(
-            roi_downsized,
-            device=device,
-            retina_masks=True,
-            imgsz=[int(roi.shape[1]), int(roi.shape[0])],
-            conf=0.8,
-            iou=0.65,
-        )
-        
-        box_prompt = [[0, 0, int(roi_downsized.shape[1]), int(roi_downsized.shape[0])]]
-        box_prompt = convert_box_xywh_to_xyxy(box_prompt)
-        prompt_process = plugins.libraries.fastsam.FastSAMPrompt(roi, everything_results, device=device)
-        ann = prompt_process.box_prompt(bboxes=box_prompt)
-        
-        # Extract mask and original image
-        mask = (ann[0] * 255).astype(np.uint8)
-
-        mask_upsized = utils_lowlevel._resize_image(
-            mask, width=roi.shape[1], height=roi.shape[0])
-
-        ## full mask
-        mask_predicted = np.zeros(image.shape[:2], dtype=np.uint8)
-        mask_predicted[ry : ry + rh, rx : rx + rw] = mask_upsized
-        
-    elif flags.prompt == "global":
-        if resize.__class__.__name__ in ["list", "tuple", "CommentedSeq"]:
-            width, height = resize
-            roi = utils_lowlevel._resize_image(image, width=width, height=height)
+            ## roi
+            roi_orig = image[ry : ry + rh, rx : rx + rw]
+            
+        ## full image
+        elif flags.prompt == "global":
+            
+            ## roi
+            roi_orig = copy.deepcopy(image)
+    
+        ## resize roi
+        if not resize_roi.__class__.__name__ == "NoneType":
+            roi = utils_lowlevel._resize_image(
+                roi_orig, width=resize_roi, height=resize_roi)
         else:
-            roi = utils_lowlevel._resize_image(image, resize)
-
+            roi = roi_orig 
+            
+        ## encode roi 
         everything_results = model(
             roi,
             device=device,
             retina_masks=True,
             imgsz=[int(roi.shape[1]), int(roi.shape[0])],
-            conf=0.8,
-            iou=0.65,
+            conf=confidence,
+            iou=iou,
         )
         
+        ## box prep
         box_prompt = [[0, 0, int(roi.shape[1]), int(roi.shape[0])]]
-        print(box_prompt)
-        
         box_prompt = convert_box_xywh_to_xyxy(box_prompt)
-        prompt_process = plugins.libraries.fastsam.FastSAMPrompt(roi, everything_results, device=device)
-        ann = prompt_process.box_prompt(bboxes=box_prompt)
 
-        if len(ann) == 0:  # Check if ann is empty
+        ## box prompt
+        prompt_process = plugins.libraries.fastsam.FastSAMPrompt(
+            roi, everything_results, device=device)
+        detections = prompt_process.box_prompt(bboxes=box_prompt)
+        
+        # check if something was detected
+        if len(detections) > 0:  
+            print(f"found {len(detections)} objects!")
+        else:  # Check if ann is empty
             print("SAM: no object found - moving on")
             return image
-            
-        # Extract mask and original image
-        mask = (ann[0] * 255).astype(np.uint8)
-
-        mask_predicted = utils_lowlevel._resize_image(
-            mask, width=image_copy.shape[1], height=image_copy.shape[0])
         
+        # Extract mask conver to 8bit binary
+        mask = (detections[0] * 255).astype(np.uint8)
+    
+        ## resize back to original roi
+        mask_roi_orig = utils_lowlevel._resize_image(
+            mask, width=roi_orig.shape[1], height=roi_orig.shape[0])
+    
+        ## paste roi into full mask
+        mask_predicted = np.zeros(image.shape[:2], dtype=np.uint8)
+        mask_predicted[ry : ry + rh, rx : rx + rw] = mask_roi_orig
+            
     return mask_predicted
 
 
