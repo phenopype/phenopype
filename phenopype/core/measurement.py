@@ -577,7 +577,7 @@ def compute_texture_features(
     feature_activation = {}
     for feature in features:
         feature_activation[feature] = []
-
+        
     # =============================================================================
     # execute
 
@@ -586,11 +586,15 @@ def compute_texture_features(
 
     ## create forgeround mask
     foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)
+    
     # print(contours)
     for coords in contours:
         foreground_mask_inverted = cv2.fillPoly(foreground_mask_inverted, [coords], 255)
 
     texture_features = []
+    
+    if len(channels) > image.shape[2]:
+        print("- Warning: more channels provided than in given image - skipping excess ones!")
     
     for idx1, (coords, support) in _tqdm(
             enumerate(zip(contours, contours_support)),
@@ -604,8 +608,10 @@ def compute_texture_features(
 
             for idx2, channel in enumerate(channels):
 
+                if (idx2 + 1) > image.shape[2]:
+                    continue
+                
                 rx, ry, rw, rh = cv2.boundingRect(coords)
-
                 data = image[ry : ry + rh, rx : rx + rw, idx2]
                 mask = foreground_mask_inverted[ry : ry + rh, rx : rx + rw]
                 sitk_data = sitk.GetImageFromArray(data)

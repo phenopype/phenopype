@@ -747,29 +747,32 @@ def threshold(
     ## no masks / exclude
     height, width = image.shape
     rx, ry, rw, rh = 0, 0, width, height
-    roi_list, roi_coords = [image], [(rx, ry, rw, rh)]
+    roi_list, roi_bbox_coords_list, roi_mask_coords_list = [image], [(rx, ry, rw, rh)], [""]
     
     ## with include masks 
     if all([flags.mask, "data" in annotation_mask]):
         
         if annotation_mask["data"]["include"]:
 
-            roi_list, roi_coords = [], []
+            roi_list, roi_bbox_coords_list, roi_mask_coords_list = [], [], []
             if len(annotation_mask["data"][settings._mask_type]) > 0:
                 polygons = annotation_mask["data"][settings._mask_type]   
                
                 for coords in polygons:
-                    coords = utils_lowlevel._convert_tup_list_arr(coords)
-                    rx, ry, rw, rh = cv2.boundingRect(coords)
+                    mask_coords = utils_lowlevel._convert_tup_list_arr(coords)
+                    rx, ry, rw, rh = cv2.boundingRect(mask_coords)
+                    
                     roi_list.append(image[ry : ry + rh, rx : rx + rw])
-                    roi_coords.append((rx, ry, rw, rh))
-                
+                    roi_bbox_coords_list.append((rx, ry, rw, rh))
+                    roi_mask_coords_list.append(mask_coords)
+
     # =============================================================================
     # execute
     
     thresh = np.zeros(image.shape, dtype=np.uint8)
     
-    for roi, coords in zip(roi_list, roi_coords):
+    for roi, roi_bbox_coords, roi_mask_coords in zip(
+            roi_list, roi_bbox_coords_list, roi_mask_coords_list):
     
         if method == "otsu":
             ret, roi_thresh = cv2.threshold(
@@ -795,9 +798,23 @@ def threshold(
                 cv2.THRESH_BINARY_INV,
                 )
         
-        rx, ry, rw, rh = coords
-        thresh[ry : ry + rh, rx : rx + rw] = roi_thresh
+        rx, ry, rw, rh = roi_bbox_coords
         
+        if annotation_mask["settings"]["tool"] == "polygon":
+            
+            poly_mask = np.zeros(roi.shape, dtype=np.uint8)
+            poly_mask = cv2.drawContours(
+                image=poly_mask,
+                contours=[roi_mask_coords],
+                contourIdx=0,
+                thickness=-1,
+                color=255,
+                offset=(-rx, -ry),
+            )
+            roi_thresh = cv2.bitwise_and(roi_thresh, poly_mask)
+        
+        thresh[ry : ry + rh, rx : rx + rw] = roi_thresh
+                
     # =============================================================================
     # exclude masks or references
     
