@@ -17,43 +17,6 @@ from phenopype.utils_lowlevel import annotation_function
 
 #%% functions
 
-
-def clip_histogram(image, percent=1, **kwargs):
-    
-    # Calculate grayscale histogram
-    hist = cv2.calcHist([image],[0],None,[256],[0,256])
-    hist_size = len(hist)
-    
-    # Calculate cumulative distribution from the histogram
-    accumulator = []
-    accumulator.append(float(hist[0][0]))
-    for index in range(1, hist_size):
-        accumulator.append(accumulator[index -1] + float(hist[index][0]))
-    
-    # Locate points to clip
-    maximum = accumulator[-1]
-    percent *= (maximum/100.0)
-    percent /= 2.0
-    
-    # Locate left cut
-    minimum_gray = 0
-    while accumulator[minimum_gray] < percent:
-        minimum_gray += 1
-    
-    # Locate right cut
-    maximum_gray = hist_size -1
-    while accumulator[maximum_gray] >= (maximum - percent):
-        maximum_gray -= 1
-    
-    # Calculate alpha and beta values
-    alpha = 255 / (maximum_gray - minimum_gray)
-    beta = -minimum_gray * alpha
-    
-    image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
-    
-    return image
-
-
 def blur(
     image, kernel_size=5, method="averaging", sigma_color=75, sigma_space=75, **kwargs
 ):
@@ -103,6 +66,44 @@ def blur(
     # return
 
     return blurred
+
+
+
+def clip_histogram(image, percent=1, **kwargs):
+    
+    # Calculate grayscale histogram
+    hist = cv2.calcHist([image],[0],None,[256],[0,256])
+    hist_size = len(hist)
+    
+    # Calculate cumulative distribution from the histogram
+    accumulator = []
+    accumulator.append(float(hist[0][0]))
+    for index in range(1, hist_size):
+        accumulator.append(accumulator[index -1] + float(hist[index][0]))
+    
+    # Locate points to clip
+    maximum = accumulator[-1]
+    percent *= (maximum/100.0)
+    percent /= 2.0
+    
+    # Locate left cut
+    minimum_gray = 0
+    while accumulator[minimum_gray] < percent:
+        minimum_gray += 1
+    
+    # Locate right cut
+    maximum_gray = hist_size -1
+    while accumulator[maximum_gray] >= (maximum - percent):
+        maximum_gray -= 1
+    
+    # Calculate alpha and beta values
+    alpha = 255 / (maximum_gray - minimum_gray)
+    beta = -minimum_gray * alpha
+    
+    image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+    
+    return image
+
 
 
 def create_mask(
@@ -908,9 +909,9 @@ def detect_QRcode(
     qrCodeDetector = cv2.QRCodeDetector()
     
     ## rotate image 
-    print("rotating image to detect code:")
+    print("- rotating image to detect code:")
     for angle in range(0, 360, rot_steps):
-        print("- rotating image - {} degrees".format(angle))
+        print("  - rotating image - {} degrees".format(angle))
         image_rot, image_center = utils_lowlevel._rotate_image(image, angle, ret_center=True)  
         decodedText, points_rot, _ = qrCodeDetector.detectAndDecode(image_rot)
         if not decodedText == "" and not points_rot.__class__.__name__ == 'NoneType':
@@ -918,11 +919,11 @@ def detect_QRcode(
             break
             
     if flags.found:
-        points = utils_lowlevel._rotate_2Darray(points_rot, image_center, angle)  
+        points = utils_lowlevel._rotate_2Darray(points_rot, image_center, angle)         
         points = utils_lowlevel._convert_arr_tup_list(points)
         print("found text: {}".format(decodedText))
     else:
-        print("did not find QR-code - enter code manually")
+        print("- did not find QR-code - enter code manually")
         if flags.enter_manually:
             gui = utils_lowlevel._GUI(
                 image,
@@ -936,9 +937,9 @@ def detect_QRcode(
             )
             decodedText = gui.data[settings._comment_type]
         else:
-            print("did not find QR-code")
+            print("- did not find QR-code")
         points = None
-        
+                
     # =============================================================================
     # execute
     
@@ -950,7 +951,7 @@ def detect_QRcode(
             label_colour, 
             5)
         utils.show_image(canvas)
-        
+                
     # =============================================================================
     # assemble results
 

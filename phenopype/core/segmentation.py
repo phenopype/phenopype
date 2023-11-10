@@ -800,18 +800,21 @@ def threshold(
         
         rx, ry, rw, rh = roi_bbox_coords
         
-        if annotation_mask["settings"]["tool"] == "polygon":
+        if all([flags.mask, "data" in annotation_mask]):
             
-            poly_mask = np.zeros(roi.shape, dtype=np.uint8)
-            poly_mask = cv2.drawContours(
-                image=poly_mask,
-                contours=[roi_mask_coords],
-                contourIdx=0,
-                thickness=-1,
-                color=255,
-                offset=(-rx, -ry),
-            )
-            roi_thresh = cv2.bitwise_and(roi_thresh, poly_mask)
+            if all([annotation_mask["data"]["include"], 
+                    annotation_mask["settings"]["tool"] == "polygon"]):
+                
+                poly_mask = np.zeros(roi.shape, dtype=np.uint8)
+                poly_mask = cv2.drawContours(
+                    image=poly_mask,
+                    contours=[roi_mask_coords],
+                    contourIdx=0,
+                    thickness=-1,
+                    color=255,
+                    offset=(-rx, -ry),
+                )
+                roi_thresh = cv2.bitwise_and(roi_thresh, poly_mask)
         
         thresh[ry : ry + rh, rx : rx + rw] = roi_thresh
                 

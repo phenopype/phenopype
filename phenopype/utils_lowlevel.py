@@ -1642,10 +1642,13 @@ def _convert_arr_tup_list(arr_list, add_first=False):
     for array in arr_list:
         point_list = []
         
+        if type(array) == np.ndarray and len(array.shape) == 3:
+            array = array[0]
+                                       
         for idx, point in enumerate(array):
-            if type(array) == np.ndarray:
+            if type(array) == np.ndarray and point.shape[0] == 1:
                 point_converted = tuple((int(point[0][0]), int(point[0][1])))
-            elif type(array) == list:
+            elif type(array) == list or point.shape[0] > 1:
                 point_converted = tuple((int(point[0]), int(point[1])))
             point_list.append(point_converted)
             if idx == 0:

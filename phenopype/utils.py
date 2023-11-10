@@ -365,6 +365,8 @@ class Container(object):
         ## visualization
         if fun == "select_canvas":
             core.visualization.select_canvas(self, **kwargs_function)
+        if fun == "draw_comment":
+            self.canvas = core.visualization.draw_comment(self.canvas, **kwargs_function)
         if fun == "draw_contour":
             self.canvas = core.visualization.draw_contour(self.canvas, **kwargs_function)
         if fun == "draw_landmark":

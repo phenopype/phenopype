@@ -57,7 +57,7 @@ auto_text_size_factor = 0.00025
 
 confirm_options = ["True", "true", "y", "yes", True]
 
-_default_label_colour = "lime"
+_default_label_colour = "red"
 _default_line_colour = "lime"
 _default_point_colour = "red"
 _default_overlay_left = "green"
@@ -114,6 +114,19 @@ opencv_distance_flags = {
     "fair": cv2.DIST_FAIR,
     "welsch": cv2.DIST_WELSCH,
     "huber": cv2.DIST_HUBER,
+}
+
+opencv_font_flags = {
+    "simplex": cv2.FONT_HERSHEY_SIMPLEX,
+    "plain": cv2.FONT_HERSHEY_PLAIN,
+    "duplex": cv2.FONT_HERSHEY_DUPLEX,
+    "complex": cv2.FONT_HERSHEY_COMPLEX,
+    "triplex": cv2.FONT_HERSHEY_TRIPLEX,
+    "complex-small": cv2.FONT_HERSHEY_COMPLEX_SMALL,
+    "script-simplex": cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
+    "script-complex": cv2.FONT_HERSHEY_SCRIPT_COMPLEX,
+    "italic": cv2.FONT_ITALIC, 
+
 }
 
 opencv_interpolation_flags = {

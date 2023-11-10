@@ -12,7 +12,7 @@ import phenopype as pp
 @pytest.fixture
 def drawing():
 
-    return {"drawing": {'a': {'info': {'annotation_type': 'drawing',
+    drawing = {"drawing": {'a': {'info': {'annotation_type': 'drawing',
    'phenopype_function': 'edit_contour',
    'phenopype_version': '3.0.dev0'},
   'settings': {'overlay_blend': 0.2,
@@ -25,6 +25,8 @@ def drawing():
     [[(1474, 350), (1474, 350)], 0, 16],
     [[(1677, 390), (1677, 390)], 0, 16],
     [[(1708, 395), (1708, 395)], 0, 16]]}}}}
+    
+    return drawing
 
 
 #%% tests
@@ -52,7 +54,7 @@ def test_threshold(image, reference_detected, mask_polygon):
         )
     
     annotations["mask"]["a"]["data"]["include"] = False
-    
+        
     thresh = pp.segmentation.threshold(
         image, 
         method="otsu",

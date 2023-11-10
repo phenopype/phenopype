@@ -176,6 +176,7 @@ def reference_detected():
           (380, 694),
           (335, 1508),
           (1202, 1555)]]}}}}
+    
     return reference_detected
 
 @pytest.fixture(scope="session")

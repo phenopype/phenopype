@@ -1267,22 +1267,24 @@ class Project:
                 file, len(results), len(self.dir_names)))
 
             ## save to csv
-            if flags.aggregate_csv and len(results) > 0:
-                if results[0].endswith(".csv"):
-                    result_list = []
-                    for path in results:
-                        result_list.append(pd.read_csv(path))
-                    result = pd.concat(result_list)
-                    csv_name = file + "_" + tag + save_suffix + ".csv"
-                    csv_path = os.path.join(results_dir, csv_name)
-                    
-                    ## overwrite check
-                    if os.path.isfile(csv_path) and not flags.overwrite:
-                        print("Results file {} not saved: already exists (overwrite=False)".format(csv_name))
-                    else:
-                        print("Saving file {}".format(csv_name))
-                        result.to_csv(csv_path, index=False)
-                    
+            if all([flags.aggregate_csv,
+                    len(results) > 0,
+                    results[0].endswith(".csv")]):
+                
+                result_list = []
+                for path in results:
+                    result_list.append(pd.read_csv(path))
+                result = pd.concat(result_list)
+                csv_name = file + "_" + tag + save_suffix + ".csv"
+                csv_path = os.path.join(results_dir, csv_name)
+                
+                ## overwrite check
+                if os.path.isfile(csv_path) and not flags.overwrite:
+                    print("Results file {} not saved: already exists (overwrite=False)".format(csv_name))
+                else:
+                    print("Saving file {}".format(csv_name))
+                    result.to_csv(csv_path, index=False)
+                
             ## copy files to subfolders
             else:
                 folder_path = os.path.join(results_dir, file + "_" + tag + save_suffix)
@@ -1654,7 +1656,7 @@ class Project:
     
         if annotation_id.__class__.__name__ == "NoneType":
             print("No annotation id set - will use last one in annotations file.")
-            time.sleep(2)
+            time.sleep(1)
 
         training_data_path = os.path.join(self.root_dir, "training_data", folder)
     
@@ -1893,8 +1895,7 @@ class Pype(object):
         ## kwargs
         global window_max_dim
         window_max_dim = kwargs.get("window_max_dim")
-        delay = kwargs.get("delay", 500)
-        sleep = kwargs.get("sleep", 0.2)
+        delay = kwargs.get("delay", 100)
 
         ## flags
         self.flags = make_dataclass(
@@ -1953,7 +1954,7 @@ class Pype(object):
             autoshow=False,
             feedback=False,
         )
-        time.sleep(sleep)
+        time.sleep(1)
 
         ## final check before starting pype
         self._check_final()

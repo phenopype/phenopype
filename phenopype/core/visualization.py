@@ -16,6 +16,134 @@ inf = math.inf
 
 #%% functions
 
+def draw_comment(
+    image,
+    annotations,
+    label_colour="default",
+    label_size="auto",
+    label_width="auto",
+    background=True,
+    background_colour="white",
+    background_pad=10,
+    background_border="black",
+    font="simplex",
+    **kwargs,
+):   
+    """
+
+    Parameters
+    ----------
+    image : ndarray
+        image used as canvas 
+    annotation: dict
+        phenopype annotation containing QR-code (comment)
+    line_colour: {"default", ... see phenopype.print_colours()} str, optional
+        contour line colour - default colour as specified in settings
+    line_width: {"auto", ... int > 0} int, optional 
+        contour line width - automatically scaled to image by default
+    label : bool, optional
+        draw reference label
+    label_colour : {"default", ... see phenopype.print_colours()} str, optional
+        contour label colour - default colour as specified in settings
+    label_size: {"auto", ... int > 0} int, optional 
+        contour label font size - automatically scaled to image by default
+    label_width:  {"auto", ... int > 0} int, optional 
+        contour label font thickness - automatically scaled to image by default
+    **kwargs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    image: ndarray
+        canvas with contours
+
+    """
+    # =============================================================================
+    # setup
+    
+    if label_size == "auto":
+        label_size = utils_lowlevel._auto_text_size(image)
+    if label_width == "auto":
+        label_width = utils_lowlevel._auto_text_width(image)
+    if label_colour == "default":
+        label_colour = settings._default_label_colour
+
+    label_colour = utils_lowlevel._get_bgr(label_colour)
+    
+    font = settings.opencv_font_flags[font]
+
+    if background:
+        background_colour = utils_lowlevel._get_bgr(background_colour)
+        background_border = utils_lowlevel._get_bgr(background_border)
+
+    # =============================================================================
+    # annotation management
+
+    annotation_type = settings._comment_type
+    annotation_id = kwargs.get(annotation_type + "_id", None)
+
+    annotation = utils_lowlevel._get_annotation(
+        annotations=annotations,
+        annotation_type=annotation_type,
+        annotation_id=annotation_id,
+        kwargs=kwargs,
+    )
+
+    # =============================================================================
+    # execute
+    
+    canvas = copy.deepcopy(image)
+    
+    ## prep label
+    name = annotation["data"]["label"]
+    label_text = annotation["data"][settings._comment_type]
+    label =  name + ": " + label_text
+    label_coords = (int(canvas.shape[0] // 10), int(canvas.shape[1] / 3))
+            
+    ## add background
+    if background:
+        
+        text_size, _ = cv2.getTextSize(label, font, label_size, label_width)
+        text_size = int(text_size[0] + background_pad), int(text_size[1] + (text_size[1]/8) + background_pad)
+                
+        background_coords = label_coords
+        background_coords = int(background_coords[0] - (background_pad)), \
+            int(background_coords[1] + (text_size[1]/8) + (background_pad))
+
+        background_border_line_width = int(utils_lowlevel._auto_line_width(canvas) / 1.5)
+
+        cv2.rectangle(
+            canvas, 
+            background_coords, 
+            (label_coords[0] + text_size[0], label_coords[1] - text_size[1]), 
+            background_colour, 
+            -1
+        )
+        
+        cv2.rectangle(
+            canvas, 
+            background_coords, 
+            (label_coords[0] + text_size[0], label_coords[1] - text_size[1]), 
+            background_border, 
+            background_border_line_width
+        )
+        
+    ## draw label
+    cv2.putText(
+        canvas,
+        label,
+        label_coords,
+        font,
+        label_size,
+        label_colour,
+        label_width,
+        cv2.LINE_AA,
+    )
+
+    # =============================================================================
+    # return
+
+    return canvas
 
 def draw_contour(
     image,
@@ -627,7 +755,6 @@ def draw_QRcode(
     points = annotation["data"][settings._mask_type]
     label = annotation["data"][annotation_type]
 
-    
     canvas = cv2.polylines(
         image, 
         [np.asarray(points, np.int32)], 
