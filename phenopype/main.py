@@ -1251,7 +1251,6 @@ class Project:
         exclude=exclude + ["pype_config", "attributes"]
 
         ## search
-        results = {}
         for file in files:
             search_string = [file, tag]
             results, duplicates = utils_lowlevel._file_walker(
@@ -1261,14 +1260,17 @@ class Project:
                 include_all=True,
                 exclude=exclude,
             )
-
+            
+            if len(results) == 0:
+                results = ["no-results"]
+                
             ## search feedback
             print("file \"{}\": found {} results in {} project folders".format(
                 file, len(results), len(self.dir_names)))
 
             ## save to csv
             if all([flags.aggregate_csv,
-                    len(results) > 0,
+                    results[0] != "no-results",
                     results[0].endswith(".csv")]):
                 
                 result_list = []
@@ -1286,7 +1288,7 @@ class Project:
                     result.to_csv(csv_path, index=False)
                 
             ## copy files to subfolders
-            else:
+            elif results[0] != "no-results":
                 folder_path = os.path.join(results_dir, file + "_" + tag + save_suffix)
                 if not os.path.isdir(folder_path):
                     os.makedirs(folder_path)
@@ -2110,6 +2112,7 @@ class Pype(object):
             subprocess.call(("xdg-open", self.config_path))
 
         self.YFM = utils_lowlevel._YamlFileMonitor(self.config_path, delay)
+        print("- starting config file monitor")
 
     def _check_directory_skip(self, tag, skip_pattern, dir_path):
 

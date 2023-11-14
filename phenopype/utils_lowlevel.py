@@ -318,6 +318,7 @@ class _GUI:
                 self.settings.window_name, self.canvas_width, self.canvas_height
             )
             cv2.imshow(self.settings.window_name, self.canvas)
+            cv2.setWindowProperty(self.settings.window_name, cv2.WND_PROP_TOPMOST, 1)
             self.keypress = None
 
             if self.settings.window_control == "internal":
@@ -1641,10 +1642,10 @@ def _convert_arr_tup_list(arr_list, add_first=False):
     tup_list = []
     for array in arr_list:
         point_list = []
-        
-        if type(array) == np.ndarray and len(array.shape) == 3:
+                
+        if type(array) == np.ndarray and len(array.shape) == 3 and not array.shape[1] == 1:
             array = array[0]
-                                       
+                 
         for idx, point in enumerate(array):
             if type(array) == np.ndarray and point.shape[0] == 1:
                 point_converted = tuple((int(point[0][0]), int(point[0][1])))
@@ -1659,7 +1660,7 @@ def _convert_arr_tup_list(arr_list, add_first=False):
             point_list.append(first_point)
             
         tup_list.append(point_list)
-
+        
     return tup_list
 
 

@@ -371,16 +371,13 @@ def detect_mask(
                 mask_contours = segmentation.detect_contour(
                     mask, retrieval="ext", approximation="KCOS", verbose=False,
                 )
-                ## add first coord to close circle and convert to mask notation 
-                circle_masks.append(
-                    utils_lowlevel._convert_arr_tup_list(
-                        np.append(
-                            mask_contours["contour"]["a"]["data"][settings._contour_type][0],
-                            [mask_contours["contour"]["a"]["data"][settings._contour_type][0][0] ],
-                            axis=0,
-                        )
-                    )
-                )
+                mask_coords = mask_contours["contour"]["a"]["data"][settings._contour_type][0]
+                mask_coords = [np.append(
+                        np.concatenate(mask_coords),
+                        [np.concatenate(mask_coords[0])],
+                        axis=0,
+                    )]
+                circle_masks.append(np.concatenate(mask_coords))
             print("Found {} circles".format(len(circles[0])))
         else:
             print("No circles detected")
@@ -399,6 +396,7 @@ def detect_mask(
             "shape": shape,
             "resize": resize,
             "circle_args": circle_args_exec,
+            "tool": "polygon",
         },
         "data": {
             "label": label,
@@ -923,8 +921,8 @@ def detect_QRcode(
         points = utils_lowlevel._convert_arr_tup_list(points)
         print("found text: {}".format(decodedText))
     else:
-        print("- did not find QR-code - enter code manually")
         if flags.enter_manually:
+            print("- did not find QR-code - enter code manually")
             gui = utils_lowlevel._GUI(
                 image,
                 tool="comment",
@@ -938,7 +936,7 @@ def detect_QRcode(
             decodedText = gui.data[settings._comment_type]
         else:
             print("- did not find QR-code")
-        points = None
+        points = []
                 
     # =============================================================================
     # execute
@@ -980,6 +978,8 @@ def detect_QRcode(
 
     # =============================================================================
     # return
+    
+    print(annotation)
 
     return annotation
 

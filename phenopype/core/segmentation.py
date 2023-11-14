@@ -740,7 +740,7 @@ def threshold(
         annotation_id_mask,
         prep_msg="- masking regions in thresholded image:",
     )
-    
+           
     # =============================================================================
     # execute masking
     
@@ -751,15 +751,19 @@ def threshold(
     
     ## with include masks 
     if all([flags.mask, "data" in annotation_mask]):
-        
         if annotation_mask["data"]["include"]:
-
             roi_list, roi_bbox_coords_list, roi_mask_coords_list = [], [], []
-            if len(annotation_mask["data"][settings._mask_type]) > 0:
+            if len(annotation_mask["data"][settings._mask_type]) > 0: 
                 polygons = annotation_mask["data"][settings._mask_type]   
-               
+                
                 for coords in polygons:
-                    mask_coords = utils_lowlevel._convert_tup_list_arr(coords)
+                    
+                    if type(coords) == list:
+                        mask_coords = utils_lowlevel._convert_tup_list_arr(coords)
+                    else:
+                        mask_coords = coords
+                        
+                        
                     rx, ry, rw, rh = cv2.boundingRect(mask_coords)
                     
                     roi_list.append(image[ry : ry + rh, rx : rx + rw])
@@ -827,7 +831,7 @@ def threshold(
             for coords in polygons:
                 thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
             print("- excluding pixels from reference")
-            
+                        
     ## with exclude masks 
     if all([flags.mask, "data" in annotation_mask]):
         if not annotation_mask["data"]["include"]:
