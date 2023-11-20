@@ -6,10 +6,11 @@ Known bugs
 4.1.0
 -----
 bugfix:
-	- draw QR-code mask
+	- fix draw QR-code mask
+	- fix new faster thresholding
 - new plugin: predict_SAM uses the fastSAM model for prompt based image segmentation
 - new function: draw_comment prints comments added via write_comment or detect_QRcode
-- changed dependency: pyradiomics==3.1.*
+- changed dependency: pyradiomics==3.1.0
 
 4.0.0
 -----
