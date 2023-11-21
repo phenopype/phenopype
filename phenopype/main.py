@@ -857,7 +857,8 @@ class Project:
         ## set flags
         flags = make_dataclass(
             cls_name="flags",
-            fields=[("overwrite", bool, overwrite), ("activate", bool, activate),],
+            fields=[("overwrite", bool, overwrite), 
+                    ("activate", bool, activate),],
         )
 
         print_save_msg = "== no msg =="
@@ -867,7 +868,9 @@ class Project:
         ## load reference image
         if reference_source_path.__class__.__name__ == "str":
             reference_image = utils.load_image(reference_source_path)
-
+        elif reference_source_path.__class__.__name__ == "int":
+            reference_image = utils.load_image(self.dir_paths[reference_source_path])
+            
         # =============================================================================
         # execute
 

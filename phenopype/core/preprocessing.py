@@ -381,7 +381,7 @@ def detect_mask(
             print("Found {} circles".format(len(circles[0])))
         else:
             print("No circles detected")
-            
+            return None
 
     # =============================================================================
     # assemble results
@@ -936,7 +936,7 @@ def detect_QRcode(
             decodedText = gui.data[settings._comment_type]
         else:
             print("- did not find QR-code")
-        points = []
+            return
                 
     # =============================================================================
     # execute
@@ -979,8 +979,6 @@ def detect_QRcode(
     # =============================================================================
     # return
     
-    print(annotation)
-
     return annotation
 
 def decompose_image(

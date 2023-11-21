@@ -314,11 +314,12 @@ def detect_contour(
 
         if len(contours) == 0:
             print("- did not find any contours that match criteria")
+            return
         else:
             print("- found " + str(len(contours)) + " contours that match criteria")
     else:
         print("- did not find any contours")
-        
+        return 
 
     # =============================================================================
     # assemble results

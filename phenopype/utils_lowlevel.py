@@ -1180,7 +1180,7 @@ def _get_annotation(
     ## setup
     pype_mode = kwargs.get("pype_mode", False)
     prep_msg = kwargs.get("prep_msg", "")
-    verbose = kwargs.get("verbose", "")
+    verbose = kwargs.get("verbose", _config.verbose)
 
     annotations = copy.deepcopy(annotations)
     

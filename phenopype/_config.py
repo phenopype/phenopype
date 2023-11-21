@@ -8,3 +8,4 @@ active_model = None
 models = {}
 template_path_current = None
 template_loaded_current = None
+verbose=False
