@@ -242,7 +242,7 @@ _annotation_types = list(set(_annotation_functions.values()))
 # _GUI_data_args = list(g.data.keys())
 
 _GUI_settings_args = [
-    'feedback',
+    'interactive',
     'show_label',
     'label_colour',
     'label_size',

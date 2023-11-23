@@ -1,7 +1,9 @@
 #%% modules
 
 import cv2, copy, os, sys, warnings
+import inspect
 import json
+import logging
 import numpy as np
 from dataclasses import make_dataclass
 import string
@@ -46,7 +48,7 @@ class _GUI:
         self,
         image,
         tool=None,
-        feedback=True,
+        interactive=True,
         pype_mode=False,
         wait_time=500,
         window_aspect="normal",
@@ -69,6 +71,10 @@ class _GUI:
         ----------
 
         """
+        ## continuity
+        if kwargs.get("feedback"):
+            interactive = kwargs.get("feedback")
+        
         ## kwargs (improve: use dictionary from config)
         if kwargs.get("window_max_dim"):
             window_max_dim = kwargs.get("window_max_dim")
@@ -130,7 +136,7 @@ class _GUI:
             ('return_input', bool, kwargs.get('return_input',False)),
 
             
-            ('feedback', bool, feedback),
+            ('interactive', bool, interactive),
             ('pype_mode', bool, pype_mode),
             
             ('zoom_memory', bool, zoom_memory),
@@ -303,7 +309,7 @@ class _GUI:
         # window control
         # =============================================================================
 
-        if self.settings.feedback == False:
+        if self.settings.interactive == False:
 
             self.flags.end = True
             self.flags.end_pype = True
@@ -323,7 +329,7 @@ class _GUI:
 
             if self.settings.window_control == "internal":
                 while not any([self.flags.end, self.flags.end_pype]):
-                    if self.settings.feedback:
+                    if self.settings.interactive:
                         
                         ## sync zoom settings with config
                         _config.gui_zoom_config = self.zoom
@@ -378,6 +384,7 @@ class _GUI:
                         ## Esc = close window and terminate
                         elif self.keypress == 27:
                             cv2.destroyAllWindows()
+                            logging.shutdown()
                             sys.exit("\n\nTERMINATE (by user)")
 
                         ## Ctrl + z = undo
@@ -941,7 +948,7 @@ class _GUI:
         self.canvas_copy = copy.deepcopy(self.canvas)
 
         ## refresh canvas
-        if refresh and self.settings.feedback:
+        if refresh and self.settings.interactive:
             cv2.imshow(self.settings.window_name, self.canvas)
 
     def _canvas_renew(self):
@@ -1376,14 +1383,14 @@ def _get_GUI_settings(kwargs, annotation=None):
         if "settings" in annotation:
             if "GUI" in annotation["settings"]:
                 for key, value in annotation["settings"]["GUI"].items():
-                    if not key in ["feedback"]:
+                    if not key in ["interactive"]:
                         GUI_settings[key] = value
 
     if kwargs:
         for key, value in kwargs.items():
             if key in settings._GUI_settings_args:
                 GUI_settings[key] = value
-            elif key in ["feedback"]:
+            elif key in ["interactive"]:
                 pass
 
     return GUI_settings
@@ -1876,6 +1883,52 @@ def _file_walker(
     return unique, duplicate
 
 
+def _get_caller_name(skip=2):
+    """Get a name of a caller in the format module.class.method
+
+       `skip` specifies how many levels of stack to skip while getting caller
+       name. skip=1 means "who calls me", skip=2 "who calls my caller" etc.
+
+       An empty string is returned if skipped levels exceed stack height
+    """
+    
+    ## inspect stack
+    stack = inspect.stack()
+    start = 0 + skip
+    if len(stack) < start + 1:
+      return ''
+    parentframe = stack[start][0]    
+    
+    ## get parentframe
+    codename = parentframe.f_code.co_name
+    
+    # detect classname
+    if 'self' in parentframe.f_locals and codename== "__init__":
+        # I don't know any way to detect call from the object method
+        # XXX: there seems to be no way to detect static method call - it will
+        #      be just a function call
+        name = parentframe.f_locals['self'].__class__.__name__
+    
+    else:
+        if codename != '<module>':  # top level usually
+            name = codename  # function or a method
+        else:
+            module = inspect.getmodule(parentframe)
+            if module:
+                name = module.__name__
+            # `modname` can be None when frame is executed directly in console
+            # TODO(techtonik): consider using __main__
+            # module = inspect.getmodule(parentframe)
+            # if module:
+            #     name = module.__name__
+    
+    ## Avoid circular refs and frame leaks
+    #  https://docs.python.org/2.7/library/inspect.html#the-interpreter-stack
+    del parentframe, stack
+
+    return name
+
+
 def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwargs):
     """
     Parameters
@@ -1994,6 +2047,34 @@ def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize
 
     ## return image data
     return image_data
+
+def _print_mod(msg, context="caller", level=1):
+    if context=="caller":
+        caller = _get_caller_name(level)
+        print(caller + ":", msg)
+    elif context=="none":
+        print(msg)
+
+# def _print_mod(msg, context="fun_parent", level=1,):
+#     if context=="fun_parent":
+#         curframe = inspect.currentframe()
+#         calframe = inspect.getouterframes(curframe, 2)
+#         print(calframe[level][3] + ":", msg)
+#     elif context=="class":
+#         args, _, _, value_dict = inspect.getargvalues(inspect.stack()[1][0])
+#         # we check the first parameter for the frame function is
+#         # named 'self'
+#         if len(args) and args[0] == 'self':
+#           # in that case, 'self' will be referenced in value_dict
+#           instance = value_dict.get('self', None)
+#           if instance:
+#             # return its class
+#             return getattr(instance, '__class__', None)
+#         # return None otherwise
+#         return None
+#     elif context=="none":
+#         print(msg)
+    
 
 def _resize_image(
         image, 

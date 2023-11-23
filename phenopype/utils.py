@@ -264,7 +264,7 @@ class Container(object):
                     elif flag_edit == False:
                         print(print_msg + ": skipping (edit=False)")
                         if annotation_type in ["drawing"]:
-                            kwargs_function["feedback"] = False
+                            kwargs_function["interactive"] = False
                             annotations_updated, self.image = core.segmentation.edit_contour(
                                 self.canvas, ret_image=True, **kwargs_function
                             )

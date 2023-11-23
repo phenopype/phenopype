@@ -3,6 +3,11 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+4.1.1
+-----
+bugfix:
+	- no empty annotations!
+	
 4.1.0
 -----
 bugfix:

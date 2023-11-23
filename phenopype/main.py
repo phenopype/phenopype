@@ -10,6 +10,7 @@ import io
 import sys
 import logging
 
+from contextlib import redirect_stdout
 from dataclasses import make_dataclass
 
 import pprint
@@ -1140,7 +1141,7 @@ class Project:
                 len(filenames_check),
                 len(filenames_unmatched)))
             time.sleep(1)
-            if flags.feedback:
+            if flags.interactive:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
@@ -1149,7 +1150,7 @@ class Project:
             print("--------------------------------------------")
             print("phenopype found {} files in the data folder, but 0 are listed in the project attributes.".format(len(filenames_check)))
             time.sleep(1)
-            if flags.feedback:
+            if flags.interactive:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
@@ -1161,7 +1162,7 @@ class Project:
                 len(filenames)
                 ))
             time.sleep(1)
-            if flags.feedback:
+            if flags.interactive:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
@@ -1868,7 +1869,7 @@ class Pype(object):
         path to an existing directory where all output should be stored
     skip: bool, optional
         skip directories that already have "name" as a suffix in the filename
-    feedback: bool, optional
+    interactive: bool, optional
         don't open text editor or window, just apply functions and terminate
     max_dim: int, optional
         maximum dimension that window can have 
@@ -1880,13 +1881,17 @@ class Pype(object):
         self,
         image_path,
         tag,
-        config_path=None,
+        
         skip=False,
+        
+        interactive=True,
+        feedback=True,
         autoload=True,
         autosave=True,
         autoshow=True,
+        
+        config_path=None,
         fix_names=True,
-        feedback=True,
         load_contours=False,
         zoom_memory=False,
         debug=False,
@@ -1901,6 +1906,10 @@ class Pype(object):
         global window_max_dim
         window_max_dim = kwargs.get("window_max_dim")
         delay = kwargs.get("delay", 100)
+        
+        ## continuity
+        if kwargs.get("feedback"):
+            interactive = kwargs.get("feedback")
 
         ## flags
         self.flags = make_dataclass(
@@ -1911,20 +1920,15 @@ class Pype(object):
                 ("autosave", bool, autosave),
                 ("autoshow", bool, autoshow),
                 ("feedback", bool, feedback),
+                ("interactive", bool, interactive),
                 ("fix_names", bool, fix_names),
                 ("skip", bool, skip),
                 ("zoom_memory", bool, zoom_memory),
-                
                 ("dry_run", bool, kwargs.get("dry_run", False)),
-                
                 ("terminate", bool, False),
             ],
         )
-        
-        ## don't autoshow if feedback is off
-        if not self.flags.feedback:
-            self.flags.autoshow = False
-        
+                
         if image_path.__class__.__name__ == "str":
             image_path = os.path.abspath(image_path)
 
@@ -1957,7 +1961,7 @@ class Pype(object):
             annotations=self.container.annotations,
             execute=False,
             autoshow=False,
-            feedback=False,
+            interactive=False,
         )
         time.sleep(1)
 
@@ -1965,12 +1969,29 @@ class Pype(object):
         self._check_final()
 
         # open config file with system viewer
-        if self.flags.feedback and self.flags.autoshow:
+        if self.flags.interactive:
             self._start_file_monitor(delay=delay)
 
-        ## start log
-        self.log = []
+        ## start logging
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.INFO)
+        
+        if (self.logger.hasHandlers()):
+            self.logger.handlers.clear()
+            
+        if self.flags.feedback:
+            stdout_handler = logging.StreamHandler(sys.stdout)
+            stdout_handler.setLevel(logging.DEBUG)
+            stdout_formatter = logging.Formatter('%(asctime)s: %(message)s', "%H:%M:%S")
+            stdout_handler.setFormatter(stdout_formatter)
+            self.logger.addHandler(stdout_handler)
 
+        file_handler = logging.FileHandler(os.path.join(image_path, f"pype_logs_{tag}.log"))
+        file_handler.setLevel(logging.INFO)
+        file_formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s', "%Y-%m-%d %H:%M:%S")
+        file_handler.setFormatter(file_formatter)
+        self.logger.addHandler(file_handler)
+        
         ## clear old zoom memory
         _config.gui_zoom_config = None
 
@@ -1985,7 +2006,7 @@ class Pype(object):
             _config.pype_restart = False
 
             ## refresh config
-            if self.flags.feedback and self.flags.autoshow:
+            if self.flags.interactive:
 
                 ## to stop infinite loop without opening new window
                 if not self.YFM.content:
@@ -2006,12 +2027,12 @@ class Pype(object):
             self._iterate(
                 config=self.config,
                 annotations=self.container.annotations,
-                feedback=self.flags.feedback,
+                interactive=self.flags.interactive,
                 autoshow=self.flags.autoshow,
             )
 
             ## terminate & cleanup
-            if self.flags.feedback:
+            if self.flags.interactive:
                 if self.flags.terminate:
                     
                     ## stope file monitoring
@@ -2028,8 +2049,8 @@ class Pype(object):
                         
                     ## feedback
                     print("\n\nTERMINATE")
-                    
                     break
+                
             else:
                 break
 
@@ -2039,6 +2060,11 @@ class Pype(object):
             else:
                 export_list = self.config_parsed_flattened["export"]
             self.container.save(export_list=export_list)
+            
+            
+        ## end logging
+        logging.shutdown()
+
 
     def _load_container(self, image_path, tag):
         if image_path.__class__.__name__ == "str":
@@ -2168,6 +2194,30 @@ class Pype(object):
                 "No config file was provided or loading config did not succeed."
             )
             return
+        
+    def _log(self, lvl, msg, ind=0):
+        
+        """Add a message to a logging object.
+
+        Parameters:
+        logging (logging.Logger): The logging object to add the message to.
+        message (str): The message to be logged.
+
+        """
+
+        message = ("    " * ind) + msg
+        
+        if lvl == "debug":
+            self.logger.debug(message)
+        elif lvl == "info":
+            self.logger.info(message)
+        elif lvl == "warning":
+            self.logger.warning(message)
+        elif lvl == "error":
+            self.logger.error(message)
+        elif lvl == "critical":
+            self.logger.critical(message)
+
 
     def _iterate(
         self, 
@@ -2175,7 +2225,7 @@ class Pype(object):
         annotations, 
         execute=True, 
         autoshow=True, 
-        feedback=True,
+        interactive=True,
     ):
 
         flags = make_dataclass(
@@ -2183,12 +2233,12 @@ class Pype(object):
             fields=[
                 ("execute", bool, execute),
                 ("autoshow", bool, autoshow),
-                ("feedback", bool, feedback),
+                ("interactive", bool, interactive),
             ],
         )
 
         ## new iteration
-        if flags.execute and not self.flags.dry_run:
+        if flags.execute and not self.flags.dry_run and flags.autoshow:
             print(
                 "\n\n------------+++ new pype iteration "
                 + datetime.today().strftime(settings.strftime_format)
@@ -2224,15 +2274,10 @@ class Pype(object):
             if method_list.__class__.__name__ == "NoneType":
                 continue
 
-            # =============================================================================
-            # implement logging function here
-            # =============================================================================
-            
             ## print current step
-            if flags.execute and flags.feedback:
-                print("\n")
-                print(step_name.upper())
-                        
+            if flags.execute and flags.interactive:
+                self._log("info", step_name, 0)
+
             if step_name == "visualization" and flags.execute:
 
                 ## check if canvas is selected, and otherwise execute with default values
@@ -2245,8 +2290,8 @@ class Pype(object):
                     and not "select_canvas" in check_list
                 ):
                     self.container.run("select_canvas")
-                    if flags.feedback:
-                        print("select_canvas (DEFAULT)")
+                    if flags.interactive and flags.autoshow:
+                        self._log("info", "select_canvas (DEFAULT)", 1)
                         
             ## iterate through step list
             for method_idx, method in enumerate(method_list):
@@ -2269,7 +2314,7 @@ class Pype(object):
 
                 ## feedback
                 if flags.execute:
-                    print(method_name)
+                    self._log("info", method_name, 1)
 
                 ## check if method exists
                 if hasattr(eval(step_name), method_name):
@@ -2286,7 +2331,7 @@ class Pype(object):
                         method_name = method_name_updated
                         print("Stage: fixed method name")
                 else:
-                    print(
+                    print("Pype:",
                         "phenopype.{} has no function called {} - will attempt to look for similarly named functions - fix the config file!".format(
                             step_name, method_name
                         )
@@ -2303,7 +2348,7 @@ class Pype(object):
                     else:
                         annotation_args = {}
                         method_args = dict(method_args)
-                        print("Stage: add annotation control args")
+                        print("Stage: add annotation control args", level=3)
                 
                 ## annotation params
                 if method_name in settings._annotation_functions:
@@ -2353,35 +2398,39 @@ class Pype(object):
                     try:
                         
                         ## ensure feedback in GUI is active
-                        method_args["feedback"] = flags.feedback                        
+                        method_args["interactive"] = flags.interactive                        
                         method_args["zoom_memory"] = self.flags.zoom_memory                 
 
-                        ## excecute
-                        self.container.run(
-                            fun=method_name,
-                            fun_kwargs=method_args,
-                            annotation_kwargs=annotation_args,
-                            annotation_counter=annotation_counter,
-                        )
-                        ## feedback cleanup
+                        ## excecute and capture stdout
+                        string_buffer = io.StringIO()
+                        with redirect_stdout(string_buffer):
+                            self.container.run(
+                                fun=method_name,
+                                fun_kwargs=method_args,
+                                annotation_kwargs=annotation_args,
+                                annotation_counter=annotation_counter,
+                            )
+                            
+                        ## reformat stdout
+                        method_stdout = string_buffer.getvalue()
+                        method_stdout_list = method_stdout.split("\n")
+                        for line in method_stdout_list:
+                            if not line == "":
+                                if line.endswith("\n"):
+                                    line = line[:-2]
+                                self._log("info", line, 2)
+
                         _config.last_print_msg = ""
 
                     except Exception as ex:
                         if self.flags.debug:
                             raise
-                        self.log.append(ex)
-                        location = (
-                            step_name
-                            + "."
-                            + method_name
-                            + ": "
-                            + str(ex.__class__.__name__)
-                        )
-                        print(location + " - " + str(ex))
+                        error_msg =  f"{step_name}.{method_name}: {str(ex.__class__.__name__)} - {ex}"
+                        self._log("error", error_msg, 1)
 
                     ## check for pype-restart after config change
                     if _config.pype_restart:
-                        print("BREAK")
+                        self._log("debug", "Pype: restart", 0)
                         return
                     
         # sys.stdout = self.old_stdout
@@ -2394,7 +2443,7 @@ class Pype(object):
             utils_lowlevel._save_yaml(self.config_updated, self.config_path)
             print("Updating pype config: applying staged changes")
 
-        if flags.execute:
+        if flags.execute and flags.autoshow:
             print(
                 "\n\n------------+++ finished pype iteration +++--------------\n"
                 "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
