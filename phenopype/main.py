@@ -1889,7 +1889,7 @@ class Pype(object):
         autoload=True,
         autosave=True,
         autoshow=True,
-        
+        log_ow=False,
         config_path=None,
         fix_names=True,
         load_contours=False,
@@ -1942,7 +1942,12 @@ class Pype(object):
             stdout_handler.setFormatter(stdout_formatter)
             self.logger.addHandler(stdout_handler)
 
-        file_handler = logging.FileHandler(os.path.join(image_path, f"pype_logs_{tag}.log"))
+        ## log file
+        log_file_path = os.path.join(image_path, f"pype_logs_{tag}.log")
+        if os.path.isfile(log_file_path) and log_ow:
+            os.remove(log_file_path)
+            
+        file_handler = logging.FileHandler(log_file_path)
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', "%Y-%m-%d %H:%M:%S")
         file_handler.setFormatter(file_formatter)
@@ -1971,7 +1976,7 @@ class Pype(object):
         # FEEDBACK 
         
         startup_msg_list = []
-        startup_msg_list.append(utils_lowlevel._pprint_fill_hbar(self.container.image_name, ret=True))
+        startup_msg_list.append(utils_lowlevel._pprint_fill_hbar(self.container.image_name, symbol="=", ret=True))
         self._log("info", startup_msg_list, 0, passthrough=True)
         
         # =============================================================================
@@ -2080,7 +2085,7 @@ class Pype(object):
         # FEEDBACK 
         
         startup_msg_list = []
-        startup_msg_list.append(utils_lowlevel._pprint_fill_hbar("END", ret=True))
+        startup_msg_list.append(utils_lowlevel._pprint_fill_hbar("END", symbol="=", ret=True))
         self._log("info", startup_msg_list, 0)
         
         # =============================================================================
@@ -2312,7 +2317,7 @@ class Pype(object):
                 continue
 
             ## print current step
-            if flags.execute and flags.interactive:
+            if flags.execute:
                 self._log("info", step_name, 0)
 
             if step_name == "visualization" and flags.execute:
