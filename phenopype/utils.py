@@ -114,12 +114,12 @@ class Container(object):
                         )
     
                 loaded.append(
-                    "annotations loaded:\n{}".format(
+                    "- annotations loaded:\n{}".format(
                         json.dumps(
                             annotation_types_loaded,
-                            indent=0,
+                            indent=4,
                             cls=utils_lowlevel._NoIndentEncoder,
-                        )
+                        ).replace("}", "").replace("{", "")
                     )
                 )
             except:
@@ -195,9 +195,9 @@ class Container(object):
 
         ## feedback
         if len(loaded) > 0:
-            print("\nAUTOLOAD\n- " + "\n- ".join(loaded))
+            print("\n- ".join(loaded))
         else:
-            print("\nAUTOLOAD\n - nothing to autoload")
+            print("- nothing to autoload")
 
     def reset(self):
         """
@@ -448,9 +448,6 @@ class Container(object):
 
         ## kwargs
         flag_autosave = False
-
-        ## check dir_path
-        print("\nAUTOSAVE")
 
         if hasattr(self, "canvas") and not "save_canvas" in export_list:
             print("- save_canvas")

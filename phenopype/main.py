@@ -1907,10 +1907,6 @@ class Pype(object):
         window_max_dim = kwargs.get("window_max_dim")
         delay = kwargs.get("delay", 100)
         
-        ## continuity
-        if kwargs.get("feedback"):
-            interactive = kwargs.get("feedback")
-
         ## flags
         self.flags = make_dataclass(
             cls_name="flags",
@@ -1931,6 +1927,26 @@ class Pype(object):
                 
         if image_path.__class__.__name__ == "str":
             image_path = os.path.abspath(image_path)
+            
+        ## start logging
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.INFO)
+        
+        if (self.logger.hasHandlers()):
+            self.logger.handlers.clear()
+                        
+        if self.flags.feedback:
+            stdout_handler = logging.StreamHandler(sys.stdout)
+            stdout_handler.setLevel(logging.DEBUG)
+            stdout_formatter = logging.Formatter('%(asctime)s: %(message)s', "%H:%M:%S")
+            stdout_handler.setFormatter(stdout_formatter)
+            self.logger.addHandler(stdout_handler)
+
+        file_handler = logging.FileHandler(os.path.join(image_path, f"pype_logs_{tag}.log"))
+        file_handler.setLevel(logging.INFO)
+        file_formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', "%Y-%m-%d %H:%M:%S")
+        file_handler.setFormatter(file_formatter)
+        self.logger.addHandler(file_handler)
 
         ## check name, load container and config
         utils_lowlevel._check_pype_tag(tag)
@@ -1950,10 +1966,23 @@ class Pype(object):
                 tag=tag, skip_pattern=skip, dir_path=self.container.dir_path
             ):
                 return
+            
+        # =============================================================================
+        # FEEDBACK 
+        
+        startup_msg_list = []
+        startup_msg_list.append(utils_lowlevel._pprint_fill_hbar(self.container.image_name, ret=True))
+        self._log("info", startup_msg_list, 0, passthrough=True)
+        
+        # =============================================================================
 
         ## load existing annotations through container
         if self.flags.autoload:
-            self.container.load(contours=load_contours)
+            self._log("info", "Pype: AUTOLOAD", 0)
+            with io.StringIO() as buffer, redirect_stdout(buffer):
+                self.container.load(contours=load_contours)
+                stdout = buffer.getvalue()
+                self._log("info", stdout, 1)
 
         ## check pype config for annotations
         self._iterate(
@@ -1963,41 +1992,21 @@ class Pype(object):
             autoshow=False,
             interactive=False,
         )
-        time.sleep(1)
 
         ## final check before starting pype
         self._check_final()
-
-        # open config file with system viewer
+        
+        ## turn off autshow and file monitor in non-interactive mode
         if self.flags.interactive:
             self._start_file_monitor(delay=delay)
-
-        ## start logging
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.INFO)
-        
-        if (self.logger.hasHandlers()):
-            self.logger.handlers.clear()
+        else:
+            self.flags.autoshow = False
             
-        if self.flags.feedback:
-            stdout_handler = logging.StreamHandler(sys.stdout)
-            stdout_handler.setLevel(logging.DEBUG)
-            stdout_formatter = logging.Formatter('%(asctime)s: %(message)s', "%H:%M:%S")
-            stdout_handler.setFormatter(stdout_formatter)
-            self.logger.addHandler(stdout_handler)
-
-        file_handler = logging.FileHandler(os.path.join(image_path, f"pype_logs_{tag}.log"))
-        file_handler.setLevel(logging.INFO)
-        file_formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s', "%Y-%m-%d %H:%M:%S")
-        file_handler.setFormatter(file_formatter)
-        self.logger.addHandler(file_handler)
-        
         ## clear old zoom memory
         _config.gui_zoom_config = None
 
         # =============================================================================
         # PYPE LOOP
-        # =============================================================================
 
         ## run pype
         while True:
@@ -2010,7 +2019,7 @@ class Pype(object):
 
                 ## to stop infinite loop without opening new window
                 if not self.YFM.content:
-                    print("- STILL UPDATING CONFIG (no content)")
+                    self._log("debug", "Pype: STILL UPDATING CONFIG (no config)", 0)
                     cv2.destroyWindow("phenopype")
                     time.sleep(1)
                     self.YFM._stop()
@@ -2020,7 +2029,7 @@ class Pype(object):
                 self.config = copy.deepcopy(self.YFM.content)
 
                 if not self.config:
-                    print("- STILL UPDATING CONFIG (no config)")
+                    self._log("debug", "Pype: STILL UPDATING CONFIG (no config)", 0)
                     continue
 
             ## run pype config in sequence
@@ -2048,22 +2057,38 @@ class Pype(object):
                     utils_lowlevel._save_yaml(self.config, self.config_path)
                         
                     ## feedback
-                    print("\n\nTERMINATE")
+                    self._log("info", "Pype: TERMINATE", 0)
                     break
                 
             else:
                 break
-
+            
+        # =============================================================================
+        ## autosave
         if self.flags.autosave and self.flags.terminate:
+            self._log("info", "Pype: AUTOSAVE", 0)
             if "export" not in self.config_parsed_flattened:
                 export_list = []
             else:
                 export_list = self.config_parsed_flattened["export"]
-            self.container.save(export_list=export_list)
-            
-            
+            with io.StringIO() as buffer, redirect_stdout(buffer):
+                self.container.save(export_list=export_list)
+                stdout = buffer.getvalue()
+                self._log("info", stdout, 1)
+                
+        # =============================================================================
+        # FEEDBACK 
+        
+        startup_msg_list = []
+        startup_msg_list.append(utils_lowlevel._pprint_fill_hbar("END", ret=True))
+        self._log("info", startup_msg_list, 0)
+        
+        # =============================================================================
+
         ## end logging
         logging.shutdown()
+        
+
 
 
     def _load_container(self, image_path, tag):
@@ -2141,7 +2166,7 @@ class Pype(object):
             subprocess.call(("xdg-open", self.config_path))
 
         self.YFM = utils_lowlevel._YamlFileMonitor(self.config_path, delay)
-        print("- starting config file monitor")
+        self._log("debug", "Pype: starting config file monitor", 0)
 
     def _check_directory_skip(self, tag, skip_pattern, dir_path):
 
@@ -2195,7 +2220,7 @@ class Pype(object):
             )
             return
         
-    def _log(self, lvl, msg, ind=0):
+    def _log(self, lvl, messages, ind=0, passthrough=False):
         
         """Add a message to a logging object.
 
@@ -2204,19 +2229,32 @@ class Pype(object):
         message (str): The message to be logged.
 
         """
-
-        message = ("    " * ind) + msg
-        
-        if lvl == "debug":
-            self.logger.debug(message)
-        elif lvl == "info":
-            self.logger.info(message)
-        elif lvl == "warning":
-            self.logger.warning(message)
-        elif lvl == "error":
-            self.logger.error(message)
-        elif lvl == "critical":
-            self.logger.critical(message)
+        if isinstance(messages, str):
+            messages_list = messages.split("\n")
+        elif isinstance(messages, list):
+            messages_list = messages
+            
+        for message in messages_list:
+            if not message == "":
+                if message.endswith("\n"):
+                    message = message[:-2]
+                
+                message = ("    " * ind) + message
+            
+                if lvl == "debug":
+                    self.logger.debug(message)
+                elif lvl == "info":
+                    self.logger.info(message)
+                elif lvl == "warning":
+                    self.logger.warning(message)
+                elif lvl == "error":
+                    self.logger.error(message)
+                elif lvl == "critical":
+                    self.logger.critical(message)
+                    
+                if self.flags.feedback==False and passthrough==True:
+                    hm = datetime.today().strftime("%H:%M:%S")
+                    print(hm + ": " + message)
 
 
     def _iterate(
@@ -2237,15 +2275,14 @@ class Pype(object):
             ],
         )
 
-        ## new iteration
-        if flags.execute and not self.flags.dry_run and flags.autoshow:
-            print(
-                "\n\n------------+++ new pype iteration "
-                + datetime.today().strftime(settings.strftime_format)
-                + " +++--------------\n\n" +
-                "==> image name: "
-                + str(self.container.image_name)
-            )
+        # =============================================================================
+        # FEEDBACK 
+        
+        if flags.execute and not self.flags.dry_run:
+            new_pype_msg = utils_lowlevel._pprint_fill_hbar("| new pype iteration |", ret=True)
+            self._log("info", new_pype_msg, 0)
+            
+        # =============================================================================
 
         # reset values
         if not self.flags.dry_run:
@@ -2376,8 +2413,8 @@ class Pype(object):
                         annotation_id = method_args["annotation_id_new"]
                         annotation_args.update({"type":annotation_type, "id":annotation_id, "edit":"overwrite"})
                     except KeyError:
-                        print("Missing arguments for annotation conversion")
-                        
+                        self._log("error", "Pype: Missing arguments for annotation conversion", 0)
+
                 else:
                     annotation_args = {}
 
@@ -2401,26 +2438,18 @@ class Pype(object):
                         method_args["interactive"] = flags.interactive                        
                         method_args["zoom_memory"] = self.flags.zoom_memory                 
 
+
                         ## excecute and capture stdout
-                        string_buffer = io.StringIO()
-                        with redirect_stdout(string_buffer):
+                        with io.StringIO() as buffer, redirect_stdout(buffer):
                             self.container.run(
                                 fun=method_name,
                                 fun_kwargs=method_args,
                                 annotation_kwargs=annotation_args,
                                 annotation_counter=annotation_counter,
                             )
-                            
-                        ## reformat stdout
-                        method_stdout = string_buffer.getvalue()
-                        method_stdout_list = method_stdout.split("\n")
-                        for line in method_stdout_list:
-                            if not line == "":
-                                if line.endswith("\n"):
-                                    line = line[:-2]
-                                self._log("info", line, 2)
-
-                        _config.last_print_msg = ""
+                            stdout = buffer.getvalue()
+                            self._log("info", stdout, 2)
+                            _config.last_print_msg = ""
 
                     except Exception as ex:
                         if self.flags.debug:
@@ -2441,27 +2470,34 @@ class Pype(object):
 
         if not self.config_updated == self.config:
             utils_lowlevel._save_yaml(self.config_updated, self.config_path)
-            print("Updating pype config: applying staged changes")
+            self._log("debug", "Pype: Updating config; applying staged changes", 0)
 
-        if flags.execute and flags.autoshow:
-            print(
-                "\n\n------------+++ finished pype iteration +++--------------\n"
-                "-------(End with Ctrl+Enter or re-run with Enter)--------\n\n"
-            )
-
-        if flags.autoshow:
-                        
+        if flags.autoshow and flags.execute:
             try:
-                print("AUTOSHOW")
+                self._log("info", "Pype: AUTOSHOW", 0)
                 if self.container.canvas.__class__.__name__ == "NoneType":
                     self.container.run(fun="select_canvas")
-                    print("- autoselect canvas")
-
+                    self._log("info", "select_canvas", 1)
+                            
+                # =============================================================================
+                # FEEDBACK 
+        
+                closing_msg_list = []
+                closing_msg_list.append( utils_lowlevel._pprint_fill_hbar("| finished pype iteration |", ret=True))
+                if flags.autoshow:
+                    closing_msg_list.append( utils_lowlevel._pprint_fill_hbar("(End with Ctrl+Enter or re-run with Enter)", ret=True))
+                self._log("info", closing_msg_list, 0)
+                
+                # =============================================================================
+        
                 self.gui = utils_lowlevel._GUI(self.container.canvas, zoom_memory=self.flags.zoom_memory, pype_mode=True)
                 self.flags.terminate = self.gui.flags.end_pype
-
+                
             except Exception as ex:
-                print("visualisation: " + str(ex.__class__.__name__) + " - " + str(ex))
+                error_msg =  f"Pype: AUTSHOW {str(ex.__class__.__name__)} - {ex}"
+                self._log("error", error_msg, 1)
         else:
             if flags.execute:
+                closing_msg = utils_lowlevel._pprint_fill_hbar("| finished pype iteration |", ret=True)
+                self._log("info", closing_msg, 0)
                 self.flags.terminate = True

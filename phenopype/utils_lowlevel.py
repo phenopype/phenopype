@@ -1139,8 +1139,7 @@ class _YamlFileMonitor:
         self.observer.join()
 
 
-#%% functions - ANNOTATION helpers
-
+#%% decorators 
 
 def annotation_function(fun, *args, **kwargs):
     
@@ -1172,7 +1171,32 @@ def annotation_function(fun, *args, **kwargs):
     
     ## close function wrapper
     return annotation_function_wrapper
+
+
+def capture_stdout_log(fun, logger, *logger_args):
     
+    @wraps(fun)
+    def capture_stdout_log_wrapper():
+                
+        string_buffer = io.StringIO()
+        with redirect_stdout(string_buffer):
+                
+            fun()
+    
+        ## reformat stdout
+        stdout = string_buffer.getvalue()
+        stdout_list = stdout.split("\n")
+        for line in stdout_list:
+            if not line == "":
+                if line.endswith("\n"):
+                    line = line[:-2]
+                logger(logger_args)
+                
+    ## close function wrapper
+    return capture_stdout_log_wrapper
+
+    
+#%% functions - ANNOTATION helpers
 
 
 def _get_annotation(
@@ -1641,6 +1665,17 @@ def _calc_distance_polyline(coords):
         distances.append(_calc_distance_2point(current_line[0],next_line[0],current_line[1],next_line[1]))
     return sum(distances)
 
+def _convert_box_xywh_to_xyxy(box):
+    if len(box) == 4:
+        return [box[0], box[1], box[0] + box[2], box[1] + box[3]]
+    else:
+        result = []
+        for b in box:
+            b = _convert_box_xywh_to_xyxy(b)
+            result.append(b)               
+    return result
+
+
 def _convert_arr_tup_list(arr_list, add_first=False):
 
     if not arr_list.__class__.__name__ == "list":
@@ -2048,33 +2083,40 @@ def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize
     ## return image data
     return image_data
 
+
+
 def _print_mod(msg, context="caller", level=1):
     if context=="caller":
         caller = _get_caller_name(level)
         print(caller + ":", msg)
     elif context=="none":
         print(msg)
+        
+def _pprint_fill_hbar(message, symbol="-", ret=False):
+    terminal_width = os.get_terminal_size()[0]
+    message_length = len(message)
 
-# def _print_mod(msg, context="fun_parent", level=1,):
-#     if context=="fun_parent":
-#         curframe = inspect.currentframe()
-#         calframe = inspect.getouterframes(curframe, 2)
-#         print(calframe[level][3] + ":", msg)
-#     elif context=="class":
-#         args, _, _, value_dict = inspect.getargvalues(inspect.stack()[1][0])
-#         # we check the first parameter for the frame function is
-#         # named 'self'
-#         if len(args) and args[0] == 'self':
-#           # in that case, 'self' will be referenced in value_dict
-#           instance = value_dict.get('self', None)
-#           if instance:
-#             # return its class
-#             return getattr(instance, '__class__', None)
-#         # return None otherwise
-#         return None
-#     elif context=="none":
-#         print(msg)
-    
+    if message_length >= terminal_width:
+        formatted_message = message
+    else:
+        bar_length = (terminal_width - message_length - 2) // 2
+        horizontal_bar = symbol * bar_length
+        formatted_message = f"{horizontal_bar} {message} {horizontal_bar}"
+        residual = terminal_width - len(formatted_message)
+        formatted_message = formatted_message + symbol * residual
+        
+    if not ret:
+        print(formatted_message)
+    else:
+        return formatted_message
+
+def _pprint_hbar(symbol="-", ret=False):
+    terminal_width = os.get_terminal_size()[0]
+    string = symbol * terminal_width
+    if not ret:
+        print(string)
+    else:
+        return string
 
 def _resize_image(
         image, 

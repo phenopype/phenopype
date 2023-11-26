@@ -19,15 +19,6 @@ from phenopype import utils
 
 #%% functions
 
-def convert_box_xywh_to_xyxy(box):
-    if len(box) == 4:
-        return [box[0], box[1], box[0] + box[2], box[1] + box[3]]
-    else:
-        result = []
-        for b in box:
-            b = convert_box_xywh_to_xyxy(b)
-            result.append(b)               
-    return result
 
 def predict_SAM(
         image,
@@ -115,7 +106,7 @@ def predict_SAM(
     
             ## roi
             roi_orig = image[ry : ry + rh, rx : rx + rw]
-            
+                        
         ## full image
         elif flags.prompt == "global":
             
@@ -130,18 +121,29 @@ def predict_SAM(
             roi = roi_orig 
             
         ## encode roi 
-        everything_results = model(
+        results = everything_results = model(
             roi,
             device=device,
             retina_masks=True,
             imgsz=[int(roi.shape[1]), int(roi.shape[0])],
             conf=confidence,
             iou=iou,
+            verbose=False,
         )
-        
+        if not results.__class__.__name__ == "NoneType":
+            
+            speed = results[0].speed
+            speed = {
+                "preprocess": round(speed["preprocess"], 2),
+                "inference": round(speed["inference"], 2),
+                "postprocess": round(speed["postprocess"], 2),
+                }
+            print(f"- sucessfully processed image of shape {results[0].orig_shape}")
+            print(f"- speed: {speed}")
+
         ## box prep
         box_prompt = [[0, 0, int(roi.shape[1]), int(roi.shape[0])]]
-        box_prompt = convert_box_xywh_to_xyxy(box_prompt)
+        box_prompt = utils_lowlevel._convert_box_xywh_to_xyxy(box_prompt)
 
         ## box prompt
         prompt_process = plugins.libraries.fastsam.FastSAMPrompt(
@@ -150,9 +152,9 @@ def predict_SAM(
         
         # check if something was detected
         if len(detections) > 0:  
-            print(f"found {len(detections)} objects!")
+            print(f"- found {len(detections)} objects!")
         else:  # Check if ann is empty
-            print("SAM: no object found - moving on")
+            print("- no object found - moving on")
             return image
         
         # Extract mask conver to 8bit binary
@@ -164,7 +166,10 @@ def predict_SAM(
     
         ## paste roi into full mask
         mask_predicted = np.zeros(image.shape[:2], dtype=np.uint8)
-        mask_predicted[ry : ry + rh, rx : rx + rw] = mask_roi_orig
+        if flags.prompt in ["local","global-center"]:
+            mask_predicted[ry : ry + rh, rx : rx + rw] = mask_roi_orig
+        else:
+            mask_predicted = mask_roi_orig
             
     return mask_predicted
 
