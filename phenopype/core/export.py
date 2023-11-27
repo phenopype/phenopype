@@ -651,6 +651,9 @@ def save_ROI(
     counter=True,
     prefix=None,
     suffix=None,
+    rotate=False,
+    rotate_padding=5,
+    align="v",
     extension="png",
     background="original",
     bg_color="white",
@@ -733,7 +736,6 @@ def save_ROI(
         image = preprocessing.decompose_image(image, channel, **kwargs)
     
     for idx, roi_coords in enumerate(data):
-        
 
         if annotation_type == settings._mask_type:
             coords = utils_lowlevel._convert_tup_list_arr(roi_coords)[0]
@@ -753,6 +755,22 @@ def save_ROI(
             offset=(-rx, -ry),
         )
         
+        ## rotating
+        if rotate:
+            angle = utils_lowlevel._get_orientation(coords)
+            if align == "h":
+                angle = angle + 90
+            roi_rot = utils_lowlevel._rotate_image(roi_orig, angle)
+            mask_rot = utils_lowlevel._rotate_image(roi_orig_mask, angle)
+            contour, _ = cv2.findContours(mask_rot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            rx, ry, rw, rh = cv2.boundingRect(contour[0])
+            roi_orig = roi_rot[ry : ry + rh, rx : rx + rw]
+            roi_orig_mask = mask_rot[ry : ry + rh, rx : rx + rw]
+            
+            ## pad to avoid aliasing
+            roi_orig = cv2.copyMakeBorder(roi_orig, 1,1,1,1, cv2.BORDER_CONSTANT, value=0)    
+            roi_orig_mask = cv2.copyMakeBorder(roi_orig_mask, 1,1,1,1, cv2.BORDER_CONSTANT, value=0)    
+
         ## resizing
         if max_dim:
             

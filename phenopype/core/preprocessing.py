@@ -917,7 +917,7 @@ def detect_QRcode(
             break
             
     if flags.found:
-        points = utils_lowlevel._rotate_2Darray(points_rot, image_center, angle)         
+        points = utils_lowlevel._rotate_coords(points_rot, image_center, angle)         
         points = utils_lowlevel._convert_arr_tup_list(points)
         print("found text: {}".format(decodedText))
     else:

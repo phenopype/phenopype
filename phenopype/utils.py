@@ -695,8 +695,6 @@ def print_colours():
 
 
 
-
-
 def save_image(
     image,
     file_name,

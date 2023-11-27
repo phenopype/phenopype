@@ -18,8 +18,8 @@ from ruamel.yaml import YAML
 
 from functools import wraps
  
-from math import pi
-from math import sqrt
+from math import atan2, cos, sin, sqrt, pi
+
 from pathlib import Path
 from PIL import Image
 from stat import S_IWRITE
@@ -33,6 +33,10 @@ from phenopype import _config
 from phenopype import main
 from phenopype import settings
 from phenopype import utils
+
+import imutils
+from scipy import ndimage
+
 
 #%% options
 
@@ -324,7 +328,7 @@ class _GUI:
                 self.settings.window_name, self.canvas_width, self.canvas_height
             )
             cv2.imshow(self.settings.window_name, self.canvas)
-            cv2.setWindowProperty(self.settings.window_name, cv2.WND_PROP_TOPMOST, 1)
+            # cv2.setWindowProperty(self.settings.window_name, cv2.WND_PROP_TOPMOST, 1)
             self.keypress = None
 
             if self.settings.window_control == "internal":
@@ -1650,7 +1654,47 @@ def _overwrite_check_dir(path, overwrite):
     elif not os.path.isdir(path):
         print(dirname + " saved under " + path + ".")
         return True
+    
+#%% functions - CONTOURS
 
+def _get_orientation(coords, method="ellipse"):
+    
+    if method=="ellipse":
+        ellipse = cv2.fitEllipse(coords)
+        center,diameter,angle = ellipse
+        return angle
+    
+    if method=="pca":
+        # Construct a buffer used by the pca analysis
+        sz = len(coords)
+        data_pts = np.empty((sz, 2), dtype=np.float64)
+        for i in range(data_pts.shape[0]):
+          data_pts[i,0] = coords[i,0,0]
+          data_pts[i,1] = coords[i,0,1]
+           
+        # Perform PCA analysis
+        mean = np.empty((0))
+        mean, eigenvectors, eigenvalues = cv2.PCACompute2(data_pts, mean)
+        angle = atan2(eigenvectors[0,1], eigenvectors[0,0]) # orientation in radians
+        return angle
+    
+def _resize_contour(contour, img_orig, img_resized):
+
+    coef_y = img_orig.shape[0] / img_resized.shape[0]
+    coef_x = img_orig.shape[1] / img_resized.shape[1]
+    
+    contour[:, :, 0] = contour[:, :, 0] * coef_x
+    contour[:, :, 1] = contour[:, :,  1] * coef_y
+
+    return contour
+
+def _rotate_coords(array, center, angle):
+        
+    radian = angle * (pi/180)
+    rotation_matrix = np.array([[np.cos(radian),np.sin(radian)],[-np.sin(radian),np.cos(radian)]])
+    rotated_array = np.dot(array - center, rotation_matrix)+center
+    
+    return rotated_array
 
 #%% functions - VARIOUS
 
@@ -2202,35 +2246,36 @@ def _resize_image(
         return image
     
     
-def _resize_contour(contour, img_orig, img_resized):
-
-    coef_y = img_orig.shape[0] / img_resized.shape[0]
-    coef_x = img_orig.shape[1] / img_resized.shape[1]
-    
-    contour[:, :, 0] = contour[:, :, 0] * coef_x
-    contour[:, :, 1] = contour[:, :,  1] * coef_y
-
-    return contour
-
 def _rotate_image(image, angle, ret_center=False):
+    """
+    Rotates an image (angle in degrees) and expands image to avoid cropping
+    Source: https://stackoverflow.com/a/47248339/5238559
+    """
     
-    row, col = image.shape[1::-1]
-    center = tuple(np.array([row, col]) / 2)
-    rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1)
-    rotated_image = cv2.warpAffine(image, rotation_matrix, (row, col), flags=cv2.INTER_LINEAR)
+    height, width = image.shape[:2] # image shape has 3 dimensions
+    image_center = (width/2, height/2) # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+    
+    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.)
+    
+    # rotation calculates the cos and sin, taking absolutes of those.
+    abs_cos = abs(rotation_mat[0,0]) 
+    abs_sin = abs(rotation_mat[0,1])
+    
+    # find the new width and height bounds
+    bound_w = int(height * abs_sin + width * abs_cos)
+    bound_h = int(height * abs_cos + width * abs_sin)
+    
+    # subtract old image center (bringing image back to origo) and adding the new image center coordinates
+    rotation_mat[0, 2] += bound_w/2 - image_center[0]
+    rotation_mat[1, 2] += bound_h/2 - image_center[1]
+    
+    # rotate image with the new bounds and translated rotation matrix
+    rotated_image = cv2.warpAffine(image, rotation_mat, (bound_w, bound_h))
     
     if ret_center:
-        return rotated_image, center
+        return rotated_image, image_center
     else:
         return rotated_image
-
-def _rotate_2Darray(array, center, angle):
-        
-    radian = angle * (pi/180)
-    rotation_matrix = np.array([[np.cos(radian),np.sin(radian)],[-np.sin(radian),np.cos(radian)]])
-    rotated_array = np.dot(array - center, rotation_matrix)+center
-    
-    return rotated_array
 
 
 def _save_prompt(object_type, filepath, ow_flag):

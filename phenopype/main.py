@@ -1881,9 +1881,7 @@ class Pype(object):
         self,
         image_path,
         tag,
-        
         skip=False,
-        
         interactive=True,
         feedback=True,
         autoload=True,
@@ -1893,7 +1891,7 @@ class Pype(object):
         config_path=None,
         fix_names=True,
         load_contours=False,
-        zoom_memory=False,
+        zoom_memory=True,
         debug=False,
         **kwargs
     ):
