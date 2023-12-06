@@ -2388,8 +2388,8 @@ class Pype(object):
                     else:
                         annotation_args = {}
                         method_args = dict(method_args)
-                        print("Stage: add annotation control args", level=3)
-                
+                        self._log("debug", "Pype: Add annotation control args", 0)
+
                 ## annotation params
                 if method_name in settings._annotation_functions:
 
