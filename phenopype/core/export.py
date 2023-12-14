@@ -12,7 +12,7 @@ import pandas as pd
 
 from phenopype import __version__
 from phenopype import settings
-from phenopype import utils_lowlevel
+from phenopype import utils_lowlevel as ul
 from phenopype import utils
 from phenopype.core import preprocessing
 
@@ -59,7 +59,7 @@ def convert_annotation(
     # =============================================================================
     # annotation management
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
@@ -89,7 +89,7 @@ def convert_annotation(
 
         annotation_new_data = []
         for idx, coord_list in enumerate(annotation_old_data):
-            annotation_new_data.append(utils_lowlevel._convert_arr_tup_list(coord_list,  add_first=True))
+            annotation_new_data.append(ul._convert_arr_tup_list(coord_list,  add_first=True))
 
 
         annotation = {
@@ -109,7 +109,7 @@ def convert_annotation(
             },
         }
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type_new,
@@ -155,8 +155,9 @@ def export_csv(
 
     ## dirpath
     if not image_name:
-        print(
-            "Warning: missing image_name argument - exported CSV will not contain information about source-image"
+        ul._print(
+            "Warning: missing image_name argument - exported CSV will not contain information about source-image",
+            lvl=1
         )
 
     ## file name formatting
@@ -219,7 +220,7 @@ def export_csv(
                     annotations[annotation_type][annotation_id]["data"]["support"],
                 ), 1):
                     list_flattened.append(
-                        # df_temp = pd.DataFrame(utils_lowlevel._convert_arr_tup_list(coords)[0], columns=["x","y"])
+                        # df_temp = pd.DataFrame(ul._convert_arr_tup_list(coords)[0], columns=["x","y"])
                         pd.DataFrame(
                             {
                                 **{"image_name": image_name},
@@ -373,8 +374,6 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
 
     """
 
-    flag_verbose = kwargs.get("verbose", False)
-
     ## load annotation file
     if os.path.isfile(filepath):
         with open(filepath) as file:
@@ -426,8 +425,7 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
 
         ## filter by annotation type
         if annotation_type.__class__.__name__ == "NoneType":
-            if flag_verbose:
-                print("- no annotation_type selected - returning all annotations")
+            ul._print("- no annotation_type selected - returning all annotations")
             annotation = annotation_file
             break
         elif annotation_type.__class__.__name__ == "str":
@@ -441,7 +439,7 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
 
         ## filter by annotation id
         if annotation_id.__class__.__name__ == "NoneType":
-            print(
+            ul._print(
                 "- no annotation_id selected - returning all annotations of type: {}".format(
                     annotation_type_list
                 )
@@ -552,13 +550,13 @@ def save_annotation(
                         print("Could not read {} - creating new file.".format(filepath))
                         annotation_file = defaultdict(dict, {})
 
-                print("- loading existing annotation file")
+                ul._print("- loading existing annotation file")
                 break
             elif overwrite == "file":
                 pass
-                print('- overwriting annotation file (overwrite="file")')
+                ul._print('- overwriting annotation file (overwrite="file")')
         else:
-            print("- creating new annotation file")
+            ul._print("- creating new annotation file")
             pass
         annotation_file = defaultdict(dict)
         break
@@ -567,7 +565,7 @@ def save_annotation(
 
     ## subset annotation types
     if annotation_type.__class__.__name__ == "NoneType":
-        print("- no annotation_type selected - exporting all annotations")
+        ul._print("- no annotation_type selected - exporting all annotations")
         annotation_types = list(annotations.keys())
     elif annotation_type.__class__.__name__ == "str":
         annotation_types = [annotation_type]
@@ -585,14 +583,14 @@ def save_annotation(
                     annotation_file[annotation_type][annotation_id_new] = annotations[
                         annotation_type
                     ][annotation_id]
-                    print(
+                    ul._print(
                         '- updating annotations of type "{}" with id '
                         '"{}" in "{}" (overwrite="entry")'.format(
                             annotation_type, annotation_id, file_name
                         )
                     )
                 else:
-                    print(
+                    ul._print(
                         '- annotations of type "{}" with id "{}" already '
                         'exists in "{}" (overwrite=False)'.format(
                             annotation_type, annotation_id, file_name
@@ -602,7 +600,7 @@ def save_annotation(
                 annotation_file[annotation_type][annotation_id_new] = annotations[
                     annotation_type
                 ][annotation_id]
-                print(
+                ul._print(
                     '- writing annotations of type "{}" with id '
                     '"{}" to "{}"'.format(annotation_type, annotation_id, file_name)
                 )
@@ -627,9 +625,9 @@ def save_annotation(
                             and type(value[0]) in [np.ndarray]
                         ):
                             value = [elem.tolist() for elem in value]
-                        value = [utils_lowlevel._NoIndent(elem) for elem in value]
+                        value = [ul._NoIndent(elem) for elem in value]
                     elif type(value) in [tuple, list]:
-                        value = utils_lowlevel._NoIndent(value)
+                        value = ul._NoIndent(value)
 
                     annotation_file[annotation_type][annotation_id][section][
                         key
@@ -638,9 +636,8 @@ def save_annotation(
     ## save
     with open(filepath, "w") as file:
         json.dump(
-            annotation_file, file, indent=indent, cls=utils_lowlevel._NoIndentEncoder
+            annotation_file, file, indent=indent, cls=ul._NoIndentEncoder
         )
-
 
 def save_ROI(
     image,
@@ -656,8 +653,7 @@ def save_ROI(
     align="v",
     extension="png",
     background="original",
-    bg_color="white",
-    bg_transparent=False,
+    canvas_max_dim=False,
     max_dim=False,
     padding=True,
     **kwargs
@@ -723,7 +719,7 @@ def save_ROI(
     annotation_type = kwargs.get("annotation_type", settings._mask_type)
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
@@ -734,17 +730,23 @@ def save_ROI(
     
     if not channel=="raw":
         image = preprocessing.decompose_image(image, channel, **kwargs)
-    
+        
     for idx, roi_coords in enumerate(data):
 
         if annotation_type == settings._mask_type:
-            coords = utils_lowlevel._convert_tup_list_arr(roi_coords)[0]
+            coords = ul._convert_tup_list_arr(roi_coords)[0]
         else:
             coords = copy.deepcopy(roi_coords)
 
+        ## create roi
         rx, ry, rw, rh = cv2.boundingRect(coords)
         roi_orig = copy.deepcopy(image[ry : ry + rh, rx : rx + rw])
-        
+        if roi_orig.ndim == 3:
+            nlayer = 3
+        else:
+            nlayer = 1
+             
+        ## create roi mask
         roi_orig_mask = np.zeros(roi_orig.shape[:2], dtype="uint8")
         roi_orig_mask = cv2.drawContours(
             image=roi_orig_mask,
@@ -754,14 +756,14 @@ def save_ROI(
             color=255,
             offset=(-rx, -ry),
         )
-        
-        ## rotating
+                
+        ## rotate roi and mask
         if rotate:
-            angle = utils_lowlevel._get_orientation(coords)
+            angle = ul._get_orientation(coords)
             if align == "h":
                 angle = angle + 90
-            roi_rot = utils_lowlevel._rotate_image(roi_orig, angle)
-            mask_rot = utils_lowlevel._rotate_image(roi_orig_mask, angle)
+            roi_rot = ul._rotate_image(roi_orig, angle)
+            mask_rot = ul._rotate_image(roi_orig_mask, angle)
             contour, _ = cv2.findContours(mask_rot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             rx, ry, rw, rh = cv2.boundingRect(contour[0])
             roi_orig = roi_rot[ry : ry + rh, rx : rx + rw]
@@ -772,61 +774,48 @@ def save_ROI(
             roi_orig_mask = cv2.copyMakeBorder(roi_orig_mask, 1,1,1,1, cv2.BORDER_CONSTANT, value=0)    
 
         ## resizing
-        if max_dim:
+        if canvas_max_dim:
             
-            ## resize roi and mask
-            roi = utils_lowlevel._resize_image(
-                roi_orig, max_dim=max_dim)
-            roi_mask = utils_lowlevel._resize_image(
-                roi_orig_mask, max_dim=max_dim)
+            roi_canvas = np.zeros((canvas_max_dim, canvas_max_dim, nlayer), dtype=np.uint8)
+            roi_mask_canvas = np.zeros((canvas_max_dim, canvas_max_dim), dtype=np.uint8)
+
+            # Calculate the new top-left coordinates for the smaller ROI
+            xpos = (roi_canvas.shape[1] - roi_orig.shape[1]) // 2
+            ypos = (roi_canvas.shape[0] - roi_orig.shape[0]) // 2
+
+            if any([xpos<0, ypos<0]):
+                ul._print(f"ROI {idx+1} too big for chosen canvas: {roi_orig.shape[:2]} vs {(canvas_max_dim,canvas_max_dim)}. Skipping!", lvl=1)
+                continue
             
-            if padding:
-                ## calc padding
-                roi_height, roi_width = roi.shape[:2]
-                tb_sides = int((max_dim - roi_height)/2)
-                top, bottom = tb_sides, max_dim - tb_sides - roi_height
-                lr_sides = int((max_dim - roi_width)/2)
-                left, right = lr_sides, max_dim - lr_sides - roi_width
-                
-                ## pad roi and mask
-                roi = cv2.copyMakeBorder(roi, top, bottom, left, right,  cv2.BORDER_REPLICATE)    
-                roi_mask = cv2.copyMakeBorder(roi_mask, top, bottom, left, right,  cv2.BORDER_CONSTANT, value=0)    
-        else:
-            roi = roi_orig
-            roi_mask = roi_orig_mask
-            
+            # Place the smaller ROI onto the larger ROI
+            roi_canvas[ypos:ypos + rh, xpos:xpos + rw] = roi_orig
+            roi_mask_canvas[ypos:ypos + rh, xpos:xpos + rw] = roi_orig_mask
+
         ## background handling
         if background=="original":           
             pass
-        elif background=="transparent":           
-            roi_alpha = np.zeros((roi.shape[0], roi.shape[1], 4), dtype=np.uint8)
-            roi_alpha[:,:,0:3] = roi
-            roi_alpha[:, :, 3] = roi_mask
-            roi = roi_alpha
         else:
-            roi[roi_mask==0] = utils_lowlevel._get_bgr(background)
-                
+            if background=="transparent":           
+                roi_alpha = np.zeros((roi_canvas.shape[0], roi_canvas.shape[1], 4), dtype=np.uint8)
+                roi_alpha[:,:,0:3] = roi_canvas
+                roi_alpha[:, :, 3] = roi_mask_canvas
+                roi = roi_alpha
+            else:
+                roi_canvas[roi_mask_canvas==0] = ul._get_bgr(background)
+                    
         ## add counter
         if counter:
             roi_name = prefix + file_name + suffix + "_" + str(idx+1).zfill(3) + extension
         else:
-            roi_name = prefix + file_name + suffix + extension
-            
+            roi_name = prefix + file_name + suffix + extension  
 
         save_path = os.path.join(dir_path, roi_name)
         saved = cv2.imwrite(save_path, roi)
         
         if saved:
-            print("saving ROI: {}".format(roi_name))
+            ul._print("- saving ROI: {}".format(roi_name))
         else:
-            print("something went wrong - didn't save ROI")
-               
-        # roi_new_coords = []
-        # for coord in roi_coords:
-        #     new_coord = [coord[0][0] - rx, coord[0][1] - ry]
-        #     roi_new_coords.append([new_coord])
-        # roi_new_coords = np.asarray(roi_new_coords, np.int32)
-
+            ul._print("- something went wrong - didn't save ROI")
 
 def save_canvas(image, dir_path, file_name="canvas", **kwargs):
     """

@@ -18,7 +18,7 @@ from ruamel.yaml import YAML
 
 from functools import wraps
  
-from math import atan2, cos, sin, sqrt, pi
+from math import atan2, cos, sin, sqrt, pi, ceil
 
 from pathlib import Path
 from PIL import Image
@@ -1215,7 +1215,7 @@ def _get_annotation(
     ## setup
     pype_mode = kwargs.get("pype_mode", False)
     prep_msg = kwargs.get("prep_msg", "")
-    verbose = kwargs.get("verbose", _config.verbose)
+    verbose = kwargs.get("verbose", False)
 
     annotations = copy.deepcopy(annotations)
     
@@ -1231,7 +1231,7 @@ def _get_annotation(
     ## get non-generic id for plotting
     if annotation_id_str in kwargs:
         annotation_id = kwargs.get(annotation_id_str)
-
+        
     if annotations.__class__.__name__ in ["dict", "defaultdict"]:
 
         ## get ID from last used annotation function of that type
@@ -1260,18 +1260,17 @@ def _get_annotation(
                             annotation_type, annotation_id
                         )
                     )
-            else:
-                if annotation_type in annotations:
+            if annotation_type in annotations:
                     annotation_id = max(list(annotations[annotation_type].keys()))
                     print_msg = '"{}" not specified - using endmost in provided annotations: "{}"'.format(
                         annotation_id_str, annotation_id
                     )
 
-                else:
-                    annotation = {}
-                    print_msg = '"{}" not specified and annotation type not found'.format(
-                        annotation_id_str
-                    )
+            else:
+                annotation = {}
+                print_msg = '"{}" not specified and annotation type not found'.format(
+                    annotation_id_str
+                )
 
         ## check if type is given
         if annotation_type in annotations:
@@ -1307,7 +1306,7 @@ def _get_annotation(
                         pass
                 else:
                     pass
-                print(print_msg)
+                _print(print_msg)
                 break
             break
     else:
@@ -1655,6 +1654,14 @@ def _overwrite_check_dir(path, overwrite):
         print(dirname + " saved under " + path + ".")
         return True
     
+#%% printing
+
+def _print(msg, lvl=0, **kwargs):
+    if _config.verbose:
+        if lvl >= _config.verbosity_level:
+            print(msg)
+        
+    
 #%% functions - CONTOURS
 
 def _get_orientation(coords, method="ellipse"):
@@ -1688,13 +1695,41 @@ def _resize_contour(contour, img_orig, img_resized):
 
     return contour
 
-def _rotate_coords(array, center, angle):
+def _rotate_coords(array, center, angle, offset=(0,0)):
         
+    dt = array.dtype
+    
     radian = angle * (pi/180)
     rotation_matrix = np.array([[np.cos(radian),np.sin(radian)],[-np.sin(radian),np.cos(radian)]])
-    rotated_array = np.dot(array - center, rotation_matrix)+center
+    rotated_array = np.dot(array - center, rotation_matrix) + _rotate_point(center, angle) + offset
     
-    return rotated_array
+    return rotated_array.astype(dt)
+
+# def _rotate_point(point, angle):
+    
+#     x, y = point
+#     radians = angle * (pi/180)
+
+#     x_new = abs(int(cos(radians) * x + sin(radians) * y))
+#     y_new = abs(int(-sin(radians) * x + cos(radians) * y))
+
+#     return x_new, y_new
+
+def _rotate_point(point, angle, center=None):
+    
+    x, y = point
+    radians = angle * (pi/180)
+    
+    if center:
+        center_x, center_y = center
+        x_rotated = round(((x - center_x) * cos(radians)) - ((y - center_y) * sin(radians)) + center_x) 
+        y_rotated = round(((x - center_x) * sin(radians)) + ((y - center_y) * cos(radians)) + center_y)
+
+    else:
+        x_rotated = abs(round(cos(radians) * x + sin(radians) * y))
+        y_rotated = abs(round(-sin(radians) * x + cos(radians) * y))
+        
+    return x_rotated, y_rotated
 
 #%% functions - VARIOUS
 

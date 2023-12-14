@@ -398,6 +398,8 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
 
     # =============================================================================
     # annotation management
+    
+    # print(annotations)
 
     ## get contours
     contour_id = kwargs.get(settings._contour_type + "_id", None)
@@ -407,6 +409,7 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
         annotation_id=contour_id,
         kwargs=kwargs,
     )
+    
     contours = annotation["data"][settings._contour_type]
     contours_support = annotation["data"]["support"]
     
@@ -468,6 +471,8 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
 
             ## hu moments
             if "hu_moments" in features:
+                if not "moments" in features:
+                    moments = cv2.moments(coords)
                 hu_moments = {}
                 for idx2, mom in enumerate(cv2.HuMoments(moments)):
                     hu_moments["hu" + str(idx2 + 1)] = mom[0]
@@ -592,8 +597,13 @@ def compute_texture_features(
         foreground_mask_inverted = cv2.fillPoly(foreground_mask_inverted, [coords], 255)
 
     texture_features = []
-    
-    if len(channels) > image.shape[2]:
+    if image.ndim == 2:
+        layers = 1
+        image = np.dstack((image,image)) 
+    else:
+        layers = image.shape[2]
+        
+    if len(channels) > layers:
         print("- Warning: more channels provided than in given image - skipping excess ones!")
     
     for idx1, (coords, support) in _tqdm(
@@ -610,6 +620,7 @@ def compute_texture_features(
 
                 if (idx2 + 1) > image.shape[2]:
                     continue
+
                 
                 rx, ry, rw, rh = cv2.boundingRect(coords)
                 data = image[ry : ry + rh, rx : rx + rw, idx2]

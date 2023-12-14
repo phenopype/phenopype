@@ -72,14 +72,22 @@ class Project:
         phenopype project
     """
 
-    def __init__(self, root_dir, load=True, overwrite=False):
+    def __init__(
+            self, 
+            root_dir, 
+            load=True, 
+            overwrite=False,
+            ask=True,
+            ):
 
         ## set flags
         flags = make_dataclass(
             cls_name="flags",
             fields=[("load", bool, load), 
                     ("overwrite", bool, overwrite),
-                    ("checked", bool, False)
+                    ("checked", bool, False),
+                    ("ask", bool, ask),
+
                     ],
         )
 
@@ -135,7 +143,10 @@ class Project:
                 print(
                     "Creating a new phenopype project directory at:\n" + root_dir + "\n"
                 )
-                query2 = input("Proceed? (y/n)\n")
+                if flags.ask:
+                    query2 = input("Proceed? (y/n)\n")
+                else:
+                    query2 = "y"
                 if query2 in settings.confirm_options:
                     os.makedirs(root_dir)
                     os.makedirs(os.path.join(root_dir, "data"))
@@ -1897,8 +1908,7 @@ class Pype(object):
     ):
 
         # =============================================================================
-        # CHECKS & INIT
-        # =============================================================================
+        # INIT
 
         ## kwargs
         global window_max_dim
@@ -1922,14 +1932,21 @@ class Pype(object):
                 ("terminate", bool, False),
             ],
         )
-                
+        
+        if self.flags.debug:
+            
+            self.verbose = _config.verbose
+            _config.verbose = True
+            
         if image_path.__class__.__name__ == "str":
             image_path = os.path.abspath(image_path)
+            
+        # =============================================================================
+        # LOGGING
             
         ## start logging
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
-        
         if (self.logger.hasHandlers()):
             self.logger.handlers.clear()
                         
@@ -1950,6 +1967,9 @@ class Pype(object):
         file_formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', "%Y-%m-%d %H:%M:%S")
         file_handler.setFormatter(file_formatter)
         self.logger.addHandler(file_handler)
+
+        # =============================================================================
+        # CHECKS 
 
         ## check name, load container and config
         utils_lowlevel._check_pype_tag(tag)
@@ -2091,7 +2111,8 @@ class Pype(object):
         ## end logging
         logging.shutdown()
         
-
+        if self.flags.debug:
+            _config.verbose = self.verbose
 
 
     def _load_container(self, image_path, tag):
@@ -2232,6 +2253,7 @@ class Pype(object):
         message (str): The message to be logged.
 
         """
+
         if isinstance(messages, str):
             messages_list = messages.split("\n")
         elif isinstance(messages, list):
@@ -2435,15 +2457,16 @@ class Pype(object):
                 ## run method with error handling
                 if flags.execute:
                 
+                    ## open buffer
+                    buffer = io.StringIO()
+                    
+                    ## ensure feedback in GUI is active
+                    method_args["interactive"] = flags.interactive                        
+                    method_args["zoom_memory"] = self.flags.zoom_memory           
+                    
+                    ## excecute and capture stdout
                     try:
-                        
-                        ## ensure feedback in GUI is active
-                        method_args["interactive"] = flags.interactive                        
-                        method_args["zoom_memory"] = self.flags.zoom_memory                 
-
-
-                        ## excecute and capture stdout
-                        with io.StringIO() as buffer, redirect_stdout(buffer):
+                        with redirect_stdout(buffer):
                             self.container.run(
                                 fun=method_name,
                                 fun_kwargs=method_args,
@@ -2453,12 +2476,19 @@ class Pype(object):
                             stdout = buffer.getvalue()
                             self._log("info", stdout, 2)
                             _config.last_print_msg = ""
-
+                            
                     except Exception as ex:
-                        if self.flags.debug:
-                            raise
+                        print(buffer.getvalue())
                         error_msg =  f"{step_name}.{method_name}: {str(ex.__class__.__name__)} - {ex}"
                         self._log("error", error_msg, 1)
+                        
+                        ## cleanup
+                        if self.flags.debug:
+                            _config.verbose = self.verbose
+                            
+                            ## raise error and end
+                            raise
+
 
                     ## check for pype-restart after config change
                     if _config.pype_restart:
