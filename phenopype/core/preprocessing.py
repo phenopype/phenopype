@@ -11,7 +11,7 @@ import math
 from phenopype import __version__
 from phenopype import settings
 from phenopype import utils
-from phenopype import utils_lowlevel
+from phenopype import utils_lowlevel as ul
 from phenopype.core import segmentation
 from phenopype.utils_lowlevel import annotation_function
 
@@ -161,41 +161,41 @@ def create_mask(
     fun_name = sys._getframe().f_code.co_name
 
     annotations = kwargs.get("annotations", {})
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
 
-    gui_data = {settings._coord_list_type: utils_lowlevel._get_GUI_data(annotation)}
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    gui_data = {settings._coord_list_type: ul._get_GUI_data(annotation)}
+    gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
     # =============================================================================
     # setup
 
     if line_width == "auto":
-        line_width = utils_lowlevel._auto_line_width(image)
+        line_width = ul._auto_line_width(image)
     if label_size == "auto":
-        label_size = utils_lowlevel._auto_text_size(image)
+        label_size = ul._auto_text_size(image)
     if label_width == "auto":
-        label_width = utils_lowlevel._auto_text_width(image)
+        label_width = ul._auto_text_width(image)
 
     if line_colour == "default":
         line_colour = settings._default_line_colour
     if label_colour == "default":
         label_colour = settings._default_label_colour
 
-    label_colour = utils_lowlevel._get_bgr(label_colour)
-    line_colour = utils_lowlevel._get_bgr(line_colour)
+    label_colour = ul._get_bgr(label_colour)
+    line_colour = ul._get_bgr(line_colour)
 
     # =============================================================================
     # execute function
 
-    gui = utils_lowlevel._GUI(
+    gui = ul._GUI(
         image=image,
         tool=tool,
         line_width=line_width,
@@ -239,7 +239,7 @@ def create_mask(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -318,10 +318,10 @@ def detect_mask(
     fun_name = sys._getframe().f_code.co_name
 
     annotations = kwargs.get("annotations", {})
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
@@ -333,7 +333,7 @@ def detect_mask(
 
     if len(image.shape) == 3:
         image = decompose_image(image, "gray")
-    image_resized = utils_lowlevel._resize_image(image, resize)
+    image_resized = ul._resize_image(image, resize)
 
     circle_args_exec = {
         "dp": 1,
@@ -409,7 +409,7 @@ def detect_mask(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -474,17 +474,17 @@ def create_reference(
     fun_name = sys._getframe().f_code.co_name
 
     annotations = kwargs.get("annotations", {})
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
 
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
     ## not pretty but needed for tests:
     gui_data = {}
@@ -504,24 +504,24 @@ def create_reference(
     # setup
 
     if line_width == "auto":
-        line_width = utils_lowlevel._auto_line_width(image)
+        line_width = ul._auto_line_width(image)
     if label_size == "auto":
-        label_size = utils_lowlevel._auto_text_size(image)
+        label_size = ul._auto_text_size(image)
     if label_width == "auto":
-        label_width = utils_lowlevel._auto_text_width(image)
+        label_width = ul._auto_text_width(image)
     if line_colour == "default":
         line_colour = settings._default_line_colour
     if label_colour == "default":
         label_colour = settings._default_label_colour
 
-    label_colour = utils_lowlevel._get_bgr(label_colour)
-    line_colour = utils_lowlevel._get_bgr(line_colour)
+    label_colour = ul._get_bgr(label_colour)
+    line_colour = ul._get_bgr(line_colour)
 
     # =============================================================================
     # execute
 
     ## measure length
-    gui = utils_lowlevel._GUI(
+    gui = ul._GUI(
         image,
         tool="reference",
         line_width=line_width,
@@ -537,7 +537,7 @@ def create_reference(
     )
 
     ## enter distance
-    gui = utils_lowlevel._GUI(
+    gui = ul._GUI(
         image,
         tool="comment",
         label="distance in {}".format(unit),
@@ -553,7 +553,7 @@ def create_reference(
     px_ratio = round(float(distance_px / distance_measured), 3)
 
     if mask:
-        gui = utils_lowlevel._GUI(
+        gui = ul._GUI(
             image=image,
             tool="rectangle",
             line_width=line_width,
@@ -586,7 +586,7 @@ def create_reference(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -651,7 +651,7 @@ def detect_reference(
     fun_name = sys._getframe().f_code.co_name
 
     annotations = kwargs.get("annotations", {})
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
     # =============================================================================
@@ -767,21 +767,21 @@ def detect_reference(
     
         ## create mask from new coordinates
         rect_new = rect_new.astype(int)
-        coord_list = utils_lowlevel._convert_arr_tup_list(rect_new)
+        coord_list = ul._convert_arr_tup_list(rect_new)
         coord_list[0].append(coord_list[0][0])
         
         ## do histogram equalization
         if flags.equalize:
             detected_rect_mask = np.zeros(image.shape, np.uint8)
             cv2.fillPoly(
-                detected_rect_mask, [np.array(rect_new)], utils_lowlevel._get_bgr("white")
+                detected_rect_mask, [np.array(rect_new)], ul._get_bgr("white")
             )
             (rx, ry, rw, rh) = cv2.boundingRect(np.array(rect_new))
             detected_rect_mask = np.ma.array(
                 data=image[ry : ry + rh, rx : rx + rw],
                 mask=detected_rect_mask[ry : ry + rh, rx : rx + rw],
             )
-            image = utils_lowlevel._equalize_histogram(image, detected_rect_mask, template)
+            image = ul._equalize_histogram(image, detected_rect_mask, template)
             print("histograms equalized")
     
 
@@ -819,7 +819,7 @@ def detect_reference(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -871,12 +871,12 @@ def detect_QRcode(
     # annotation management
 
     fun_name = sys._getframe().f_code.co_name
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
 
     annotation = kwargs.get("annotation")
     
-    gui_data = {settings._comment_type: utils_lowlevel._get_GUI_data(annotation)}
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    gui_data = {settings._comment_type: ul._get_GUI_data(annotation)}
+    gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
     # =============================================================================
     # setup
@@ -890,14 +890,14 @@ def detect_QRcode(
     )
     
     if label_size == "auto":
-        label_size = utils_lowlevel._auto_text_size(image)
+        label_size = ul._auto_text_size(image)
     if label_width == "auto":
-        label_width = utils_lowlevel._auto_text_width(image)
+        label_width = ul._auto_text_width(image)
 
     if label_colour == "default":
         label_colour = settings._default_label_colour
 
-    label_colour = utils_lowlevel._get_bgr(label_colour)
+    label_colour = ul._get_bgr(label_colour)
     
 
     # =============================================================================
@@ -910,20 +910,20 @@ def detect_QRcode(
     print("- rotating image to detect code:")
     for angle in range(0, 360, rot_steps):
         print("  - rotating image - {} degrees".format(angle))
-        image_rot, image_center = utils_lowlevel._rotate_image(image, angle, ret_center=True)  
+        image_rot, image_center = ul._rotate_image(image, angle, ret_center=True)  
         decodedText, points_rot, _ = qrCodeDetector.detectAndDecode(image_rot)
         if not decodedText == "" and not points_rot.__class__.__name__ == 'NoneType':
             flags.found = True
             break
             
     if flags.found:
-        points = utils_lowlevel._rotate_coords(points_rot, image_center, angle)         
-        points = utils_lowlevel._convert_arr_tup_list(points)
+        points = ul._rotate_coords(points_rot, image_center, angle)         
+        points = ul._convert_arr_tup_list(points)
         print("found text: {}".format(decodedText))
     else:
         if flags.enter_manually:
             print("- did not find QR-code - enter code manually")
-            gui = utils_lowlevel._GUI(
+            gui = ul._GUI(
                 image,
                 tool="comment",
                 label="code",
@@ -982,7 +982,7 @@ def detect_QRcode(
     return annotation
 
 def decompose_image(
-    image, channel="gray", invert=False, **kwargs,
+    image, channel="gray", invert=False, 
 ):
 
     """
@@ -1003,16 +1003,12 @@ def decompose_image(
         decomposed image.
 
     """
-    # =============================================================================
-    ## setup
-
-    verbose = kwargs.get("verbose", settings.flag_verbose)
 
     # =============================================================================
     # execute
 
     if len(image.shape) == 2:
-        print("- single channel image supplied - no decomposition possible")
+        ul._print("- single channel image supplied - no decomposition possible", lvl=2)
         pass
     elif len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -1035,15 +1031,14 @@ def decompose_image(
         elif channel == "raw":
             pass
         else:
-            print("- don't know how to handle channel {}".format(channel))
+            ul._print("- don't know how to handle channel {}".format(channel), lvl=1)
             return
 
-        if verbose:
-            print("- decompose image: using {} channel".format(str(channel)))
+        ul._print("- decompose image: using {} channel".format(str(channel)))
 
     if invert == True:
         image = cv2.bitwise_not(image)
-        print("- inverted image")
+        ul._print("- inverted image")
 
     # =============================================================================
     # return
@@ -1083,18 +1078,18 @@ def write_comment(
     fun_name = sys._getframe().f_code.co_name
 
     annotations = kwargs.get("annotations", {})
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
 
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
-    gui_data = {settings._comment_type: utils_lowlevel._get_GUI_data(annotation)}
+    gui_settings = ul._get_GUI_settings(kwargs, annotation)
+    gui_data = {settings._comment_type: ul._get_GUI_data(annotation)}
     if annotation:
         label = annotation["data"]["label"]
         
@@ -1102,19 +1097,19 @@ def write_comment(
     # setup
 
     if label_size == "auto":
-        label_size = utils_lowlevel._auto_text_size(image)
+        label_size = ul._auto_text_size(image)
     if label_width == "auto":
-        label_width = utils_lowlevel._auto_text_width(image)
+        label_width = ul._auto_text_width(image)
 
     if label_colour == "default":
         label_colour = settings._default_label_colour
 
-    label_colour = utils_lowlevel._get_bgr(label_colour)
+    label_colour = ul._get_bgr(label_colour)
 
     # =============================================================================
     # execute
 
-    gui = utils_lowlevel._GUI(
+    gui = ul._GUI(
         image,
         tool="comment",
         label=label,
@@ -1147,7 +1142,7 @@ def write_comment(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,

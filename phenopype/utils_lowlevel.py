@@ -18,7 +18,7 @@ from ruamel.yaml import YAML
 
 from functools import wraps
  
-from math import atan2, cos, sin, sqrt, pi, ceil
+from math import atan2, cos, sin, sqrt, pi
 
 from pathlib import Path
 from PIL import Image
@@ -33,10 +33,6 @@ from phenopype import _config
 from phenopype import main
 from phenopype import settings
 from phenopype import utils
-
-import imutils
-from scipy import ndimage
-
 
 #%% options
 

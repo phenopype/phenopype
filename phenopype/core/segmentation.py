@@ -11,7 +11,7 @@ from math import inf
 from phenopype import __version__
 from phenopype import settings
 from phenopype import utils
-from phenopype import utils_lowlevel
+from phenopype import utils_lowlevel as ul
 from phenopype.core import preprocessing, visualization
 
 
@@ -60,7 +60,7 @@ def contour_to_mask(
     annotation_type = settings._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
@@ -70,7 +70,7 @@ def contour_to_mask(
     contours = annotation["data"][annotation_type]
     contours_support = annotation["data"]["support"]
     
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
     # =============================================================================
@@ -126,7 +126,7 @@ def contour_to_mask(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -211,7 +211,7 @@ def detect_contour(
     annotation_type = settings._drawing_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
@@ -219,7 +219,7 @@ def detect_contour(
         prep_msg="- combining contours and drawing:",
     )
 
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
         
     # =============================================================================
@@ -228,7 +228,7 @@ def detect_contour(
     image_bin = copy.deepcopy(image)
 
     if len(image_bin.shape) > 2:
-        print("Multi-channel array supplied - need binary array.")
+        ul._print("Multi-channel array supplied - need binary array.", lvl=2)
         return
 
     if apply_drawing and "data" in annotation:
@@ -254,7 +254,7 @@ def detect_contour(
             line_width=0,
             fill=1)
         image_bin = cv2.bitwise_and(image_bin, match_image_bin)
-        print("- match detected contours against existing contour \"{}´\"".format(match_against))
+        ul._print("- match detected contours against existing contour \"{}´\"".format(match_against))
 
     # =============================================================================
     # execute
@@ -313,12 +313,12 @@ def detect_contour(
                     )
 
         if len(contours) == 0:
-            print("- did not find any contours that match criteria")
+            ul._print("- did not find any contours that match criteria", lvl=1)
             return
         else:
-            print("- found " + str(len(contours)) + " contours that match criteria")
+            ul._print("- found " + str(len(contours)) + " contours that match criteria")
     else:
-        print("- did not find any contours")
+        ul._print("- did not find any contours", lvl=2)
         return 
 
     # =============================================================================
@@ -350,7 +350,7 @@ def detect_contour(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -401,41 +401,41 @@ def edit_contour(
     annotation_type = settings._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
 
-    gui_data = {annotation_type: utils_lowlevel._get_GUI_data(annotation)}
+    gui_data = {annotation_type: ul._get_GUI_data(annotation)}
 
     ## get previous drawing
     fun_name = sys._getframe().f_code.co_name
 
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
 
-    gui_data.update({settings._sequence_type: utils_lowlevel._get_GUI_data(annotation)})
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    gui_data.update({settings._sequence_type: ul._get_GUI_data(annotation)})
+    gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
     # =============================================================================
     # setup
 
-    overlay_colour_left = utils_lowlevel._get_bgr(overlay_colour_left)
-    overlay_colour_right = utils_lowlevel._get_bgr(overlay_colour_right)
+    overlay_colour_left = ul._get_bgr(overlay_colour_left)
+    overlay_colour_right = ul._get_bgr(overlay_colour_right)
 
     # =============================================================================
     # execute
 
-    gui = utils_lowlevel._GUI(
+    gui = ul._GUI(
         image=image,
         tool="draw",
         overlay_blend=overlay_blend,
@@ -467,7 +467,7 @@ def edit_contour(
     # =============================================================================
     # return
 
-    annotation = utils_lowlevel._update_annotations(
+    annotation = ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -516,7 +516,7 @@ def mask_to_contour(
     annotation_type = settings._mask_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
     
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
@@ -525,7 +525,7 @@ def mask_to_contour(
 
     masks = annotation["data"][annotation_type]
     
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
     # =============================================================================
@@ -538,7 +538,7 @@ def mask_to_contour(
     for mask in masks:
         
         ## convert contour
-        contour = utils_lowlevel._convert_tup_list_arr(mask)
+        contour = ul._convert_tup_list_arr(mask)
         contours.append(contour)
         
         ## support variables
@@ -579,7 +579,7 @@ def mask_to_contour(
     # =============================================================================
     # return
     
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -709,12 +709,12 @@ def threshold(
     if len(image.shape) == 3:
         if not channel:
             channel = "gray"
-            print("- multichannel image supplied, converting to grayscale")
+            ul._print("- multichannel image supplied, converting to grayscale", lvl=1)
         image = preprocessing.decompose_image(image, channel)
         
     if blocksize % 2 == 0:
         blocksize = blocksize + 1
-        print("- even blocksize supplied, adding 1 to make odd")
+        ul._print("- even blocksize supplied, adding 1 to make odd", lvl=1)
 
     if flags.invert:
         image = cv2.bitwise_not(image)
@@ -726,7 +726,7 @@ def threshold(
 
     ## references
     annotation_id_ref = kwargs.get(settings._reference_type + "_id", None)
-    annotation_ref = utils_lowlevel._get_annotation(
+    annotation_ref = ul._get_annotation(
         annotations,
         settings._reference_type,
         annotation_id_ref,
@@ -735,7 +735,7 @@ def threshold(
 
     ## masks
     annotation_id_mask = kwargs.get(settings._mask_type + "_id", None)
-    annotation_mask = utils_lowlevel._get_annotation(
+    annotation_mask = ul._get_annotation(
         annotations,
         settings._mask_type,
         annotation_id_mask,
@@ -760,7 +760,7 @@ def threshold(
                 for coords in polygons:
                     
                     if type(coords) == list:
-                        mask_coords = utils_lowlevel._convert_tup_list_arr(coords)
+                        mask_coords = ul._convert_tup_list_arr(coords)
                     else:
                         mask_coords = coords
                         
@@ -830,8 +830,8 @@ def threshold(
         if settings._mask_type in annotation_ref["data"]:
             polygons = annotation_ref["data"][settings._mask_type]
             for coords in polygons:
-                thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
-            print("- excluding pixels from reference")
+                thresh[ul._create_mask_bool(thresh, coords)] = 0
+            ul._print("- excluding pixels from reference")
                         
     ## with exclude masks 
     if all([flags.mask, "data" in annotation_mask]):
@@ -841,8 +841,8 @@ def threshold(
                 polygons = annotation_mask["data"][settings._mask_type]   
                
             for coords in polygons:
-                thresh[utils_lowlevel._create_mask_bool(thresh, coords)] = 0
-            print("- excluding pixels from mask")
+                thresh[ul._create_mask_bool(thresh, coords)] = 0
+            ul._print("- excluding pixels from mask")
 
     # =============================================================================
     # return
@@ -897,7 +897,7 @@ def watershed(
     annotation_type = settings._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
@@ -1011,7 +1011,7 @@ def watershed(
                 contours=[coord],
                 contourIdx=0,
                 thickness=-1,
-                color=utils_lowlevel._get_bgr("white"),
+                color=ul._get_bgr("white"),
                 maxLevel=3,
                 offset=None,
             )
@@ -1020,7 +1020,7 @@ def watershed(
                 contours=[coord],
                 contourIdx=0,
                 thickness=2,
-                color=utils_lowlevel._get_bgr("black"),
+                color=ul._get_bgr("black"),
                 maxLevel=3,
                 offset=None,
             )
@@ -1078,7 +1078,7 @@ def watershed(
 #     annotation_type = settings._contour_type
 #     annotation_id = kwargs.get(annotation_type + "_id", None)
 
-#     annotation = utils_lowlevel._get_annotation(
+#     annotation = ul._get_annotation(
 #         annotations=annotations,
 #         annotation_type=annotation_type,
 #         annotation_id=annotation_id,
@@ -1185,7 +1185,7 @@ def watershed(
 #                 contours=[coord],
 #                 contourIdx=0,
 #                 thickness=-1,
-#                 color=utils_lowlevel._get_bgr("white"),
+#                 color=ul._get_bgr("white"),
 #                 maxLevel=3,
 #                 offset=None
 #                 )
@@ -1194,7 +1194,7 @@ def watershed(
 #                 contours=[coord],
 #                 contourIdx=0,
 #                 thickness=2,
-#                 color=utils_lowlevel._get_bgr("black"),
+#                 color=ul._get_bgr("black"),
 #                 maxLevel=3,
 #                 offset=None
 #                 )
