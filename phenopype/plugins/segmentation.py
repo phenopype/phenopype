@@ -150,6 +150,9 @@ def predict_SAM(
             roi, everything_results, device=device)
         detections = prompt_process.box_prompt(bboxes=box_prompt)
         
+        ## everything prompt 
+        # ann = prompt_process.everything_prompt()
+        
         # check if something was detected
         if len(detections) > 0:  
             print(f"- found {len(detections)} objects!")

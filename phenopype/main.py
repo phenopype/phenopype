@@ -730,7 +730,7 @@ class Project:
         print_save_msg = "== no msg =="
 
 
-        ## load reference image
+        ## check model path
         if model_path.__class__.__name__ == "str":
             if os.path.isfile(model_path):
                 pass
@@ -741,9 +741,10 @@ class Project:
             print("Wrong input - need path to a segmentation model.")
             return
 
-        model_folder_path = os.path.join(self.root_dir, "models")
-        if not os.path.isdir(model_folder_path):
-            os.mkdir(model_folder_path)
+        if not mode == "link":
+            model_folder_path = os.path.join(self.root_dir, "models")
+            if not os.path.isdir(model_folder_path):
+                os.mkdir(model_folder_path)
         
         while True:
 
@@ -1152,7 +1153,7 @@ class Project:
                 len(filenames_check),
                 len(filenames_unmatched)))
             time.sleep(1)
-            if flags.interactive:
+            if flags.feedback:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
@@ -1161,7 +1162,7 @@ class Project:
             print("--------------------------------------------")
             print("phenopype found {} files in the data folder, but 0 are listed in the project attributes.".format(len(filenames_check)))
             time.sleep(1)
-            if flags.interactive:
+            if flags.feedback:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
@@ -1173,7 +1174,7 @@ class Project:
                 len(filenames)
                 ))
             time.sleep(1)
-            if flags.interactive:
+            if flags.feedback:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
@@ -1491,6 +1492,7 @@ class Project:
             models=False, 
             images=False, 
             exports=False,
+            save_dir=None,
             overwrite=True,
             **kwargs
             ):
@@ -1535,7 +1537,10 @@ class Project:
             
         ## construct save path
         root_dir = os.path.basename(self.root_dir) 
-        save_path = os.path.join(self.root_dir, root_dir + save_suffix + ".zip")
+        if save_dir.__class__.__name__ == "NoneType":
+            save_dir = self.root_dir
+            
+        save_path = os.path.join(save_dir, root_dir + save_suffix + ".zip")
         
         if os.path.isfile(save_path) and flags.overwrite:
             os.remove(save_path)
@@ -1628,7 +1633,7 @@ class Project:
             self, 
             tag,
             framework, 
-            folder, 
+            folder=None, 
             annotation_id=None, 
             overwrite=False, 
             img_size=224,
@@ -1668,19 +1673,22 @@ class Project:
         # setup
         
         flags = make_dataclass(
-            cls_name="flags", fields=[("overwrite", bool, overwrite)]
+            cls_name="flags", fields=[
+                ("overwrite", bool, overwrite),
+                ]
         )
     
         if annotation_id.__class__.__name__ == "NoneType":
             print("No annotation id set - will use last one in annotations file.")
             time.sleep(1)
-
-        training_data_path = os.path.join(self.root_dir, "training_data", folder)
+        if folder.__class__.__name__ == "NoneType":
+            training_data_path = os.path.join(self.root_dir, "training_data", tag)
+        else:
+            training_data_path = folder
     
         if not os.path.isdir(training_data_path):
             os.makedirs(training_data_path)
             print("Created " + training_data_path)
-            
             
         parameters_defaults = {
             "ml-morph": {
@@ -1796,6 +1804,11 @@ class Project:
             df_summary.set_axis(colnames, axis=1, inplace=True)
             df_summary.to_csv(file_path_save, index=False)
             
+            
+        # =============================================================================
+        ## binary-masks
+        
+        
             
         # =============================================================================
         ## keras-cnn-semantic
@@ -2305,7 +2318,7 @@ class Pype(object):
         
         if flags.execute and not self.flags.dry_run:
             new_pype_msg = utils_lowlevel._pprint_fill_hbar("| new pype iteration |", ret=True)
-            self._log("info", new_pype_msg, 0)
+            self._log("info", new_pype_msg, 0) 
             
         # =============================================================================
 
@@ -2460,9 +2473,10 @@ class Pype(object):
                     ## open buffer
                     buffer = io.StringIO()
                     
-                    ## ensure feedback in GUI is active
+                    ## some function specific switches
                     method_args["interactive"] = flags.interactive                        
                     method_args["zoom_memory"] = self.flags.zoom_memory           
+                    method_args["tqdm_off"] = not self.flags.feedback
                     
                     ## excecute and capture stdout
                     try:

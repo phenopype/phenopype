@@ -282,7 +282,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
     annotation_id = kwargs.get("annotation_id", None)
 
     # =============================================================================
-    # setuo
+    # setup
 
     padding = kwargs.get("padding", 5)
 
@@ -513,7 +513,7 @@ def compute_texture_features(
     image,
     annotations,
     features=["firstorder"],
-    channels=["blue", "green", "red"],
+    channel_names=["blue", "green", "red"],
     min_diameter=5,
     **kwargs,
 ):
@@ -579,6 +579,8 @@ def compute_texture_features(
     # =============================================================================
     # setup
 
+    tqdm_off = kwargs.get("tqdm_off",True)
+
     feature_activation = {}
     for feature in features:
         feature_activation[feature] = []
@@ -603,20 +605,21 @@ def compute_texture_features(
     else:
         layers = image.shape[2]
         
-    if len(channels) > layers:
+    if len(channel_names) > layers:
         print("- Warning: more channels provided than in given image - skipping excess ones!")
     
     for idx1, (coords, support) in _tqdm(
             enumerate(zip(contours, contours_support)),
             "Computing texture features",
             total=len(contours),
+            disable=tqdm_off
     ):
 
         output = {}
         
         if support["diameter"] > min_diameter:
 
-            for idx2, channel in enumerate(channels):
+            for idx2, channel in enumerate(channel_names):
 
                 if (idx2 + 1) > image.shape[2]:
                     continue
@@ -658,7 +661,7 @@ def compute_texture_features(
         "settings": {
             "features": features,
             "min_diameter": min_diameter,
-            "channels": channels,
+            "channels_names": channel_names,
             "contour_id": contour_id,
         },
         "data": {annotation_type: texture_features,},

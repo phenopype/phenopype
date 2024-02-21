@@ -650,6 +650,7 @@ def save_ROI(
     suffix=None,
     rotate=False,
     rotate_padding=5,
+    angle_apply = None,
     align="v",
     extension="png",
     background="original",
@@ -701,7 +702,6 @@ def save_ROI(
     """
 
     ## dirpath
-
     if prefix is None:
         prefix = ""
     else:
@@ -745,7 +745,7 @@ def save_ROI(
             nlayer = 3
         else:
             nlayer = 1
-             
+                         
         ## create roi mask
         roi_orig_mask = np.zeros(roi_orig.shape[:2], dtype="uint8")
         roi_orig_mask = cv2.drawContours(
@@ -756,12 +756,19 @@ def save_ROI(
             color=255,
             offset=(-rx, -ry),
         )
+        roi_canvas = None
                 
         ## rotate roi and mask
         if rotate:
-            angle = ul._get_orientation(coords)
-            if align == "h":
-                angle = angle + 90
+            if angle_apply == None:
+                angle = ul._get_orientation(coords)
+                if align == "h":
+                    angle = angle + 90
+                elif align == "v":
+                    angle = angle - 90
+
+            else:
+                angle = angle_apply
             roi_rot = ul._rotate_image(roi_orig, angle)
             mask_rot = ul._rotate_image(roi_orig_mask, angle)
             contour, _ = cv2.findContours(mask_rot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -772,7 +779,7 @@ def save_ROI(
             ## pad to avoid aliasing
             roi_orig = cv2.copyMakeBorder(roi_orig, 1,1,1,1, cv2.BORDER_CONSTANT, value=0)    
             roi_orig_mask = cv2.copyMakeBorder(roi_orig_mask, 1,1,1,1, cv2.BORDER_CONSTANT, value=0)    
-
+            
         ## resizing
         if canvas_max_dim:
             
@@ -787,14 +794,17 @@ def save_ROI(
                 ul._print(f"ROI {idx+1} too big for chosen canvas: {roi_orig.shape[:2]} vs {(canvas_max_dim,canvas_max_dim)}. Skipping!", lvl=1)
                 continue
             
-            # Place the smaller ROI onto the larger ROI
-            roi_canvas[ypos:ypos + rh, xpos:xpos + rw] = roi_orig
-            roi_mask_canvas[ypos:ypos + rh, xpos:xpos + rw] = roi_orig_mask
+            # Place the smaller ROI onto the larger ROI canvas
+            roi_canvas[ypos:ypos + roi_orig.shape[0], xpos:xpos + roi_orig.shape[1]] = roi_orig
+            roi_mask_canvas[ypos:ypos + roi_orig_mask.shape[0], xpos:xpos + roi_orig_mask.shape[1]] = roi_orig_mask
 
         ## background handling
         if background=="original":           
             pass
         else:
+            if roi_canvas.__class__.__name__ == "NoneType":
+                roi_canvas = roi_orig
+                roi_mask_canvas = roi_orig_mask
             if background=="transparent":           
                 roi_alpha = np.zeros((roi_canvas.shape[0], roi_canvas.shape[1], 4), dtype=np.uint8)
                 roi_alpha[:,:,0:3] = roi_canvas
@@ -802,7 +812,7 @@ def save_ROI(
                 roi = roi_alpha
             else:
                 roi_canvas[roi_mask_canvas==0] = ul._get_bgr(background)
-                    
+                roi = roi_canvas
         ## add counter
         if counter:
             roi_name = prefix + file_name + suffix + "_" + str(idx+1).zfill(3) + extension
@@ -811,7 +821,7 @@ def save_ROI(
 
         save_path = os.path.join(dir_path, roi_name)
         saved = cv2.imwrite(save_path, roi)
-        
+                
         if saved:
             ul._print("- saving ROI: {}".format(roi_name))
         else:

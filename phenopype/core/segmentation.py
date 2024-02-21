@@ -139,7 +139,7 @@ def detect_contour(
     approximation="simple",
     retrieval="ext",
     match_against=None,
-    apply_drawing=True,
+    apply_drawing=False,
     offset_coords=[0, 0],
     min_nodes=3,
     max_nodes=inf,
@@ -243,6 +243,7 @@ def detect_contour(
                 cv2.polylines(
                     image_bin, np.array([coords[0]]), False, coords[1], coords[2],
                 )
+                
                 
     if not match_against.__class__.__name__ == "NoneType":
         match_image_bin = np.zeros(image_bin.shape, dtype="uint8")                        

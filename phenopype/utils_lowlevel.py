@@ -70,11 +70,7 @@ class _GUI:
         Parameters
         ----------
 
-        """
-        ## continuity
-        if kwargs.get("feedback"):
-            interactive = kwargs.get("feedback")
-        
+        """        
         ## kwargs (improve: use dictionary from config)
         if kwargs.get("window_max_dim"):
             window_max_dim = kwargs.get("window_max_dim")
@@ -135,10 +131,9 @@ class _GUI:
             
             ('return_input', bool, kwargs.get('return_input',False)),
 
-            
             ('interactive', bool, interactive),
             ('pype_mode', bool, pype_mode),
-            
+
             ('zoom_memory', bool, zoom_memory),
             ('zoom_mode', str, zoom_mode),
             ('zoom_magnification', float, zoom_magnification),
@@ -1668,6 +1663,7 @@ def _get_orientation(coords, method="ellipse"):
         return angle
     
     if method=="pca":
+        
         # Construct a buffer used by the pca analysis
         sz = len(coords)
         data_pts = np.empty((sz, 2), dtype=np.float64)
@@ -1679,7 +1675,9 @@ def _get_orientation(coords, method="ellipse"):
         mean = np.empty((0))
         mean, eigenvectors, eigenvalues = cv2.PCACompute2(data_pts, mean)
         angle = atan2(eigenvectors[0,1], eigenvectors[0,0]) # orientation in radians
-        return angle
+        angle = np.rad2deg(angle)
+        
+    return angle
     
 def _resize_contour(contour, img_orig, img_resized):
 
@@ -1691,25 +1689,57 @@ def _resize_contour(contour, img_orig, img_resized):
 
     return contour
 
-def _rotate_coords(array, center, angle, offset=(0,0)):
+# def _rotate_coords(array, center, angle, offset=(0,0)):
         
-    dt = array.dtype
+#     dt = array.dtype
     
-    radian = angle * (pi/180)
-    rotation_matrix = np.array([[np.cos(radian),np.sin(radian)],[-np.sin(radian),np.cos(radian)]])
-    rotated_array = np.dot(array - center, rotation_matrix) + _rotate_point(center, angle) + offset
+#     radian = np.deg2rad(angle)
+#     rotation_matrix = np.array([[np.cos(radian),np.sin(radian)],[-np.sin(radian),np.cos(radian)]])
+#     rotated_array = np.dot(array - center, rotation_matrix) + _rotate_point(center, angle) + offset
     
-    return rotated_array.astype(dt)
+#     return rotated_array.astype(dt)
 
-# def _rotate_point(point, angle):
+def _rotate_coords(coords, angle):
     
-#     x, y = point
-#     radians = angle * (pi/180)
+    cnt = copy.deepcopy(coords)
+    
+    def cart2pol(x, y):
+        theta = np.arctan2(y, x)
+        rho = np.hypot(x, y)
+        return theta, rho
 
-#     x_new = abs(int(cos(radians) * x + sin(radians) * y))
-#     y_new = abs(int(-sin(radians) * x + cos(radians) * y))
 
-#     return x_new, y_new
+    def pol2cart(theta, rho):
+        x = rho * np.cos(theta)
+        y = rho * np.sin(theta)
+        return x, y
+    
+    angle = angle * -1
+    
+    M = cv2.moments(cnt)
+    cx = int(M['m10']/M['m00'])
+    cy = int(M['m01']/M['m00'])
+
+    cnt_norm = cnt - [cx, cy]
+    
+    coordinates = cnt_norm[:, 0, :]
+    xs, ys = coordinates[:, 0], coordinates[:, 1]
+    thetas, rhos = cart2pol(xs, ys)
+    
+    thetas = np.rad2deg(thetas)
+    thetas = (thetas + angle) % 360
+    thetas = np.deg2rad(thetas)
+    
+    xs, ys = pol2cart(thetas, rhos)
+    
+    cnt_norm[:, 0, 0] = xs
+    cnt_norm[:, 0, 1] = ys
+
+    cnt_rotated = cnt_norm + [cx, cy]
+    cnt_rotated = cnt_rotated.astype(np.int32)
+
+    return cnt_rotated
+
 
 def _rotate_point(point, angle, center=None):
     
@@ -2276,7 +2306,7 @@ def _resize_image(
     else:
         return image
     
-    
+
 def _rotate_image(image, angle, ret_center=False):
     """
     Rotates an image (angle in degrees) and expands image to avoid cropping
