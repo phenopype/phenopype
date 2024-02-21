@@ -16,6 +16,6 @@ Procedure
 
 3. Use the script :code:`quickstart.py` to outline the bony armour plates of the stickleback specimen, either by using the low-throughput or high-throughput workflow.
 
-4. Check the `tutorials <https://phenopype.org/docs/tutorials>`_ and the `phenopype project gallery <https://phenopype.org/gallery>`_ to get some inspiration for your own study system. 
+4. Check the `tutorials <https://phenopype.org/docs/tutorials>`_ and the `phenopype project gallery <https://phenopype.org/gallery/>`_ to get some inspiration for your own study system. 
 
 

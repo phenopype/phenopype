@@ -1,11 +1,15 @@
-(function() {
+function add_trailing_slash() {
 	
-  if (!location.hostname === "localhost" || !location.hostname === "127.0.0.1") {
-	  if (!location.href.endsWith('/')) {
-		window.location = location.href + '/'
-	  }
-  }
-}())
+    //If there is no trailing shash after the path in the url add it
+    if (window.location.pathname.endsWith('/') === false) {
+        var url = window.location.protocol + '//' + 
+                window.location.host + 
+                window.location.pathname + '/' + 
+                window.location.search;
+
+        window.history.replaceState(null, document.title, url);
+    }
+}
 
  function download_file(filelink) {
 	 

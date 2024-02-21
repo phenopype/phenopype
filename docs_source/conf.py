@@ -45,6 +45,7 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output -------------------------------------------------
 
+html_base_url = "https://www.phenopype.org/gallery/"
 html_logo = "../assets/phenopype_logo.png"
 html_theme = "furo"
 html_show_sourcelink = True
@@ -52,5 +53,7 @@ html_last_updated_fmt = "%Y-%m-%d %H:%M:%S"
 html_title = "phenopype docs"
 html_static_path = ['_assets']
 html_css_files = ['css/custom.css']
-html_js_files = ['js/custom.js']
+html_js_files = [
+    'js/custom.js',
+    "https://cdn.jsdelivr.net/gh/mluerig/website-assets/assets/js/enforce_trailing_slash.min.js"]
 templates_path = ["_templates"]
