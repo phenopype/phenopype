@@ -654,7 +654,7 @@ def save_ROI(
     align="v",
     extension="png",
     background="original",
-    canvas_max_dim=False,
+    canvas_dim=False,
     max_dim=False,
     padding=True,
     **kwargs
@@ -781,17 +781,19 @@ def save_ROI(
             roi_orig_mask = cv2.copyMakeBorder(roi_orig_mask, 1,1,1,1, cv2.BORDER_CONSTANT, value=0)    
             
         ## resizing
-        if canvas_max_dim:
+        if canvas_dim:
             
-            roi_canvas = np.zeros((canvas_max_dim, canvas_max_dim, nlayer), dtype=np.uint8)
-            roi_mask_canvas = np.zeros((canvas_max_dim, canvas_max_dim), dtype=np.uint8)
+            ## make canvas
+            roi_canvas = np.zeros((canvas_dim, canvas_dim, nlayer), dtype=np.uint8)
+            roi_mask_canvas = np.zeros((canvas_dim, canvas_dim), dtype=np.uint8)
 
-            # Calculate the new top-left coordinates for the smaller ROI
+            # calculate the new top-left coordinates for the smaller ROI
             xpos = (roi_canvas.shape[1] - roi_orig.shape[1]) // 2
             ypos = (roi_canvas.shape[0] - roi_orig.shape[0]) // 2
-
+            
+            ## skip if ROI is too large for canvas
             if any([xpos<0, ypos<0]):
-                ul._print(f"ROI {idx+1} too big for chosen canvas: {roi_orig.shape[:2]} vs {(canvas_max_dim,canvas_max_dim)}. Skipping!", lvl=1)
+                ul._print(f"ROI {idx+1} too big for chosen canvas: {roi_orig.shape[:2]} vs {(canvas_dim,canvas_dim)}. Skipping!", lvl=1)
                 continue
             
             # Place the smaller ROI onto the larger ROI canvas
@@ -813,6 +815,11 @@ def save_ROI(
             else:
                 roi_canvas[roi_mask_canvas==0] = ul._get_bgr(background)
                 roi = roi_canvas
+                
+        ## resizing final ROI
+        if max_dim:
+            roi = ul._resize_image(roi, width=max_dim, height=max_dim)
+             
         ## add counter
         if counter:
             roi_name = prefix + file_name + suffix + "_" + str(idx+1).zfill(3) + extension

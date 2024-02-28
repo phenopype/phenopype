@@ -2257,7 +2257,6 @@ def _resize_image(
     image_height, image_width = image.shape[0:2]
 
     ## method
-    
     if not all([
             width.__class__.__name__ == "NoneType",
             height.__class__.__name__ == "NoneType",
@@ -2305,7 +2304,19 @@ def _resize_image(
         return image, factor    
     else:
         return image
+
+
+def _resize_mask(original_bbox, resize_x, resize_y):
+
+    resized_bbox = (
+        int(original_bbox[0] * resize_x),
+        int(original_bbox[1] * resize_y),
+        int(original_bbox[2] * resize_x),
+        int(original_bbox[3] * resize_y)
+    )
     
+    return resized_bbox
+
 
 def _rotate_image(image, angle, ret_center=False):
     """

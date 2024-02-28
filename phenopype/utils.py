@@ -188,7 +188,7 @@ class Container(object):
                 if "active" in self.attr_proj:
                     if "model" in self.attr_proj["active"]:
                         model_id = self.attr_proj["active"]["model"]
-                        model_path = self.attr_proj["models"][model_id]["model_phenopype_path"]
+                        model_path = self.attr_proj["models"][model_id]["model_path"]
                         _config.active_model_path = model_path    
                         loaded.append('set model "{}" as default model (change with "activate=True")'.format(model_id))
 

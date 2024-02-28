@@ -691,7 +691,6 @@ class Project:
         model_path,
         model_id="a",
         model_type="segmentation",
-        mode="link",
         activate=True,
         overwrite=False,
         copy=True,
@@ -738,55 +737,20 @@ class Project:
                 print("Did not find model {}.".format(model_path))
                 return
         else:
-            print("Wrong input - need path to a segmentation model.")
+            print("Wrong input - need path to a model.")
             return
 
-        if not mode == "link":
-            model_folder_path = os.path.join(self.root_dir, "models")
-            if not os.path.isdir(model_folder_path):
-                os.mkdir(model_folder_path)
         
         while True:
 
-            ## generate model name and check if exists
-            phenopype_model_name = "model_" + model_id + os.path.splitext(model_path)[1]
-            phenopype_model_path = os.path.join(
-                model_folder_path, phenopype_model_name
-            )
-
-            if os.path.isfile(phenopype_model_path) and flags.overwrite == False:
-                print_save_msg = (
-                    "Model not saved, file already exists "
-                    + '- use "overwrite=True" or chose different model_id.'
-                )
-                break
-            elif os.path.isfile(phenopype_model_path) and flags.overwrite == True:
-                print_save_msg = (
-                    "Model saved under "
-                    + phenopype_model_path
-                    + " (overwritten)."
-                )
-                pass
-            elif not os.path.isfile(phenopype_model_path):
-                print_save_msg = "Model saved under " + phenopype_model_path
-                pass
-
             ## copying / path management
-            model_source_name = os.path.basename(model_path)
-            
-            ## save all after successful completion of all method-steps
-            if mode == "copy":
-                shutil.copy(model_path, phenopype_model_path)
-                phenopype_model_path = os.path.relpath(phenopype_model_path, self.root_dir)
-            elif mode == "link":
-                phenopype_model_path = os.path.abspath(model_path)
- 
+            model_name = os.path.basename(model_path)
+             
             
             ## create reference attributes
             model_info = {
-                "model_source_path": model_path,
-                "model_source_name": model_source_name,
-                "model_phenopype_path": phenopype_model_path,
+                "model_path": model_path,
+                "model_name": model_name,
                 "model_type": model_type,
                 "date_added": datetime.today().strftime(settings.strftime_format),
             }
@@ -826,7 +790,7 @@ class Project:
         print(print_save_msg)
 
         if flags.activate == True:
-            _config.active_model_path = phenopype_model_path
+            _config.active_model_path = model_path
             print('- setting active project model to {}'.format(model_id))
         else:
             print(
