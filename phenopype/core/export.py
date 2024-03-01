@@ -655,6 +655,7 @@ def save_ROI(
     extension="png",
     background="original",
     canvas_dim=False,
+    canvas_fit=False,
     max_dim=False,
     padding=True,
     **kwargs
@@ -766,7 +767,6 @@ def save_ROI(
                     angle = angle + 90
                 elif align == "v":
                     angle = angle - 90
-
             else:
                 angle = angle_apply
             roi_rot = ul._rotate_image(roi_orig, angle)
@@ -788,13 +788,19 @@ def save_ROI(
             roi_mask_canvas = np.zeros((canvas_dim, canvas_dim), dtype=np.uint8)
 
             # calculate the new top-left coordinates for the smaller ROI
-            xpos = (roi_canvas.shape[1] - roi_orig.shape[1]) // 2
-            ypos = (roi_canvas.shape[0] - roi_orig.shape[0]) // 2
+            xpos = (canvas_dim - roi_orig.shape[1]) // 2
+            ypos = (canvas_dim - roi_orig.shape[0]) // 2
             
             ## skip if ROI is too large for canvas
-            if any([xpos<0, ypos<0]):
-                ul._print(f"ROI {idx+1} too big for chosen canvas: {roi_orig.shape[:2]} vs {(canvas_dim,canvas_dim)}. Skipping!", lvl=1)
-                continue
+            if any([xpos<=0, ypos<=0]):
+                if canvas_fit:
+                    roi_orig = ul._resize_image(roi_orig, max_dim=canvas_dim-2)
+                    roi_orig_mask = ul._resize_image(roi_orig_mask, max_dim=canvas_dim-2)
+                    xpos = max((canvas_dim - roi_orig.shape[1]) // 2,1)
+                    ypos = max((canvas_dim - roi_orig.shape[0]) // 2,1)
+                else:
+                    ul._print(f"ROI {idx+1} too big for chosen canvas: {roi_orig.shape[:2]} vs {(canvas_dim,canvas_dim)}. Skipping!", lvl=1)
+                    continue
             
             # Place the smaller ROI onto the larger ROI canvas
             roi_canvas[ypos:ypos + roi_orig.shape[0], xpos:xpos + roi_orig.shape[1]] = roi_orig
@@ -818,7 +824,7 @@ def save_ROI(
                 
         ## resizing final ROI
         if max_dim:
-            roi = ul._resize_image(roi, width=max_dim, height=max_dim)
+            roi = ul._resize_image(roi, max_dim=max_dim)
              
         ## add counter
         if counter:
