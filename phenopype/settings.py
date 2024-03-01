@@ -82,11 +82,6 @@ pretty = PrettyPrinter(width=30)
 
 strftime_format = "%Y-%m-%d %H:%M:%S"
 
-
-#%% flags
-
-flag_verbose = True
-
 #%% flags opencv
 
 opencv_contour_flags = {

@@ -22,7 +22,7 @@ from phenopype import assets
 from phenopype import core
 from phenopype import plugins
 from phenopype import settings
-from phenopype import utils_lowlevel
+from phenopype import utils_lowlevel as ul
 
 classes = ["Container"]
 functions = ['load_image', "load_template", "print_colours", "save_image", "show_image"]
@@ -109,7 +109,7 @@ class Container(object):
                     for annotation_id in self.annotations[annotation_type].keys():
                         id_list.append(annotation_id)
                     if len(id_list) > 0:
-                        annotation_types_loaded[annotation_type] = utils_lowlevel._NoIndent(
+                        annotation_types_loaded[annotation_type] = ul._NoIndent(
                             id_list
                         )
     
@@ -118,7 +118,7 @@ class Container(object):
                         json.dumps(
                             annotation_types_loaded,
                             indent=4,
-                            cls=utils_lowlevel._NoIndentEncoder,
+                            cls=ul._NoIndentEncoder,
                         ).replace("}", "").replace("{", "")
                     )
                 )
@@ -130,13 +130,13 @@ class Container(object):
             os.path.join(self.dir_path, r"../../", "attributes.yaml")
         )
         if os.path.isfile(attr_proj_path):
-            self.attr_proj = utils_lowlevel._load_yaml(attr_proj_path)
+            self.attr_proj = ul._load_yaml(attr_proj_path)
 
         ## load attributes
         attr_local_path = os.path.join(self.dir_path, "attributes.yaml")
         if os.path.isfile(attr_local_path):
 
-            self.image_attributes = utils_lowlevel._load_yaml(attr_local_path)
+            self.image_attributes = ul._load_yaml(attr_local_path)
 
             if "reference_global" in self.image_attributes:
 
@@ -144,7 +144,7 @@ class Container(object):
                 attr_proj_path = os.path.abspath(
                     os.path.join(attr_local_path, r"../../../", "attributes.yaml")
                 )
-                attr_proj = utils_lowlevel._load_yaml(attr_proj_path)
+                attr_proj = ul._load_yaml(attr_proj_path)
 
                 ## find active project level references
                 n_active = 0
@@ -548,7 +548,7 @@ def load_image(path, mode="unchanged", **kwargs):
                 )
                 return
         elif os.path.isdir(path):
-            image = utils_lowlevel._load_project_image_directory(
+            image = ul._load_project_image_directory(
                 path, as_container=False
             )
         else:
@@ -603,9 +603,9 @@ def load_template(
 
         if template_path.__class__.__name__ == "str":
             if os.path.isfile(template_path):
-                template_loaded = utils_lowlevel._load_yaml(template_path)
+                template_loaded = ul._load_yaml(template_path)
                 _config.template_path_current = template_path
-                _config.template_loaded_current = utils_lowlevel._load_yaml(template_path)
+                _config.template_loaded_current = ul._load_yaml(template_path)
 
             else:
                 print("Could not find template_path")
@@ -677,9 +677,9 @@ def load_template(
 
     else:
         template_loaded = {**config_info, **template_loaded}
-        utils_lowlevel._yaml_recursive_delete_comments(template_loaded)
+        ul._yaml_recursive_delete_comments(template_loaded)
 
-    if utils_lowlevel._save_prompt("template", config_path, flags.overwrite):
+    if ul._save_prompt("template", config_path, flags.overwrite):
         with open(config_path, "wb") as yaml_file:
             yaml.dump(template_loaded, yaml_file)
 
@@ -700,7 +700,8 @@ def save_image(
     file_name,
     dir_path,
     resize=1,
-    ext="jpg",
+    suffix=None,
+    ext=None,
     overwrite=False,
     **kwargs
 ):
@@ -729,50 +730,49 @@ def save_image(
 
     ## kwargs
     flag_overwrite = overwrite
+    
+    ## get file_name
+    if file_name[len(file_name)-4] == ".":
+        file_name_stem, ext_orig = os.path.splitext(file_name)
+    else:
+        file_name_stem = file_name
 
-    # set dir and names
-    # if "." in name:
-    #     warnings.warn("need name and extension specified separately")
-    #     return
-
-    if "." not in ext:
-        ext = "." + ext
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
-    ## resize
-    if resize < 1:
-        image = cv2.resize(
-            image, (0, 0), fx=1 * resize, fy=1 * resize, interpolation=cv2.INTER_AREA
-        )
+    ## add suffix 
+    if suffix.__class__.__name__ == "NoneType":
+        suffix = ""
+    if len(suffix) > 0:
+        suffix = "_" + suffix
+        
+    ## add extension
+    if ext.__class__.__name__ == "str":
+        if "." not in ext:
+            ext = "." + ext
+    else:
+        ext = ext_orig
 
     ## construct save path
-    if file_name[len(file_name)-4] == ".":
-        new_name = file_name
-    elif file_name.endswith(ext):
-        new_name = file_name
-    else:
-        new_name = file_name + ext
-    path = os.path.join(dir_path, new_name)
+    file_name_new = file_name_stem + suffix + ext
+    file_path = os.path.join(dir_path, file_name_new)
 
     ## save
     while True:
-        print_msg = None
-        if os.path.isfile(path) and flag_overwrite == False:
+        print_msg, saved = None, None
+        if os.path.isfile(file_path) and flag_overwrite == False:
             print_msg = "- image not saved - file already exists (overwrite=False)."
             break
-        elif os.path.isfile(path) and flag_overwrite == True:
-            print_msg = "- image saved under " + path + " (overwritten)."
+        elif os.path.isfile(file_path) and flag_overwrite == True:
+            print_msg = "- image saved under " + file_path + " (overwritten)."
             pass
-        elif not os.path.isfile(path):
-            print_msg = "- image saved under " + path + "."
+        elif not os.path.isfile(file_path):
+            print_msg = "- image saved under " + file_path + "."
             pass
+        
+        saved = cv2.imwrite(file_path, image)
 
-        if settings.flag_verbose:
-            print(print_msg)
+    ul._print(print_msg)
+    
+    return saved
 
-        cv2.imwrite(path, image)
-        break
 
 
 def show_image(
@@ -841,7 +841,7 @@ def show_image(
                 idx += 1
                 if i.__class__.__name__ == "ndarray":
                     print("phenopype" + " - " + str(idx))
-                    utils_lowlevel._GUI(
+                    ul._GUI(
                         i,
                         mode="",
                         window_aspect=window_aspect,
@@ -861,7 +861,7 @@ def show_image(
             cv2.destroyAllWindows()
             break
         else:
-            out = utils_lowlevel._GUI(
+            out = ul._GUI(
                 image=image,
                 mode="",
                 return_input=return_input,

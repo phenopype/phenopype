@@ -30,7 +30,7 @@ from phenopype import _config
 from phenopype import plugins
 from phenopype import settings
 from phenopype import utils
-from phenopype import utils_lowlevel
+from phenopype import utils_lowlevel as ul
 
 from phenopype.core import (
     preprocessing,
@@ -129,7 +129,7 @@ class Project:
                                 )
                             )
                             return
-                    shutil.rmtree(root_dir, onerror=utils_lowlevel._del_rw)
+                    shutil.rmtree(root_dir, onerror=ul._del_rw)
                     os.makedirs(root_dir)
                     os.makedirs(os.path.join(root_dir, "data"))
                     print('\n"' + root_dir + '" created (overwritten)')
@@ -175,7 +175,7 @@ class Project:
                     
                     },
             }
-            utils_lowlevel._save_yaml(
+            ul._save_yaml(
                 project_attributes, os.path.join(root_dir, "attributes.yaml")
             )
             print(
@@ -184,7 +184,7 @@ class Project:
                 )
             )
         else:
-            project_attributes = utils_lowlevel._load_yaml(project_attributes_path)
+            project_attributes = ul._load_yaml(project_attributes_path)
             
             if "filenames" in project_attributes["project_data"]:
                 
@@ -227,7 +227,7 @@ class Project:
 
         # self.file_names, self.file_paths = [], []
         # for dir_path in self.dir_paths:
-        #     attributes = utils_lowlevel._load_yaml(os.path.join(dir_path, "attributes.yaml"))
+        #     attributes = ul._load_yaml(os.path.join(dir_path, "attributes.yaml"))
         #     self.file_paths.append(attributes["image_phenopype"]["filepath"])
         #     self.file_names.append(attributes["image_phenopype"]["filename"])          
 
@@ -329,7 +329,7 @@ class Project:
         image_dir = os.path.abspath(image_dir)
 
         ## collect filepaths
-        filepaths, duplicates = utils_lowlevel._file_walker(
+        filepaths, duplicates = ul._file_walker(
             directory=image_dir,
             recursive=recursive,
             unique=unique,
@@ -415,7 +415,7 @@ class Project:
                     pass
                 elif flags.overwrite == "dir":
                     shutil.rmtree(
-                        dir_path, ignore_errors=True, onerror=utils_lowlevel._del_rw
+                        dir_path, ignore_errors=True, onerror=ul._del_rw
                     )
                     print(
                         "Found image "
@@ -438,7 +438,7 @@ class Project:
                 os.mkdir(dir_path)
                 
             ## generate image attributes
-            image_data_original = utils_lowlevel._load_image_data(file_path)
+            image_data_original = ul._load_image_data(file_path)
             image_data_phenopype = {
                 "date_added": datetime.today().strftime(settings.strftime_format),
                 "mode": flags.mode,
@@ -451,14 +451,14 @@ class Project:
                 )
                 shutil.copyfile(file_path, image_phenopype_path)
                 image_data_phenopype.update(
-                    utils_lowlevel._load_image_data(
+                    ul._load_image_data(
                         image_phenopype_path, path_and_type=False
                     )
                 )
 
             elif flags.mode == "mod":
                 image = utils.load_image(file_path)
-                image = utils_lowlevel._resize_image(
+                image = ul._resize_image(
                     image, 
                     factor=resize_factor, 
                     max_dim=resize_max_dim
@@ -488,7 +488,7 @@ class Project:
                     {"resize": flags.resize, "resize_factor": resize_factor,}
                 )
                 image_data_phenopype.update(
-                    utils_lowlevel._load_image_data(
+                    ul._load_image_data(
                         image_phenopype_path, path_and_type=False
                     )
                 )
@@ -496,7 +496,7 @@ class Project:
             elif flags.mode == "link":                
                 image_phenopype_path = os.path.relpath(file_path, start=dir_path)
                 image_data_phenopype.update(
-                    utils_lowlevel._load_image_data(
+                    ul._load_image_data(
                         image_path=file_path, 
                         image_rel_path=image_phenopype_path,
                         path_and_type=True
@@ -520,12 +520,12 @@ class Project:
                 "image_original": image_data_original,
                 "image_phenopype": image_data_phenopype,
             }
-            utils_lowlevel._save_yaml(
+            ul._save_yaml(
                 attributes, os.path.join(dir_path, "attributes.yaml")
             )
 
         ## list dirs in data and add to project-attributes file in project root
-        project_attributes = utils_lowlevel._load_yaml(
+        project_attributes = ul._load_yaml(
             os.path.join(self.root_dir, "attributes.yaml")
         )
         if any([flags.overwrite,
@@ -535,7 +535,7 @@ class Project:
         project_attributes["project_data"]["filenames"] = filenames
         project_attributes["project_data"]["dirnames"] =  os.listdir(os.path.join(self.root_dir, "data"))
         
-        utils_lowlevel._save_yaml(
+        ul._save_yaml(
             project_attributes, 
             os.path.join(self.root_dir, "attributes.yaml")
         )
@@ -614,7 +614,7 @@ class Project:
             flags.dir_paths = self.dir_paths
 
         ## check tag sanity
-        utils_lowlevel._check_pype_tag(tag)
+        ul._check_pype_tag(tag)
         
         # =============================================================================
         ## interactive template modification
@@ -629,7 +629,7 @@ class Project:
                 return
 
             if os.path.isdir(dir_path):
-                container = utils_lowlevel._load_project_image_directory(dir_path)
+                container = ul._load_project_image_directory(dir_path)
                 container.dir_path = os.path.join(self.root_dir, "_template-mod")
             else:
                 print("Could not enter interactive mode - invalid directory.")
@@ -682,8 +682,8 @@ class Project:
                 template_file_name = q + ext
 
                 template_save_path = os.path.join(template_dir, template_file_name)
-                if utils_lowlevel._save_prompt("template", template_save_path, False):
-                    utils_lowlevel._save_yaml(p.config, template_save_path)
+                if ul._save_prompt("template", template_save_path, False):
+                    ul._save_yaml(p.config, template_save_path)
                       
     
     def add_model(
@@ -758,7 +758,7 @@ class Project:
             ## load project attributes and temporarily drop project data list to
             ## be reattched later, so it is always at then end of the file
             model_dict = {}
-            project_attributes = utils_lowlevel._load_yaml(
+            project_attributes = ul._load_yaml(
                 os.path.join(self.root_dir, "attributes.yaml")
             )
             if "project_data" in project_attributes:
@@ -778,7 +778,7 @@ class Project:
 
 
 
-            utils_lowlevel._save_yaml(
+            ul._save_yaml(
                 project_attributes, os.path.join(self.root_dir, "attributes.yaml")
             )
 
@@ -940,7 +940,7 @@ class Project:
             ## load project attributes and temporarily drop project data list to
             ## be reattched later, so it is always at then end of the file
             reference_dict = {}
-            project_attributes = utils_lowlevel._load_yaml(
+            project_attributes = ul._load_yaml(
                 os.path.join(self.root_dir, "attributes.yaml")
             )
             if "project_data" in project_attributes:
@@ -957,7 +957,7 @@ class Project:
             cv2.imwrite(reference_image_path, reference_image)
             cv2.imwrite(template_path, template)
 
-            utils_lowlevel._save_yaml(
+            ul._save_yaml(
                 project_attributes, os.path.join(self.root_dir, "attributes.yaml")
             )
             print_save_msg = (
@@ -973,7 +973,7 @@ class Project:
 
         ## set active reference information in file specific attributes
         for dir_name, dir_path in zip(self.dir_names, self.dir_paths):
-            attr = utils_lowlevel._load_yaml(os.path.join(dir_path, "attributes.yaml"))
+            attr = ul._load_yaml(os.path.join(dir_path, "attributes.yaml"))
 
             ## create nested dict
             if not "reference_global" in attr:
@@ -988,7 +988,7 @@ class Project:
                         attr["reference_global"][key]["active"] = True
                     else:
                         attr["reference_global"][key]["active"] = False
-                utils_lowlevel._save_yaml(
+                ul._save_yaml(
                     attr, os.path.join(dir_path, "attributes.yaml")
                 )
                 print(
@@ -1066,7 +1066,7 @@ class Project:
             
         for dirpath in self.dir_paths:
             attributes_path = os.path.join(dirpath, "attributes.yaml")
-            attributes = utils_lowlevel._load_yaml(attributes_path)
+            attributes = ul._load_yaml(attributes_path)
             filename = attributes["image_original"]["filename"]
             filenames_check.append(filename)
             dirnames_check.append(os.path.basename(dirpath))
@@ -1075,29 +1075,29 @@ class Project:
                 filepath = attributes["image_phenopype"]["filepath"]
                 if attributes["image_phenopype"]["mode"] == "link":
                     if not os.path.isfile(os.path.join(dirpath, filepath)):
-                        print("Could not find image(s) saved or linked to phenopype project:{}".format(filename))
+                        ul._print("Could not find image(s) saved or linked to phenopype project:{}".format(filename))
                         if new_dir_files:
-                            print("- attempting to relink from {}".format(os.path.basename(new_dir)))
+                            ul._print("- attempting to relink from {}".format(os.path.basename(new_dir)))
                             if filename in new_dir_files:
                                 new_file_path = os.path.join(new_dir, filename)
                                 attributes["image_phenopype"]["filepath"] = os.path.relpath(new_file_path, dirpath) 
-                                utils_lowlevel._save_yaml(attributes, attributes_path)
-                                print("File found and successfully relinked!")
+                                ul._save_yaml(attributes, attributes_path)
+                                ul._print("File found and successfully relinked!", lvl=1)
                             else:
-                                print("File not found in provided new_dir!")
+                                ul._print("File not found in provided new_dir!")
                         else:
-                            print("No directory provided for relinking!")
+                            ul._print("No directory provided for relinking!", lvl=1)
                             if flags.check.__class__.__name__ == "NoneType":
                                 flags.check = input("\nCheck original filepath and relink if possible [also for all other broken paths] (y/n)?\n")
                             if flags.check in settings.confirm_options:
                                 filepath = attributes["image_original"]["filepath"]
                                 if os.path.isfile(filepath):
                                     attributes["image_phenopype"]["filepath"] = os.path.relpath(filepath, dirpath)
-                                    print("Re-linking successful - saving new path to attributes!")
-                                    utils_lowlevel._save_yaml(attributes, attributes_path)
+                                    ul._print("Re-linking successful - saving new path to attributes!", lvl=1)
+                                    ul._save_yaml(attributes, attributes_path)
     
                             else:
-                                print("File not found - could not re-link!")
+                                ul._print("File not found - could not re-link!")
 
         filenames_unmatched, dirnames_unmatched = [], []
         
@@ -1110,10 +1110,10 @@ class Project:
                 dirnames_unmatched.append(filename)  
                 
         if len(filenames_unmatched) > 0:
-            print(filenames_unmatched)
-            print("\n")
-            print("--------------------------------------------")
-            print("phenopype found {} files in the data folder, but {} from the project attributes are unaccounted for.".format(
+            ul._print(filenames_unmatched)
+            ul._print("\n")
+            ul._print("--------------------------------------------")
+            ul._print("phenopype found {} files in the data folder, but {} from the project attributes are unaccounted for.".format(
                 len(filenames_check),
                 len(filenames_unmatched)))
             time.sleep(1)
@@ -1122,18 +1122,18 @@ class Project:
             else:
                 check = "y"
         elif len(filenames) == 0:
-            print("\n")
-            print("--------------------------------------------")
-            print("phenopype found {} files in the data folder, but 0 are listed in the project attributes.".format(len(filenames_check)))
+            ul._print("\n")
+            ul._print("--------------------------------------------")
+            ul._print("phenopype found {} files in the data folder, but 0 are listed in the project attributes.".format(len(filenames_check)))
             time.sleep(1)
             if flags.feedback:
                 check = input("update project attributes (y/n)?")
             else:
                 check = "y"
         elif len(filenames) < len(filenames_check):
-            print("\n")
-            print("--------------------------------------------")
-            print("phenopype found {} files in the data folder, but only {} are listed in the project attributes.".format(
+            ul._print("\n")
+            ul._print("--------------------------------------------")
+            ul._print("phenopype found {} files in the data folder, but only {} are listed in the project attributes.".format(
                 len(filenames_check),
                 len(filenames)
                 ))
@@ -1143,7 +1143,7 @@ class Project:
             else:
                 check = "y"
         else:
-            print("All checks passed - numbers in data folder and attributes file match.")
+            ul._print("All checks passed - numbers in data folder and attributes file match.", lvl=2)
             return
 
         if check in settings.confirm_options:
@@ -1155,11 +1155,11 @@ class Project:
             self.file_names = filenames_check
             self.dir_names = dirnames_check
             
-            utils_lowlevel._save_yaml(self.attributes, self.attributes_path)
+            ul._save_yaml(self.attributes, self.attributes_path)
             
-            print("project attributes updated; now has {} files".format(len(filenames_check)))
+            ul._print("project attributes updated; now has {} files".format(len(filenames_check)), lvl=2)
         else:
-            print("project attributes not updated")
+            ul._print("project attributes not updated", lvl=2)
         print("--------------------------------------------")    
         
 
@@ -1233,7 +1233,7 @@ class Project:
         ## search
         for file in files:
             search_string = [file, tag]
-            results, duplicates = utils_lowlevel._file_walker(
+            results, duplicates = ul._file_walker(
                 os.path.join(self.root_dir, "data"),
                 recursive=True,
                 include=search_string,
@@ -1336,7 +1336,7 @@ class Project:
                 )
                 
                 if os.path.isfile(annotations_path): 
-                    if utils_lowlevel._overwrite_check_file(new_annotations_path, overwrite):
+                    if ul._overwrite_check_file(new_annotations_path, overwrite):
                         shutil.copyfile(annotations_path, new_annotations_path)
                         print("Copy annotations for {}".format(dir_name))
                 else:
@@ -1352,7 +1352,7 @@ class Project:
                 )
                 
                 if os.path.isfile(config_path): 
-                    if utils_lowlevel._overwrite_check_file(new_config_path, overwrite):
+                    if ul._overwrite_check_file(new_config_path, overwrite):
                         shutil.copyfile(config_path, new_config_path)
                         print("Copy config for {}".format(dir_name))
                 else:
@@ -1648,6 +1648,7 @@ class Project:
         if folder.__class__.__name__ == "NoneType":
             training_data_path = os.path.join(self.root_dir, "training_data", tag)
         else:
+            assert os.path.exists(folder), "root folder for training images does not exist"
             training_data_path = folder
     
         if not os.path.isdir(training_data_path):
@@ -1660,6 +1661,10 @@ class Project:
                 "flip_y": False,
                 "mask_id": None,
                 "resize_factor": 1,
+                },
+            "generic-binary-mask" : {
+                "local": True,
+                "mode": "single-largest", 
                 },
             "keras-cnn-semantic": {
                 }
@@ -1677,7 +1682,7 @@ class Project:
             df_summary = pd.DataFrame()
             file_path_save = os.path.join(training_data_path, "landmarks_ml-morph_" + tag + ".csv")
 
-            if not utils_lowlevel._overwrite_check_file(file_path_save, flags.overwrite):
+            if not ul._overwrite_check_file(file_path_save, flags.overwrite):
                 return
             
             if not parameters.__class__.__name__ == "NoneType":
@@ -1696,7 +1701,7 @@ class Project:
             for idx1, dirpath in enumerate(self.dir_paths, 1):
                             
                 ## load data
-                attributes = utils_lowlevel._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
                 annotations = export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
                 filename = attributes["image_original"]["filename"]
                 image_height = attributes["image_phenopype"]["height"]
@@ -1740,7 +1745,7 @@ class Project:
                         
                     ## resize image or cropped image
                     if flags.resize_factor != 1:
-                        image = utils_lowlevel._resize_image(image, factor=flags.resize_factor, interpolation="cubic")
+                        image = ul._resize_image(image, factor=flags.resize_factor, interpolation="cubic")
                         image_height = int(image_height * flags.resize_factor)
                         
                         ## multiply all landmarks with resize factor
@@ -1770,10 +1775,46 @@ class Project:
             
             
         # =============================================================================
-        ## binary-masks
+        ## generic-binary-masks
         
-        
+        if framework=="generic-binary-mask":
             
+            image_dir = os.path.join(folder, "images")
+            mask_dir = os.path.join(folder, "masks")
+            os.makedirs(image_dir, exist_ok=True)
+            os.makedirs(mask_dir, exist_ok=True)
+            
+            for idx, dirpath in enumerate(self.dir_paths, 1):
+                
+                print(str(idx) + " / " + str(len(self.dir_paths)))
+                
+                annotation_path = os.path.join(dirpath, "annotations_" + tag + ".json")
+                
+                if os.path.isfile(annotation_path):
+                    annotations = export.load_annotation(annotation_path)   
+                    image = utils.load_image(dirpath)
+                    attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                    file_name = attributes["image_original"]["filename"] 
+                    try:
+                        roi, mask = export.save_ROI(
+                            image=image,
+                            annotations=annotations,
+                            # contour_id = "b",
+                            dir_path=None,
+                            file_name=None,
+                            annotation_type="contour",
+                            min_dim=512,
+                            counter=False,
+                            training_data=True,
+                            )
+                
+                        roi_saved = utils.save_image(roi, file_name, suffix="roi", ext="jpg", dir_path=image_dir)
+                        mask_saved = utils.save_image(mask, file_name, suffix="roi", ext="jpg", dir_path=mask_dir)
+                    except:
+                        print("missing annotation? - skipping")
+                else:
+                    print(f"no annotations with tag {tag} - skipping")
+
         # =============================================================================
         ## keras-cnn-semantic
         
@@ -1791,7 +1832,7 @@ class Project:
 
             for idx, dirpath in enumerate(self.dir_paths, 1):
                             
-                attributes = utils_lowlevel._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
                 annotations = export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
                 filename = attributes["image_original"]["filename"]               
                 
@@ -1949,7 +1990,7 @@ class Pype(object):
         # CHECKS 
 
         ## check name, load container and config
-        utils_lowlevel._check_pype_tag(tag)
+        ul._check_pype_tag(tag)
         self._load_container(image_path=image_path, tag=tag)
         self._load_pype_config(image_path=image_path, tag=tag, config_path=config_path)
 
@@ -1971,7 +2012,7 @@ class Pype(object):
         # FEEDBACK 
         
         startup_msg_list = []
-        startup_msg_list.append(utils_lowlevel._pprint_fill_hbar(self.container.image_name, symbol="=", ret=True))
+        startup_msg_list.append(ul._pprint_fill_hbar(self.container.image_name, symbol="=", ret=True))
         self._log("info", startup_msg_list, 0, passthrough=True)
         
         # =============================================================================
@@ -2054,7 +2095,7 @@ class Pype(object):
                     
                     ## add timestamp
                     self.config["config_info"]["date_last_modified"] = datetime.today().strftime(settings.strftime_format)
-                    utils_lowlevel._save_yaml(self.config, self.config_path)
+                    ul._save_yaml(self.config, self.config_path)
                         
                     ## feedback
                     self._log("info", "Pype: TERMINATE", 0)
@@ -2080,7 +2121,7 @@ class Pype(object):
         # FEEDBACK 
         
         startup_msg_list = []
-        startup_msg_list.append(utils_lowlevel._pprint_fill_hbar("END", symbol="=", ret=True))
+        startup_msg_list.append(ul._pprint_fill_hbar("END", symbol="=", ret=True))
         self._log("info", startup_msg_list, 0)
         
         # =============================================================================
@@ -2106,7 +2147,7 @@ class Pype(object):
                     image_name=os.path.basename(image_path),
                 )
             elif os.path.isdir(image_path):
-                self.container = utils_lowlevel._load_project_image_directory(
+                self.container = ul._load_project_image_directory(
                     dir_path=image_path, tag=tag,
                 )
             else:
@@ -2142,7 +2183,7 @@ class Pype(object):
             #         "Could not read config file from specified config_path: \"{}\"".format(config_path))
 
         if os.path.isfile(config_path):
-            self.config = utils_lowlevel._load_yaml(config_path)
+            self.config = ul._load_yaml(config_path)
             self.config_path = config_path
 
             if "template_locked" in self.config:
@@ -2166,7 +2207,7 @@ class Pype(object):
         else:  # linux variants
             subprocess.call(("xdg-open", self.config_path))
 
-        self.YFM = utils_lowlevel._YamlFileMonitor(self.config_path, delay)
+        self.YFM = ul._YamlFileMonitor(self.config_path, delay)
         self._log("debug", "Pype: starting config file monitor", 0)
 
     def _check_directory_skip(self, tag, skip_pattern, dir_path):
@@ -2183,7 +2224,7 @@ class Pype(object):
         for pattern in skip_pattern:
             file_pattern.append(pattern + "_" + tag)
 
-        filepaths, duplicates = utils_lowlevel._file_walker(
+        filepaths, duplicates = ul._file_walker(
             dir_path,
             include=file_pattern,
             include_all=False,
@@ -2281,7 +2322,7 @@ class Pype(object):
         # FEEDBACK 
         
         if flags.execute and not self.flags.dry_run:
-            new_pype_msg = utils_lowlevel._pprint_fill_hbar("| new pype iteration |", ret=True)
+            new_pype_msg = ul._pprint_fill_hbar("| new pype iteration |", ret=True)
             self._log("info", new_pype_msg, 0) 
             
         # =============================================================================
@@ -2422,7 +2463,7 @@ class Pype(object):
 
                 ## create ANNOTATION string and add to config
                 if annotation_args:
-                    annotation_args = utils_lowlevel._yaml_flow_style(annotation_args)
+                    annotation_args = ul._yaml_flow_style(annotation_args)
                     method_args_updated = {"ANNOTATION": annotation_args}
                     method_args_updated.update(method_args)
                     self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
@@ -2480,7 +2521,7 @@ class Pype(object):
         # =============================================================================
 
         if not self.config_updated == self.config:
-            utils_lowlevel._save_yaml(self.config_updated, self.config_path)
+            ul._save_yaml(self.config_updated, self.config_path)
             self._log("debug", "Pype: Updating config; applying staged changes", 0)
 
         if flags.autoshow and flags.execute:
@@ -2494,14 +2535,14 @@ class Pype(object):
                 # FEEDBACK 
         
                 closing_msg_list = []
-                closing_msg_list.append( utils_lowlevel._pprint_fill_hbar("| finished pype iteration |", ret=True))
+                closing_msg_list.append( ul._pprint_fill_hbar("| finished pype iteration |", ret=True))
                 if flags.autoshow:
-                    closing_msg_list.append( utils_lowlevel._pprint_fill_hbar("(End with Ctrl+Enter or re-run with Enter)", ret=True))
+                    closing_msg_list.append( ul._pprint_fill_hbar("(End with Ctrl+Enter or re-run with Enter)", ret=True))
                 self._log("info", closing_msg_list, 0)
                 
                 # =============================================================================
         
-                self.gui = utils_lowlevel._GUI(self.container.canvas, zoom_memory=self.flags.zoom_memory, pype_mode=True)
+                self.gui = ul._GUI(self.container.canvas, zoom_memory=self.flags.zoom_memory, pype_mode=True)
                 self.flags.terminate = self.gui.flags.end_pype
                 
             except Exception as ex:
@@ -2509,6 +2550,6 @@ class Pype(object):
                 self._log("error", error_msg, 1)
         else:
             if flags.execute:
-                closing_msg = utils_lowlevel._pprint_fill_hbar("| finished pype iteration |", ret=True)
+                closing_msg = ul._pprint_fill_hbar("| finished pype iteration |", ret=True)
                 self._log("info", closing_msg, 0)
                 self.flags.terminate = True
