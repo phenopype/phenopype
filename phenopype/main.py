@@ -52,6 +52,469 @@ ruamel.yaml.Representer.add_representer(
 
 #%% classes
 
+class Project_labelling:
+    
+    def __init__(
+            self, 
+            root_dir, 
+            load=True, 
+            overwrite=False,
+            ask=True,
+            ):
+
+        ## set flags
+        flags = make_dataclass(
+            cls_name="flags",
+            fields=[("load", bool, load), 
+                    ("overwrite", bool, overwrite),
+                    ("checked", bool, False),
+                    ("ask", bool, ask),
+
+                    ],
+        )
+
+        ## path conversion
+        root_dir = root_dir.replace(os.sep, "/")
+        root_dir = os.path.abspath(root_dir)
+
+        print("--------------------------------------------")
+        while True:
+            if os.path.isdir(root_dir):
+                if all(
+                    [
+                        "attributes.yaml" in os.listdir(root_dir),
+                        "data" in os.listdir(root_dir),
+                    ]
+                ):
+                    if flags.load and not flags.overwrite:
+                        print(
+                            "Found existing project root directory - loading from:\n"
+                            + root_dir
+                        )
+                        break
+                    elif not flags.load and flags.overwrite:
+                        pass
+                    elif flags.load and flags.overwrite:
+                        print(
+                            "Found existing phenopype project directory at:\n{}\n".format(
+                                root_dir
+                            )
+                        )
+                        time.sleep(1)
+                        query1 = input("overwrite (y/n)?")
+                        if query1 in settings.confirm_options:
+                            pass
+                        else:
+                            print(
+                                'Aborted - project "{}" not overwritten'.format(
+                                    os.path.basename(root_dir)
+                                )
+                            )
+                            return
+                    shutil.rmtree(root_dir, onerror=ul._del_rw)
+                    os.makedirs(root_dir)
+                    os.makedirs(os.path.join(root_dir, "data"))
+                    print('\n"' + root_dir + '" created (overwritten)')
+                    break
+                else:
+                    print(
+                        "Directory is neither empty nor a valid phenopype directory - aborting."
+                    )
+                    return
+            else:
+                print(
+                    "Creating a new phenopype project directory at:\n" + root_dir + "\n"
+                )
+                if flags.ask:
+                    query2 = input("Proceed? (y/n)\n")
+                else:
+                    query2 = "y"
+                if query2 in settings.confirm_options:
+                    os.makedirs(root_dir)
+                    os.makedirs(os.path.join(root_dir, "data"))
+                    break
+                else:
+                    print('\n"' + root_dir + '" not created!')
+                    return
+
+        # ## read directories
+        # dir_names_counted, dir_paths = os.listdir(os.path.join(root_dir, "data")), []
+        # for file_path in os.listdir(os.path.join(root_dir, "data")):
+        #     dir_paths.append(os.path.join(root_dir, "data", file_path))
+
+        ## global project attributes
+        project_attributes_path = os.path.join(root_dir, "attributes.yaml")
+        if not os.path.isfile(project_attributes_path):
+            project_attributes = {
+                "project_info": {
+                    "date_created": datetime.today().strftime(settings.strftime_format),
+                    "date_changed": datetime.today().strftime(settings.strftime_format),
+                    "phenopype_version": __version__,
+                },
+                "project_data": {
+                    "source_dirs": [],
+                    "data_files": {},
+                    },
+            }
+            ul._save_yaml(
+                project_attributes, os.path.join(root_dir, "attributes.yaml")
+            )
+            print(
+                '\nProject "{}" successfully created.'.format(
+                    os.path.basename(root_dir)
+                )
+            )
+        else:
+            project_attributes = ul._load_yaml(project_attributes_path)
+            
+
+                
+            # if len(dir_names_counted) > 0:
+            #     print('\nProject "{}" successfully loaded with {} images'.format(
+            #             os.path.basename(root_dir), len(dir_paths)
+            #         ))
+            # else:
+            #     print('\nProject "{}" successfully loaded, but it didn\'t contain any images!'.format(
+            #             os.path.basename(root_dir)
+            #         ))
+
+        print("--------------------------------------------")
+
+        ## attach to instance
+        self.root_dir = root_dir
+        # self.dir_paths = dir_paths
+        # if flags.checked:
+        #     self.file_names = file_names_attr
+        #     self.dir_names = dir_names_attr
+        # else:
+        #     self.file_names = []
+        #     self.dir_names = []
+        
+        ## add attributes
+        self.attributes = project_attributes
+        self.attributes_path = project_attributes_path
+
+        # self.file_names, self.file_paths = [], []
+        # for dir_path in self.dir_paths:
+        #     attributes = ul._load_yaml(os.path.join(dir_path, "attributes.yaml"))
+        #     self.file_paths.append(attributes["image_phenopype"]["filepath"])
+        #     self.file_names.append(attributes["image_phenopype"]["filename"])          
+
+    
+      def add_files(
+          self,
+          image_dir,
+          filetypes=settings.default_filetypes,
+          include=[],
+          include_all=True,
+          exclude=[],
+          mode="copy",
+          n_max=None,
+          nested=False,
+          image_format=None,
+          recursive=False,
+          overwrite=False,
+          resize_factor=1,
+          resize_max_dim=None,
+          unique="path",
+          **kwargs
+      ):
+          """
+          Add files to your project from a directory, can look recursively. 
+          Specify in- or exclude arguments, filetypes, duplicate-action and copy 
+          or link raw files to save memory on the harddrive. For each found image,
+          a folder will be created in the "data" folder within the projects root
+          directory. If found images are in subfolders and "recursive==True", 
+          the respective phenopype directories will be created with 
+          flattened path as prefix. 
+          
+          E.g., with "raw_files" as folder with the original image files 
+          and "phenopype_proj" as rootfolder:
+          
+          - raw_files/file.jpg ==> phenopype_proj/data/file.jpg
+          - raw_files/subdir1/file.jpg ==> phenopype_proj/data/1__subdir1__file.jpg
+          - raw_files/subdir1/subdir2/file.jpg ==> phenopype_proj/data/2__subdir1__subdir2__file.jpg
+      
+          Parameters
+          ----------
+          image_dir: str 
+              path to directory with images
+          filetypes: list or str, optional
+              single or multiple string patterns to target files with certain endings.
+              "settings.default_filetypes" are configured in settings.py: 
+              ['jpg', 'JPG', 'jpeg', 'JPEG', 'tif', 'png', 'bmp']
+          include: list or str, optional
+              single or multiple string patterns to target certain files to include
+          include_all (optional): bool,
+              either all (True) or any (False) of the provided keywords have to match
+          exclude: list or str, optional
+              single or multiple string patterns to target certain files to exclude - 
+              can overrule "include"
+          recursive: (optional): bool,
+              "False" searches only current directory for valid files; "True" walks 
+              through all subdirectories
+          unique: {"file_path", "filename"}, str, optional:
+              how to deal with image duplicates - "file_path" is useful if identically 
+              named files exist in different subfolders (folder structure will be 
+              collapsed and goes into the filename), whereas filename will ignore 
+              all similar named files after their first occurrence.
+          mode: {"copy", "mod", "link"} str, optional
+              how should the raw files be passed on to the phenopype directory tree: 
+              "copy" will make a copy of the original file, "mod" will store a 
+              .tif version of the orginal image that can be resized, and "link" 
+              will only store the link to the original file location to attributes, 
+              but not copy the actual file (useful for big files, but the orginal 
+              location needs always to be available)
+          overwrite: {"file", "dir", False} str/bool (optional)
+              "file" will overwrite the image file and modify the attributes accordingly, 
+              "dir" will  overwrite the entire image directory (including all meta-data
+              and results!), False will not overwrite anything
+          ext: {".tif", ".bmp", ".jpg", ".png"}, str, optional
+              file extension for "mod" mode
+          resize_factor: float, optional
+              
+          kwargs: 
+              developer options
+          """
+    
+          # kwargs
+          flags = make_dataclass(
+              cls_name="flags",
+              fields=[
+                  ("mode", str, mode),
+                  ("recursive", bool, recursive),
+                  ("overwrite", bool, overwrite),
+              ],
+          )
+        
+          ## path conversion
+          image_dir = image_dir.replace(os.sep, "/")
+          image_dir = os.path.abspath(image_dir)
+    
+          ## collect filepaths
+          filepaths, duplicates = ul._file_walker(
+              directory=image_dir,
+              recursive=recursive,
+              unique=unique,
+              filetypes=filetypes,
+              exclude=exclude,
+              include=include,
+              include_all=include_all,
+          )
+    
+          ## feedback
+          print("--------------------------------------------")
+          print("phenopype will search for image files at\n")
+          print(image_dir)
+          print("\nusing the following settings:\n")
+          print(
+              "filetypes: "
+              + str(filetypes)
+              + ", include: "
+              + str(include)
+              + ", exclude: "
+              + str(exclude)
+              + ", mode: "
+              + str(flags.mode)
+              + ", recursive: "
+              + str(flags.recursive)
+              + ", resize: "
+              + str(flags.resize)
+              + ", unique: "
+              + str(unique)
+              + "\n"
+          )
+          
+          ## subnsetting
+          n_total_found = len(filepaths)
+          if not n_max.__class__.__name__ == "NoneType":
+              n_cut = min(n_max, n_total_found)
+              filepaths = filepaths[:n_cut]
+              n_max = str(n_max)
+          else:
+              n_max = "all"
+              
+          ## loop through files
+          filenames = []
+          for file_path in filepaths:
+              
+              ## image name and extension
+              image_name = os.path.basename(file_path)
+              image_name_stem = os.path.splitext(image_name)[0]
+              image_ext = os.path.splitext(image_name)[1]
+              filenames.append(image_name)
+    
+              ## generate folder paths by flattening nested directories; one
+              ## folder per file
+              relpath = os.path.relpath(file_path, image_dir)
+              depth = relpath.count("\\")
+              relpath_flat = os.path.dirname(relpath).replace("\\", "__")
+              if depth > 0:
+                  subfolder_prefix = str(depth) + "__" + relpath_flat + "__"
+              else:
+                  subfolder_prefix = str(depth) + "__"
+                  
+              ## check if image exists
+              if image_name in self.file_names:
+                  image_idx = self.file_names.index(image_name)
+                  dir_name = (subfolder_prefix + image_name_stem)
+                  dir_path = self.dir_paths[image_idx]
+              else:
+                  dir_name = (subfolder_prefix + image_name_stem)
+                  dir_path = os.path.join(self.root_dir, "data", dir_name)
+                  
+              ## make image-specific directories
+              if os.path.isdir(dir_path):
+                  if flags.overwrite == False:
+                      print(
+                          "Found image "
+                          + relpath
+                          + " - "
+                          + dir_name
+                          + " already exists (overwrite=False)"
+                      )
+                      continue
+                  elif flags.overwrite in ["file", "files", "image", True]:
+                      pass
+                  elif flags.overwrite == "dir":
+                      shutil.rmtree(
+                          dir_path, ignore_errors=True, onerror=ul._del_rw
+                      )
+                      print(
+                          "Found image "
+                          + relpath
+                          + " - "
+                          + "phenopype-project folder "
+                          + dir_name
+                          + ' created (overwrite="dir")'
+                      )
+                      os.mkdir(dir_path)
+              else:
+                  print(
+                      "Found image "
+                      + relpath
+                      + " - "
+                      + "phenopype-project folder "
+                      + dir_name
+                      + " created"
+                  )
+                  os.mkdir(dir_path)
+                  
+              ## generate image attributes
+              image_data_original = ul._load_image_data(file_path)
+              image_data_phenopype = {
+                  "date_added": datetime.today().strftime(settings.strftime_format),
+                  "mode": flags.mode,
+              }
+    
+              ## copy or link raw files
+              if flags.mode == "copy":
+                  image_phenopype_path = os.path.join(
+                      self.root_dir, "data", dir_name, image_name_stem + "_copy" + image_ext,
+                  )
+                  shutil.copyfile(file_path, image_phenopype_path)
+                  image_data_phenopype.update(
+                      ul._load_image_data(
+                          image_phenopype_path, path_and_type=False
+                      )
+                  )
+    
+              elif flags.mode == "mod":
+                  image = utils.load_image(file_path)
+                  image = ul._resize_image(
+                      image, 
+                      factor=resize_factor, 
+                      max_dim=resize_max_dim
+                      )
+                  if not image_format.__class__.__name__ == "NoneType":
+                      if not "." in image_format:
+                          ext = "." + image_format
+                  else:
+                      ext = image_ext
+                  image_phenopype_path = os.path.join(
+                      self.root_dir, "data", dir_name, image_name_stem + "_mod" + ext,
+                  )
+                  if all([
+                          os.path.isfile(image_phenopype_path),
+                          flags.overwrite in ["file", "files", "image", True]
+                          ]):
+                      print(
+                          "Found image "
+                          + relpath
+                          + " - "
+                          + "overwriting image and attributes in "
+                          + dir_name
+                          + ' (overwrite={})'.format(flags.overwrite)
+                      )
+                  cv2.imwrite(image_phenopype_path, image)
+                  image_data_phenopype.update(
+                      {"resize": flags.resize, "resize_factor": resize_factor,}
+                  )
+                  image_data_phenopype.update(
+                      ul._load_image_data(
+                          image_phenopype_path, path_and_type=False
+                      )
+                  )
+    
+              elif flags.mode == "link":                
+                  image_phenopype_path = os.path.relpath(file_path, start=dir_path)
+                  image_data_phenopype.update(
+                      ul._load_image_data(
+                          image_path=file_path, 
+                          image_rel_path=image_phenopype_path,
+                          path_and_type=True
+                          )
+                      )
+                  if all([
+                          os.path.isfile(os.path.join(dir_path, "attributes.yaml")),
+                          flags.overwrite in ["file", "files", "image", True]
+                          ]):
+                      print(
+                          "Found image "
+                          + relpath
+                          + " - "
+                          + "overwriting attributes in "
+                          + dir_name
+                          + ' (overwrite={})'.format(flags.overwrite)
+                      )
+    
+              ## write attributes file
+              attributes = {
+                  "image_original": image_data_original,
+                  "image_phenopype": image_data_phenopype,
+              }
+              ul._save_yaml(
+                  attributes, os.path.join(dir_path, "attributes.yaml")
+              )
+    
+          ## list dirs in data and add to project-attributes file in project root
+          project_attributes = ul._load_yaml(
+              os.path.join(self.root_dir, "attributes.yaml")
+          )
+          if any([flags.overwrite,
+                  project_attributes["project_data"].__class__.__name__ in ["CommentedSeq","list"]]):
+              project_attributes["project_data"] = {}
+              
+          project_attributes["project_data"]["filenames"] = filenames
+          project_attributes["project_data"]["dirnames"] =  os.listdir(os.path.join(self.root_dir, "data"))
+          
+          ul._save_yaml(
+              project_attributes, 
+              os.path.join(self.root_dir, "attributes.yaml")
+          )
+    
+          ## add dirlists to project object (always overwrite)
+          dir_names = os.listdir(os.path.join(self.root_dir, "data"))
+          dir_paths = []
+          for dir_name in dir_names:
+              dir_paths.append(os.path.join(self.root_dir, "data", dir_name))
+          self.dir_names = dir_names
+          self.dir_paths = dir_paths
+    
+          print("\nFound {} files - using {}".format(n_total_found, n_max))
+          print("--------------------------------------------")
+
+
 
 class Project:
     """
