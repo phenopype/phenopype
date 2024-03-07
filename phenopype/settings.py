@@ -1,52 +1,10 @@
 #%% load modules
 
 import cv2
-import numpy as np
 
 from pprint import PrettyPrinter
 
-
-#%% helper-class
-
-# from importlib.resources import path
-# from pathlib import Path, PurePath
-
-# ## create template browser
-# class TemplateList:
-#     def __init__(self, root_path):
-#         for folder_path in list(Path(root_path).glob('[!__]*')):
-#             setattr(self, PurePath(folder_path).name, TemplateFolder(folder_path))
-#     def __repr__(self):
-#         no_repr_items = []
-#         dict_cleaned = {x: self.__dict__[x] for x in self.__dict__ if x not in no_repr_items}
-#         attrs = "\n".join("pype_templates.{} ({} files)".format(k, v.n_templates) for k, v in dict_cleaned.items())
-#         return "Default Pype-templates:\n\n{}".format(attrs)
-
-# class TemplateFolder:
-#     def __init__(self, folder_path):
-#         self.name = PurePath(folder_path).name
-#         self.n_templates = len(list(Path(folder_path).glob('[!__]*')))
-#         for file_path in list(Path(folder_path).glob('[!__]*')):
-#             setattr(self, PurePath(file_path).stem, Template(file_path))
-#     def __repr__(self):
-#         no_repr_items = ["name","n_templates"]
-#         dict_cleaned = {x: self.__dict__[x] for x in self.__dict__ if x not in no_repr_items}
-#         attrs = "\n".join("pype_templates.{}.{}".format(self.name, k) for k, v in dict_cleaned.items())
-#         return "Pype-templates in folder {}:\n\n{}".format(self.name, attrs)
-
-# class Template:
-#     def __init__(self, file_path):
-#         self.name = PurePath(file_path).stem
-#         self.path = str(PurePath(file_path))
-#         self.processing_steps = utils_lowlevel._load_yaml(file_path)
-#     def __repr__(self):
-#         return "Pype-template \"{}\":\n\n{}".format(self.name,
-#                                                     utils_lowlevel._show_yaml(
-#                                                         self.processing_steps, ret=True))
-
-# ## import
-# with path(__package__, 'templates') as template_dir:
-#     pype_templates = TemplateList(template_dir)
+from phenopype import _config
 
 #%% defaults
 
@@ -274,7 +232,9 @@ _GUI_data_args = [
     ]
 
 
-#%% legacy fun-names
+#%% legacy 
+
+flag_verbose = _config.verbose
 
 _legacy_names = {
     "preprocessing": {

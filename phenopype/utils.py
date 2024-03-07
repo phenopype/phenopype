@@ -699,7 +699,6 @@ def save_image(
     image,
     file_name,
     dir_path,
-    resize=1,
     suffix=None,
     ext=None,
     overwrite=False,
@@ -721,8 +720,6 @@ def save_image(
         file extension to save image as
     overwrite: boo, optional
         overwrite images if name exists
-    resize: float, optional
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
         original size).
     kwargs:
         developer options
@@ -759,6 +756,7 @@ def save_image(
         print_msg, saved = None, None
         if os.path.isfile(file_path) and flag_overwrite == False:
             print_msg = "- image not saved - file already exists (overwrite=False)."
+            saved = None
             break
         elif os.path.isfile(file_path) and flag_overwrite == True:
             print_msg = "- image saved under " + file_path + " (overwritten)."
@@ -768,7 +766,8 @@ def save_image(
             pass
         
         saved = cv2.imwrite(file_path, image)
-
+        break
+    
     ul._print(print_msg)
     
     return saved

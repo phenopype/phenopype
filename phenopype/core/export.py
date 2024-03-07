@@ -646,6 +646,7 @@ def save_ROI(
     file_name,
     channel="raw",
     counter=True,
+    which="all",
     suffix=None,
     rotate=False,
     rotate_padding=5,
@@ -720,6 +721,19 @@ def save_ROI(
     )
 
     data = annotation["data"][annotation_type]
+
+    if which == "max":
+        area = list()
+        for idx, roi_coords in enumerate(data):
+    
+            if annotation_type == settings._mask_type:
+                coords = ul._convert_tup_list_arr(roi_coords)[0]
+            else:
+                coords = copy.deepcopy(roi_coords)
+        
+            area.append(int(cv2.contourArea(coords)))
+        
+            data = [data[area.index(max(area))]]
     
     if not channel=="raw":
         image = preprocessing.decompose_image(image, channel, **kwargs)
@@ -868,7 +882,15 @@ def save_ROI(
         else:
             return roi, roi_mask
 
-def save_canvas(image, dir_path, file_name="canvas", **kwargs):
+def save_canvas(
+        image, 
+        dir_path, 
+        file_name="canvas", 
+        ext="jpg",
+        resize=0.5,
+        overwrite=True,
+        **kwargs,
+        ):
     """
 
 
@@ -880,16 +902,16 @@ def save_canvas(image, dir_path, file_name="canvas", **kwargs):
         A suffix to be appended to the filename.
     dir_path : str
         Path to directory to save canvas.
+    resize: float, optional
+        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of
 
     Returns
     -------
     None.
 
     """
-
-    ext = kwargs.get("ext", ".jpg")
-    resize = kwargs.get("resize", 0.5)
-    overwrite = kwargs.get("overwrite", True)
+    
+    image = ul._resize_image(image, resize)
 
     utils.save_image(
         image=image,

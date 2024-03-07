@@ -203,6 +203,7 @@ class Project_labelling:
                 print("- all files found!")   
     
     def add_files(
+<<<<<<< Updated upstream
         self,
         image_dir,
         filetypes=settings.default_filetypes,
@@ -223,6 +224,92 @@ class Project_labelling:
         directory. If found images are in subfolders and "recursive==True", 
         the respective phenopype directories will be created with 
         flattened path as prefix. 
+=======
+          self,
+          image_dir,
+          filetypes=settings.default_filetypes,
+          include=[],
+          include_all=True,
+          exclude=[],
+          mode="copy",
+          n_max=None,
+          nested=False,
+          image_format=None,
+          recursive=False,
+          overwrite=False,
+          resize_factor=1,
+          resize_max_dim=None,
+          unique="path",
+          **kwargs
+      ):
+          """
+          Add files to your project from a directory, can look recursively. 
+          Specify in- or exclude arguments, filetypes, duplicate-action and copy 
+          or link raw files to save memory on the harddrive. For each found image,
+          a folder will be created in the "data" folder within the projects root
+          directory. If found images are in subfolders and "recursive==True", 
+          the respective phenopype directories will be created with 
+          flattened path as prefix. 
+          
+          E.g., with "raw_files" as folder with the original image files 
+          and "phenopype_proj" as rootfolder:
+          
+          - raw_files/file.jpg ==> phenopype_proj/data/file.jpg
+          - raw_files/subdir1/file.jpg ==> phenopype_proj/data/1__subdir1__file.jpg
+          - raw_files/subdir1/subdir2/file.jpg ==> phenopype_proj/data/2__subdir1__subdir2__file.jpg
+      
+          Parameters
+          ----------
+          image_dir: str 
+              path to directory with images
+          filetypes: list or str, optional
+              single or multiple string patterns to target files with certain endings.
+              "settings.default_filetypes" are configured in settings.py: 
+              ['jpg', 'JPG', 'jpeg', 'JPEG', 'tif', 'png', 'bmp']
+          include: list or str, optional
+              single or multiple string patterns to target certain files to include
+          include_all (optional): bool,
+              either all (True) or any (False) of the provided keywords have to match
+          exclude: list or str, optional
+              single or multiple string patterns to target certain files to exclude - 
+              can overrule "include"
+          recursive: (optional): bool,
+              "False" searches only current directory for valid files; "True" walks 
+              through all subdirectories
+          unique: {"file_path", "filename"}, str, optional:
+              how to deal with image duplicates - "file_path" is useful if identically 
+              named files exist in different subfolders (folder structure will be 
+              collapsed and goes into the filename), whereas filename will ignore 
+              all similar named files after their first occurrence.
+          mode: {"copy", "mod", "link"} str, optional
+              how should the raw files be passed on to the phenopype directory tree: 
+              "copy" will make a copy of the original file, "mod" will store a 
+              .tif version of the orginal image that can be resized, and "link" 
+              will only store the link to the original file location to attributes, 
+              but not copy the actual file (useful for big files, but the orginal 
+              location needs always to be available)
+          overwrite: {"file", "dir", False} str/bool (optional)
+              "file" will overwrite the image file and modify the attributes accordingly, 
+              "dir" will  overwrite the entire image directory (including all meta-data
+              and results!), False will not overwrite anything
+          ext: {".tif", ".bmp", ".jpg", ".png"}, str, optional
+              file extension for "mod" mode
+          resize_factor: float, optional
+              
+          kwargs: 
+              developer options
+          """
+    
+          # kwargs
+          flags = make_dataclass(
+              cls_name="flags",
+              fields=[
+                  ("mode", str, mode),
+                  ("recursive", bool, recursive),
+                  ("overwrite", bool, overwrite),
+              ],
+          )
+>>>>>>> Stashed changes
         
     
         Parameters
@@ -1447,6 +1534,7 @@ class Project:
             feedback=True,
             image_links=False,
             new_dir=None,
+            ret_missing=False,
             ):
         """
         Check all project files for completeness by comparing the images in the
@@ -1597,6 +1685,10 @@ class Project:
         else:
             ul._print("project attributes not updated", lvl=2)
         print("--------------------------------------------")    
+        
+        
+        if ret_missing:
+            return filenames_unmatched
         
 
     def collect_results(
@@ -2100,7 +2192,7 @@ class Project:
                 },
             "generic-binary-mask" : {
                 "local": True,
-                "mode": "single-largest", 
+                "mode": "largest", 
                 },
             "keras-cnn-semantic": {
                 }
@@ -2220,6 +2312,9 @@ class Project:
             os.makedirs(image_dir, exist_ok=True)
             os.makedirs(mask_dir, exist_ok=True)
             
+            if framework_parameters["generic-binary-mask"]["mode"] == "largest":
+                which = "max"
+            
             for idx, dirpath in enumerate(self.dir_paths, 1):
                 
                 print(str(idx) + " / " + str(len(self.dir_paths)))
@@ -2235,7 +2330,7 @@ class Project:
                         roi, mask = export.save_ROI(
                             image=image,
                             annotations=annotations,
-                            # contour_id = "b",
+                            which=which,
                             dir_path=None,
                             file_name=None,
                             annotation_type="contour",
