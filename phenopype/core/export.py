@@ -760,6 +760,7 @@ def save_ROI(
             rx, ry, rw, rh = cv2.boundingRect(coords)
             roi = copy.deepcopy(image[ry : ry + rh, rx : rx + rw])
             half_length = 0
+            
         if roi.ndim == 3:
             nlayer = 3
         else:

@@ -203,7 +203,6 @@ class Project_labelling:
                 print("- all files found!")   
     
     def add_files(
-<<<<<<< Updated upstream
         self,
         image_dir,
         filetypes=settings.default_filetypes,
@@ -224,92 +223,6 @@ class Project_labelling:
         directory. If found images are in subfolders and "recursive==True", 
         the respective phenopype directories will be created with 
         flattened path as prefix. 
-=======
-          self,
-          image_dir,
-          filetypes=settings.default_filetypes,
-          include=[],
-          include_all=True,
-          exclude=[],
-          mode="copy",
-          n_max=None,
-          nested=False,
-          image_format=None,
-          recursive=False,
-          overwrite=False,
-          resize_factor=1,
-          resize_max_dim=None,
-          unique="path",
-          **kwargs
-      ):
-          """
-          Add files to your project from a directory, can look recursively. 
-          Specify in- or exclude arguments, filetypes, duplicate-action and copy 
-          or link raw files to save memory on the harddrive. For each found image,
-          a folder will be created in the "data" folder within the projects root
-          directory. If found images are in subfolders and "recursive==True", 
-          the respective phenopype directories will be created with 
-          flattened path as prefix. 
-          
-          E.g., with "raw_files" as folder with the original image files 
-          and "phenopype_proj" as rootfolder:
-          
-          - raw_files/file.jpg ==> phenopype_proj/data/file.jpg
-          - raw_files/subdir1/file.jpg ==> phenopype_proj/data/1__subdir1__file.jpg
-          - raw_files/subdir1/subdir2/file.jpg ==> phenopype_proj/data/2__subdir1__subdir2__file.jpg
-      
-          Parameters
-          ----------
-          image_dir: str 
-              path to directory with images
-          filetypes: list or str, optional
-              single or multiple string patterns to target files with certain endings.
-              "settings.default_filetypes" are configured in settings.py: 
-              ['jpg', 'JPG', 'jpeg', 'JPEG', 'tif', 'png', 'bmp']
-          include: list or str, optional
-              single or multiple string patterns to target certain files to include
-          include_all (optional): bool,
-              either all (True) or any (False) of the provided keywords have to match
-          exclude: list or str, optional
-              single or multiple string patterns to target certain files to exclude - 
-              can overrule "include"
-          recursive: (optional): bool,
-              "False" searches only current directory for valid files; "True" walks 
-              through all subdirectories
-          unique: {"file_path", "filename"}, str, optional:
-              how to deal with image duplicates - "file_path" is useful if identically 
-              named files exist in different subfolders (folder structure will be 
-              collapsed and goes into the filename), whereas filename will ignore 
-              all similar named files after their first occurrence.
-          mode: {"copy", "mod", "link"} str, optional
-              how should the raw files be passed on to the phenopype directory tree: 
-              "copy" will make a copy of the original file, "mod" will store a 
-              .tif version of the orginal image that can be resized, and "link" 
-              will only store the link to the original file location to attributes, 
-              but not copy the actual file (useful for big files, but the orginal 
-              location needs always to be available)
-          overwrite: {"file", "dir", False} str/bool (optional)
-              "file" will overwrite the image file and modify the attributes accordingly, 
-              "dir" will  overwrite the entire image directory (including all meta-data
-              and results!), False will not overwrite anything
-          ext: {".tif", ".bmp", ".jpg", ".png"}, str, optional
-              file extension for "mod" mode
-          resize_factor: float, optional
-              
-          kwargs: 
-              developer options
-          """
-    
-          # kwargs
-          flags = make_dataclass(
-              cls_name="flags",
-              fields=[
-                  ("mode", str, mode),
-                  ("recursive", bool, recursive),
-                  ("overwrite", bool, overwrite),
-              ],
-          )
->>>>>>> Stashed changes
         
     
         Parameters
@@ -2124,7 +2037,8 @@ class Project:
     def export_training_data(
             self, 
             tag,
-            framework, 
+            method,
+            params={},
             folder=None, 
             annotation_id=None, 
             overwrite=False, 
@@ -2138,7 +2052,7 @@ class Project:
         ----------
         tag : str
             The Pype tag from which training data should be extracted.
-        framework :  {"ml-morph"} str
+        method :  {"ml-morph"} str
             For which machine learning framwork should training data be created.
             Currently instructions for the following architectures are supported:
             
@@ -2183,7 +2097,7 @@ class Project:
             os.makedirs(training_data_path)
             print("Created " + training_data_path)
             
-        parameters_defaults = {
+        params_all = {
             "ml-morph": {
                 "export_mask": False,
                 "flip_y": False,
@@ -2193,18 +2107,21 @@ class Project:
             "generic-binary-mask" : {
                 "local": True,
                 "mode": "largest", 
+                "resize": 1,
+                "set_dim": None,
+                "ext": "tif",
                 },
             "keras-cnn-semantic": {
                 }
             }
 
-        framework_parameters = copy.deepcopy(parameters_defaults)
-
+        params_all = copy.deepcopy(params_all)
+        params_all[method].update(params)
 
         # =============================================================================
         ## ml-morph
         
-        if framework=="ml-morph":
+        if method=="ml-morph":
 
             annotation_type = settings._landmark_type
             df_summary = pd.DataFrame()
@@ -2214,12 +2131,12 @@ class Project:
                 return
             
             if not parameters.__class__.__name__ == "NoneType":
-                framework_parameters["ml-morph"].update(parameters["ml-morph"])
+                params["ml-morph"].update(parameters["ml-morph"])
                 
                 
-            flags.export_mask = framework_parameters["ml-morph"]["export_mask"]
-            flags.resize_factor = framework_parameters["ml-morph"]["resize_factor"]
-            flags.flip_y = framework_parameters["ml-morph"]["flip_y"]
+            flags.export_mask = params["ml-morph"]["export_mask"]
+            flags.resize_factor = params["ml-morph"]["resize_factor"]
+            flags.flip_y = params["ml-morph"]["flip_y"]
 
             if flags.export_mask:  
                 img_dir = os.path.join(training_data_path, "images")
@@ -2256,7 +2173,7 @@ class Project:
                     image_height, image_width = image.shape[0:2]
 
                     ## select last mask if no id is given
-                    if framework_parameters["ml-morph"]["mask_id"].__class__.__name__ == "NoneType":
+                    if params["ml-morph"]["mask_id"].__class__.__name__ == "NoneType":
                         mask_id = max(list(annotations[settings._mask_type].keys()))
                         
                     ## get bounding rectangle and crop image to mask coords
@@ -2305,14 +2222,19 @@ class Project:
         # =============================================================================
         ## generic-binary-masks
         
-        if framework=="generic-binary-mask":
+        if method=="generic-binary-mask":
             
+            ## get params
+            params = params_all[method]
+            
+            ## make dirs
             image_dir = os.path.join(folder, "images")
             mask_dir = os.path.join(folder, "masks")
             os.makedirs(image_dir, exist_ok=True)
             os.makedirs(mask_dir, exist_ok=True)
             
-            if framework_parameters["generic-binary-mask"]["mode"] == "largest":
+            
+            if params["mode"] == "largest":
                 which = "max"
             
             for idx, dirpath in enumerate(self.dir_paths, 1):
@@ -2339,8 +2261,8 @@ class Project:
                             training_data=True,
                             )
                 
-                        roi_saved = utils.save_image(roi, file_name, suffix="roi", ext="jpg", dir_path=image_dir)
-                        mask_saved = utils.save_image(mask, file_name, suffix="roi", ext="jpg", dir_path=mask_dir)
+                        roi_saved = utils.save_image(roi, file_name, suffix="roi", ext=params["ext"], dir_path=image_dir)
+                        mask_saved = utils.save_image(mask, file_name, suffix="roi", ext=params["ext"], dir_path=mask_dir)
                     except:
                         print("missing annotation? - skipping")
                 else:
@@ -2349,7 +2271,7 @@ class Project:
         # =============================================================================
         ## keras-cnn-semantic
         
-        if framework=="keras-cnn-semantic":
+        if method=="keras-cnn-semantic":
             
             annotation_type = kwargs.get("annotation_type", "mask")
             
