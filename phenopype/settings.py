@@ -184,6 +184,11 @@ _annotation_functions = {
 
 _annotation_types = list(set(_annotation_functions.values()))
 
+#%% labelling 
+
+ascii_codes = {i: chr(i) for i in range(128)}
+
+
 #%% GUI definitions
 
 ## find better solution

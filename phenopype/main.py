@@ -164,7 +164,7 @@ class Project_labelling:
                 )
             )
         else:
-            project_attributes = ul._load_yaml(project_attributes_path)
+            project_attributes = ul._load_yaml(project_attributes_path, typ="safe")
             
 
         print("--------------------------------------------")
@@ -408,8 +408,6 @@ class Project_labelling:
         **kwargs,
         ):
         
-        
-        
         flags = make_dataclass(
             cls_name="flags",
             fields=[
@@ -419,7 +417,13 @@ class Project_labelling:
                 ],
         )
         
+        self.current = make_dataclass(cls_name="vars", fields=[])
+        
         labels_filepath = os.path.join(self.data_dir, f"{tag}_labels.json")
+        
+        self.config = self.attributes["project_data"]["configurations"][tag]
+        
+        self.current.kwargs = kwargs
         
         # if os.path.isfile(labels_filepath):
         #     if not flags.overwrite_all:
@@ -433,61 +437,67 @@ class Project_labelling:
         ## keeps pumping images unless ended with esc 
         while True:
                                     
-            image_name = images[idx]
-            image_info = self.file_dict[image_name]
-            filepath = image_info["filepath_"+flags.path]
-            image = utils.load_image(filepath)
-            
-            
+            self.current.image_name = images[idx]
+            self.current.image_info = self.file_dict[self.current.image_name]
+            self.current.filepath = self.current.image_info["filepath_"+flags.path]
+            self.current.image = utils.load_image(self.current.filepath)         
+                
             for step_name, step in self.config.items():
                 
                 if step_name == "text":
-                    out = text(image)
+                    out = self._text(self.current.image)
             
+            ## navigate with arrow keys and escape
+            if self.current.keypress == 27:
+                cv2.destroyAllWindows()
+                break
+            elif self.current.keypress == 2424832:
+                flag_arrow = "left"
+                idx -= 1
+                idx = max(idx, 0)
+                continue
+            elif self.current.keypress == 2555904:
+                flag_arrow = "right"
+                idx += 1
+                continue
             
-                    ul._GUI(
-                        image,
-                        window_aspect="normal",
-                        window_name=image_name,
-                        window_control="external",
-                        **kwargs,
-                    )
-                    ## USER ENTRY HERE (waitKey readout) 
-                    self.keypress = cv2.waitKeyEx(0)
-                    cv2.destroyAllWindows()
-                    
-                    ## navigate with arrow keys and escape
-                    if self.keypress == 27:
-                        cv2.destroyAllWindows()
-                        break
-                    elif self.keypress == 2424832:
-                        flag_arrow = "left"
-                        idx -= 1
-                        idx = max(idx, 0)
-                        continue
-                    elif self.keypress == 2555904:
-                        flag_arrow = "right"
-                        idx += 1
-                        continue
-            
-        def text(
-            self,
-            image):
-            
-            print("Bier")
-            pass 
+    def _text(
+        self,
+        image):
         
-        def mask(
-            self,
-            image):
-            
-            pass 
+        ul._GUI(
+            image,
+            wait_time=0,
+            window_aspect="normal",
+            window_name=self.current.image_name,
+            window_control="external",
+            **self.current.kwargs,
+        )
         
-        def comment(
-            self,
-            image):
-            
-            pass 
+        ## USER ENTRY HERE (waitKey readout) 
+        self.current.keypress = cv2.waitKeyEx(0)
+        cv2.destroyAllWindows()
+
+        ## coded keys     
+        if not self.current.keypress in [27, 2424832, 2555904]:
+            key = str(settings.ascii_codes[self.current.keypress])
+            try:
+                label = str(self.config["text"]["keymap"][key])
+                print(label)
+            except:
+                print(f"key {key} not coded!")
+    
+    def _mask(
+        self,
+        image):
+        
+        pass 
+    
+    def _comment(
+        self,
+        image):
+        
+        pass 
 
 class Project:
     """
