@@ -1112,7 +1112,7 @@ def write_comment(
     gui = ul._GUI(
         image,
         tool="comment",
-        label=label,
+        query=label,
         label_size=label_size,
         label_width=label_width,
         label_colour=label_colour,

@@ -25,6 +25,7 @@ from datetime import datetime
 
 import shutil
 from ruamel.yaml.comments import CommentedMap as ordereddict
+from collections import defaultdict, deque
 
 from phenopype import __version__
 from phenopype import _config
@@ -182,9 +183,10 @@ class Project_labelling:
                 ))
         else:
             self.file_dict = {}
-            print('\nLablling project "{}" successfully loaded, but it didn\'t contain any images!'.format(
-                    os.path.basename(root_dir)
-                ))
+            if not flags.overwrite:
+                print('\nLablling project "{}" successfully loaded, but it didn\'t contain any images!'.format(
+                        os.path.basename(root_dir)
+                    ))
 
         if flags.check:
             print("Checking for missing files:")
@@ -316,7 +318,7 @@ class Project_labelling:
             ## image name and extension
             image_name = os.path.basename(filepath)
             
-            if image_name in self.file_dict.keys():
+            if image_name in self.file_dict:
                 if flags.overwrite == False:
                     print(f"Image {image_name} already exists (overwrite=False).")
                     continue
@@ -352,152 +354,170 @@ class Project_labelling:
         else:
             print("- no new files - nothing to save.")
 
-    def add_config(
-        self,
-        tag,
-        config_path,
-        overwrite=False,
-        **kwargs
-    ):
-        """
-        Add pype configuration presets to all image folders in the project, either by using
-        the templates included in the presets folder, or by adding your own templates
-        by providing a path to a yaml file. Can be tested and modified using the 
-        interactive flag before distributing the config files.
-    
-        Parameters
-        ----------
-    
-        tag: str
-            tag of config-file. this gets appended to all files and serves as and
-            identifier of a specific analysis pipeline
-        template_path: str, optional
-            path to a template or config-file in yaml-format
-        overwrite: bool, optional
-            overwrite option, if a given pype config-file already exist
-        kwargs: 
-            developer options
-        """
-    
-        # =============================================================================
-        ## setup
-    
-        flags = make_dataclass(
-            cls_name="flags",
-            fields=[
-                ("overwrite", bool, overwrite),
-                ],
-        )
-    
-        ## check tag sanity
-        ul._check_pype_tag(tag)
-        
-        config = ul._load_yaml(config_path, typ="safe")
-
-        self.attributes["project_data"]["configurations"] = {}
-        self.attributes["project_data"]["configurations"][tag] = config
-        
-        ul._save_yaml(self.attributes, os.path.join(self.root_dir, "attributes.yaml"))
 
 
     def run(
         self,
         tag,
+        config_path,
         overwrite=False,
-        path="abs",
+        image_path="abs",
         **kwargs,
         ):
+
+        # =============================================================================
+        # setup
         
         flags = make_dataclass(
             cls_name="flags",
             fields=[
                 ("overwrite", bool, overwrite),
-                ("overwrite_all", bool, kwargs.get("overwrite_all", False)),
-                ("path", str, path),
+                ("image_path", str, image_path),
                 ],
         )
         
-        self.current = make_dataclass(cls_name="vars", fields=[])
-        
-        labels_filepath = os.path.join(self.data_dir, f"{tag}_labels.json")
-        
-        self.config = self.attributes["project_data"]["configurations"][tag]
-        
+        self.tag = tag
+        self.config = ul._load_yaml(config_path, typ="safe")       
+        self.labels_filepath = os.path.join(self.data_dir, f"{tag}_labels.json")
+
+        self.current = make_dataclass(cls_name="vars", fields=[])     
         self.current.kwargs = kwargs
         
-        # if os.path.isfile(labels_filepath):
-        #     if not flags.overwrite_all:
-        #         with open(labels_filepath, "r") as file:
-        #             labels = json.load(labels_filepath)
-            
-        
-        idx = 0
+        if os.path.isfile(self.labels_filepath):
+            with open(self.labels_filepath, "r") as file:
+                self.labels = json.load(file)
+        else:
+            self.labels = {}
+
+        self.idx = 0
         images = list(self.file_dict)
+        
+        # =============================================================================
+        # run
 
         ## keeps pumping images unless ended with esc 
         while True:
-                                    
-            self.current.image_name = images[idx]
+                                                
+            ## navigation
+            self.current.image_name = images[self.idx]
             self.current.image_info = self.file_dict[self.current.image_name]
-            self.current.filepath = self.current.image_info["filepath_"+flags.path]
+            self.current.filepath = self.current.image_info["filepath_" + flags.image_path]
             self.current.image = utils.load_image(self.current.filepath)         
-                
+            
+            ## fetch label
+            if self.current.image_name in self.labels:
+                self.label = self.labels[self.current.image_name] 
+            else:
+                self.label = defaultdict(dict)
+            
+            ## go through config
             for step_name, step in self.config.items():
-                
                 if step_name == "text":
-                    out = self._text(self.current.image)
+                    self._text(self.current.image)
+                if step_name == "mask":
+                    self._mask(self.current.image)
             
-            ## navigate with arrow keys and escape
-            if self.current.keypress == 27:
-                cv2.destroyAllWindows()
-                break
-            elif self.current.keypress == 2424832:
-                flag_arrow = "left"
-                idx -= 1
-                idx = max(idx, 0)
-                continue
-            elif self.current.keypress == 2555904:
-                flag_arrow = "right"
-                idx += 1
-                continue
+                ## navigate with arrow keys and escape
+                if self.current.keypress == 27:
+                    cv2.destroyAllWindows()
+                    self._save()
+                    sys.exit()
+                elif self.current.keypress == 2424832:
+                    self.idx -= 1
+                    self.idx = max(self.idx, 0)
+                    break
+                elif self.current.keypress == 2555904:
+                    self.idx += 1
+                    self.idx = min(self.idx, len(images))
+                    break
             
-    def _text(
-        self,
-        image):
-        
-        ul._GUI(
+    def _text(self, image):
+                
+        if "text" in self.label:   
+            cat, lab = self.label["text"]["category"], self.label["text"]["label"]
+        else:   
+            cat, lab = self.config["text"]["category"], ""
+            
+        gui_data = {settings._comment_type: lab}
+   
+        gui = ul._GUI(
             image,
-            wait_time=0,
             window_aspect="normal",
-            window_name=self.current.image_name,
-            window_control="external",
+            window_name="labelling-tool",
+            tool="labelling",
+            query=cat,
+            label_keymap=self.config["text"]["keymap"],
+            data=gui_data,
             **self.current.kwargs,
         )
         
-        ## USER ENTRY HERE (waitKey readout) 
-        self.current.keypress = cv2.waitKeyEx(0)
-        cv2.destroyAllWindows()
-
-        ## coded keys     
+        self.current.keypress = gui.keypress 
         if not self.current.keypress in [27, 2424832, 2555904]:
-            key = str(settings.ascii_codes[self.current.keypress])
-            try:
-                label = str(self.config["text"]["keymap"][key])
-                print(label)
-            except:
-                print(f"key {key} not coded!")
+            lab = gui.data[settings._comment_type]
+            self.label["text"]["category"], self.label["text"]["label"] = cat, lab
+            self.labels[self.current.image_name] = self.label     
+            self.idx += 1
     
-    def _mask(
-        self,
-        image):
+    def _mask(self,image):
         
-        pass 
-    
+       
+        cat = self.config["mask"]["category"], 
+        tool = self.config["mask"]["tool"]
+        self.current.kwargs.update(self.config["mask"]["options"])
+
+        gui = ul._GUI(
+            image,
+            window_aspect="normal",
+            window_name="labelling-tool",
+            tool=tool,
+            labelling=True,
+            **self.current.kwargs,
+        )
+        
+        self.current.keypress = gui.keypress 
+        if not self.current.keypress in [27, 2424832, 2555904]:
+            print(gui.data)
+            self.idx += 1    
+            
     def _comment(
         self,
         image):
         
         pass 
+    
+    def _save(self):
+        
+       
+        if os.path.exists(self.labels_filepath):
+            
+            labels_filepath_temp = self.labels_filepath + '.temp'
+            with open(labels_filepath_temp, 'w') as temp_file:
+                json.dump(self.labels, temp_file, indent=4)
+        
+            # Create up to three backups of the original file
+            backup_dir = os.path.dirname(self.labels_filepath)
+            backup_prefix = os.path.basename(self.labels_filepath) + '_backup_'
+            backups = deque(sorted(filter(lambda x: x.startswith(backup_prefix), os.listdir(backup_dir))))
+        
+            # Create a backup of the original file with the current datetime
+            current_datetime = datetime.now().strftime('%Y%m%d_%H%M%S')
+            shutil.copy(self.labels_filepath, os.path.join(backup_dir, f'{backup_prefix}{current_datetime}'))
+        
+            # Remove the oldest backup if more than three backups exist
+            while len(backups) >= 3:
+                oldest_backup = backups.popleft()
+                os.remove(os.path.join(backup_dir, oldest_backup))
+                        
+            # Atomically move the temporary file to the target file
+            shutil.move(labels_filepath_temp, self.labels_filepath)
+    
+        else:
+            # Write the dictionary directly to the target file
+            with open(self.labels_filepath, 'w') as temp_file:
+                json.dump(self.labels, temp_file, indent=4)
+        
+    
+
 
 class Project:
     """

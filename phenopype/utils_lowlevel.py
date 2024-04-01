@@ -5,9 +5,10 @@ import inspect
 import json
 import logging
 import numpy as np
-from dataclasses import make_dataclass
+from dataclasses import make_dataclass, fields, replace
 import string
 import re
+import time
 from _ctypes import PyObj_FromPtr
 from colour import Color
 
@@ -62,7 +63,7 @@ class _GUI:
     ):
 
         """
-        Low level interactive image function.
+        Low level interactive image viewer class.
         
         Future versions of phenopype will feature a more clean and userfriendly
         code structure.
@@ -71,6 +72,7 @@ class _GUI:
         ----------
 
         """        
+        
         ## kwargs (improve: use dictionary from config)
         if kwargs.get("window_max_dim"):
             window_max_dim = kwargs.get("window_max_dim")
@@ -86,7 +88,7 @@ class _GUI:
 
         ## basic settings
         self.tool = tool
-        self.label = kwargs.get("label", None)
+        self.query = kwargs.get("query", None)
 
         ## data collector
         self.data = {
@@ -105,6 +107,9 @@ class _GUI:
             and len(self.data[settings._comment_type]) == 0
         ):
             self.data[settings._comment_type] = ""
+            
+        if kwargs.get("labelling"):
+            print("BIER")
 
         ## GUI settings
         self.settings = make_dataclass(cls_name='settings', fields=[
@@ -115,7 +120,7 @@ class _GUI:
             ('label_width', int, kwargs.get('label_width',_auto_text_width(image))),
             
             ('show_nodes', bool, kwargs.get('show_nodes', False)),
-            ('node_colour', tuple, _get_bgr(kwargs.get('node_colour',settings._default_point_colour))),
+            ('node_colour', tuple, kwargs.get('node_colour',settings._default_point_colour)),
             ('node_size', int, kwargs.get('node_size', _auto_point_size(image))),
             
             ('line_colour', tuple, kwargs.get('line_colour', settings._default_line_colour)),
@@ -147,6 +152,12 @@ class _GUI:
             ('window_name', str, window_name),
             
             ])
+        
+        ## convert color strings to tuple
+        for field in fields(self.settings):
+            if "colour" in field.name:
+                if type(field.default) == str:
+                    setattr(self.settings, field.name, _get_bgr(field.default))
 
         ## collect interactions and set flags
         self.line_width_orig = copy.deepcopy(self.settings.line_width)
@@ -160,7 +171,7 @@ class _GUI:
                 ("rect_start", tuple, None),
             ],
         )
-
+        
         # =============================================================================
         # initialize variables
         # =============================================================================
@@ -299,6 +310,28 @@ class _GUI:
 
         ## local control vars
         _config.window_close = False
+        
+        ## prep labelling tool
+        if self.tool == "labelling":
+            self.keymap = kwargs.get("label_keymap")
+        
+        # =============================================================================
+        # labelling tool
+        # =============================================================================
+        
+        if self.tool == "labelling":
+            
+            self.canvas = copy.deepcopy(self.canvas_copy)
+            cv2.putText(
+                self.canvas,
+                str(self.query) + ": " + str(self.data[settings._comment_type]),
+                (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.settings.label_size,
+                self.settings.label_colour,
+                self.settings.label_width,
+                cv2.LINE_AA,
+            )
 
         # =============================================================================
         # window control
@@ -331,27 +364,31 @@ class _GUI:
 
                         ## directly return key input
                         if self.settings.return_input:
-                            self.keypress = cv2.waitKey(0)
+                            self.keypress = cv2.waitKeyEx(0)
                             self._keyboard_input()
                             self.flags.end = True
                             cv2.destroyAllWindows()
 
                         ## comment tool
                         if self.tool == "comment":
-                            self.keypress = cv2.waitKey(1)
+                            self.keypress = cv2.waitKeyEx(0)
                             self._comment_tool()
+                        if self.tool == "labelling":
+                            self.keypress = cv2.waitKeyEx(0)
+                            self._labelling_tool()
                         else:
-                            self.keypress = cv2.waitKey(self.settings.wait_time)
+                            self.keypress = cv2.waitKeyEx(self.settings.wait_time)
                             
                         ## draw nodes
-                        if self.tool in ["rectangle", "polygon", "polyline"] and self.settings.show_nodes:
-                            for coord_list in self.data[settings._coord_list_type]:
-                                self._canvas_draw(
-                                    tool="point", 
-                                    coord_list=coord_list,
-                                    size=self.settings.node_size,
-                                    colour=self.settings.node_colour,
-                                    )
+                        if self.tool in ["rectangle", "polygon", "polyline"]:
+                            if self.settings.show_nodes:
+                                for coord_list in self.data[settings._coord_list_type]:
+                                    self._canvas_draw(
+                                        tool="point", 
+                                        coord_list=coord_list,
+                                        size=self.settings.node_size,
+                                        colour=self.settings.node_colour,
+                                        )
 
                         ## Enter = close window and redo
                         if self.keypress == 13:
@@ -377,7 +414,7 @@ class _GUI:
                             cv2.destroyAllWindows()
 
                         ## Esc = close window and terminate
-                        elif self.keypress == 27:
+                        elif self.keypress == 27 and not self.tool=="labelling":
                             cv2.destroyAllWindows()
                             logging.shutdown()
                             sys.exit("\n\nTERMINATE (by user)")
@@ -400,6 +437,11 @@ class _GUI:
                         elif _config.window_close:
                             self.flags.end = True
                             cv2.destroyAllWindows()
+                            
+                        if kwargs.get("labelling"):
+                            if self.keypress in [13, 17, 2424832, 2555904]:
+                                self.flags.end = True
+                                cv2.destroyAllWindows()
 
     def _keyboard_input(self):
         self.keypress_trans = chr(self.keypress)
@@ -419,7 +461,7 @@ class _GUI:
         self.canvas = copy.deepcopy(self.canvas_copy)
         cv2.putText(
             self.canvas,
-            "Enter " + str(self.label) + ": " + str(self.data[settings._comment_type]),
+            "Enter " + str(self.query) + ": " + str(self.data[settings._comment_type]),
             (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
             cv2.FONT_HERSHEY_SIMPLEX,
             self.settings.label_size,
@@ -428,7 +470,32 @@ class _GUI:
             cv2.LINE_AA,
         )
         cv2.imshow(self.settings.window_name, self.canvas)
-
+        
+        
+    def _labelling_tool(self):
+        
+                
+        if self.keypress in [13, 27, 2424832, 2555904]:
+            self.flags.end = True
+        elif str(settings.ascii_codes[self.keypress]) in self.keymap:
+            self.data[settings._comment_type] = str(self.keymap[settings.ascii_codes[self.keypress]])
+            self.canvas = copy.deepcopy(self.canvas_copy)
+            cv2.putText(
+                self.canvas,
+                str(self.query) + ": " + self.data[settings._comment_type],
+                (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.settings.label_size,
+                self.settings.label_colour,
+                self.settings.label_width,
+                cv2.LINE_AA,
+            )
+            cv2.imshow(self.settings.window_name, self.canvas)
+            cv2.waitKeyEx(self.settings.wait_time)
+            self.flags.end = True
+        else:
+            print(f"key {settings.ascii_codes[self.keypress]} not coded!")
+# 
     def _on_mouse_plain(self, event, x, y, flags, params):
         if event == cv2.EVENT_MOUSEWHEEL and not self.keypress == 9:
             self.keypress = None
@@ -894,7 +961,7 @@ class _GUI:
                     colour,
                     -1,
                 )
-                if self.label:
+                if self.query:
                     cv2.putText(
                         self.image_copy,
                         str(idx + 1),
@@ -1020,6 +1087,21 @@ class _GUI:
             self.settings.line_width = int(
                 self.line_width_orig
                 / ((self.zoom.x2 - self.zoom.x1) / self.image_width)
+            )
+            
+        ## redraw input
+        if self.tool == "labelling":
+            
+            self.canvas = copy.deepcopy(self.canvas_copy)
+            cv2.putText(
+                self.canvas,
+                str(self.query) + ": " + str(self.data[settings._comment_type]),
+                (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.settings.label_size,
+                self.settings.label_colour,
+                self.settings.label_width,
+                cv2.LINE_AA,
             )
 
     def _zoom_coords_orig(self, x, y):
