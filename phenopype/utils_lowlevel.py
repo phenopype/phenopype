@@ -83,9 +83,19 @@ class _GUI:
                 window_max_dim = _config.window_max_dim
         else:
             window_max_dim = _config.window_max_dim
+            
+        if kwargs.get("window_min_dim"):
+            window_min_dim = kwargs.get("window_min_dim")
+        elif hasattr(main, "window_min_dim"):
+            if not main.window_min_dim == None:
+                window_min_dim = main.window_min_dim
+            else:
+                window_min_dim = _config.window_min_dim
+        else:
+            window_min_dim = _config.window_min_dim
 
         self.__dict__.update(kwargs)
-
+        
         ## basic settings
         self.tool = tool
         self.query = kwargs.get("query", None)
@@ -108,9 +118,6 @@ class _GUI:
         ):
             self.data[settings._comment_type] = ""
             
-        if kwargs.get("labelling"):
-            print("BIER")
-
         ## GUI settings
         self.settings = make_dataclass(cls_name='settings', fields=[
             
@@ -169,6 +176,8 @@ class _GUI:
                 ("end_pype", bool, False),
                 ("drawing", bool, False),
                 ("rect_start", tuple, None),
+                ("finished", bool, False),
+
             ],
         )
         
@@ -223,6 +232,17 @@ class _GUI:
                 self.canvas_width, self.canvas_height = (
                     int((window_max_dim / self.image_height) * self.image_width),
                     window_max_dim,
+                )
+        elif self.image_height < window_min_dim or self.image_width < window_min_dim:
+            if self.image_width >= self.image_height:
+                self.canvas_width, self.canvas_height = (
+                    window_min_dim,
+                    int((window_min_dim / self.image_width) * self.image_height),
+                )
+            elif self.image_height > self.image_width:
+                self.canvas_width, self.canvas_height = (
+                    int((window_min_dim / self.image_height) * self.image_width),
+                    window_min_dim,
                 )
         else:
             self.canvas_width, self.canvas_height = self.image_width, self.image_height
@@ -311,21 +331,22 @@ class _GUI:
         ## local control vars
         _config.window_close = False
         
-        ## prep labelling tool
-        if self.tool == "labelling":
-            self.keymap = kwargs.get("label_keymap")
-        
         # =============================================================================
         # labelling tool
         # =============================================================================
         
         if self.tool == "labelling":
             
+            self.settings.label_keymap = kwargs.get("label_keymap")
+            self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
+            
+            y_pos, x_pos = self.settings.label_position
+            
             self.canvas = copy.deepcopy(self.canvas_copy)
             cv2.putText(
                 self.canvas,
                 str(self.query) + ": " + str(self.data[settings._comment_type]),
-                (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
+                (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 self.settings.label_size,
                 self.settings.label_colour,
@@ -389,6 +410,9 @@ class _GUI:
                                         size=self.settings.node_size,
                                         colour=self.settings.node_colour,
                                         )
+                            if self.flags.finished and kwargs.get("labelling"):
+                                cv2.waitKeyEx(self.settings.wait_time)
+                                self.flags.end = True
 
                         ## Enter = close window and redo
                         if self.keypress == 13:
@@ -414,7 +438,7 @@ class _GUI:
                             cv2.destroyAllWindows()
 
                         ## Esc = close window and terminate
-                        elif self.keypress == 27 and not self.tool=="labelling":
+                        elif self.keypress == 27 and not kwargs.get("labelling"):
                             cv2.destroyAllWindows()
                             logging.shutdown()
                             sys.exit("\n\nTERMINATE (by user)")
@@ -439,7 +463,7 @@ class _GUI:
                             cv2.destroyAllWindows()
                             
                         if kwargs.get("labelling"):
-                            if self.keypress in [13, 17, 2424832, 2555904]:
+                            if self.keypress in [13, 27, 2424832, 2555904]:
                                 self.flags.end = True
                                 cv2.destroyAllWindows()
 
@@ -474,16 +498,17 @@ class _GUI:
         
     def _labelling_tool(self):
         
-                
+        y_pos, x_pos = self.settings.label_position
+        
         if self.keypress in [13, 27, 2424832, 2555904]:
             self.flags.end = True
-        elif str(settings.ascii_codes[self.keypress]) in self.keymap:
-            self.data[settings._comment_type] = str(self.keymap[settings.ascii_codes[self.keypress]])
+        elif str(settings.ascii_codes[self.keypress]) in self.settings.label_keymap:
+            self.data[settings._comment_type] = str(self.settings.label_keymap[settings.ascii_codes[self.keypress]])
             self.canvas = copy.deepcopy(self.canvas_copy)
             cv2.putText(
                 self.canvas,
                 str(self.query) + ": " + self.data[settings._comment_type],
-                (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
+                (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 self.settings.label_size,
                 self.settings.label_colour,
@@ -709,6 +734,7 @@ class _GUI:
                 width=self.settings.line_width,
                 )
             self._canvas_mount()
+            self.flags.finished = True
 
     def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
 
@@ -778,6 +804,7 @@ class _GUI:
                         colour=self.settings.node_colour,
                         )
             self._canvas_mount(refresh=False)
+            self.flags.finished = True
 
         if event == cv2.EVENT_RBUTTONDOWN:
 
@@ -1116,7 +1143,12 @@ class _NoIndent(object):
         # if not isinstance(value, (list, tuple, dict)):
         #     raise TypeError('Only lists and tuples can be wrapped')
         self.value = value
-
+        
+    # def __repr__(self):
+    #     return repr(self.value)
+    
+    def to_list(self):
+        return self.value
 
 class _NoIndentEncoder(json.JSONEncoder):
 
@@ -1654,14 +1686,20 @@ def _show_yaml(odict, ret=False, typ="rt"):
             return buf.getvalue()
     else:
         yaml.dump(odict, sys.stdout)
-
-
+        
+    
 def _save_yaml(dictionary, filepath, typ="rt"):
     yaml = YAML(typ=typ)
     yaml.width = 160
     yaml.indent(mapping=4, sequence=4, offset=4)
-    with open(filepath, "w") as out:
-        yaml.dump(dictionary, out)
+
+    # Write YAML content to the temporary file
+    temp_filepath = filepath + '.temp'
+    with open(temp_filepath, 'w') as temp_file:
+        yaml.dump(dictionary, temp_file)
+
+    # Atomically replace the target file with the temporary file
+    os.replace(temp_filepath, filepath)
 
 
 def _yaml_flow_style(obj):

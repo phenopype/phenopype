@@ -65,7 +65,31 @@ class Project_labelling:
             ask=True,
             **kwargs,
             ):
+        """
+        
 
+        Parameters
+        ----------
+        root_dir : TYPE
+            DESCRIPTION.
+        load : TYPE, optional
+            DESCRIPTION. The default is True.
+        check : TYPE, optional
+            DESCRIPTION. The default is False.
+        overwrite : TYPE, optional
+            DESCRIPTION. The default is False.
+        ask : TYPE, optional
+            DESCRIPTION. The default is True.
+        **kwargs : TYPE
+            DESCRIPTION.
+         : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
         ## set flags
         flags = make_dataclass(
             cls_name="flags",
@@ -152,8 +176,8 @@ class Project_labelling:
                     "phenopype_version": __version__,
                 },
                 "project_data": {
-                    "source_dirs": [],
-                    "data_files": [],
+                    "source": {},
+                    "progress": {},
                     },
             }
             ul._save_yaml(
@@ -174,7 +198,7 @@ class Project_labelling:
         self.root_dir = root_dir
         self.data_dir = os.path.join(root_dir, "data")
         self.attributes = project_attributes
-            
+
         if "images.json" in os.listdir(self.data_dir):
             with open(os.path.join(self.data_dir, "images.json")) as file:
                 self.file_dict = json.load(file)
@@ -218,45 +242,35 @@ class Project_labelling:
         **kwargs
     ):
         """
-        Add files to your project from a directory, can look recursively. 
-        Specify in- or exclude arguments, filetypes, duplicate-action and copy 
-        or link raw files to save memory on the harddrive. For each found image,
-        a folder will be created in the "data" folder within the projects root
-        directory. If found images are in subfolders and "recursive==True", 
-        the respective phenopype directories will be created with 
-        flattened path as prefix. 
         
-    
+
         Parameters
         ----------
-        image_dir: str 
-            path to directory with images
-        filetypes: list or str, optional
-            single or multiple string patterns to target files with certain endings.
-            "settings.default_filetypes" are configured in settings.py: 
-            ['jpg', 'JPG', 'jpeg', 'JPEG', 'tif', 'png', 'bmp']
-        include: list or str, optional
-            single or multiple string patterns to target certain files to include
-        include_all (optional): bool,
-            either all (True) or any (False) of the provided keywords have to match
-        exclude: list or str, optional
-            single or multiple string patterns to target certain files to exclude - 
-            can overrule "include"
-        recursive: (optional): bool,
-            "False" searches only current directory for valid files; "True" walks 
-            through all subdirectories
-        unique: {"file_path", "filename"}, str, optional:
-            how to deal with image duplicates - "file_path" is useful if identically 
-            named files exist in different subfolders (folder structure will be 
-            collapsed and goes into the filename), whereas filename will ignore 
-            all similar named files after their first occurrence.
-        overwrite: {"file", "dir", False} str/bool (optional)
-            "file" will overwrite the image file and modify the attributes accordingly, 
-            "dir" will  overwrite the entire image directory (including all meta-data
-            and results!), False will not overwrite anything
-            
-        kwargs: 
-            developer options
+        image_dir : TYPE
+            DESCRIPTION.
+        filetypes : TYPE, optional
+            DESCRIPTION. The default is settings.default_filetypes.
+        include : TYPE, optional
+            DESCRIPTION. The default is [].
+        include_all : TYPE, optional
+            DESCRIPTION. The default is True.
+        exclude : TYPE, optional
+            DESCRIPTION. The default is [].
+        n_max : TYPE, optional
+            DESCRIPTION. The default is None.
+        recursive : TYPE, optional
+            DESCRIPTION. The default is False.
+        overwrite : TYPE, optional
+            DESCRIPTION. The default is False.
+        unique : TYPE, optional
+            DESCRIPTION. The default is "path".
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
         """
       
         ## setup
@@ -338,24 +352,34 @@ class Project_labelling:
 
         print("\nFound {} files - using {}".format(len(self.filenames), n_max))
         print("--------------------------------------------")
-
-        ## save
+        
+        ## check existing files
         if "images.json" in os.listdir(self.data_dir):
             with open(os.path.join(self.data_dir, "images.json"), "r") as file:
                 file_dict = json.load(file)
         else:
             file_dict = {}
+
+        ## if new files
         if not self.file_dict == file_dict:
-            self.attributes["project_data"]["source_dirs"].append(image_dir)
+            
+            ## update image-data
             with open(os.path.join(self.data_dir, "images.json"), "w") as file:
                 json.dump(self.file_dict, file, indent=indent)
                 print("- saved image.json.")
+                
+            ## update project attributes
+            self.attributes["project_data"]["source"][image_dir] = {
+                "found images": n_total_found,
+                "using": n_max,
+                "added/modified": datetime.today().strftime(settings.strftime_format),
+                }
+            self.attributes["project_info"]["date_changed"] = datetime.today().strftime(settings.strftime_format)
             ul._save_yaml(self.attributes, os.path.join(self.root_dir, "attributes.yaml"))
         else:
             print("- no new files - nothing to save.")
-
-
-
+            
+ 
     def run(
         self,
         tag,
@@ -364,6 +388,29 @@ class Project_labelling:
         image_path="abs",
         **kwargs,
         ):
+        """
+        
+
+        Parameters
+        ----------
+        tag : TYPE
+            DESCRIPTION.
+        config_path : TYPE
+            DESCRIPTION.
+        overwrite : TYPE, optional
+            DESCRIPTION. The default is False.
+        image_path : TYPE, optional
+            DESCRIPTION. The default is "abs".
+        **kwargs : TYPE
+            DESCRIPTION.
+         : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
 
         # =============================================================================
         # setup
@@ -376,33 +423,48 @@ class Project_labelling:
                 ],
         )
         
+        ## attributes
         self.tag = tag
         self.config = ul._load_yaml(config_path, typ="safe")       
         self.labels_filepath = os.path.join(self.data_dir, f"{tag}_labels.json")
-
+        self.image_list = list(self.file_dict)
+        self.kwargs = kwargs
         self.current = make_dataclass(cls_name="vars", fields=[])     
-        self.current.kwargs = kwargs
-        
+        self.current.exit = False
+        self.current.idx = 0
+
+        ## load labels
         if os.path.isfile(self.labels_filepath):
             with open(self.labels_filepath, "r") as file:
                 self.labels = json.load(file)
+            for img_name, label in self.labels.items():
+                if "mask" in label:
+                    if "coords" in label["mask"]:
+                        label["mask"]["coords"] = ul._NoIndent(label["mask"]["coords"])
+                        self.labels[img_name] = label
         else:
             self.labels = {}
-
-        self.idx = 0
-        images = list(self.file_dict)
+            
+        ## continue
+        if self.tag in self.attributes["project_data"]["progress"]:
+            self.current.idx = self.attributes["project_data"]["progress"][self.tag]["current_idx"]
+            self.current.image_name = self.attributes["project_data"]["progress"][self.tag]["current_image"]
+            
+        assert self.current.image_name == self.image_list[self.current.idx]
         
-        # =============================================================================
+        # ============================================================================
         # run
 
         ## keeps pumping images unless ended with esc 
-        while True:
-                                                
+        while not self.current.exit:
+                                                            
             ## navigation
-            self.current.image_name = images[self.idx]
+            self.current.idx_prev = copy.deepcopy(self.current.idx)
+            self.current.image_name = self.image_list[self.current.idx]
             self.current.image_info = self.file_dict[self.current.image_name]
             self.current.filepath = self.current.image_info["filepath_" + flags.image_path]
             self.current.image = utils.load_image(self.current.filepath)         
+            self.current.image_folder = os.path.basename(os.path.dirname(self.current.filepath))
             
             ## fetch label
             if self.current.image_name in self.labels:
@@ -411,74 +473,116 @@ class Project_labelling:
                 self.label = defaultdict(dict)
             
             ## go through config
-            for step_name, step in self.config.items():
+            for idx, (step_name, step) in enumerate(self.config.items()):
                 if step_name == "text":
-                    self._text(self.current.image)
+                    brk = self._text(self.current.image)
                 if step_name == "mask":
-                    self._mask(self.current.image)
-            
-                ## navigate with arrow keys and escape
-                if self.current.keypress == 27:
-                    cv2.destroyAllWindows()
-                    self._save()
-                    sys.exit()
-                elif self.current.keypress == 2424832:
-                    self.idx -= 1
-                    self.idx = max(self.idx, 0)
+                    brk = self._mask(self.current.image)
+                if brk:
                     break
-                elif self.current.keypress == 2555904:
-                    self.idx += 1
-                    self.idx = min(self.idx, len(images))
-                    break
-            
-    def _text(self, image):
                 
-        if "text" in self.label:   
-            cat, lab = self.label["text"]["category"], self.label["text"]["label"]
-        else:   
-            cat, lab = self.config["text"]["category"], ""
+            ## ensure to advance at end of config
+            if self.current.idx == self.current.idx_prev:
+                if self.current.idx == 0 and self.current.keypress == 2424832:
+                    print("Beginning of list!")
+                elif self.current.idx == len(self.image_list) and self.current.keypress == 2555904:
+                    print("End of list!")
+                else:
+                    self.current.idx += 1
+                     
+                    
+    def _keypress_eval(self):
+
+        if self.current.keypress == 27:
+            cv2.destroyAllWindows()
+            self._save()
+            self.current.exit = True
+            return True
+        elif self.current.keypress == 2424832:
+            self.current.idx -= 1
+            self.current.idx = max(self.current.idx, 0)
+            return True
+        elif self.current.keypress == 2555904:
+            self.current.idx += 1
+            self.current.idx = min(self.current.idx, len(self.image_list))
+            return True
+        elif self.current.keypress == 13:
+            return False
+        else:
+            self.current.idx += 1
+            return False
             
-        gui_data = {settings._comment_type: lab}
-   
+    def _text(self, image, **kwargs):
+                
+        ## check for existing label 
+        try:   
+            cat, lab = self.label["text"]["category"], self.label["text"]["label"]
+        except:   
+            self.label["text"] = {}
+            cat, lab = self.config["text"]["category"], ""
+
+        ## check for args in options and fun call
+        if "options" in self.config["text"]:
+            kwargs.update(self.config["text"]["options"])
+        kwargs.update(self.kwargs)
+            
         gui = ul._GUI(
             image,
             window_aspect="normal",
             window_name="labelling-tool",
             tool="labelling",
+            labelling=True,
             query=cat,
             label_keymap=self.config["text"]["keymap"],
-            data=gui_data,
-            **self.current.kwargs,
+            data={settings._comment_type: lab},
+            **kwargs,
         )
         
-        self.current.keypress = gui.keypress 
-        if not self.current.keypress in [27, 2424832, 2555904]:
-            lab = gui.data[settings._comment_type]
-            self.label["text"]["category"], self.label["text"]["label"] = cat, lab
-            self.labels[self.current.image_name] = self.label     
-            self.idx += 1
+        ## save label
+        lab = gui.data[settings._comment_type]
+        self.label["text"]["category"] = cat
+        self.label["text"]["label"] = lab
+        self.labels[self.current.image_name] = self.label     
     
-    def _mask(self,image):
+        ## navigation
+        self.current.keypress = gui.keypress 
+        return self._keypress_eval()
+
+
+    def _mask(self,image, **kwargs):
         
-       
-        cat = self.config["mask"]["category"], 
-        tool = self.config["mask"]["tool"]
-        self.current.kwargs.update(self.config["mask"]["options"])
+        ## check for existing label 
+        try:   
+            cat, coords = self.label["mask"]["category"], self.label["mask"]["coords"]
+            if not type(coords) == list:
+                coords = coords.to_list()
+        except:   
+            self.label["mask"] = {}
+            cat, coords = self.config["mask"]["category"], []
+            
+        ## check for args in options and fun call        
+        if "options" in self.config["text"]:
+            kwargs.update(self.config["mask"]["options"])
+        kwargs.update(self.kwargs)
 
         gui = ul._GUI(
             image,
             window_aspect="normal",
             window_name="labelling-tool",
-            tool=tool,
             labelling=True,
-            **self.current.kwargs,
+            data={settings._coord_list_type: coords},
+            **kwargs,
         )
+         
+        ## save label
+        self.label["mask"]["category"] = cat
+        self.label["mask"]["coords"] = ul._NoIndent(gui.data["polygons"])
+        self.labels[self.current.image_name] = self.label     
         
+        ## navigation
         self.current.keypress = gui.keypress 
-        if not self.current.keypress in [27, 2424832, 2555904]:
-            print(gui.data)
-            self.idx += 1    
-            
+        return self._keypress_eval()
+        
     def _comment(
         self,
         image):
@@ -487,12 +591,14 @@ class Project_labelling:
     
     def _save(self):
         
-       
+        print("Exiting:")
+                  
+        ## save json
         if os.path.exists(self.labels_filepath):
             
             labels_filepath_temp = self.labels_filepath + '.temp'
             with open(labels_filepath_temp, 'w') as temp_file:
-                json.dump(self.labels, temp_file, indent=4)
+                json.dump(self.labels, temp_file, indent=4, cls=ul._NoIndentEncoder)
         
             # Create up to three backups of the original file
             backup_dir = os.path.dirname(self.labels_filepath)
@@ -514,10 +620,22 @@ class Project_labelling:
         else:
             # Write the dictionary directly to the target file
             with open(self.labels_filepath, 'w') as temp_file:
-                json.dump(self.labels, temp_file, indent=4)
-        
-    
+                json.dump(self.labels, temp_file, indent=4, cls=ul._NoIndentEncoder)
+        print("- saving labels")
 
+        
+        ## save yaml
+        if not self.tag in self.attributes["project_data"]["progress"]:
+            self.attributes["project_data"]["progress"][self.tag ] = {}
+        self.attributes["project_data"]["progress"][self.tag] = {
+            "n_processed": len(self.labels),
+            "current_idx": self.current.idx,
+            "current_image": self.current.image_name,
+            "current_image_folder": self.current.image_folder,
+            }
+        
+        ul._save_yaml(self.attributes, os.path.join(self.root_dir, "attributes.yaml"))
+        print("- saving progress")
 
 class Project:
     """
@@ -584,7 +702,7 @@ class Project:
                                 root_dir
                             )
                         )
-                        time.sleep(1)
+                        # time.sleep(0.1)
                         query1 = input("overwrite (y/n)?")
                         if query1 in settings.confirm_options:
                             pass
@@ -687,15 +805,11 @@ class Project:
         else:
             self.file_names = []
             self.dir_names = []
+            
         ## add attributes
         self.attributes = project_attributes
         self.attributes_path = project_attributes_path
-
-        # self.file_names, self.file_paths = [], []
-        # for dir_path in self.dir_paths:
-        #     attributes = ul._load_yaml(os.path.join(dir_path, "attributes.yaml"))
-        #     self.file_paths.append(attributes["image_phenopype"]["filepath"])
-        #     self.file_names.append(attributes["image_phenopype"]["filename"])          
+     
 
     def add_files(
         self,

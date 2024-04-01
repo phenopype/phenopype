@@ -609,29 +609,17 @@ def save_annotation(
     for annotation_type in annotation_file:
         for annotation_id in annotation_file[annotation_type]:
             for section in annotation_file[annotation_type][annotation_id]:
-                for key, value in annotation_file[annotation_type][annotation_id][
-                    section
-                ].items():
+                for key, value in annotation_file[annotation_type][annotation_id][section].items():
 
                     ## unindent lists for better legibility
-                    if key in [
-                        x
-                        for x in settings._annotation_types
-                        if not x in [settings._comment_type, settings._reference_type,]
-                    ] + ["support"]:
-                        if (
-                            type(value) == list
-                            and len(value) > 0
-                            and type(value[0]) in [np.ndarray]
-                        ):
+                    if key in [x for x in settings._annotation_types if not x in [
+                            settings._comment_type, settings._reference_type,]] + ["support"]:
+                        if (type(value) == list and len(value) > 0 and type(value[0]) in [np.ndarray]):
                             value = [elem.tolist() for elem in value]
                         value = [ul._NoIndent(elem) for elem in value]
                     elif type(value) in [tuple, list]:
                         value = ul._NoIndent(value)
-
-                    annotation_file[annotation_type][annotation_id][section][
-                        key
-                    ] = value
+                    annotation_file[annotation_type][annotation_id][section][key] = value
 
     ## save
     with open(filepath, "w") as file:

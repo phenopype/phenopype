@@ -67,8 +67,6 @@ def blur(
 
     return blurred
 
-
-
 def clip_histogram(image, percent=1, **kwargs):
     
     # Calculate grayscale histogram

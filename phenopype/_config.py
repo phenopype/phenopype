@@ -16,4 +16,5 @@ verbose = False                     # print messages at all
 verbosity_level = 0                 # 0 = all, 1 = warnings, 2 = errors (non-breaking), 3 = errors (breaking) 
 
 window_close = False
+window_min_dim = 100
 window_max_dim = 1000
