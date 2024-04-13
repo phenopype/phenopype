@@ -33,7 +33,7 @@ if not any([
          importlib.util.find_spec("torchvision") is None,
          ]):
      
-     import torch 
+     import torch, torchvision 
      
      import_list.extend(["torch"])
      clean_namespace.extend(["torch"])

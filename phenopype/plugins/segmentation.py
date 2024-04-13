@@ -3,7 +3,9 @@
 import copy
 import cv2
 import numpy as np
+import importlib.util
 import sys
+import os
 
 from dataclasses import make_dataclass
 
@@ -16,9 +18,130 @@ from phenopype.core import segmentation, visualization
 
 from phenopype import utils
 from phenopype import utils_lowlevel as ul
+
 #%% functions
 
+def load_model_config(model_config_path):
+    """
+    Dynamically loads a module from a given file path.
 
+    Parameters:
+    - module_name: Name for the module to be loaded.
+    - path_to_file: Absolute or relative path to the Python file.
+
+    Returns:
+    The loaded module.
+    """
+    spec = importlib.util.spec_from_file_location(os.path.basename(model_config_path), model_config_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def predict_torch(
+        image,
+        model_path,
+        model_config_path,
+        primer="contour",
+        model_id=None,
+        model_eval=True,
+        binary_mask=False,
+        confidence=0.8,
+        force_reload=False,
+        **kwargs,
+        ):
+    
+
+    # =============================================================================
+    # setup
+
+    # set flags
+    flags = make_dataclass(cls_name="flags", fields=[
+        ("binary_mask", bool, binary_mask),
+        ("eval", bool, model_eval)
+        ])
+    
+    # =============================================================================
+    # model management
+    print(model_config_path)
+    model_config = load_model_config(model_config_path)
+
+    # Check if model_id is not None and exists in the configuration
+    if model_id is not None and model_id in _config.models:
+        model_path = _config.models[model_id].get("model_path")
+
+        # Check if the model hasn't been loaded yet
+        if "model_loaded" not in _config.models[model_id]:
+            print(f"Loading model {model_id}")
+            
+            # Load the model and update the configuration
+            _config.models[model_id]["model_loaded"] = model_config.load_model(model_path)
+            
+        # Update the active model and path
+        _config.active_model = _config.models[model_id]["model_loaded"]
+        _config.active_model_path = model_path
+        
+    # Check if active_model_path is different from the current model_path, if active_model is None, or if force_reload is True
+    elif _config.active_model_path != model_path or _config.active_model is None or force_reload:
+        _config.active_model = model_config.load_model(model_path)
+        _config.active_model_path = model_path
+
+    print("Using current model at " + _config.active_model_path)
+
+    # init model and device
+    device = plugins.libraries.torch.device(
+        "cuda" if plugins.libraries.torch.cuda.is_available() else "cpu")
+    model = _config.active_model
+    model.to
+
+    if flags.eval:
+        model.eval()
+    
+    # =============================================================================
+    ## annotation management
+    
+    annotations = kwargs.get("annotations", {})
+    
+    if primer=="contour":
+        annotation_id_input = kwargs.get(settings._contour_type + "_id", None)
+        annotation = utils_lowlevel._get_annotation(
+            annotations,
+            settings._contour_type,
+            annotation_id_input,
+        )
+        coords = annotation["data"][settings._contour_type][0]
+    elif primer=="mask":
+        annotation_id_input = kwargs.get(settings._mask_type + "_id", None)
+        annotation = utils_lowlevel._get_annotation(
+            annotations,
+            settings._mask_type,
+            annotation_id_input,
+        )      
+        coords = annotation["data"][settings._mask_type][0]
+        
+    # =============================================================================
+    ## inference
+
+    roi, roi_box = ul._extract_roi_center(image, coords, 512)
+    image_tensor = model_config.preprocess_input(roi)
+    image_tensor = image_tensor.unsqueeze(0)
+    image_tensor.to(device)
+    
+    predict_masks = model(image_tensor)
+    
+    mask = predict_masks[0].clone().cpu()
+    mask = mask > confidence
+    mask = mask.squeeze(0).detach().numpy().astype(np.uint8)
+    mask[mask==1] = 255
+    
+    image_bin = np.zeros(image.shape[:2], np.uint8)
+    start_y, end_y,start_x,end_x = roi_box
+    image_bin[start_y:end_y, start_x:end_x] = mask
+
+    return image_bin
+
+ 
+ 
 def predict_SAM(
         image,
         model_path,
