@@ -1118,12 +1118,12 @@ class _GUI:
             
         ## redraw input
         if self.tool == "labelling":
-            
+            y_pos, x_pos = self.settings.label_position
             self.canvas = copy.deepcopy(self.canvas_copy)
             cv2.putText(
                 self.canvas,
                 str(self.query) + ": " + str(self.data[settings._comment_type]),
-                (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
+                (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 self.settings.label_size,
                 self.settings.label_colour,
@@ -1876,6 +1876,37 @@ def _rotate_point(point, angle, center=None):
         y_rotated = abs(round(-sin(radians) * x + cos(radians) * y))
         
     return x_rotated, y_rotated
+
+
+def _extract_roi_center(image, coords, dim_final):
+    
+    ## get half of final length
+    dim_half = int(dim_final/2)
+    
+    # Calculate the center of the contour
+    M = cv2.moments(coords)
+    if M["m00"] != 0:
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+    else:
+        # Default to the center of the image if contour area is 0
+        cY, cX = image.shape[0] // 2, image.shape[1] // 2
+    
+    # Define the top-left corner of the 512x512 area
+    start_x = max(cX - dim_half, 0)
+    start_y = max(cY - dim_half, 0)
+    
+    # Adjust the bottom right corner if it goes beyond the image dimensions
+    end_x = min(start_x + dim_final, image.shape[1])
+    end_y = min(start_y + dim_final, image.shape[0])
+    
+    # Adjust the start points accordingly if the end points were adjusted
+    if end_x - start_x < dim_final:
+        start_x = max(end_x - dim_final, 0)
+    if end_y - start_y < dim_final:
+        start_y = max(end_y - dim_final, 0)
+    
+    return image[start_y:end_y, start_x:end_x], (start_y, end_y,start_x,end_x)
 
 #%% functions - VARIOUS
 

@@ -188,8 +188,9 @@ class Container(object):
                 if "active" in self.attr_proj:
                     if "model" in self.attr_proj["active"]:
                         model_id = self.attr_proj["active"]["model"]
-                        model_path = self.attr_proj["models"][model_id]["model_path"]
-                        _config.active_model_path = model_path    
+                        _config.active_model_path = self.attr_proj["models"][model_id]["model_path"]    
+                        if "model_config_path" in self.attr_proj["models"][model_id]:
+                            _config.active_model_config_path = self.attr_proj["models"][model_id]["model_config_path"]        
                         loaded.append('set model "{}" as default model (change with "activate=True")'.format(model_id))
 
 
@@ -339,7 +340,9 @@ class Container(object):
             self.image = plugins.segmentation.detect_object(self.image_copy, _config.active_model_path, **kwargs_function)
         if fun == "predict_SAM":
             self.image = plugins.segmentation.predict_SAM(self.image_copy, _config.active_model_path, **kwargs_function)
-                
+        if fun == "predict_torch":
+            self.image = plugins.segmentation.predict_torch(
+                self.image_copy, _config.active_model_path, _config.active_model_config_path,**kwargs_function)
             
         ## core.measurement
         if fun == "set_landmark":

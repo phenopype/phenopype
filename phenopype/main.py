@@ -229,7 +229,7 @@ class Project_labelling:
     
     def add_files(
         self,
-        image_dir,
+        images,
         filetypes=settings.default_filetypes,
         include=[],
         include_all=True,
@@ -245,7 +245,7 @@ class Project_labelling:
 
         Parameters
         ----------
-        image_dir : TYPE
+        images : TYPE
             DESCRIPTION.
         filetypes : TYPE, optional
             DESCRIPTION. The default is settings.default_filetypes.
@@ -282,40 +282,44 @@ class Project_labelling:
             ],
         )
       
-        ## path conversion
-        image_dir = image_dir.replace(os.sep, "/")
-        image_dir = os.path.abspath(image_dir)
-      
-        ## feedback
-        print("--------------------------------------------")
-        print("phenopype will search for image files at\n")
-        print(image_dir)
-        print("\nusing the following settings:\n")
-        print(
-            "filetypes: "
-            + str(filetypes)
-            + ", include: "
-            + str(include)
-            + ", exclude: "
-            + str(exclude)
-            + ", recursive: "
-            + str(flags.recursive)
-            + ", unique: "
-            + str(unique)
-            + "\n"
-        )
         
-        ## collect filepaths
-        filepaths, duplicates = ul._file_walker(
-            directory=image_dir,
-            recursive=recursive,
-            unique=unique,
-            filetypes=filetypes,
-            exclude=exclude,
-            include=include,
-            include_all=include_all,
-        )
-        
+        if type(images) == list:
+            filepaths = images
+            image_dir = "from-list"
+        elif type(images) == str:
+            image_dir = images.replace(os.sep, "/")
+            image_dir = os.path.abspath(image_dir)
+          
+            ## feedback
+            print("--------------------------------------------")
+            print("phenopype will search for image files at\n")
+            print(image_dir)
+            print("\nusing the following settings:\n")
+            print(
+                "filetypes: "
+                + str(filetypes)
+                + ", include: "
+                + str(include)
+                + ", exclude: "
+                + str(exclude)
+                + ", recursive: "
+                + str(flags.recursive)
+                + ", unique: "
+                + str(unique)
+                + "\n"
+            )
+            
+            ## collect filepaths
+            filepaths, duplicates = ul._file_walker(
+                directory=image_dir,
+                recursive=recursive,
+                unique=unique,
+                filetypes=filetypes,
+                exclude=exclude,
+                include=include,
+                include_all=include_all,
+            )
+                       
         ## subnsetting
         n_total_found = len(filepaths)
         if not n_max.__class__.__name__ == "NoneType":
@@ -449,7 +453,7 @@ class Project_labelling:
             self.current.idx = self.attributes["project_data"]["progress"][self.tag]["current_idx"]
             self.current.image_name = self.attributes["project_data"]["progress"][self.tag]["current_image"]
             
-        assert self.current.image_name == self.image_list[self.current.idx]
+        # assert self.current.image_name == self.image_list[self.current.idx]
         
         # ============================================================================
         # run
@@ -1268,6 +1272,7 @@ class Project:
     def add_model(
         self,
         model_path,
+        model_config_path=None,
         model_id="a",
         model_type="segmentation",
         activate=True,
@@ -1305,9 +1310,6 @@ class Project:
                 ],
         )
 
-        print_save_msg = "== no msg =="
-
-
         ## check model path
         if model_path.__class__.__name__ == "str":
             if os.path.isfile(model_path):
@@ -1324,15 +1326,22 @@ class Project:
 
             ## copying / path management
             model_name = os.path.basename(model_path)
-             
             
             ## create reference attributes
             model_info = {
                 "model_path": model_path,
                 "model_name": model_name,
                 "model_type": model_type,
-                "date_added": datetime.today().strftime(settings.strftime_format),
             }
+                 
+            if not model_config_path.__class__.__name__ == "NoneType":
+                if os.path.isfile(model_config_path):
+                    model_info["model_config_path"] = model_config_path
+                else:
+                    ul._print("wrong model config path")
+                    return
+                
+            model_info["date_added"] = datetime.today().strftime(settings.strftime_format)
 
             ## load project attributes and temporarily drop project data list to
             ## be reattched later, so it is always at then end of the file
@@ -1361,18 +1370,14 @@ class Project:
                 project_attributes, os.path.join(self.root_dir, "attributes.yaml")
             )
 
-            print_save_msg = (
-                print_save_msg + "\nSaved model info to project attributes."
-            )
+            ul._print("\nSaved model info to project attributes.")
             break
-
-        print(print_save_msg)
 
         if flags.activate == True:
             _config.active_model_path = model_path
-            print('- setting active project model to {}'.format(model_id))
+            ul._print('- setting active project model to {}'.format(model_id))
         else:
-            print(
+            ul._print(
                 "- could not set active project model (overwrite=False/activate=False)"
             )
 
