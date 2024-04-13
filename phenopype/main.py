@@ -29,7 +29,6 @@ from collections import defaultdict, deque
 
 from phenopype import __version__
 from phenopype import _config
-from phenopype import plugins
 from phenopype import settings
 from phenopype import utils
 from phenopype import utils_lowlevel as ul

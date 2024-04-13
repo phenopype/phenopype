@@ -20,7 +20,7 @@ import ruamel.yaml
 from phenopype import _config
 from phenopype import assets
 from phenopype import core
-from phenopype import plugins
+# from phenopype import plugins
 from phenopype import settings
 from phenopype import utils_lowlevel as ul
 
