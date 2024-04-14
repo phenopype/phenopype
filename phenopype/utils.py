@@ -18,11 +18,14 @@ from pkg_resources import resource_filename
 import ruamel.yaml
 
 from phenopype import _config
-from phenopype import assets
 from phenopype import core
-# from phenopype import plugins
 from phenopype import settings
 from phenopype import utils_lowlevel as ul
+
+try:
+    import phenopype_plugins as plugins
+except:
+    plugins = None
 
 classes = ["Container"]
 functions = ['load_image', "load_template", "print_colours", "save_image", "show_image"]

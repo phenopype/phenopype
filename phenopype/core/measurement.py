@@ -10,16 +10,14 @@ from radiomics import featureextractor
 import SimpleITK as sitk
 from tqdm import tqdm as _tqdm
 
-from phenopype import utils_lowlevel
-from phenopype import settings
-from phenopype.core import preprocessing
-
 from phenopype import __version__
-from phenopype.utils_lowlevel import annotation_function, _calc_distance_polyline
+from phenopype import settings
+from phenopype import utils_lowlevel as ul
+
 
 #%% methods
 
-@annotation_function
+@ul.annotation_function
 def set_landmark(
     image,
     point_colour="default",
@@ -63,35 +61,35 @@ def set_landmark(
     # annotation management
 
     fun_name = sys._getframe().f_code.co_name
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
 
     annotation = kwargs.get("annotation")
 
-    gui_data = {settings._coord_type: utils_lowlevel._get_GUI_data(annotation)}
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    gui_data = {settings._coord_type: ul._get_GUI_data(annotation)}
+    gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
     # =============================================================================
     # further prep
 
     ## configure points
     if point_size == "auto":
-        point_size = utils_lowlevel._auto_point_size(image)
+        point_size = ul._auto_point_size(image)
     if label_size == "auto":
-        label_size = utils_lowlevel._auto_text_size(image)
+        label_size = ul._auto_text_size(image)
     if label_width == "auto":
-        label_width = utils_lowlevel._auto_text_width(image)
+        label_width = ul._auto_text_width(image)
     if label_colour == "default":
         label_colour = settings._default_label_colour
     if point_colour == "default":
         point_colour = settings._default_point_colour
 
-    label_colour = utils_lowlevel._get_bgr(label_colour)
-    point_colour = utils_lowlevel._get_bgr(point_colour)
+    label_colour = ul._get_bgr(label_colour)
+    point_colour = ul._get_bgr(point_colour)
 
     # =============================================================================
     # execute
 
-    gui = utils_lowlevel._GUI(
+    gui = ul._GUI(
         image=image,
         tool="point",
         label=label,
@@ -164,33 +162,33 @@ def set_polyline(
     fun_name = sys._getframe().f_code.co_name
 
     annotations = kwargs.get("annotations", {})
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
 
-    gui_data = {settings._coord_list_type: utils_lowlevel._get_GUI_data(annotation)}
-    gui_settings = utils_lowlevel._get_GUI_settings(kwargs, annotation)
+    gui_data = {settings._coord_list_type: ul._get_GUI_data(annotation)}
+    gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
     # =============================================================================
     # setup
 
     if line_width == "auto":
-        line_width = utils_lowlevel._auto_line_width(image)
+        line_width = ul._auto_line_width(image)
     if line_colour == "default":
         line_colour = settings._default_line_colour
 
-    line_colour = utils_lowlevel._get_bgr(line_colour)
+    line_colour = ul._get_bgr(line_colour)
 
     # =============================================================================
     # execute
 
-    gui = utils_lowlevel._GUI(
+    gui = ul._GUI(
         image=image,
         tool="polyline",
         line_width=line_width,
@@ -205,7 +203,7 @@ def set_polyline(
     n_lines = len(line_coords)
     line_lengths = []
     for line in line_coords:
-        line_lengths.append(round(_calc_distance_polyline(line), 1))
+        line_lengths.append(round(ul._calc_distance_polyline(line), 1))
     
     # =============================================================================
     # assemble results
@@ -230,7 +228,7 @@ def set_polyline(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -268,7 +266,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
     ## get contours
     annotation_type = settings._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
@@ -278,7 +276,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
 
     ##  features
     fun_name = sys._getframe().f_code.co_name
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
     # =============================================================================
@@ -307,10 +305,10 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
         skel_contour = skel_contour[0]
         skel_contour[:, :, 0] = skel_contour[:, :, 0] + rx - padding
         skel_contour[:, :, 1] = skel_contour[:, :, 1] + ry - padding
-        skel_contour = utils_lowlevel._convert_arr_tup_list(skel_contour)[0]
+        skel_contour = ul._convert_arr_tup_list(skel_contour)[0]
 
         lines.append(skel_contour)
-        line_lengths.append(round((_calc_distance_polyline(skel_contour)/2),1))
+        line_lengths.append(round((ul._calc_distance_polyline(skel_contour)/2),1))
     # =============================================================================
     # assemble results
 
@@ -331,7 +329,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -403,7 +401,7 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
 
     ## get contours
     contour_id = kwargs.get(settings._contour_type + "_id", None)
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=settings._contour_type,
         annotation_id=contour_id,
@@ -415,7 +413,7 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
     
     ##  features
     fun_name = sys._getframe().f_code.co_name
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
     # =============================================================================
@@ -500,7 +498,7 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,
@@ -562,7 +560,7 @@ def compute_texture_features(
 
     ## get contours
     contour_id = kwargs.get(settings._contour_type + "_id", None)
-    annotation = utils_lowlevel._get_annotation(
+    annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=settings._contour_type,
         annotation_id=contour_id,
@@ -573,7 +571,7 @@ def compute_texture_features(
     
     ##  features
     fun_name = sys._getframe().f_code.co_name
-    annotation_type = utils_lowlevel._get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
     # =============================================================================
@@ -670,7 +668,7 @@ def compute_texture_features(
     # =============================================================================
     # return
 
-    return utils_lowlevel._update_annotations(
+    return ul._update_annotations(
         annotations=annotations,
         annotation=annotation,
         annotation_type=annotation_type,

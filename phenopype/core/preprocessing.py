@@ -12,8 +12,6 @@ from phenopype import __version__
 from phenopype import settings
 from phenopype import utils
 from phenopype import utils_lowlevel as ul
-from phenopype.core import segmentation
-from phenopype.utils_lowlevel import annotation_function
 
 #%% functions
 
@@ -825,7 +823,7 @@ def detect_reference(
         kwargs=kwargs,
     )
 
-@annotation_function
+@ul.annotation_function
 def detect_QRcode(
     image,
     rot_steps=20,
