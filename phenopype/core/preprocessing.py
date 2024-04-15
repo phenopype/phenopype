@@ -536,7 +536,7 @@ def create_reference(
     gui = ul._GUI(
         image,
         tool="comment",
-        label="distance in {}".format(unit),
+        query="distance in {}".format(unit),
         label_size=label_size,
         label_width=label_width,
         label_colour=label_colour,

@@ -32,8 +32,7 @@ import io
 from phenopype import _config
 from phenopype import main
 from phenopype import settings
-from phenopype.utils import load_image, Container
-
+from phenopype import utils
 
 
 #%% options
@@ -336,7 +335,7 @@ class _GUI:
         # labelling tool
         # =============================================================================
         
-        if self.tool == "labelling":
+        if self.tool in ["comment", "labelling"]:
             
             self.settings.label_keymap = kwargs.get("label_keymap")
             self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
@@ -386,14 +385,14 @@ class _GUI:
 
                         ## directly return key input
                         if self.settings.return_input:
-                            self.keypress = cv2.waitKeyEx(0)
+                            self.keypress = cv2.waitKey(0)
                             self._keyboard_input()
                             self.flags.end = True
                             cv2.destroyAllWindows()
 
                         ## comment tool
                         if self.tool == "comment":
-                            self.keypress = cv2.waitKeyEx(0)
+                            self.keypress = cv2.waitKey(1)
                             self._comment_tool()
                         if self.tool == "labelling":
                             self.keypress = cv2.waitKeyEx(0)
@@ -2267,11 +2266,11 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
             raise FileNotFoundError("Link mode: did not find image - images folder set up correctly?")
     else:
         image_path = os.path.join(dir_path, attributes["image_phenopype"]["filename"])
-    image = load_image(image_path)
+    image = utils.load_image(image_path)
 
     ## return
     if as_container:
-        return Container(
+        return utils.Container(
             image=image, 
             dir_path=dir_path, 
             file_suffix=tag, 

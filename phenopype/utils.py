@@ -25,7 +25,7 @@ from phenopype import utils_lowlevel as ul
 try:
     import phenopype_plugins as plugins
 except:
-    plugins = None
+    pass
 
 classes = ["Container"]
 functions = ['load_image', "load_template", "print_colours", "save_image", "show_image"]
@@ -133,13 +133,13 @@ class Container(object):
             os.path.join(self.dir_path, r"../../", "attributes.yaml")
         )
         if os.path.isfile(attr_proj_path):
-            self.attr_proj = ul._load_yaml(attr_proj_path)
+            self.attr_proj = ul._load_yaml(attr_proj_path, typ="safe")
 
         ## load attributes
         attr_local_path = os.path.join(self.dir_path, "attributes.yaml")
         if os.path.isfile(attr_local_path):
 
-            self.image_attributes = ul._load_yaml(attr_local_path)
+            self.image_attributes = ul._load_yaml(attr_local_path, typ="safe")
 
             if "reference_global" in self.image_attributes:
 
@@ -175,28 +175,20 @@ class Container(object):
                         active_ref
                     ]["template_px_ratio"]
                     self.reference_unit = attr_proj["reference"][active_ref]["unit"]
-
                     loaded.append("reference template image loaded from root directory")
                     
             if "models" in self.attr_proj:
                                
                 if len(self.attr_proj["models"]) > 0:
-                    for model_info in self.attr_proj["models"].items():
-                        if not model_info[0] in _config.models:
-                            _config.models[model_info[0]] = model_info[1]
+                    self.models = {}
+                    for model_id, model_info in self.attr_proj["models"].items():
+                        self.models[model_id]= model_info
+                        if not model_id in _config.models:
+                            _config.models[model_id] = model_info
                         else:
-                            _config.models[model_info[0]].update(model_info[1])    
+                            _config.models[model_id].update(model_info)    
                     loaded.append("loaded info for {} models {} ".format(len(_config.models.keys()),(*list(_config.models.keys()),)))
-                        
-                if "active" in self.attr_proj:
-                    if "model" in self.attr_proj["active"]:
-                        model_id = self.attr_proj["active"]["model"]
-                        _config.active_model_path = self.attr_proj["models"][model_id]["model_path"]    
-                        if "model_config_path" in self.attr_proj["models"][model_id]:
-                            _config.active_model_config_path = self.attr_proj["models"][model_id]["model_config_path"]        
-                        loaded.append('set model "{}" as default model (change with "activate=True")'.format(model_id))
-
-
+                    
         ## feedback
         if len(loaded) > 0:
             print("\n- ".join(loaded))
@@ -339,13 +331,17 @@ class Container(object):
                 # self.annotations.update(annotations)
 
         ## plugins.segmentation
-        if fun == "detect_object":
-            self.image = plugins.segmentation.detect_object(self.image_copy, _config.active_model_path, **kwargs_function)
-        if fun == "predict_SAM":
-            self.image = plugins.segmentation.predict_SAM(self.image_copy, _config.active_model_path, **kwargs_function)
-        if fun == "predict_torch":
-            self.image = plugins.segmentation.predict_torch(
-                self.image_copy, _config.active_model_path, _config.active_model_config_path,**kwargs_function)
+        if fun == "predict_contour_fastSAM":
+            self.image = plugins.segmentation.predict_contour_fastSAM(
+                self.image_copy, **kwargs_function)
+        if fun == "predict_contour_keras":
+            self.image = plugins.segmentation.predict_contour_keras(
+                self.image_copy,  **kwargs_function)
+        if fun == "predict_contour_torch":
+            if "model_config_path" in self.models[kwargs_function["model_id"]]:
+                kwargs_function["model_config_path"] = self.models[kwargs_function["model_id"]]["model_config_path"]
+            self.image = plugins.segmentation.predict_contour_torch(
+                self.image_copy, **kwargs_function)
             
         ## core.measurement
         if fun == "set_landmark":

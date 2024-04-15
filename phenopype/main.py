@@ -1271,9 +1271,9 @@ class Project:
     
     def add_model(
         self,
+        model_id,
         model_path,
         model_config_path=None,
-        model_id="a",
         model_type="segmentation",
         activate=True,
         overwrite=False,
@@ -1323,23 +1323,17 @@ class Project:
 
         
         while True:
-
-            ## copying / path management
-            model_name = os.path.basename(model_path)
             
             ## create reference attributes
             model_info = {
                 "model_path": model_path,
-                "model_name": model_name,
+                "model_name": os.path.splitext(os.path.basename(model_path))[0],
                 "model_type": model_type,
             }
                  
-            if not model_config_path.__class__.__name__ == "NoneType":
+            if model_config_path:
                 if os.path.isfile(model_config_path):
                     model_info["model_config_path"] = model_config_path
-                else:
-                    ul._print("wrong model config path")
-                    return
                 
             model_info["date_added"] = datetime.today().strftime(settings.strftime_format)
 
@@ -1364,8 +1358,6 @@ class Project:
             project_attributes["models"] = model_dict
             project_attributes["project_data"] = project_data
 
-
-
             ul._save_yaml(
                 project_attributes, os.path.join(self.root_dir, "attributes.yaml")
             )
@@ -1381,214 +1373,62 @@ class Project:
                 "- could not set active project model (overwrite=False/activate=False)"
             )
 
-    def add_reference(
-        self,
-        reference_image_path,
-        reference_tag,
-        activate=True,
-        template=False,
-        overwrite=False,
-        **kwargs
-    ):
+    
+    def add_reference(self, image_path, reference_id, template=True, overwrite=False, **kwargs):
         """
         Add pype configuration presets to all project directories. 
-
+    
         Parameters
         ----------
-
-        reference_image: str
-            name of template image, either project directory or file link. template 
-            image gets stored in root directory, and information appended to all 
-            attributes files in the project directories
+        image_path: str
+            Path to the template image, either a file link, project directory, 
+            or int (idx in project directories).
+        reference_id: str
+            Unique identifier for the reference.
         activate: bool, optional
-            writes the setting for the currently active reference to the attributes 
-            files of all directories within the project. can be used in conjunction
-            with overwrite=False so that the actual reference remains unchanced. this
-            setting useful when managing multiple references per project
-        overwrite: bool, optional
-            overwrite option, if a given pype config-file already exist
+            Whether to activate this reference across the project.
         template: bool, optional
-            should a template for reference detection be created. with an existing 
-            template, phenopype can try to find a reference card in a given image,
-            measure its dimensions, and adjust pixel-to-mm-ratio and colour space
-        """
-        # =============================================================================
-        # setup
-
-        ## set flags
-        flags = make_dataclass(
-            cls_name="flags",
-            fields=[("overwrite", bool, overwrite), 
-                    ("activate", bool, activate),],
-        )
-
-        print_save_msg = "== no msg =="
-
-        reference_source_path = copy.deepcopy(reference_image_path)
-
-        ## load reference image
-        if reference_source_path.__class__.__name__ == "str":
-            reference_image = utils.load_image(reference_source_path)
-        elif reference_source_path.__class__.__name__ == "int":
-            reference_image = utils.load_image(self.dir_paths[reference_source_path])
+            Whether to create a template for reference detection.
+        overwrite: bool, optional
+            Whether to overwrite existing files if they exist.             
             
-        # =============================================================================
-        # execute
-
+        """
         reference_folder_path = os.path.join(self.root_dir, "reference")
-        if not os.path.isdir(reference_folder_path):
-            os.mkdir(reference_folder_path)
-
-        while True:
-
-            ## generate reference name and check if exists
-            reference_image_name = reference_tag + "_full_image.tif"
-            reference_image_path = os.path.join(
-                self.root_dir, "reference", reference_image_name
-            )
-
-            if os.path.isfile(reference_image_path) and flags.overwrite == False:
-                print_save_msg = (
-                    "Reference image not saved, file already exists "
-                    + '- use "overwrite==True" or chose different name.'
-                )
-                break
-            elif os.path.isfile(reference_image_path) and flags.overwrite == True:
-                print_save_msg = (
-                    "Reference image saved under "
-                    + reference_image_path
-                    + " (overwritten)."
-                )
-                pass
-            elif not os.path.isfile(reference_image_path):
-                print_save_msg = "Reference image saved under " + reference_image_path
-                pass
-
-            ## generate template name and check if exists
-            template_name = reference_tag + "_search_template.tif"
-            template_path = os.path.join(self.root_dir, "reference", template_name)
-
-            if os.path.isfile(template_path) and flags.overwrite == False:
-                print_save_msg = 'Reference template not saved, file already exists\
-                 - use "overwrite==True" or chose different name.'
-                break
-            elif os.path.isfile(template_path) and flags.overwrite == True:
-                print_save_msg = (
-                    print_save_msg
-                    + "\nReference image saved under "
-                    + template_path
-                    + " (overwritten)."
-                )
-                pass
-            elif not os.path.isfile(template_path):
-                print_save_msg = (
-                    print_save_msg + "\nReference image saved under " + template_path
-                )
-                pass
-
-            # =============================================================================
-            # annotation management (for tests)
-
-            annotations = kwargs.get("annotations")
-
-            if not annotations:
-
-                ## measure reference
-                annotations = preprocessing.create_reference(reference_image)
-                annotations = preprocessing.create_mask(
-                    reference_image, annotations=annotations
-                )
-
-            ## create template from mask coordinates
-            coords = annotations[settings._mask_type]["a"]["data"][settings._mask_type][
-                0
-            ]
-            template = reference_image[
-                coords[0][1] : coords[2][1], coords[0][0] : coords[1][0]
-            ]
-
-            ## create reference attributes
+        os.makedirs(reference_folder_path, exist_ok=True)
+    
+        # Manage reference and template files
+        template_path = os.path.join(reference_folder_path, f"{reference_id}_search_template.tif")
+        
+        if type(image_path) == int:
+            image_path = self.dir_paths[image_path]
+        
+        reference_image = utils.load_image(image_path)
+    
+        if os.path.isfile(template_path) and not overwrite:
+            print("File already exists, not saving (overwrite=False)")
+        else:
+            # Assuming template creation logic here
+            annotations = kwargs.get("annotations", preprocessing.create_reference(reference_image))
+            annotations = preprocessing.create_mask(reference_image, annotations=annotations)
+            coords = annotations['mask']['a']['data']['mask'][0]
+            template = reference_image[coords[0][1]:coords[2][1], coords[0][0]:coords[1][0]]
+            cv2.imwrite(template_path, template)
+            print(f"Saved file: {template_path} (overwrite={overwrite})")
+    
+            # Save reference information to project attributes
             reference_info = {
-                "reference_source_path": reference_source_path,
-                "reference_file_name": reference_image_name,
-                "template_file_name": template_name,
-                "template_px_ratio": annotations[settings._reference_type]["a"]["data"][
-                    settings._reference_type
-                ][0],
-                "unit": annotations[settings._reference_type]["a"]["data"][
-                    settings._reference_type
-                ][1],
+                "image_path": image_path,
+                "bbox_coords": coords,
+                "template_path": os.path.basename(template_path),
+                "template_px_ratio": kwargs.get("px_ratio", 1.0),
+                "unit": kwargs.get("unit", "pixels"),
                 "date_added": datetime.today().strftime(settings.strftime_format),
             }
-
-            ## load project attributes and temporarily drop project data list to
-            ## be reattched later, so it is always at then end of the file
-            reference_dict = {}
-            project_attributes = ul._load_yaml(
-                os.path.join(self.root_dir, "attributes.yaml")
-            )
-            if "project_data" in project_attributes:
-                project_data = project_attributes["project_data"]
-                project_attributes.pop("project_data", None)
-            if "reference" in project_attributes:
-                reference_dict = project_attributes["reference"]
-            reference_dict[reference_tag] = reference_info
-
-            project_attributes["reference"] = reference_dict
-            project_attributes["project_data"] = project_data
-
-            ## save all after successful completion of all method-steps
-            cv2.imwrite(reference_image_path, reference_image)
-            cv2.imwrite(template_path, template)
-
-            ul._save_yaml(
-                project_attributes, os.path.join(self.root_dir, "attributes.yaml")
-            )
-            print_save_msg = (
-                print_save_msg + "\nSaved reference info to project attributes."
-            )
-            break
-
-        print(print_save_msg)
-
-        # =============================================================================
-        # METHOD END
-        # =============================================================================
-
-        ## set active reference information in file specific attributes
-        for dir_name, dir_path in zip(self.dir_names, self.dir_paths):
-            attr = ul._load_yaml(os.path.join(dir_path, "attributes.yaml"))
-
-            ## create nested dict
-            if not "reference_global" in attr:
-                attr["reference_global"] = {}
-            if not reference_tag in attr["reference_global"]:
-                attr["reference_global"][reference_tag] = {}
-
-            ## loop through entries and set active reference
-            if flags.activate == True:
-                for key, value in attr["reference_global"].items():
-                    if key == reference_tag:
-                        attr["reference_global"][key]["active"] = True
-                    else:
-                        attr["reference_global"][key]["active"] = False
-                ul._save_yaml(
-                    attr, os.path.join(dir_path, "attributes.yaml")
-                )
-                print(
-                    'setting active global project reference to "'
-                    + reference_tag
-                    + '" for '
-                    + dir_name
-                    + " (active=True)"
-                )
-            else:
-                print(
-                    "could not set global project reference for "
-                    + dir_name
-                    + " (overwrite=False/activate=False)"
-                )
-                
+            
+            project_attributes = ul._load_yaml(os.path.join(self.root_dir, "attributes.yaml"))
+            project_attributes.setdefault("reference", {})[reference_id] = reference_info
+            ul._save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
+            print(f"Updated project attributes with reference {reference_id}")               
                 
     def check_files(
             self, 
