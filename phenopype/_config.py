@@ -4,6 +4,7 @@ gui_zoom_config = None
 last_print_msg = ""
 models = defaultdict(dict)
 pype_restart = False
+reference_templates = defaultdict(dict)
 template_loaded_current = None
 template_path_current = None
 verbose = False

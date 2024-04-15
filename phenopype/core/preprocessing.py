@@ -596,6 +596,7 @@ def detect_reference(
     template,
     px_ratio,
     unit,
+    template_id="a",
     get_mask=True,
     manual_fallback=True,
     correct_colours=False,

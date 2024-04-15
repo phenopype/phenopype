@@ -128,67 +128,23 @@ class Container(object):
             except:
                 print("WARNING - BROKEN ANNOTATIONS FILE")
 
-        ## global attributes
-        attr_proj_path = os.path.abspath(
-            os.path.join(self.dir_path, r"../../", "attributes.yaml")
-        )
-        if os.path.isfile(attr_proj_path):
-            self.attr_proj = ul._load_yaml(attr_proj_path, typ="safe")
-
-        ## load attributes
-        attr_local_path = os.path.join(self.dir_path, "attributes.yaml")
-        if os.path.isfile(attr_local_path):
-
-            self.image_attributes = ul._load_yaml(attr_local_path, typ="safe")
-
-            if "reference_global" in self.image_attributes:
-
-                ## load local (image specific) and global (project level) attributes
-                attr_proj_path = os.path.abspath(
-                    os.path.join(attr_local_path, r"../../../", "attributes.yaml")
-                )
-                attr_proj = ul._load_yaml(attr_proj_path)
-
-                ## find active project level references
-                n_active = 0
-                for key, value in self.image_attributes["reference_global"].items():
-                    if self.image_attributes["reference_global"][key]["active"] == True:
-                        active_ref = key
-                        n_active += 1
-                if n_active > 1:
-                    print(
-                        "WARNING: multiple active reference detected - fix with running add_reference again."
-                    )
-
-                self.reference_active = active_ref
-
-                ## load tempate image from project level attributes
-                if "template_file_name" in attr_proj["reference"][active_ref]:
-                    self.reference_template_image = cv2.imread(
-                        str(
-                            Path(attr_local_path).parents[2]
-                            / "reference"
-                            / attr_proj["reference"][active_ref]["template_file_name"]
-                        )
-                    )
-                    self.reference_template_px_ratio = attr_proj["reference"][
-                        active_ref
-                    ]["template_px_ratio"]
-                    self.reference_unit = attr_proj["reference"][active_ref]["unit"]
-                    loaded.append("reference template image loaded from root directory")
-                    
-            if "models" in self.attr_proj:
-                               
-                if len(self.attr_proj["models"]) > 0:
-                    self.models = {}
-                    for model_id, model_info in self.attr_proj["models"].items():
-                        self.models[model_id]= model_info
-                        if not model_id in _config.models:
-                            _config.models[model_id] = model_info
-                        else:
-                            _config.models[model_id].update(model_info)    
-                    loaded.append("loaded info for {} models {} ".format(len(_config.models.keys()),(*list(_config.models.keys()),)))
-                    
+        ## load global objects from project attributes
+        self.attr_proj = ul._load_yaml(os.path.join(self.dir_path, r"../../", "attributes.yaml"), typ="safe")
+        if "reference_templates" in self.attr_proj:
+            for reference_id, reference_info in self.attr_proj["reference_templates"].items():
+                if not reference_id in _config.reference_templates:
+                    _config.reference_templates[reference_id] = reference_info
+                else:
+                    _config.reference_templates[reference_id].update(reference_info)    
+            loaded.append("loaded info for {} reference templates {} ".format(len(_config.reference_templates.keys()),(*list(_config.reference_templates.keys()),)))                
+        if "models" in self.attr_proj:          
+            for model_id, model_info in self.attr_proj["models"].items():
+                if not model_id in _config.models:
+                    _config.models[model_id] = model_info
+                else:
+                    _config.models[model_id].update(model_info)    
+            loaded.append("loaded info for {} models {} ".format(len(_config.models.keys()),(*list(_config.models.keys()),)))
+            
         ## feedback
         if len(loaded) > 0:
             print("\n- ".join(loaded))
@@ -286,23 +242,18 @@ class Container(object):
         if fun == "write_comment":
             annotations_updated = core.preprocessing.write_comment(self.image, **kwargs_function)
         if fun == "detect_reference":
-            if all(
-                hasattr(self, attr)
-                for attr in [
-                    "reference_template_px_ratio",
-                    "reference_template_image",
-                    "reference_unit",
-                ]
-            ):
-                annotations_updated = core.preprocessing.detect_reference(
-                    self.image,
-                    self.reference_template_image,
-                    self.reference_template_px_ratio,
-                    self.reference_unit,
-                    **kwargs_function,
-                )
-            else:
-                print("- missing project level reference information, cannot detect")
+            template_id = kwargs_function["template_id"]
+            if "template" not in _config.reference_templates[template_id]:
+                print(f"- loading reference template \"{template_id}\" into memory")
+                _config.reference_templates[template_id]["template"] = load_image(
+                    _config.reference_templates[template_id]["template_path"])
+            annotations_updated = core.preprocessing.detect_reference(
+                self.image,
+                _config.reference_templates[template_id]["template"],
+                _config.reference_templates[template_id]["template_px_ratio"],
+                _config.reference_templates[template_id]["unit"],
+                **kwargs_function)
+
         if fun == "decompose_image":
             self.image = core.preprocessing.decompose_image(self.image, **kwargs_function)
         if fun == "manage_channels":
@@ -338,8 +289,8 @@ class Container(object):
             self.image = plugins.segmentation.predict_contour_keras(
                 self.image_copy,  **kwargs_function)
         if fun == "predict_contour_torch":
-            if "model_config_path" in self.models[kwargs_function["model_id"]]:
-                kwargs_function["model_config_path"] = self.models[kwargs_function["model_id"]]["model_config_path"]
+            if "model_config_path" in _config.models[kwargs_function["model_id"]]:
+                kwargs_function["model_config_path"] = _config.models[kwargs_function["model_id"]]["model_config_path"]
             self.image = plugins.segmentation.predict_contour_torch(
                 self.image_copy, **kwargs_function)
             

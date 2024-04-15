@@ -29,6 +29,7 @@ from collections import defaultdict, deque
 
 from phenopype import __version__
 from phenopype import _config
+from phenopype import _legacy
 from phenopype import settings
 from phenopype import utils
 from phenopype import utils_lowlevel as ul
@@ -1275,7 +1276,6 @@ class Project:
         model_path,
         model_config_path=None,
         model_type="segmentation",
-        activate=True,
         overwrite=False,
         copy=True,
         **kwargs
@@ -1286,11 +1286,6 @@ class Project:
         Parameters
         ----------
 
-        activate: bool, optional
-            writes the setting for the currently active reference to the attributes 
-            files of all directories within the project. can be used in conjunction
-            with overwrite=False so that the actual reference remains unchanced. this
-            setting useful when managing multiple references per project
         overwrite: bool, optional
             overwrite option, if a given pype config-file already exist
         template: bool, optional
@@ -1306,7 +1301,6 @@ class Project:
             cls_name="flags",
             fields=[
                 ("overwrite", bool, overwrite), 
-                ("activate", bool, activate),
                 ],
         )
 
@@ -1348,11 +1342,6 @@ class Project:
                 project_attributes.pop("project_data", None)
             if "models" in project_attributes:
                 model_dict = project_attributes["models"]
-            if "active" in project_attributes:
-                pass 
-            else:
-                project_attributes["active"] = {}
-            project_attributes["active"]["model"] = model_id
                 
             model_dict[model_id] = model_info
             project_attributes["models"] = model_dict
@@ -1367,14 +1356,13 @@ class Project:
 
         if flags.activate == True:
             _config.active_model_path = model_path
-            ul._print('- setting active project model to {}'.format(model_id))
+            ul._print('- adding model to {}'.format(model_id))
         else:
             ul._print(
-                "- could not set active project model (overwrite=False/activate=False)"
+                "- could not add model (overwrite=False/activate=False)"
             )
 
-    
-    def add_reference(self, image_path, reference_id, template=True, overwrite=False, **kwargs):
+    def add_reference_template(self, image_path, reference_id, template=True, overwrite=False, **kwargs):
         """
         Add pype configuration presets to all project directories. 
     
@@ -1397,7 +1385,7 @@ class Project:
         os.makedirs(reference_folder_path, exist_ok=True)
     
         # Manage reference and template files
-        template_path = os.path.join(reference_folder_path, f"{reference_id}_search_template.tif")
+        template_path = os.path.join(reference_folder_path, f"{reference_id}_template.tif")
         
         if type(image_path) == int:
             image_path = self.dir_paths[image_path]
@@ -1407,28 +1395,40 @@ class Project:
         if os.path.isfile(template_path) and not overwrite:
             print("File already exists, not saving (overwrite=False)")
         else:
-            # Assuming template creation logic here
+            
+            ## get px ratio and mask
             annotations = kwargs.get("annotations", preprocessing.create_reference(reference_image))
             annotations = preprocessing.create_mask(reference_image, annotations=annotations)
             coords = annotations['mask']['a']['data']['mask'][0]
+            
+            ## save template image
             template = reference_image[coords[0][1]:coords[2][1], coords[0][0]:coords[1][0]]
             cv2.imwrite(template_path, template)
             print(f"Saved file: {template_path} (overwrite={overwrite})")
     
             # Save reference information to project attributes
-            reference_info = {
-                "image_path": image_path,
-                "bbox_coords": coords,
-                "template_path": os.path.basename(template_path),
-                "template_px_ratio": kwargs.get("px_ratio", 1.0),
-                "unit": kwargs.get("unit", "pixels"),
+            reference_template_info = {
+                "source_image_path": os.path.abspath(image_path),
+                "template_path": os.path.abspath(template_path),
+                "template_px_ratio": annotations[settings._reference_type]["a"]["data"][settings._reference_type][0],
+                "unit": annotations[settings._reference_type]["a"]["data"][settings._reference_type][1],
                 "date_added": datetime.today().strftime(settings.strftime_format),
             }
             
+            ## load project attributes and temporarily drop project data list to
+            ## be reattched later, so it is always at then end of the file
             project_attributes = ul._load_yaml(os.path.join(self.root_dir, "attributes.yaml"))
-            project_attributes.setdefault("reference", {})[reference_id] = reference_info
+            if "project_data" in project_attributes:
+                project_data = project_attributes["project_data"]
+                project_attributes.pop("project_data", None)
+            project_attributes.setdefault("reference_templates", {})[reference_id] = reference_template_info
+            project_attributes["project_data"] = project_data
             ul._save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
-            print(f"Updated project attributes with reference {reference_id}")               
+            print(f"Updated project attributes with reference {reference_id}")       
+            
+    @ul.deprecation_warning(new_func=add_reference_template)
+    def add_reference(self, template):
+        pass
                 
     def check_files(
             self, 
@@ -1596,10 +1596,9 @@ class Project:
             self,
             tag, 
             files, 
-            folder=None, 
+            folder="", 
             aggregate_csv=True,
             overwrite=False,
-            save_suffix="",
             **kwargs
             ):
 
@@ -1638,12 +1637,7 @@ class Project:
 
         ## create results folder
         results_dir = os.path.join(self.root_dir, "results")
-        if not os.path.isdir(results_dir):
-            os.makedirs(results_dir)
-            
-        ## save suffix
-        if not save_suffix == "":
-            save_suffix = "_" + save_suffix
+        os.makedirs(results_dir, exist_ok=True)   
             
         # =============================================================================
         # execute
@@ -1686,7 +1680,7 @@ class Project:
                 for path in results:
                     result_list.append(pd.read_csv(path))
                 result = pd.concat(result_list)
-                csv_name = file + "_" + tag + save_suffix + ".csv"
+                csv_name = file + "_" + tag + ".csv"
                 csv_path = os.path.join(results_dir, csv_name)
                 
                 ## overwrite check
@@ -1698,9 +1692,10 @@ class Project:
                 
             ## copy files to subfolders
             elif results[0] != "no-results":
-                folder_path = os.path.join(results_dir, file + "_" + tag + save_suffix)
-                if not os.path.isdir(folder_path):
-                    os.makedirs(folder_path)
+                if len(folder)==0:
+                    folder = file + "_" + tag
+                folder_path = os.path.join(results_dir, folder)
+                os.makedirs(folder_path, exist_ok=True)
                 for old_path in results:
                     new_file = (
                         os.path.basename(os.path.dirname(old_path))
@@ -2926,17 +2921,24 @@ class Pype(object):
                     
                     ## excecute and capture stdout
                     try:
-                        with redirect_stdout(buffer):
+                        if not self.flags.debug:
+                            with redirect_stdout(buffer):
+                                self.container.run(
+                                    fun=method_name,
+                                    fun_kwargs=method_args,
+                                    annotation_kwargs=annotation_args,
+                                    annotation_counter=annotation_counter,
+                                )
+                                stdout = buffer.getvalue()
+                                self._log("info", stdout, 2)
+                                _config.last_print_msg = ""
+                        else:
                             self.container.run(
                                 fun=method_name,
                                 fun_kwargs=method_args,
                                 annotation_kwargs=annotation_args,
                                 annotation_counter=annotation_counter,
                             )
-                            stdout = buffer.getvalue()
-                            self._log("info", stdout, 2)
-                            _config.last_print_msg = ""
-                            
                     except Exception as ex:
                         print(buffer.getvalue())
                         error_msg =  f"{step_name}.{method_name}: {str(ex.__class__.__name__)} - {ex}"

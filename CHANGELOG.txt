@@ -3,6 +3,22 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+5.0.0
+-----
+breaking:
+	- removed plugin-modules, now standalone package (pip install phenopype-plugins). 
+		- functions have their own dependencies, but they will not prohibit the package installation, e.g., to have access to only part of them
+		- easier integration of existing plugins, more consistent naming (predict_contour_...)
+		- new plugin for pytorch segmentation models  
+bugfix:
+	- edit_contours: drawing was not in place when using zoom memory
+	- fastSAM plugin now uses correct prompts ("everything" and "box")
+- new class: Project_labelling: high throughput labeling of individual images without invoking the Pype class. has full GUI capabilities (e.g., zoom, rectangle mask, comments). 
+- new training data export: pytorch segmentation models
+- proper logger for Pype in place, saves to each image dir 
+
+--------------------------------------------------------------------------------------------
+
 4.1.1
 -----
 bugfix:

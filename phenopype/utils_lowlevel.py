@@ -17,7 +17,7 @@ from ruamel.yaml.constructor import SafeConstructor
 from ruamel.yaml import YAML
 
 from functools import wraps
- 
+
 from math import atan2, cos, sin, sqrt, pi
 
 from pathlib import Path
@@ -252,11 +252,10 @@ class _GUI:
             self.image_width / self.canvas_width,
             self.image_height / self.canvas_height,
         )
-        self.global_fx, self.global_fy = self.canvas_fx, self.canvas_fy
         
         ## zoom config
         self.zoom = make_dataclass(cls_name="zoom_config", fields=[])
-
+        self.zoom.global_fx, self.zoom.global_fy = self.canvas_fx, self.canvas_fy
         self.zoom.x1, self.zoom.y1, self.zoom.x2, self.zoom.y2 = (
             0,
             0,
@@ -274,22 +273,10 @@ class _GUI:
                 mag * self.zoom.step_x,
                 mag * self.zoom.step_y,
             )
-
-        # ## update zoom from previous call
+        ## update zoom from previous call
         if hasattr(_config, "gui_zoom_config") and self.settings.zoom_memory == True:
             if not _config.gui_zoom_config.__class__.__name__ == "NoneType":
                 self.zoom = _config.gui_zoom_config
-                
-        # if kwargs.get("ImageViewer_previous"):
-        #     prev_attr = kwargs.get("ImageViewer_previous").__dict__
-        #     prev_attr = {
-        #         i: prev_attr[i] for i in prev_attr
-
-        #         ## don't update arrays or provided kwargs
-        #         if i not in ["canvas_copy", "canvas", "image_copy", "image", "image_bin"] + list(kwargs.keys())
-        #     }
-
-        #     self.__dict__.update(copy.deepcopy(prev_attr))
 
         # =============================================================================
         # generate canvas
@@ -394,11 +381,11 @@ class _GUI:
                         if self.tool == "comment":
                             self.keypress = cv2.waitKey(1)
                             self._comment_tool()
-                        if self.tool == "labelling":
+                        elif self.tool == "labelling":
                             self.keypress = cv2.waitKeyEx(0)
                             self._labelling_tool()
                         else:
-                            self.keypress = cv2.waitKeyEx(self.settings.wait_time)
+                            self.keypress = cv2.waitKey(self.settings.wait_time)
                             
                         ## draw nodes
                         if self.tool in ["rectangle", "polygon", "polyline"]:
@@ -483,10 +470,12 @@ class _GUI:
             ]
 
         self.canvas = copy.deepcopy(self.canvas_copy)
+        y_pos, x_pos = self.settings.label_position
+
         cv2.putText(
             self.canvas,
-            "Enter " + str(self.query) + ": " + str(self.data[settings._comment_type]),
-            (int(self.canvas.shape[0] // 10), int(self.canvas.shape[1] / 3)),
+            str(self.query) + ": " + str(self.data[settings._comment_type]),
+            (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
             cv2.FONT_HERSHEY_SIMPLEX,
             self.settings.label_size,
             self.settings.label_colour,
@@ -613,11 +602,11 @@ class _GUI:
                 self.coords_prev = (
                     int(
                         (self.data[settings._coord_type][-1][0] - self.zoom.x1)
-                        / self.global_fx
+                        / self.zoom.global_fx
                     ),
                     int(
                         (self.data[settings._coord_type][-1][1] - self.zoom.y1)
-                        // self.global_fy
+                        // self.zoom.global_fy
                     ),
                 )
                 self.canvas = copy.deepcopy(self.canvas_copy)
@@ -772,10 +761,10 @@ class _GUI:
 
             ## convert rectangle to polygon coords
             self.rect = [
-                int(self.zoom.x1 + (self.global_fx * self.rect_minpos[0])),
-                int(self.zoom.y1 + (self.global_fy * self.rect_minpos[1])),
-                int(self.zoom.x1 + (self.global_fx * self.rect_maxpos[0])),
-                int(self.zoom.y1 + (self.global_fy * self.rect_maxpos[1])),
+                int(self.zoom.x1 + (self.zoom.global_fx * self.rect_minpos[0])),
+                int(self.zoom.y1 + (self.zoom.global_fy * self.rect_minpos[1])),
+                int(self.zoom.x1 + (self.zoom.global_fx * self.rect_maxpos[0])),
+                int(self.zoom.y1 + (self.zoom.global_fy * self.rect_maxpos[1])),
             ]
             self.data[settings._coord_list_type].append(
                 [
@@ -870,8 +859,8 @@ class _GUI:
             ## convert cursor coords from zoomed canvas to original coordinate space
             self.ix, self.iy = x, y
             self.coords_original_i = (
-                int(self.zoom.x1 + (self.ix * self.global_fx)),
-                int(self.zoom.y1 + (self.iy * self.global_fy)),
+                int(self.zoom.x1 + (self.ix * self.zoom.global_fx)),
+                int(self.zoom.y1 + (self.iy * self.zoom.global_fy)),
             )
             self.data[settings._coord_type].append(self.coords_original_i)
             self.flags.drawing = True
@@ -884,7 +873,7 @@ class _GUI:
                 [
                     self.data[settings._coord_type],
                     self.colour_current_bin,
-                    int(self.settings.line_width * self.global_fx),
+                    int(self.settings.line_width * self.zoom.global_fx),
                 ]
             )
             self.data[settings._coord_type] = []
@@ -1099,10 +1088,10 @@ class _GUI:
         self.zoom.x1, self.zoom.x2, self.zoom.y1, self.zoom.y2 = x1, x2, y1, y2
 
         ## global magnification factor
-        self.global_fx = self.canvas_fx * (
+        self.zoom.global_fx = self.canvas_fx * (
             (self.zoom.x2 - self.zoom.x1) / self.image_width
         )
-        self.global_fy = self.canvas_fy * (
+        self.zoom.global_fy = self.canvas_fy * (
             (self.zoom.y2 - self.zoom.y1) / self.image_height
         )
 
@@ -1117,7 +1106,7 @@ class _GUI:
             )
             
         ## redraw input
-        if self.tool == "labelling":
+        if self.tool in ["comment", "labelling"]:
             y_pos, x_pos = self.settings.label_position
             self.canvas = copy.deepcopy(self.canvas_copy)
             cv2.putText(
@@ -1133,8 +1122,8 @@ class _GUI:
 
     def _zoom_coords_orig(self, x, y):
         self.coords_original = (
-            int(self.zoom.x1 + (x * self.global_fx)),
-            int(self.zoom.y1 + (y * self.global_fy)),
+            int(self.zoom.x1 + (x * self.zoom.global_fx)),
+            int(self.zoom.y1 + (y * self.zoom.global_fy)),
         )
 
 
@@ -1304,6 +1293,16 @@ def capture_stdout_log(fun, logger, *logger_args):
     ## close function wrapper
     return capture_stdout_log_wrapper
 
+def deprecation_warning(new_func=None):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            warnings.simplefilter('always', DeprecationWarning)  # turn off filter
+            warnings.warn(f"{func.__name__} is deprecated; use {new_func.__name__} instead.", category=DeprecationWarning, stacklevel=2)
+            warnings.simplefilter('default', DeprecationWarning)  # reset filter
+            return new_func(*args, **kwargs)
+        return wrapper
+    return decorator
     
 #%% functions - ANNOTATION helpers
 
@@ -1765,7 +1764,7 @@ def _overwrite_check_dir(path, overwrite):
         print(dirname + " saved under " + path + ".")
         return True
     
-#%% printing
+#%% functions - PRINTING / LOGGING
 
 def _print(msg, lvl=0, **kwargs):
     if _config.verbose:
