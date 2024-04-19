@@ -65,29 +65,42 @@ class Project_labelling:
             **kwargs,
             ):
         """
-        
-
+        Minimalistic tool for high throughput labelling of images. 
+    
         Parameters
         ----------
-        root_dir : TYPE
-            DESCRIPTION.
-        load : TYPE, optional
-            DESCRIPTION. The default is True.
-        check : TYPE, optional
-            DESCRIPTION. The default is False.
-        overwrite : TYPE, optional
-            DESCRIPTION. The default is False.
-        ask : TYPE, optional
-            DESCRIPTION. The default is True.
-        **kwargs : TYPE
-            DESCRIPTION.
-         : TYPE
-            DESCRIPTION.
-
-        Returns
+        root_dir : str
+            The root directory for the labeling project.
+        load : bool, optional
+            Whether to load existing project data. Default is True.
+        check : bool, optional
+            Whether to check for missing files. Default is False.
+        overwrite : bool, optional
+            Whether to overwrite existing project data. Default is False.
+        ask : bool, optional
+            Whether to prompt for user confirmation. Default is True.
+        **kwargs : dict
+            Additional keyword arguments.
+    
+        Attributes
+        ----------
+        root_dir : str
+            The root directory for the labeling project.
+        data_dir : str
+            The directory containing project data.
+        attributes : dict
+            Project attributes loaded from attributes.yaml.
+        file_dict : dict
+            Dictionary containing information about project files.
+    
+        Methods
         -------
-        None.
-
+        [List of methods]
+    
+        Notes
+        -----
+        This class is used to create and manage labeling projects. It initializes project attributes,
+        loads existing project data, creates project directories, and checks for missing files if specified.
         """
         ## set flags
         flags = make_dataclass(
@@ -375,27 +388,31 @@ class Project_labelling:
         **kwargs,
         ):
         """
-        
-
+        Run the labeling tool to process images using to the specified configuration.
+      
         Parameters
         ----------
-        tag : TYPE
-            DESCRIPTION.
-        config_path : TYPE
-            DESCRIPTION.
-        overwrite : TYPE, optional
-            DESCRIPTION. The default is False.
-        image_path : TYPE, optional
-            DESCRIPTION. The default is "abs".
-        **kwargs : TYPE
-            DESCRIPTION.
-         : TYPE
-            DESCRIPTION.
-
+        tag : str
+            A tag for the labeling operation.
+        config_path : str
+            Path to the configuration file.
+        overwrite : bool, optional
+            Whether to overwrite existing labels. Default is False.
+        image_path : str, optional
+            Type of image path to use. Default is "abs".
+        **kwargs : dict
+            Additional keyword arguments.
+    
         Returns
         -------
-        None.
-
+        None
+    
+        Notes
+        -----
+        This method initializes the labeling process by setting up necessary attributes,
+        loading labels if they exist, and navigating through images based on the provided configuration.
+        It iterates through each step defined in the configuration and processes images accordingly.
+        The labeling process continues until the user exits by pressing the escape key.
         """
 
         # =============================================================================
