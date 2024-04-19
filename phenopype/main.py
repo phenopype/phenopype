@@ -241,38 +241,38 @@ class Project_labelling:
         **kwargs
     ):
         """
-        
+        Add files to the labeling tool.
 
         Parameters
         ----------
-        images : TYPE
-            DESCRIPTION.
-        filetypes : TYPE, optional
-            DESCRIPTION. The default is settings.default_filetypes.
-        include : TYPE, optional
-            DESCRIPTION. The default is [].
-        include_all : TYPE, optional
-            DESCRIPTION. The default is True.
-        exclude : TYPE, optional
-            DESCRIPTION. The default is [].
-        n_max : TYPE, optional
-            DESCRIPTION. The default is None.
-        recursive : TYPE, optional
-            DESCRIPTION. The default is False.
-        overwrite : TYPE, optional
-            DESCRIPTION. The default is False.
-        unique : TYPE, optional
-            DESCRIPTION. The default is "path".
-        **kwargs : TYPE
-            DESCRIPTION.
+        images : str or list
+            Either a directory containing images or a list of image paths.
+        filetypes : list, optional
+            List of file extensions to include. Default is settings.default_filetypes.
+        include : list, optional
+            List of patterns to include. Default is [].
+        include_all : bool, optional
+            Whether to include all patterns in include. Default is True.
+        exclude : list, optional
+            List of patterns to exclude. Default is [].
+        n_max : int, optional
+            Maximum number of files to add. Default is None (add all files).
+        recursive : bool, optional
+            Whether to search directories recursively. Default is False.
+        overwrite : bool, optional
+            Whether to overwrite existing files. Default is False.
+        unique : str, optional
+            Strategy to handle duplicate files. Default is "path".
+        **kwargs : dict
+            Additional keyword arguments.
 
         Returns
         -------
-        None.
+        None
 
         """
-      
-        ## setup
+
+        # Set up
         indent = kwargs.get("indent", 4)
         flags = make_dataclass(
             cls_name="flags",
@@ -281,103 +281,86 @@ class Project_labelling:
                 ("overwrite", bool, overwrite),
             ],
         )
-      
-        
-        if type(images) == list:
+
+        if isinstance(images, list):
             filepaths = images
             image_dir = "from-list"
-        elif type(images) == str:
-            image_dir = images.replace(os.sep, "/")
-            image_dir = os.path.abspath(image_dir)
-          
-            ## feedback
+        elif isinstance(images, str):
+            image_dir = os.path.abspath(images.replace(os.sep, "/"))
+
+            # Feedback
             print("--------------------------------------------")
-            print("phenopype will search for image files at\n")
-            print(image_dir)
-            print("\nusing the following settings:\n")
-            print(
-                "filetypes: "
-                + str(filetypes)
-                + ", include: "
-                + str(include)
-                + ", exclude: "
-                + str(exclude)
-                + ", recursive: "
-                + str(flags.recursive)
-                + ", unique: "
-                + str(unique)
-                + "\n"
-            )
-            
-            ## collect filepaths
-            filepaths, duplicates = ul._file_walker(
-                directory=image_dir,
-                recursive=recursive,
-                unique=unique,
-                filetypes=filetypes,
-                exclude=exclude,
-                include=include,
-                include_all=include_all,
-            )
-                       
-        ## subnsetting
+            print(f"phenopype will search for image files at\n{image_dir}\n")
+            print("Using the following settings:\n"
+                  f"filetypes: {filetypes}, include: {include}, exclude: {exclude}, "
+                  f"recursive: {flags.recursive}, unique: {unique}\n")
+
+            # Collect filepaths if not already provided
+            if not isinstance(images, list):
+                filepaths, _ = ul._file_walker(
+                    directory=image_dir,
+                    recursive=recursive,
+                    unique=unique,
+                    filetypes=filetypes,
+                    exclude=exclude,
+                    include=include,
+                    include_all=include_all,
+                )
+
+        # Subsetting
         n_total_found = len(filepaths)
-        if not n_max.__class__.__name__ == "NoneType":
-            n_cut = min(n_max, n_total_found)
-            filepaths = filepaths[:n_cut]
-            n_max = str(n_max)
-        else:
-            n_max = "all"
-            
-        ## loop through files
+        n_max = str(n_max) if n_max is not None else "all"
+        filepaths = filepaths[:n_max] if n_max != "all" else filepaths
+
+        # Loop through files
         for filepath in filepaths:
-            
-            ## image name and extension
+            # Image name and extension
             image_name = os.path.basename(filepath)
-            
+
             if image_name in self.file_dict:
-                if flags.overwrite == False:
+                if not flags.overwrite:
                     print(f"Image {image_name} already exists (overwrite=False).")
                     continue
                 else:
                     print(f"Image {image_name} already exists - overwriting!")
-                    pass
+
             else:
                 print(f"Image {image_name} found - adding to list.")
 
             self.file_dict[image_name] = {
-                "filepath_abs" : filepath,
-                "filepath_rel" : os.path.relpath(filepath, self.root_dir),
-                }
-            
-        ## add dirlists to project object (always overwrite)
+                "filepath_abs": filepath,
+                "filepath_rel": os.path.relpath(filepath, self.root_dir),
+            }
+
+        # Add dirlists to project object (always overwrite)
         self.filenames = list(self.file_dict.keys())
 
-        print("\nFound {} files - using {}".format(len(self.filenames), n_max))
+        print(f"\nFound {len(self.filenames)} files - using {n_max}")
         print("--------------------------------------------")
-        
-        ## check existing files
-        if "images.json" in os.listdir(self.data_dir):
-            with open(os.path.join(self.data_dir, "images.json"), "r") as file:
+
+        # Check existing files
+        images_json_path = os.path.join(self.data_dir, "images.json")
+        if os.path.exists(images_json_path):
+            with open(images_json_path, "r") as file:
                 file_dict = json.load(file)
         else:
             file_dict = {}
 
-        ## if new files
-        if not self.file_dict == file_dict:
-            
-            ## update image-data
-            with open(os.path.join(self.data_dir, "images.json"), "w") as file:
+        # If new files
+        if self.file_dict != file_dict:
+            # Update image-data
+            with open(images_json_path, "w") as file:
                 json.dump(self.file_dict, file, indent=indent)
                 print("- saved image.json.")
-                
-            ## update project attributes
+
+            # Update project attributes
             self.attributes["project_data"]["source"][image_dir] = {
                 "found images": n_total_found,
                 "using": n_max,
                 "added/modified": datetime.today().strftime(settings.strftime_format),
-                }
-            self.attributes["project_info"]["date_changed"] = datetime.today().strftime(settings.strftime_format)
+            }
+            self.attributes["project_info"]["date_changed"] = datetime.today().strftime(
+                settings.strftime_format)
             ul._save_yaml(self.attributes, os.path.join(self.root_dir, "attributes.yaml"))
         else:
             print("- no new files - nothing to save.")
