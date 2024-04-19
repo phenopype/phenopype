@@ -493,7 +493,80 @@ class Project_labelling:
                 else:
                     self.current.idx += 1
                      
-                    
+    def export(
+        self,
+        tag,
+        category_column=False,
+        overwrite=False,
+        save_dir=None,
+        **kwargs,
+        ):
+        
+        """
+        Export labels DataFrame to a specified directory as a CSV file.
+
+        Parameters
+        ----------
+        tag : str
+            A tag for the export operation.
+        category_column : bool, optional
+            Whether to use the 'category' column or make it its own column. Default is False.
+        overwrite : bool, optional
+            Whether to overwrite existing files. Default is False.
+        save_dir : str, optional
+            Directory to save the CSV file. Defaults to self.root_dir if not provided.
+        **kwargs : dict
+            Additional keyword arguments. Unused in this method.
+
+        Returns
+        -------
+        None
+        """
+
+        # Set up
+        self.tag = tag
+        if save_dir is None:
+            save_dir = os.path.join(self.root_dir, "export")
+            os.makedirs(save_dir, exist_ok=True)
+        self.labels_filepath = os.path.join(self.root_dir, f"{tag}_labels.json")
+        self.image_list = list(self.file_dict)
+
+        # Load labels
+        if os.path.isfile(self.labels_filepath):
+            with open(self.labels_filepath, "r") as file:
+                self.labels = json.load(file)
+            for img_name, label in self.labels.items():
+                if "mask" in label:
+                    if "coords" in label["mask"]:
+                        label["mask"]["coords"] = ul._NoIndent(label["mask"]["coords"])
+                        self.labels[img_name] = label
+
+        # Convert labels to DataFrame
+        flat_dict = {}
+        for key, value in self.labels.items():
+            category = value['text']['category']
+            label = value['text']['label']
+            flat_dict[key] = {'category': category, 'label': label}
+
+        self.labels_df = pd.DataFrame.from_dict(flat_dict, orient='index')
+        
+        # Handle category_column option
+        if category_column:
+            self.labels_df = self.labels_df.reset_index().rename(
+                columns={'index': 'filename', 'category': 'category', 'label': 'label'})
+        else:
+            self.labels_df = self.labels_df.reset_index().rename(
+                columns={'index': 'filename'}).pivot(index='filename', columns='category', values='label')
+
+        # Save DataFrame to CSV
+        save_path = os.path.join(save_dir, f"{tag}_labels.csv")
+        if os.path.exists(save_path) and not overwrite:
+            raise FileExistsError("File already exists. Set overwrite=True to overwrite.")
+        else:
+            self.labels_df.to_csv(save_path)
+            print(f"labels saved to: {save_path}")
+        
+        
     def _keypress_eval(self):
 
         if self.current.keypress == 27:
