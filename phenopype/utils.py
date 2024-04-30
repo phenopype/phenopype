@@ -255,7 +255,7 @@ class Container(object):
                 **kwargs_function)
 
         if fun == "decompose_image":
-            self.image = core.preprocessing.decompose_image(self.image, **kwargs_function)
+            self.image = core.preprocessing.decompose_image(self.image_copy, **kwargs_function)
         if fun == "manage_channels":
             self.image_channels = core.preprocessing.manage_channels(self.image, **kwargs_function)
 
@@ -305,7 +305,7 @@ class Container(object):
             annotations_updated = core.measurement.compute_shape_features(**kwargs_function)
         if fun == "compute_texture_features":
             annotations_updated = core.measurement.compute_texture_features(
-                self.image_copy, **kwargs_function
+                self.image, **kwargs_function
             )
 
         ## plugins.measurement

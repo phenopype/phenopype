@@ -980,6 +980,7 @@ def detect_QRcode(
 
 def decompose_image(
     image, channel="gray", invert=False, 
+    **kwargs
 ):
 
     """

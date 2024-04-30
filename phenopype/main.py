@@ -10,6 +10,7 @@ import string
 import io 
 import sys
 import logging
+import random
 
 from contextlib import redirect_stdout
 from dataclasses import make_dataclass
@@ -383,6 +384,8 @@ class Project_labelling:
         self,
         tag,
         config_path,
+        index=False,
+        autosave=60,
         overwrite=False,
         image_path="abs",
         **kwargs,
@@ -431,10 +434,12 @@ class Project_labelling:
         self.config = ul._load_yaml(config_path, typ="safe")       
         self.labels_filepath = os.path.join(self.data_dir, f"{tag}_labels.json")
         self.image_list = list(self.file_dict)
+        self.image_list_len = len(self.image_list)
         self.kwargs = kwargs
         self.current = make_dataclass(cls_name="vars", fields=[])     
         self.current.exit = False
         self.current.idx = 0
+        self.current.time_prev = time.time()
 
         ## load labels
         if os.path.isfile(self.labels_filepath):
@@ -447,11 +452,16 @@ class Project_labelling:
                         self.labels[img_name] = label
         else:
             self.labels = {}
-            
+                        
         ## continue
         if self.tag in self.attributes["project_data"]["progress"]:
             self.current.idx = self.attributes["project_data"]["progress"][self.tag]["current_idx"]
-            self.current.image_name = self.attributes["project_data"]["progress"][self.tag]["current_image"]
+            self.current.image_name = self.image_list[self.current.idx]
+
+        ## set custom idx
+        if index:
+            self.current.idx = index
+            self.current.image_name =self.image_list[index]
             
         # assert self.current.image_name == self.image_list[self.current.idx]
         
@@ -460,7 +470,19 @@ class Project_labelling:
 
         ## keeps pumping images unless ended with esc 
         while not self.current.exit:
-                                                            
+                                   
+            # Check if it's time to autosave
+            self.current.time = time.time()
+            if self.current.time - self.current.time_prev >= autosave:
+                print("Autosave:")
+                self._save()
+                self.current.time_prev = self.current.time
+                print("\n")
+                
+            if self.current.idx > self.image_list_len-1:
+                self.current.idx = self.image_list_len-1
+                print("End of list!\n")
+                
             ## navigation
             self.current.idx_prev = copy.deepcopy(self.current.idx)
             self.current.image_name = self.image_list[self.current.idx]
@@ -472,8 +494,15 @@ class Project_labelling:
             ## fetch label
             if self.current.image_name in self.labels:
                 self.label = self.labels[self.current.image_name] 
+                self.current.processed = True
             else:
                 self.label = defaultdict(dict)
+                self.current.processed = False
+                
+            print("IDX: {}/{} | FILENAME: {}\n".format(
+                self.current.idx, 
+                self.image_list_len-1,
+                self.current.image_name))    
             
             ## go through config
             for idx, (step_name, step) in enumerate(self.config.items()):
@@ -487,16 +516,20 @@ class Project_labelling:
             ## ensure to advance at end of config
             if self.current.idx == self.current.idx_prev:
                 if self.current.idx == 0 and self.current.keypress == 2424832:
-                    print("Beginning of list!")
-                elif self.current.idx == len(self.image_list) and self.current.keypress == 2555904:
-                    print("End of list!")
+                    print("Beginning of list!\n")
+                # elif self.current.idx == self.image_list_len and self.current.keypress == 2555904:
+                #     print("End of list!\n")
+                elif self.current.idx == self.image_list_len:    
+                    print("End of list!\n")
                 else:
                     self.current.idx += 1
+                    
+        cv2.destroyAllWindows()
+
                      
     def export(
         self,
         tag,
-        category_column=False,
         overwrite=False,
         save_dir=None,
         **kwargs,
@@ -549,21 +582,15 @@ class Project_labelling:
             flat_dict[key] = {'category': category, 'label': label}
 
         self.labels_df = pd.DataFrame.from_dict(flat_dict, orient='index')
-        
-        # Handle category_column option
-        if category_column:
-            self.labels_df = self.labels_df.reset_index().rename(
+        self.labels_df = self.labels_df.reset_index().rename(
                 columns={'index': 'filename', 'category': 'category', 'label': 'label'})
-        else:
-            self.labels_df = self.labels_df.reset_index().rename(
-                columns={'index': 'filename'}).pivot(index='filename', columns='category', values='label')
 
         # Save DataFrame to CSV
         save_path = os.path.join(save_dir, f"{tag}_labels.csv")
         if os.path.exists(save_path) and not overwrite:
             raise FileExistsError("File already exists. Set overwrite=True to overwrite.")
         else:
-            self.labels_df.to_csv(save_path)
+            self.labels_df.to_csv(save_path, index=False)
             print(f"labels saved to: {save_path}")
         
         
@@ -571,6 +598,7 @@ class Project_labelling:
 
         if self.current.keypress == 27:
             cv2.destroyAllWindows()
+            print("Exiting:")
             self._save()
             self.current.exit = True
             return True
@@ -586,6 +614,8 @@ class Project_labelling:
             return False
         else:
             self.current.idx += 1
+            self.current.idx = max(self.current.idx, 0)
+            self.current.idx = min(self.current.idx, len(self.image_list))
             return False
             
     def _text(self, image, **kwargs):
@@ -665,10 +695,9 @@ class Project_labelling:
         
         pass 
     
-    def _save(self):
         
-        print("Exiting:")
-                  
+    def _save(self):
+                          
         ## save json
         if os.path.exists(self.labels_filepath):
             
@@ -896,6 +925,7 @@ class Project:
         exclude=[],
         mode="copy",
         n_max=None,
+        randomize=False,
         nested=False,
         image_format=None,
         recursive=False,
@@ -1018,6 +1048,11 @@ class Project:
             + "\n"
         )
         
+                    
+        if randomize:
+            random.seed(kwargs.get("random_seed", 42))
+            random.shuffle(filepaths)   
+        
         ## subnsetting
         n_total_found = len(filepaths)
         if not n_max.__class__.__name__ == "NoneType":
@@ -1026,6 +1061,7 @@ class Project:
             n_max = str(n_max)
         else:
             n_max = "all"
+
             
         ## loop through files
         filenames = []

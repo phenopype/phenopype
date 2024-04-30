@@ -491,24 +491,28 @@ class _GUI:
         
         if self.keypress in [13, 27, 2424832, 2555904]:
             self.flags.end = True
-        elif str(settings.ascii_codes[self.keypress]) in self.settings.label_keymap:
-            self.data[settings._comment_type] = str(self.settings.label_keymap[settings.ascii_codes[self.keypress]])
-            self.canvas = copy.deepcopy(self.canvas_copy)
-            cv2.putText(
-                self.canvas,
-                str(self.query) + ": " + self.data[settings._comment_type],
-                (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                self.settings.label_size,
-                self.settings.label_colour,
-                self.settings.label_width,
-                cv2.LINE_AA,
-            )
-            cv2.imshow(self.settings.window_name, self.canvas)
-            cv2.waitKeyEx(self.settings.wait_time)
-            self.flags.end = True
+        elif self.keypress in settings.ascii_codes:
+            key = str(settings.ascii_codes[self.keypress])
+            if key in self.settings.label_keymap:
+                self.data[settings._comment_type] = str(self.settings.label_keymap[settings.ascii_codes[self.keypress]])
+                self.canvas = copy.deepcopy(self.canvas_copy)
+                cv2.putText(
+                    self.canvas,
+                    str(self.query) + ": " + self.data[settings._comment_type],
+                    (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    self.settings.label_size,
+                    self.settings.label_colour,
+                    self.settings.label_width,
+                    cv2.LINE_AA,
+                )
+                cv2.imshow(self.settings.window_name, self.canvas)
+                cv2.waitKeyEx(self.settings.wait_time)
+                self.flags.end = True
+            else:
+                print(f"key {key} not coded!")
         else:
-            print(f"key {settings.ascii_codes[self.keypress]} not coded!")
+            print(f"{self.keypress} is not a valid ASCII code")
 # 
     def _on_mouse_plain(self, event, x, y, flags, params):
         if event == cv2.EVENT_MOUSEWHEEL and not self.keypress == 9:

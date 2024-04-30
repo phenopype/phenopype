@@ -595,7 +595,7 @@ def compute_texture_features(
     # print(contours)
     for coords in contours:
         foreground_mask_inverted = cv2.fillPoly(foreground_mask_inverted, [coords], 255)
-
+        
     texture_features = []
     if image.ndim == 2:
         layers = 1
