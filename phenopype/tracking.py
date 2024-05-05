@@ -11,7 +11,7 @@ import sys
 
 from math import inf
 
-from phenopype import settings
+from phenopype import _vars
 from phenopype import utils_lowlevel
 from phenopype.core import preprocessing
 from phenopype.core import segmentation
@@ -530,9 +530,9 @@ class motion_tracker(object):
 
                 ## draw masks
                 if not self.masks.__class__.__name__ == "NoneType":
-                    for key, value in self.masks[settings._mask_type].items():
+                    for key, value in self.masks[_vars._mask_type].items():
                         self.canvas = visualization.draw_mask(
-                            self.canvas, {settings._mask_type: {key: value}}, label=True
+                            self.canvas, {_vars._mask_type: {key: value}}, label=True
                         )
 
                 ## feedback
@@ -641,13 +641,13 @@ class tracking_method:
         Internal reference - don't call this directly. 
         """
         if masks.__class__.__name__ == "dict":
-            if settings._mask_type in masks:
+            if _vars._mask_type in masks:
                 self.mask_bool = {}
-                for key, value in masks[settings._mask_type].items():
-                    polygons = masks[settings._mask_type][key]["data"][
-                        settings._mask_type
+                for key, value in masks[_vars._mask_type].items():
+                    polygons = masks[_vars._mask_type][key]["data"][
+                        _vars._mask_type
                     ]
-                    label = masks[settings._mask_type][key]["data"]["label"]
+                    label = masks[_vars._mask_type][key]["data"]["label"]
                     for coords in polygons:
                         mask_bool = utils_lowlevel._create_mask_bool(frame, coords)
                         self.mask_bool[label] = mask_bool

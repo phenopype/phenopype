@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 
 from phenopype import __version__
-from phenopype import settings
+from phenopype import _config
+from phenopype import _vars
 from phenopype import utils_lowlevel as ul
 from phenopype import utils
 from phenopype.core import preprocessing
@@ -76,7 +77,7 @@ def convert_annotation(
     # =============================================================================
     # method
 
-    if annotation_type_new == settings._mask_type:
+    if annotation_type_new == _vars._mask_type:
 
         ## method setup
         if "label" in annotation["data"]:
@@ -195,7 +196,7 @@ def export_csv(
         list_flattened = []
 
         ## comment
-        if annotation_type == settings._comment_type and annotation_type in annotations.keys():
+        if annotation_type == _vars._comment_type and annotation_type in annotations.keys():
             for annotation_id in annotations[annotation_type].keys():
 
                 label = annotations[annotation_type][annotation_id]["data"]["label"]
@@ -213,7 +214,7 @@ def export_csv(
                 )
 
         ## contour
-        if annotation_type == settings._contour_type:
+        if annotation_type == _vars._contour_type:
             for annotation_id in annotations[annotation_type].keys():
                 for idx, (coords, support) in enumerate(zip(
                     annotations[annotation_type][annotation_id]["data"][annotation_type],
@@ -241,7 +242,7 @@ def export_csv(
 
 
         ## landmark
-        if annotation_type == settings._landmark_type:
+        if annotation_type == _vars._landmark_type:
             for annotation_id in annotations[annotation_type].keys():
                 lm_tuple_list = list(zip(*annotations[annotation_type][annotation_id]["data"][annotation_type]))
                 list_flattened.append(
@@ -259,7 +260,7 @@ def export_csv(
                 )
 
         ## polyline
-        if annotation_type == settings._line_type:
+        if annotation_type == _vars._line_type:
             for annotation_id in annotations[annotation_type].keys():
                 for idx, (coords, length) in enumerate(zip(
                     annotations[annotation_type][annotation_id]["data"][annotation_type],
@@ -283,7 +284,7 @@ def export_csv(
                     )
 
         ## reference
-        if annotation_type == settings._reference_type:
+        if annotation_type == _vars._reference_type:
             for annotation_id in annotations[annotation_type].keys():
                 distance = annotations[annotation_type][annotation_id]["data"][annotation_type][0]
                 unit = annotations[annotation_type][annotation_id]["data"][annotation_type][1]
@@ -302,9 +303,9 @@ def export_csv(
 
 
         ## shape_features
-        if annotation_type == settings._shape_feature_type:
+        if annotation_type == _vars._shape_feature_type:
             for annotation_id in annotations[annotation_type].keys():
-                contour_id = annotations[annotation_type][annotation_id]["settings"][settings._contour_type + "_id"]
+                contour_id = annotations[annotation_type][annotation_id]["settings"][_vars._contour_type + "_id"]
                 for idx, annotation in enumerate(
                     annotations[annotation_type][annotation_id]["data"][annotation_type], 1
                 ):
@@ -323,9 +324,9 @@ def export_csv(
                     )
 
         ## texture_features
-        if annotation_type == settings._texture_feature_type:
+        if annotation_type == _vars._texture_feature_type:
             for annotation_id in annotations[annotation_type].keys():
-                contour_id = annotations[annotation_type][annotation_id]["settings"][settings._contour_type + "_id"]
+                contour_id = annotations[annotation_type][annotation_id]["settings"][_vars._contour_type + "_id"]
                 for idx, annotation in enumerate(
                     annotations[annotation_type][annotation_id]["data"][annotation_type], 1
                 ):
@@ -407,14 +408,14 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
                 ].items():
                     if key in [
                         x
-                        for x in settings._annotation_types
-                        if not x in [settings._comment_type, settings._reference_type,]
+                        for x in _vars._annotation_types
+                        if not x in [_vars._comment_type, _vars._reference_type,]
                     ] + ["support"]:
                         if type(value) == str:
                             value = eval(value)
-                        if key == settings._contour_type:
+                        if key == _vars._contour_type:
                             value = [np.asarray(elem, dtype=np.int32) for elem in value]
-                        elif annotation_type1 == settings._landmark_type:
+                        elif annotation_type1 == _vars._landmark_type:
                             value = [tuple(elem) for elem in value]
                     annotation_file[annotation_type1][annotation_id1][section][
                         key
@@ -612,8 +613,8 @@ def save_annotation(
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
 
                     ## unindent lists for better legibility
-                    if key in [x for x in settings._annotation_types if not x in [
-                            settings._comment_type, settings._reference_type,]] + ["support"]:
+                    if key in [x for x in _vars._annotation_types if not x in [
+                            _vars._comment_type, _vars._reference_type,]] + ["support"]:
                         if (type(value) == list and len(value) > 0 and type(value[0]) in [np.ndarray]):
                             value = [elem.tolist() for elem in value]
                         value = [ul._NoIndent(elem) for elem in value]
@@ -698,7 +699,7 @@ def save_ROI(
     # =============================================================================
     # annotation management
 
-    annotation_type = kwargs.get("annotation_type", settings._mask_type)
+    annotation_type = kwargs.get("annotation_type", _vars._mask_type)
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -714,7 +715,7 @@ def save_ROI(
         area = list()
         for idx, roi_coords in enumerate(data):
     
-            if annotation_type == settings._mask_type:
+            if annotation_type == _vars._mask_type:
                 coords = ul._convert_tup_list_arr(roi_coords)[0]
             else:
                 coords = copy.deepcopy(roi_coords)
@@ -728,7 +729,7 @@ def save_ROI(
         
     for idx, roi_coords in enumerate(data):
 
-        if annotation_type == settings._mask_type:
+        if annotation_type == _vars._mask_type:
             coords = ul._convert_tup_list_arr(roi_coords)[0]
         else:
             coords = copy.deepcopy(roi_coords)
@@ -907,7 +908,5 @@ def save_canvas(
         file_name=file_name,
         ext=ext,
         dir_path=dir_path,
-        resize=resize,
         overwrite=overwrite,
-        verbose=settings.flag_verbose,
     )

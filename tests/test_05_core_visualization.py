@@ -33,13 +33,11 @@ def container():
 
 def test_select_canvas(image, image_binary, container):
     
-    
     canvas = pp.visualization.select_canvas(
         image_binary, 
         canvas="raw", 
         multi=True,
         )
-    
     
     canvas = pp.visualization.select_canvas(
         container, 

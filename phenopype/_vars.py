@@ -18,8 +18,8 @@ confirm_options = ["True", "true", "y", "yes", True]
 _default_label_colour = "red"
 _default_line_colour = "lime"
 _default_point_colour = "red"
-_default_overlay_left = "green"
-_default_overlay_right = "red"
+_default_overlay_colour_left = "green"
+_default_overlay_colour_right = "red"
 
 
 default_filetypes = ["jpg", "JPG", "jpeg", "JPEG", "tif", "png", "bmp"]
@@ -199,34 +199,34 @@ ascii_codes = {i: chr(i) for i in range(128)}
 # _GUI_settings_args = list(g.settings.__dict__)
 # _GUI_data_args = list(g.data.keys())
 
-_GUI_settings_args = [
-    'interactive',
-    'show_label',
-    'label_colour',
-    'label_size',
-    'label_width',
-    'show_nodes',
-    'node_colour',
-    'node_size',
-    'line_colour',
-    'line_width',
-    'point_colour',
-    'point_size',
-    'overlay_blend',
-    'overlay_line_width',
-    'overlay_colour_left',
-    'overlay_colour_right',
-    'pype_mode',
-    'zoom_memory',
-    'zoom_mode',
-    'zoom_magnification',
-    'zoom_n_steps',
-    'wait_time',
-    'window_aspect',
-    'window_control',
-    'window_max_dim',
-    'window_name',
- ]
+# _GUI_settings_args = [
+#     'interactive',
+#     'show_label',
+#     'label_colour',
+#     'label_size',
+#     'label_width',
+#     'show_nodes',
+#     'node_colour',
+#     'node_size',
+#     'line_colour',
+#     'line_width',
+#     'point_colour',
+#     'point_size',
+#     'overlay_blend',
+#     'overlay_line_width',
+#     'overlay_colour_left',
+#     'overlay_colour_right',
+#     'pype_mode',
+#     'zoom_memory',
+#     'zoom_mode',
+#     'zoom_magnification',
+#     'zoom_n_steps',
+#     'wait_time',
+#     'window_aspect',
+#     'window_control',
+#     'window_max_dim',
+#     'window_name',
+#  ]
 
 _GUI_data_args = [
     'comment', 
@@ -238,8 +238,6 @@ _GUI_data_args = [
 
 
 #%% legacy 
-
-flag_verbose = _config.verbose
 
 _legacy_names = {
     "preprocessing": {

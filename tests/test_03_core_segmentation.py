@@ -6,27 +6,7 @@ import pytest
 
 import phenopype as pp
 
-#%% fixtures
 
-
-@pytest.fixture
-def drawing():
-
-    drawing = {"drawing": {'a': {'info': {'annotation_type': 'drawing',
-   'phenopype_function': 'edit_contour',
-   'phenopype_version': '3.0.dev0'},
-  'settings': {'overlay_blend': 0.2,
-   'overlay_line_width': 1,
-   'overlay_colour_left': (0, 128, 0),
-   'overlay_colour_right': (0, 0, 255)},
-  'data': {'drawing': [[[(1375, 328), (1375, 328)], 0, 16],
-    [[(1416, 336), (1416, 336)], 0, 16],
-    [[(1445, 346), (1445, 346)], 0, 16],
-    [[(1474, 350), (1474, 350)], 0, 16],
-    [[(1677, 390), (1677, 390)], 0, 16],
-    [[(1708, 395), (1708, 395)], 0, 16]]}}}}
-    
-    return drawing
 
 
 #%% tests
@@ -110,7 +90,7 @@ def test_edit_contour(image_binary, image, drawing):
     annotations = pp.segmentation.edit_contour(
         image, 
         annotations=annotations,
-        feedback=False,
+        interactive=False,
         )
 
     assert len(annotations) > 0

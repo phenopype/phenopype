@@ -72,20 +72,19 @@ def test_project_add_config(project, settings):
     
     
 
-def test_project_add_reference(project, reference_detected, mask_polygon, settings):
+def test_project_add_reference_template(project, reference_created, mask_polygon, settings):
     
-    annotations = {**reference_detected, **mask_polygon}
+    annotations = {**reference_created, **mask_polygon}
     
-    project.add_reference(
-        tag=pytest.tag_1, 
-        reference_image_path=pytest.reference_image_path,
-        reference_tag="ref1",
+    project.add_reference_template(
+        image_path=pytest.reference_image_path,
+        reference_id="ref1",
         feedback=False,
         overwrite=True,
         annotations=annotations,
         )
     
-    assert os.path.isfile(os.path.join(project.root_dir, "reference", "ref1_search_template.tif"))
+    assert os.path.isfile(os.path.join(project.root_dir, "reference", "ref1_template.tif"))
     
     
     

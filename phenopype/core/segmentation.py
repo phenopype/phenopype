@@ -9,7 +9,7 @@ from dataclasses import make_dataclass
 from math import inf
 
 from phenopype import __version__
-from phenopype import settings
+from phenopype import _vars
 from phenopype import utils
 from phenopype import utils_lowlevel as ul
 from phenopype.core import preprocessing, visualization
@@ -57,7 +57,7 @@ def contour_to_mask(
     # annotation management
 
     ## get contours
-    annotation_type = settings._contour_type
+    annotation_type = _vars._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -208,7 +208,7 @@ def detect_contour(
     annotations = kwargs.get("annotations", {})
 
     ## drawings
-    annotation_type = settings._drawing_type
+    annotation_type = _vars._drawing_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -233,7 +233,7 @@ def detect_contour(
 
     if apply_drawing and "data" in annotation:
 
-        drawings = annotation["data"][settings._drawing_type]
+        drawings = annotation["data"][_vars._drawing_type]
 
         ## apply coords to tool and draw on canvas
         for coords in drawings:
@@ -262,8 +262,8 @@ def detect_contour(
 
     contours_det, hierarchies_det = cv2.findContours(
         image=image_bin,
-        mode=settings.opencv_contour_flags["retrieval"][retrieval],
-        method=settings.opencv_contour_flags["approximation"][approximation],
+        mode=_vars.opencv_contour_flags["retrieval"][retrieval],
+        method=_vars.opencv_contour_flags["approximation"][approximation],
         offset=tuple(offset_coords),
     )
 
@@ -361,10 +361,10 @@ def detect_contour(
 def edit_contour(
     image,
     annotations,
+    line_width="auto",
     overlay_blend=0.2,
-    overlay_line_width=1,
-    overlay_colour_left="lime",
-    overlay_colour_right="red",
+    overlay_colour_left="default",
+    overlay_colour_right="default",
     **kwargs,
 ):
     """
@@ -380,7 +380,7 @@ def edit_contour(
         phenopype annotation containing contours
     overlay_blend: float, optional
         transparency / colour-mixing of the contour overlay 
-    overlay_line_width: int, optional
+    line_width: int, optional
         add outline to the contours. useful when overlay_blend == 0
     left_colour: str, optional
         overlay colour for left click (include). (for options see pp.colour)
@@ -397,24 +397,20 @@ def edit_contour(
     # annotation management
 
     ## get contours
-    annotation_type = settings._contour_type
+    annotation_type = _vars._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
-
     annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
-
     gui_data = {annotation_type: ul._get_GUI_data(annotation)}
 
     ## get previous drawing
     fun_name = sys._getframe().f_code.co_name
-
     annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
-
     annotation = ul._get_annotation(
         annotations=annotations,
         annotation_type=annotation_type,
@@ -422,14 +418,9 @@ def edit_contour(
         kwargs=kwargs,
     )
 
-    gui_data.update({settings._sequence_type: ul._get_GUI_data(annotation)})
+    gui_data.update({_vars._sequence_type: ul._get_GUI_data(annotation)})
     gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
-    # =============================================================================
-    # setup
-
-    overlay_colour_left = ul._get_bgr(overlay_colour_left)
-    overlay_colour_right = ul._get_bgr(overlay_colour_right)
 
     # =============================================================================
     # execute
@@ -438,7 +429,7 @@ def edit_contour(
         image=image,
         tool="draw",
         overlay_blend=overlay_blend,
-        overlay_line_width=overlay_line_width,
+        line_width=line_width,
         overlay_colour_left=overlay_colour_left,
         overlay_colour_right=overlay_colour_right,
         data=gui_data,
@@ -455,12 +446,12 @@ def edit_contour(
             "phenopype_version": __version__,
         },
         "settings": {
+            "line_width": line_width,
             "overlay_blend": overlay_blend,
-            "overlay_line_width": overlay_line_width,
             "overlay_colour_left": overlay_colour_left,
             "overlay_colour_right": overlay_colour_right,
         },
-        "data": {annotation_type: gui.data[settings._sequence_type],},
+        "data": {annotation_type: gui.data[_vars._sequence_type],},
     }
 
     # =============================================================================
@@ -512,7 +503,7 @@ def mask_to_contour(
     # annotation management
 
     ## get contours
-    annotation_type = settings._mask_type
+    annotation_type = _vars._mask_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
     
     annotation = ul._get_annotation(
@@ -633,10 +624,10 @@ def morphology(
     # execute
 
     kernel = cv2.getStructuringElement(
-        settings.opencv_morphology_flags["shape_list"][shape],
+        _vars.opencv_morphology_flags["shape_list"][shape],
         (kernel_size, kernel_size),
     )
-    operation = settings.opencv_morphology_flags["operation_list"][operation]
+    operation = _vars.opencv_morphology_flags["operation_list"][operation]
 
     image = cv2.morphologyEx(image, op=operation, kernel=kernel, iterations=iterations)
 
@@ -724,19 +715,19 @@ def threshold(
     annotations = kwargs.get("annotations", {})
 
     ## references
-    annotation_id_ref = kwargs.get(settings._reference_type + "_id", None)
+    annotation_id_ref = kwargs.get(_vars._reference_type + "_id", None)
     annotation_ref = ul._get_annotation(
         annotations,
-        settings._reference_type,
+        _vars._reference_type,
         annotation_id_ref,
         prep_msg="- masking regions in thresholded image:",
     )
 
     ## masks
-    annotation_id_mask = kwargs.get(settings._mask_type + "_id", None)
+    annotation_id_mask = kwargs.get(_vars._mask_type + "_id", None)
     annotation_mask = ul._get_annotation(
         annotations,
-        settings._mask_type,
+        _vars._mask_type,
         annotation_id_mask,
         prep_msg="- masking regions in thresholded image:",
     )
@@ -753,8 +744,8 @@ def threshold(
     if all([flags.mask, "data" in annotation_mask]):
         if annotation_mask["data"]["include"]:
             roi_list, roi_bbox_coords_list, roi_mask_coords_list = [], [], []
-            if len(annotation_mask["data"][settings._mask_type]) > 0: 
-                polygons = annotation_mask["data"][settings._mask_type]   
+            if len(annotation_mask["data"][_vars._mask_type]) > 0: 
+                polygons = annotation_mask["data"][_vars._mask_type]   
                 
                 for coords in polygons:
                     
@@ -826,8 +817,8 @@ def threshold(
     # exclude masks or references
     
     if "data" in annotation_ref:
-        if settings._mask_type in annotation_ref["data"]:
-            polygons = annotation_ref["data"][settings._mask_type]
+        if _vars._mask_type in annotation_ref["data"]:
+            polygons = annotation_ref["data"][_vars._mask_type]
             for coords in polygons:
                 thresh[ul._create_mask_bool(thresh, coords)] = 0
             ul._print("- excluding pixels from reference")
@@ -836,8 +827,8 @@ def threshold(
     if all([flags.mask, "data" in annotation_mask]):
         if not annotation_mask["data"]["include"]:
             
-            if len(annotation_mask["data"][settings._mask_type]) > 0:
-                polygons = annotation_mask["data"][settings._mask_type]   
+            if len(annotation_mask["data"][_vars._mask_type]) > 0:
+                polygons = annotation_mask["data"][_vars._mask_type]   
                
             for coords in polygons:
                 thresh[ul._create_mask_bool(thresh, coords)] = 0
@@ -893,7 +884,7 @@ def watershed(
     # annotation management
 
     ## get contours
-    annotation_type = settings._contour_type
+    annotation_type = _vars._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -903,7 +894,7 @@ def watershed(
         kwargs=kwargs,
     )
 
-    contours = annotation["data"][settings._contour_type]
+    contours = annotation["data"][_vars._contour_type]
 
     # =============================================================================
     # setup
@@ -958,7 +949,7 @@ def watershed(
 
     ## distance transformation
     dist_transform = cv2.distanceTransform(
-        opened, settings.opencv_distance_flags[distance_type], distance_mask
+        opened, _vars.opencv_distance_flags[distance_type], distance_mask
     )
     dist_transform = cv2.normalize(
         dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX
@@ -1074,7 +1065,7 @@ def watershed(
 #     # annotation management
 
 #     ## get contours
-#     annotation_type = settings._contour_type
+#     annotation_type = _vars._contour_type
 #     annotation_id = kwargs.get(annotation_type + "_id", None)
 
 #     annotation = ul._get_annotation(
@@ -1084,7 +1075,7 @@ def watershed(
 #         kwargs=kwargs,
 #     )
 
-#     contours = annotation["data"][settings._contour_type]
+#     contours = annotation["data"][_vars._contour_type]
 
 # 	# =============================================================================
 # 	# setup
@@ -1140,7 +1131,7 @@ def watershed(
 
 #     ## distance transformation
 #     dist_transform = cv2.distanceTransform(
-#         opened, settings.opencv_distance_flags[distance_type], distance_mask
+#         opened, _vars.opencv_distance_flags[distance_type], distance_mask
 #     )
 #     dist_transform = cv2.normalize(
 #         dist_transform, dist_transform, 0, 1.0, cv2.NORM_MINMAX

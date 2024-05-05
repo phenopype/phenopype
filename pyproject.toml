@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phenopype"
+version = "4.1.0"  
+description = "A phenotyping pipeline for python"
+readme = "README.md"
+authors = [
+    {name = "Moritz Luerig", email = "moritz.luerig@gmail.com"}
+]
+license = {file = "LICENSE"}
+requires-python = "==3.9.*"
+dependencies = [
+        "colour",
+        "numpy",
+        "opencv-contrib-python==4.5.2.54",
+        "pandas",
+        "pillow",
+        "pyradiomics==3.1.0",
+        "ruamel.yaml==0.16.12",
+        "tqdm",
+        "watchdog",
+    ]
+keywords = ["computer vision", "biology"]  
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "coverage",
+    "coveralls",
+    "mock",
+    "pytest-xvfb",
+    "pytest-cov",
+    "pyyaml"
+]
+
+[project.urls]
+"Homepage" = "https://www.phenopype.org"
+"Documentation" = "https://www.phenopype.org/docs/" 
+"Repository" = "https://github.com/phenopype/phenopype" 
+"Bug Tracker" = "https://github.com/phenopype/phenopype/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+phenopype = ['assets/*.html'] 
+

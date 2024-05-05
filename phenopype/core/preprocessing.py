@@ -8,48 +8,47 @@ import sys
 from dataclasses import make_dataclass
 import math
 
+
+from phenopype.core import segmentation
 from phenopype import __version__
-from phenopype import settings
+from phenopype import _vars
 from phenopype import utils
 from phenopype import utils_lowlevel as ul
 
 #%% functions
 
-def blur(
-    image, kernel_size=5, method="averaging", sigma_color=75, sigma_space=75, **kwargs
-):
+def blur(image, kernel_size=5, method="averaging", sigma_color=75, sigma_space=75, verbose=False, custom_kernel=None):
     """
-    Apply a blurring algorithm to an image.
+    Apply a blurring algorithm to an image with enhanced features.
 
     Parameters
     ----------
-    image: array 
-        input image
-    kernel_size: int, optional
-        size of the blurring kernel (has to be odd - even numbers will be ceiled)
-    method: {averaging, gaussian, median, bilateral} str, optional
-        blurring algorithm
-    sigma_colour: int, optional
-        for 'bilateral'
-    sigma_space: int, optional
-        for 'bilateral'
+    image : ndarray
+        The input image.
+    kernel_size : int, optional
+        Size of the blurring kernel, must be positive and odd.
+    method : str, optional
+        Blurring algorithm: 'averaging', 'gaussian', 'median', 'bilateral', or 'custom'.
+    sigma_color : int, optional
+        For 'bilateral' filter, the filter sigma in the color space.
+    sigma_space : int, optional
+        For 'bilateral' filter, the filter sigma in the coordinate space.
+    verbose : bool, optional
+        If True, prints additional details about the process.
+    custom_kernel : ndarray, optional
+        Custom kernel for convolution if method is 'custom'.
 
     Returns
     -------
-    image : ndarray 
-        blurred image
+    ndarray
+        The blurred image.
     """
 
-    # =============================================================================
-    # setup
-
     if kernel_size % 2 == 0:
-        kernel_size = kernel_size + 1
-        if settings.flag_verbose:
-            print("- even kernel size supplied, adding 1 to make odd")
-
-    # =============================================================================
-    # execute
+        kernel_size += 1  # Make kernel_size odd if it is even
+    
+    if verbose:
+        print(f"Applying {method} blur with kernel size {kernel_size}")
 
     if method == "averaging":
         blurred = cv2.blur(image, (kernel_size, kernel_size))
@@ -59,46 +58,58 @@ def blur(
         blurred = cv2.medianBlur(image, kernel_size)
     elif method == "bilateral":
         blurred = cv2.bilateralFilter(image, kernel_size, sigma_color, sigma_space)
-
-    # =============================================================================
-    # return
+    elif method == "custom":
+        blurred = cv2.filter2D(image, -1, custom_kernel)
 
     return blurred
 
-def clip_histogram(image, percent=1, **kwargs):
-    
-    # Calculate grayscale histogram
-    hist = cv2.calcHist([image],[0],None,[256],[0,256])
-    hist_size = len(hist)
-    
-    # Calculate cumulative distribution from the histogram
-    accumulator = []
-    accumulator.append(float(hist[0][0]))
-    for index in range(1, hist_size):
-        accumulator.append(accumulator[index -1] + float(hist[index][0]))
-    
-    # Locate points to clip
-    maximum = accumulator[-1]
-    percent *= (maximum/100.0)
-    percent /= 2.0
-    
-    # Locate left cut
-    minimum_gray = 0
-    while accumulator[minimum_gray] < percent:
-        minimum_gray += 1
-    
-    # Locate right cut
-    maximum_gray = hist_size -1
-    while accumulator[maximum_gray] >= (maximum - percent):
-        maximum_gray -= 1
-    
-    # Calculate alpha and beta values
+
+def clip_histogram(image, percent=1):
+    """
+    Enhances the contrast of an image by clipping the histogram and applying histogram stretching.
+
+    Parameters
+    ----------
+    image : ndarray
+        The input grayscale image.
+    percent : float, optional
+        The percentage of the histogram to be clipped from both tails. Default is 1%.
+
+    Returns
+    -------
+    image : ndarray
+        The contrast-enhanced image.
+
+    """
+
+    if not (0 <= percent <= 100):
+        raise ValueError("Percent must be between 0 and 100")
+
+    # Calculate the histogram of the image
+    hist = cv2.calcHist([image], [0], None, [256], [0, 256]).flatten()
+
+    # Calculate the cumulative distribution of the histogram
+    accumulator = np.cumsum(hist)
+
+    # Calculate the total number of pixels to clip from each tail of the histogram
+    clip_value = percent * 0.5 * accumulator[-1] / 100
+
+    # Determine the grayscale thresholds to clip
+    minimum_gray = np.searchsorted(accumulator, clip_value)
+    maximum_gray = np.searchsorted(accumulator, accumulator[-1] - clip_value) - 1
+
+    # Handle cases where the percent value is too high, causing minimum_gray to exceed maximum_gray
+    if minimum_gray >= maximum_gray:
+        raise ValueError("Clipping percent too high; all pixels fall within the clip range.")
+
+    # Apply histogram stretching
     alpha = 255 / (maximum_gray - minimum_gray)
     beta = -minimum_gray * alpha
-    
-    image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
-    
-    return image
+
+    # Convert scale and apply the calculated alpha and beta
+    contrast_enhanced_image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+
+    return contrast_enhanced_image
 
 
 
@@ -167,26 +178,8 @@ def create_mask(
         kwargs=kwargs,
     )
 
-    gui_data = {settings._coord_list_type: ul._get_GUI_data(annotation)}
+    gui_data = {_vars._coord_list_type: ul._get_GUI_data(annotation)}
     gui_settings = ul._get_GUI_settings(kwargs, annotation)
-
-    # =============================================================================
-    # setup
-
-    if line_width == "auto":
-        line_width = ul._auto_line_width(image)
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-
-    if line_colour == "default":
-        line_colour = settings._default_line_colour
-    if label_colour == "default":
-        label_colour = settings._default_label_colour
-
-    label_colour = ul._get_bgr(label_colour)
-    line_colour = ul._get_bgr(line_colour)
 
     # =============================================================================
     # execute function
@@ -224,8 +217,8 @@ def create_mask(
         "data": {
             "label": label,
             "include": include,
-            "n": len(gui.data[settings._coord_list_type]),
-            annotation_type: gui.data[settings._coord_list_type],
+            "n": len(gui.data[_vars._coord_list_type]),
+            annotation_type: gui.data[_vars._coord_list_type],
         },
     }
 
@@ -367,7 +360,7 @@ def detect_mask(
                 mask_contours = segmentation.detect_contour(
                     mask, retrieval="ext", approximation="KCOS", verbose=False,
                 )
-                mask_coords = mask_contours["contour"]["a"]["data"][settings._contour_type][0]
+                mask_coords = mask_contours["contour"]["a"]["data"][_vars._contour_type][0]
                 mask_coords = [np.append(
                         np.concatenate(mask_coords),
                         [np.concatenate(mask_coords[0])],
@@ -485,33 +478,16 @@ def create_reference(
     ## not pretty but needed for tests:
     gui_data = {}
     if annotation:
-        gui_data.update({settings._coord_type: annotation["data"]["support"]})
+        gui_data.update({_vars._coord_type: annotation["data"]["support"]})
         gui_data.update(
-            {settings._comment_type: annotation["data"][annotation_type][0]}
+            {_vars._comment_type: annotation["data"][annotation_type][0]}
         )
         unit = annotation["data"][annotation_type][0]
         label = annotation["data"]["label"]
         if "mask" in annotation["data"]:
             gui_data.update(
-                {settings._coord_list_type: annotation["data"][settings._mask_type]}
+                {_vars._coord_list_type: annotation["data"][_vars._mask_type]}
             )
-
-    # =============================================================================
-    # setup
-
-    if line_width == "auto":
-        line_width = ul._auto_line_width(image)
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-    if line_colour == "default":
-        line_colour = settings._default_line_colour
-    if label_colour == "default":
-        label_colour = settings._default_label_colour
-
-    label_colour = ul._get_bgr(label_colour)
-    line_colour = ul._get_bgr(line_colour)
 
     # =============================================================================
     # execute
@@ -527,7 +503,7 @@ def create_reference(
     )
 
     ## enter length
-    points = gui.data[settings._coord_type]
+    points = gui.data[_vars._coord_type]
     distance_px = math.sqrt(
         ((points[0][0] - points[1][0]) ** 2) + ((points[0][1] - points[1][1]) ** 2)
     )
@@ -545,7 +521,7 @@ def create_reference(
     )
 
     ## output conversion
-    distance_measured = float(gui.data[settings._comment_type])
+    distance_measured = float(gui.data[_vars._comment_type])
     px_ratio = round(float(distance_px / distance_measured), 3)
 
     if mask:
@@ -572,7 +548,7 @@ def create_reference(
             "label": label,
             annotation_type: (px_ratio, unit),
             "support": points,
-            settings._mask_type: gui.data[settings._coord_list_type],
+            _vars._mask_type: gui.data[_vars._coord_list_type],
         },
     }
 
@@ -811,7 +787,7 @@ def detect_reference(
     }
 
     if flags.success and flags.mask:
-        annotation["data"][settings._mask_type] = coord_list
+        annotation["data"][_vars._mask_type] = coord_list
 
     # =============================================================================
     # return
@@ -872,7 +848,7 @@ def detect_QRcode(
 
     annotation = kwargs.get("annotation")
     
-    gui_data = {settings._comment_type: ul._get_GUI_data(annotation)}
+    gui_data = {_vars._comment_type: ul._get_GUI_data(annotation)}
     gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
     # =============================================================================
@@ -892,7 +868,7 @@ def detect_QRcode(
         label_width = ul._auto_text_width(image)
 
     if label_colour == "default":
-        label_colour = settings._default_label_colour
+        label_colour = _vars._default_label_colour
 
     label_colour = ul._get_bgr(label_colour)
     
@@ -930,7 +906,7 @@ def detect_QRcode(
                 data=gui_data,
                 **gui_settings,
             )
-            decodedText = gui.data[settings._comment_type]
+            decodedText = gui.data[_vars._comment_type]
         else:
             print("- did not find QR-code")
             return
@@ -966,7 +942,7 @@ def detect_QRcode(
         "data": {
             annotation_type: decodedText,
             "label": label,
-            settings._mask_type: points,
+            _vars._mask_type: points,
             },
     }
 
@@ -1087,23 +1063,10 @@ def write_comment(
     )
 
     gui_settings = ul._get_GUI_settings(kwargs, annotation)
-    gui_data = {settings._comment_type: ul._get_GUI_data(annotation)}
+    gui_data = {_vars._comment_type: ul._get_GUI_data(annotation)}
     if annotation:
         label = annotation["data"]["label"]
         
-    # =============================================================================
-    # setup
-
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-
-    if label_colour == "default":
-        label_colour = settings._default_label_colour
-
-    label_colour = ul._get_bgr(label_colour)
-
     # =============================================================================
     # execute
 
@@ -1130,7 +1093,7 @@ def write_comment(
         "settings": {},
         "data": {
             "label": label, 
-            annotation_type: gui.data[settings._comment_type],
+            annotation_type: gui.data[_vars._comment_type],
             },
     }
 

@@ -98,12 +98,13 @@ def test_load_annotation(settings, image):
     canvas_mod = pp.visualization.draw_contour(
         canvas,
         annotations,
+        interactive=False,
         )
     
     annotations = pp.preprocessing.create_mask(
         image, 
         annotations=annotations, 
-        feedback=False,
+        interactive=False,
         )
 
     assert not (image==canvas_mod).all() and len(annotations) > 0

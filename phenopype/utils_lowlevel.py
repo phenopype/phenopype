@@ -5,11 +5,12 @@ import inspect
 import json
 import logging
 import numpy as np
-from dataclasses import make_dataclass, fields
+from dataclasses import dataclass, make_dataclass, fields
 import string
 import re
 from _ctypes import PyObj_FromPtr
 from colour import Color
+import shutil
 
 from timeit import default_timer as timer
 import ruamel.yaml
@@ -30,8 +31,8 @@ from contextlib import redirect_stdout
 import io
 
 from phenopype import _config
+from phenopype import _vars
 from phenopype import main
-from phenopype import settings
 from phenopype import utils
 
 
@@ -42,8 +43,34 @@ Image.MAX_IMAGE_PIXELS = 999999999
 
 #%% classes
 
+@dataclass
+class _GUI_Settings:
+    interactive: bool = True
+    label_colour: tuple = "default"
+    label_size: int = "auto"
+    label_width: int = "auto"
+    line_colour: tuple = "default"
+    line_width: int = "auto"
+    node_colour: tuple = "default"
+    node_size: int = "auto"
+    overlay_blend: float = 0.2
+    overlay_colour_left: tuple = "default"
+    overlay_colour_right: tuple = "default"
+    point_colour: tuple = "default"
+    point_size: int = "auto"
+    pype_mode: bool = False
+    return_input: bool = False
+    show_label: bool = False
+    show_nodes: bool = False
+    wait_time: int = 500
+    window_aspect: str = "normal"
+    window_control: str = "internal"
+    window_name: str = "phenopype"
+    zoom_magnification: float = 0.5
+    zoom_memory: bool = False
+    zoom_mode: str = "continuous"
+    zoom_n_steps: int = 20
 
-# @_image_viewer_settings
 class _GUI:
     def __init__(
         self,
@@ -71,100 +98,52 @@ class _GUI:
         Parameters
         ----------
 
-        """        
+        """       
         
-        ## kwargs (improve: use dictionary from config)
-        if kwargs.get("window_max_dim"):
-            window_max_dim = kwargs.get("window_max_dim")
-        elif hasattr(main, "window_max_dim"):
-            if not main.window_max_dim == None:
-                window_max_dim = main.window_max_dim
-            else:
-                window_max_dim = _config.window_max_dim
-        else:
-            window_max_dim = _config.window_max_dim
-            
-        if kwargs.get("window_min_dim"):
-            window_min_dim = kwargs.get("window_min_dim")
-        elif hasattr(main, "window_min_dim"):
-            if not main.window_min_dim == None:
-                window_min_dim = main.window_min_dim
-            else:
-                window_min_dim = _config.window_min_dim
-        else:
-            window_min_dim = _config.window_min_dim
+        if not image.__class__.__name__ == "ndarray":
+            raise TypeError("GUI module did not receive array-type - aborting!")
 
-        self.__dict__.update(kwargs)
+        ## configure image    
+        window_max_dim = kwargs.get("window_max_dim", _config.window_max_dim)
+        window_min_dim = kwargs.get("window_min_dim", _config.window_min_dim)
+        self._set_up_image(image, window_max_dim, window_min_dim)     
         
-        ## basic settings
+        ## apply args to settings
+        self.settings = _GUI_Settings(
+            interactive, pype_mode, 
+            zoom_memory, zoom_magnification,zoom_mode, zoom_n_steps, 
+            wait_time, window_aspect, window_control,
+            window_name)
+        
+        ## apply kwargs to setting
+        for field in fields(self.settings):
+            if field.name in kwargs:
+                field_val = kwargs[field.name] 
+                if "colour" in field.name: 
+                    field_val = _get_bgr(field.default, field.name)
+                if "size" in field.name or "width" in field.name: 
+                    field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field.default)
+                setattr(self.settings, field.name, field_val)
+                
+        ## basic settings (maybe integrate better)
+        self.__dict__.update(kwargs)
         self.tool = tool
         self.query = kwargs.get("query", None)
 
         ## data collector
         self.data = {
-            settings._comment_type: "",
-            settings._contour_type: [],
-            settings._coord_type: [],
-            settings._coord_list_type: [],
-            settings._sequence_type: [],
+            _vars._comment_type: "",
+            _vars._contour_type: [],
+            _vars._coord_type: [],
+            _vars._coord_list_type: [],
+            _vars._sequence_type: [],
         }
 
         self.data.update(kwargs.get("data", {}))
 
         ## hack to fix empty list bug
-        if (
-            type(self.data[settings._comment_type]) == list
-            and len(self.data[settings._comment_type]) == 0
-        ):
-            self.data[settings._comment_type] = ""
-            
-        ## GUI settings
-        self.settings = make_dataclass(cls_name='settings', fields=[
-            
-            ('show_label', bool, kwargs.get('show_label', False)),
-            ('label_colour', tuple, kwargs.get('label_colour',settings._default_label_colour)),
-            ('label_size', int, kwargs.get('label_size', _auto_text_size(image))),
-            ('label_width', int, kwargs.get('label_width',_auto_text_width(image))),
-            
-            ('show_nodes', bool, kwargs.get('show_nodes', False)),
-            ('node_colour', tuple, kwargs.get('node_colour',settings._default_point_colour)),
-            ('node_size', int, kwargs.get('node_size', _auto_point_size(image))),
-            
-            ('line_colour', tuple, kwargs.get('line_colour', settings._default_line_colour)),
-            ('line_width', int, kwargs.get('line_width', _auto_line_width(image))),
-            
-            ('point_colour', tuple, kwargs.get('point_colour', settings._default_point_colour)),
-            ('point_size', int, kwargs.get('point_size',  _auto_point_size(image))),
-            
-            ('overlay_blend', float, kwargs.get('overlay_blend', 0.2)),
-            ('overlay_line_width', int, kwargs.get('overlay_line_width', 1)),
-            ('overlay_colour_left', tuple, kwargs.get('overlay_colour_left',settings._default_overlay_left)),
-            ('overlay_colour_right', tuple, kwargs.get('overlay_colour_right',settings._default_overlay_right)),
-            
-            ('return_input', bool, kwargs.get('return_input',False)),
-
-            ('interactive', bool, interactive),
-            ('pype_mode', bool, pype_mode),
-
-            ('zoom_memory', bool, zoom_memory),
-            ('zoom_mode', str, zoom_mode),
-            ('zoom_magnification', float, zoom_magnification),
-            ('zoom_n_steps', int, zoom_n_steps),
-            
-            ('wait_time', int, wait_time),
-            
-            ('window_aspect', str, window_aspect),
-            ('window_control', str, window_control),
-            ('window_max_dim', str, window_max_dim),
-            ('window_name', str, window_name),
-            
-            ])
-        
-        ## convert color strings to tuple
-        for field in fields(self.settings):
-            if "colour" in field.name:
-                if type(field.default) == str:
-                    setattr(self.settings, field.name, _get_bgr(field.default))
+        if (type(self.data[_vars._comment_type]) == list and len(self.data[_vars._comment_type]) == 0):
+            self.data[_vars._comment_type] = ""
 
         ## collect interactions and set flags
         self.line_width_orig = copy.deepcopy(self.settings.line_width)
@@ -185,17 +164,10 @@ class _GUI:
         # initialize variables
         # =============================================================================
 
-        if not image.__class__.__name__ == "ndarray":
-            raise TypeError("GUI module did not receive array-type - aborting!")
-
-        ## image
-        self.image = copy.deepcopy(image)
-        self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
-
         ## binary image (for blending)
         if self.tool == "draw":
 
-            if len(self.data[settings._contour_type]) > 0:
+            if len(self.data[_vars._contour_type]) > 0:
 
                 ## coerce to multi channel image for colour mask
                 if len(self.image.shape) == 2:
@@ -205,7 +177,7 @@ class _GUI:
                 self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
 
                 ## draw contours onto overlay
-                for contour in self.data[settings._contour_type]:
+                for contour in self.data[_vars._contour_type]:
                     cv2.drawContours(
                         image=self.image_bin,
                         contours=[contour],
@@ -221,31 +193,7 @@ class _GUI:
                 )
                 return
             
-        ## get canvas dimensions
-        if self.image_height > window_max_dim or self.image_width > window_max_dim:
-            if self.image_width >= self.image_height:
-                self.canvas_width, self.canvas_height = (
-                    window_max_dim,
-                    int((window_max_dim / self.image_width) * self.image_height),
-                )
-            elif self.image_height > self.image_width:
-                self.canvas_width, self.canvas_height = (
-                    int((window_max_dim / self.image_height) * self.image_width),
-                    window_max_dim,
-                )
-        elif self.image_height < window_min_dim or self.image_width < window_min_dim:
-            if self.image_width >= self.image_height:
-                self.canvas_width, self.canvas_height = (
-                    window_min_dim,
-                    int((window_min_dim / self.image_width) * self.image_height),
-                )
-            elif self.image_height > self.image_width:
-                self.canvas_width, self.canvas_height = (
-                    int((window_min_dim / self.image_height) * self.image_width),
-                    window_min_dim,
-                )
-        else:
-            self.canvas_width, self.canvas_height = self.image_width, self.image_height
+
 
         ## canvas resize factor
         self.canvas_fx, self.canvas_fy = (
@@ -287,12 +235,12 @@ class _GUI:
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
             self._canvas_draw(
                 tool="line", 
-                coord_list=self.data[settings._coord_list_type],
+                coord_list=self.data[_vars._coord_list_type],
                 colour=self.settings.line_colour, 
                 width=self.settings.line_width,
                 )
             if self.settings.show_nodes:
-                for coord_list in self.data[settings._coord_list_type]:
+                for coord_list in self.data[_vars._coord_list_type]:
                     self._canvas_draw(
                         tool="point", 
                         coord_list=coord_list,
@@ -302,14 +250,14 @@ class _GUI:
         if self.tool in ["point"]:
             self._canvas_draw(
                 tool="point", 
-                coord_list=self.data[settings._coord_type],
+                coord_list=self.data[_vars._coord_type],
                 size=self.settings.point_size,
                 colour=self.settings.point_colour,
                 )
         if self.tool in ["draw"]:
             self._canvas_draw(
                 tool="line_bin", 
-                coord_list=self.data[settings._sequence_type],
+                coord_list=self.data[_vars._sequence_type],
             )
             self._canvas_blend()
             self._canvas_draw_contours()
@@ -332,7 +280,7 @@ class _GUI:
             self.canvas = copy.deepcopy(self.canvas_copy)
             cv2.putText(
                 self.canvas,
-                str(self.query) + ": " + str(self.data[settings._comment_type]),
+                str(self.query) + ": " + str(self.data[_vars._comment_type]),
                 (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 self.settings.label_size,
@@ -352,7 +300,7 @@ class _GUI:
 
         else:
             cv2.namedWindow(
-                self.settings.window_name, settings.opencv_window_flags[window_aspect]
+                self.settings.window_name, _vars.opencv_window_flags[window_aspect]
             )
             cv2.startWindowThread()
             cv2.setMouseCallback(self.settings.window_name, self._on_mouse_plain)
@@ -390,7 +338,7 @@ class _GUI:
                         ## draw nodes
                         if self.tool in ["rectangle", "polygon", "polyline"]:
                             if self.settings.show_nodes:
-                                for coord_list in self.data[settings._coord_list_type]:
+                                for coord_list in self.data[_vars._coord_list_type]:
                                     self._canvas_draw(
                                         tool="point", 
                                         coord_list=coord_list,
@@ -406,14 +354,14 @@ class _GUI:
                             ## close unfinished polygon and append to polygon list
                             if self.tool:
                                 if len(
-                                    self.data[settings._coord_type]
+                                    self.data[_vars._coord_type]
                                 ) > 2 and not self.tool in ["point"]:
                                     if not self.tool in ["polyline"]:
-                                        self.data[settings._coord_type].append(
-                                            self.data[settings._coord_type][0]
+                                        self.data[_vars._coord_type].append(
+                                            self.data[_vars._coord_type][0]
                                         )
-                                    self.data[settings._coord_list_type].append(
-                                        self.data[settings._coord_type]
+                                    self.data[_vars._coord_list_type].append(
+                                        self.data[_vars._coord_type]
                                     )
                             self.flags.end = True
                             cv2.destroyAllWindows()
@@ -432,13 +380,13 @@ class _GUI:
 
                         ## Ctrl + z = undo
                         elif self.keypress == 26 and self.tool == "draw":
-                            self.data[settings._sequence_type] = self.data[
-                                settings._sequence_type
+                            self.data[_vars._sequence_type] = self.data[
+                                _vars._sequence_type
                             ][:-1]
                             self._canvas_renew()
                             self._canvas_draw(
                                 tool="line_bin",
-                                coord_list=self.data[settings._sequence_type],
+                                coord_list=self.data[_vars._sequence_type],
                             )
                             self._canvas_blend()
                             self._canvas_draw_contours()
@@ -453,6 +401,41 @@ class _GUI:
                             if self.keypress in [13, 27, 2424832, 2555904]:
                                 self.flags.end = True
                                 cv2.destroyAllWindows()
+                                
+    def _set_up_image(self, image, window_max_dim, window_min_dim):
+        """
+        Adjust the canvas size based on maximum and minimum dimension constraints while maintaining aspect ratio.
+    
+        Args:
+            window_max_dim (int): The maximum allowed dimension for either width or height.
+            window_min_dim (int): The minimum allowed dimension for either width or height.
+        """
+        self.image = copy.deepcopy(image)
+        self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
+        aspect_ratio = self.image_width / self.image_height
+    
+        # Determine the dimension constraints based on the aspect ratio
+        if self.image_width >= self.image_height:
+            # Width is the dominating dimension or they are equal
+            target_width = min(window_max_dim, max(self.image_width, window_min_dim))
+            target_height = int(target_width / aspect_ratio)
+        else:
+            # Height is the dominating dimension
+            target_height = min(window_max_dim, max(self.image_height, window_min_dim))
+            target_width = int(target_height * aspect_ratio)
+    
+        # Apply constraints to not exceed max dimensions and not fall below min dimensions
+        self.canvas_width = min(target_width, window_max_dim)
+        self.canvas_height = min(target_height, window_max_dim)
+        
+        # Ensure the canvas dimensions do not fall below the minimum dimension constraints
+        if self.canvas_width < window_min_dim:
+            self.canvas_width = window_min_dim
+            self.canvas_height = int(self.canvas_width / aspect_ratio)
+        if self.canvas_height < window_min_dim:
+            self.canvas_height = window_min_dim
+            self.canvas_width = int(self.canvas_height * aspect_ratio)
+                                
 
     def _keyboard_input(self):
         self.keypress_trans = chr(self.keypress)
@@ -461,12 +444,12 @@ class _GUI:
     def _comment_tool(self):
 
         if self.keypress > 0 and not self.keypress in [8, 13, 27]:
-            self.data[settings._comment_type] = self.data[settings._comment_type] + chr(
+            self.data[_vars._comment_type] = self.data[_vars._comment_type] + chr(
                 self.keypress
             )
         elif self.keypress == 8:
-            self.data[settings._comment_type] = self.data[settings._comment_type][
-                0 : len(self.data[settings._comment_type]) - 1
+            self.data[_vars._comment_type] = self.data[_vars._comment_type][
+                0 : len(self.data[_vars._comment_type]) - 1
             ]
 
         self.canvas = copy.deepcopy(self.canvas_copy)
@@ -474,7 +457,7 @@ class _GUI:
 
         cv2.putText(
             self.canvas,
-            str(self.query) + ": " + str(self.data[settings._comment_type]),
+            str(self.query) + ": " + str(self.data[_vars._comment_type]),
             (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
             cv2.FONT_HERSHEY_SIMPLEX,
             self.settings.label_size,
@@ -491,14 +474,14 @@ class _GUI:
         
         if self.keypress in [13, 27, 2424832, 2555904]:
             self.flags.end = True
-        elif self.keypress in settings.ascii_codes:
-            key = str(settings.ascii_codes[self.keypress])
+        elif self.keypress in _vars.ascii_codes:
+            key = str(_vars.ascii_codes[self.keypress])
             if key in self.settings.label_keymap:
-                self.data[settings._comment_type] = str(self.settings.label_keymap[settings.ascii_codes[self.keypress]])
+                self.data[_vars._comment_type] = str(self.settings.label_keymap[_vars.ascii_codes[self.keypress]])
                 self.canvas = copy.deepcopy(self.canvas_copy)
                 cv2.putText(
                     self.canvas,
-                    str(self.query) + ": " + self.data[settings._comment_type],
+                    str(self.query) + ": " + self.data[_vars._comment_type],
                     (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     self.settings.label_size,
@@ -559,13 +542,13 @@ class _GUI:
             self._zoom_coords_orig(x, y)
 
             ## append points to point list
-            self.data[settings._coord_type].append(self.coords_original)
+            self.data[_vars._coord_type].append(self.coords_original)
 
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
                 tool="point", 
-                coord_list=self.data[settings._coord_type],
+                coord_list=self.data[_vars._coord_type],
                 size=self.settings.point_size,
                 colour=self.settings.point_colour,
                 )
@@ -574,14 +557,14 @@ class _GUI:
         if event == cv2.EVENT_RBUTTONDOWN:
 
             ## remove points from list, if any are left
-            if len(self.data[settings._coord_type]) > 0:
-                self.data[settings._coord_type] = self.data[settings._coord_type][:-1]
+            if len(self.data[_vars._coord_type]) > 0:
+                self.data[_vars._coord_type] = self.data[_vars._coord_type][:-1]
 
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
                 tool="point", 
-                coord_list=self.data[settings._coord_type],
+                coord_list=self.data[_vars._coord_type],
                 size=self.settings.point_size,
                 colour=self.settings.point_colour,
                 )
@@ -597,19 +580,19 @@ class _GUI:
         if event == cv2.EVENT_MOUSEMOVE:
             if (
                 (reference or flag_draw)
-                and len(self.data[settings._coord_type]) == 2
+                and len(self.data[_vars._coord_type]) == 2
             ):
                 return
 
             ## draw line between current cursor coords and last polygon node
-            if len(self.data[settings._coord_type]) > 0:
+            if len(self.data[_vars._coord_type]) > 0:
                 self.coords_prev = (
                     int(
-                        (self.data[settings._coord_type][-1][0] - self.zoom.x1)
+                        (self.data[_vars._coord_type][-1][0] - self.zoom.x1)
                         / self.zoom.global_fx
                     ),
                     int(
-                        (self.data[settings._coord_type][-1][1] - self.zoom.y1)
+                        (self.data[_vars._coord_type][-1][1] - self.zoom.y1)
                         // self.zoom.global_fy
                     ),
                 )
@@ -633,7 +616,7 @@ class _GUI:
             elif (
                 (reference or flag_draw)
                 and self.tool == "line"
-                and len(self.data[settings._coord_type]) > 2
+                and len(self.data[_vars._coord_type]) > 2
             ):
                 pass
 
@@ -643,7 +626,7 @@ class _GUI:
         if event == cv2.EVENT_LBUTTONDOWN:
 
             ## skip if in reference mode
-            if reference and len(self.data[settings._coord_type]) == 2:
+            if reference and len(self.data[_vars._coord_type]) == 2:
                 print("already two points selected")
                 return
 
@@ -651,19 +634,19 @@ class _GUI:
             self._zoom_coords_orig(x, y)
 
             ## append points to point list
-            self.data[settings._coord_type].append(self.coords_original)
+            self.data[_vars._coord_type].append(self.coords_original)
 
             ## apply tool and refresh canvas
             self._canvas_renew()            
             self._canvas_draw(
                 tool="line", 
-                coord_list=self.data[settings._coord_list_type] + [self.data[settings._coord_type]],
+                coord_list=self.data[_vars._coord_list_type] + [self.data[_vars._coord_type]],
                 colour=self.settings.line_colour, 
                 width=self.settings.line_width,
                 )
             
             if self.settings.show_nodes:
-                for coord_list in self.data[settings._coord_list_type] + [self.data[settings._coord_type]]:
+                for coord_list in self.data[_vars._coord_list_type] + [self.data[_vars._coord_type]]:
                     self._canvas_draw(
                         tool="point", 
                         coord_list=coord_list,
@@ -673,30 +656,28 @@ class _GUI:
             self._canvas_mount()
 
             ## if in reference mode, append to ref coords
-            if reference and len(self.data[settings._coord_type]) == 2:
+            if reference and len(self.data[_vars._coord_type]) == 2:
                 print("Reference set")
 
         if event == cv2.EVENT_RBUTTONDOWN:
 
             ## remove points and update canvas
-            if len(self.data[settings._coord_type]) > 0:
-                self.data[settings._coord_type] = self.data[settings._coord_type][:-1]
+            if len(self.data[_vars._coord_type]) > 0:
+                self.data[_vars._coord_type] = self.data[_vars._coord_type][:-1]
             else:
-                self.data[settings._coord_list_type] = self.data[
-                    settings._coord_list_type
-                ][:-1]
+                self.data[_vars._coord_list_type] = self.data[ _vars._coord_list_type][:-1]
 
             ## apply tool and refresh canvas
             print("remove")
             self._canvas_renew()
             self._canvas_draw(
                 tool="line", 
-                coord_list=self.data[settings._coord_list_type] + [self.data[settings._coord_type]],
+                coord_list=self.data[_vars._coord_list_type] + [self.data[_vars._coord_type]],
                 colour=self.settings.line_colour, 
                 width=self.settings.line_width,
                 )
             if self.settings.show_nodes:
-                for coord_list in self.data[settings._coord_list_type] + [self.data[settings._coord_type]]:
+                for coord_list in self.data[_vars._coord_list_type] + [self.data[_vars._coord_type]]:
                     self._canvas_draw(
                         tool="point", 
                         coord_list=coord_list,
@@ -705,24 +686,24 @@ class _GUI:
                         )
             self._canvas_mount()
 
-        if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.data[settings._coord_type]) >= 2:
+        if flags == cv2.EVENT_FLAG_CTRLKEY and len(self.data[_vars._coord_type]) >= 2:
 
             ## close polygon
             if not polyline:
-                self.data[settings._coord_type].append(
-                    self.data[settings._coord_type][0]
+                self.data[_vars._coord_type].append(
+                    self.data[_vars._coord_type][0]
                 )
 
             ## add current points to polygon and empyt point list
             print("poly")
-            self.data[settings._coord_list_type].append(self.data[settings._coord_type])
-            self.data[settings._coord_type] = []
+            self.data[_vars._coord_list_type].append(self.data[_vars._coord_type])
+            self.data[_vars._coord_type] = []
 
             ## apply tool and refresh canvas
             self._canvas_renew()
             self._canvas_draw(
                 tool="line", 
-                coord_list=self.data[settings._coord_list_type] + [self.data[settings._coord_type]],
+                coord_list=self.data[_vars._coord_list_type] + [self.data[_vars._coord_type]],
                 colour=self.settings.line_colour, 
                 width=self.settings.line_width,
                 )
@@ -737,7 +718,7 @@ class _GUI:
         if event == cv2.EVENT_LBUTTONDOWN:
 
             ## end after one set of points if creating a template
-            if template == True and len(self.data[settings._coord_list_type]) == 1:
+            if template == True and len(self.data[_vars._coord_list_type]) == 1:
                 return
 
             ## start drawing temporary rectangle
@@ -745,7 +726,7 @@ class _GUI:
             self.canvas_copy = copy.deepcopy(self.canvas)
             
             if self.settings.show_nodes:
-                for coord_list in self.data[settings._coord_list_type]:
+                for coord_list in self.data[_vars._coord_list_type]:
                     self._canvas_draw(
                         tool="point", 
                         coord_list=coord_list,
@@ -756,7 +737,7 @@ class _GUI:
         if event == cv2.EVENT_LBUTTONUP:
 
             ## end after one set of points if creating a template
-            if template == True and len(self.data[settings._coord_list_type]) == 1:
+            if template == True and len(self.data[_vars._coord_list_type]) == 1:
                 print("Template selected")
                 return
 
@@ -770,7 +751,7 @@ class _GUI:
                 int(self.zoom.x1 + (self.zoom.global_fx * self.rect_maxpos[0])),
                 int(self.zoom.y1 + (self.zoom.global_fy * self.rect_maxpos[1])),
             ]
-            self.data[settings._coord_list_type].append(
+            self.data[_vars._coord_list_type].append(
                 [
                     (self.rect[0], self.rect[1]),
                     (self.rect[2], self.rect[1]),
@@ -784,12 +765,12 @@ class _GUI:
             self._canvas_renew()
             self._canvas_draw(
                 tool="line", 
-                coord_list=self.data[settings._coord_list_type],
+                coord_list=self.data[_vars._coord_list_type],
                 colour=self.settings.line_colour, 
                 width=self.settings.line_width,
                 )
             if self.settings.show_nodes:
-                for coord_list in self.data[settings._coord_list_type]:
+                for coord_list in self.data[_vars._coord_list_type]:
                     self._canvas_draw(
                         tool="point", 
                         coord_list=coord_list,
@@ -802,21 +783,21 @@ class _GUI:
         if event == cv2.EVENT_RBUTTONDOWN:
 
             ## remove polygons and update canvas
-            if len(self.data[settings._coord_list_type]) > 0:
-                self.data[settings._coord_list_type] = self.data[
-                    settings._coord_list_type
+            if len(self.data[_vars._coord_list_type]) > 0:
+                self.data[_vars._coord_list_type] = self.data[
+                    _vars._coord_list_type
                 ][:-1]
 
                 ## apply tool and refresh canvas
                 self._canvas_renew()
                 self._canvas_draw(
                     tool="line", 
-                    coord_list=self.data[settings._coord_list_type],
+                    coord_list=self.data[_vars._coord_list_type],
                     colour=self.settings.line_colour, 
                     width=self.settings.line_width,
                     )
                 if self.settings.show_nodes:
-                    for coord_list in self.data[settings._coord_list_type]:
+                    for coord_list in self.data[_vars._coord_list_type]:
                         self._canvas_draw(
                             tool="point", 
                             coord_list=coord_list,
@@ -866,26 +847,26 @@ class _GUI:
                 int(self.zoom.x1 + (self.ix * self.zoom.global_fx)),
                 int(self.zoom.y1 + (self.iy * self.zoom.global_fy)),
             )
-            self.data[settings._coord_type].append(self.coords_original_i)
+            self.data[_vars._coord_type].append(self.coords_original_i)
             self.flags.drawing = True
 
         ## finish drawing and update image_copy
         if event == cv2.EVENT_LBUTTONUP or event == cv2.EVENT_RBUTTONUP:
             self.flags.drawing = False
             self.canvas = copy.deepcopy(self.canvas_copy)
-            self.data[settings._sequence_type].append(
+            self.data[_vars._sequence_type].append(
                 [
-                    self.data[settings._coord_type],
+                    self.data[_vars._coord_type],
                     self.colour_current_bin,
                     int(self.settings.line_width * self.zoom.global_fx),
                 ]
             )
-            self.data[settings._coord_type] = []
+            self.data[_vars._coord_type] = []
 
             ## draw all segments
             self._canvas_renew()
             self._canvas_draw(
-                tool="line_bin", coord_list=self.data[settings._sequence_type]
+                tool="line_bin", coord_list=self.data[_vars._sequence_type]
             )
             self._canvas_blend()
             self._canvas_draw_contours()
@@ -898,7 +879,7 @@ class _GUI:
             self._zoom_coords_orig(x, y)
 
             ## add points, colour, and line width to point list
-            self.data[settings._coord_type].append(self.coords_original)
+            self.data[_vars._coord_type].append(self.coords_original)
 
             ## draw onto canvas for immediate feedback
             cv2.line(
@@ -1006,7 +987,7 @@ class _GUI:
                 image=self.image_copy,
                 contours=[contour],
                 contourIdx=0,
-                thickness=self.settings.overlay_line_width,
+                thickness=self.settings.line_width,
                 color=self.settings.overlay_colour_left,
                 maxLevel=3,
                 offset=None,
@@ -1115,7 +1096,7 @@ class _GUI:
             self.canvas = copy.deepcopy(self.canvas_copy)
             cv2.putText(
                 self.canvas,
-                str(self.query) + ": " + str(self.data[settings._comment_type]),
+                str(self.query) + ": " + str(self.data[_vars._comment_type]),
                 (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 self.settings.label_size,
@@ -1473,7 +1454,7 @@ def _get_annotation_id(
 
 def _get_annotation_type(fun_name):
 
-    annotation_type = settings._annotation_functions[fun_name]    
+    annotation_type = _vars._annotation_functions[fun_name]    
 
     return annotation_type
 
@@ -1497,45 +1478,11 @@ def _get_annotation2(annotations, annotation_type, annotation_id, **kwargs):
     return annotation
     
 
-def _get_GUI_data(annotation):
-
-    data = []
-
-    if annotation:
-        if "info" in annotation:
-            annotation_type = annotation["info"]["annotation_type"]
-        if "data" in annotation:
-            data = annotation["data"][annotation_type]
-
-    return data
-
-
-def _get_GUI_settings(kwargs, annotation=None):
-
-    GUI_settings = {}
-
-    if annotation:
-        if "settings" in annotation:
-            if "GUI" in annotation["settings"]:
-                for key, value in annotation["settings"]["GUI"].items():
-                    if not key in ["interactive"]:
-                        GUI_settings[key] = value
-
-    if kwargs:
-        for key, value in kwargs.items():
-            if key in settings._GUI_settings_args:
-                GUI_settings[key] = value
-            elif key in ["interactive"]:
-                pass
-
-    return GUI_settings
-
-
 def _printer(print_msg, pype_mode=False,**kwargs):
     
     ## cleaned feedback (skip identical messages)
     while True:
-        if print_msg and settings.flag_verbose:
+        if print_msg and _config.verbose:
             # if prep_msg:
             #     print_msg = prep_msg + "\n\t" + print_msg
             if pype_mode:
@@ -1582,60 +1529,98 @@ def _update_annotations(
 
 #%% functions - GUI helpers
 
-
-def _auto_line_width(image, **kwargs):
-    factor = kwargs.get("factor", settings.auto_line_width_factor)
-    image_height, image_width = image.shape[0:2]
-    image_diagonal = (image_height + image_width) / 2
-    line_width = max(int(factor * image_diagonal), 1)
-
-    return line_width
-
-
-def _auto_point_size(image, **kwargs):
-    factor = kwargs.get("factor", settings.auto_point_size_factor)
-    image_height, image_width = image.shape[0:2]
-    image_diagonal = (image_height + image_width) / 2
-    point_size = max(int(factor * image_diagonal), 1)
-
-    return point_size
-
-
-def _auto_text_width(image, **kwargs):
-    factor = kwargs.get("factor", settings.auto_text_width_factor)
-    image_height, image_width = image.shape[0:2]
-    image_diagonal = (image_height + image_width) / 2
-    text_width = max(int(factor * image_diagonal), 1)
-
-    return text_width
-
-
-def _auto_text_size(image, **kwargs):
-    factor = kwargs.get("factor", settings.auto_text_size_factor)
-    image_height, image_width = image.shape[0:2]
-    image_diagonal = (image_height + image_width) / 2
-    text_size = max(int(factor * image_diagonal), 1)
-
-    return text_size
-
-
-def _get_bgr(col_string):
+def _get_size(image_height, image_width, element="line_width", size_value="auto"):
+    """
+    Calculate automatic sizing for GUI elements based on image dimensions, or return the input size.
     
-    if col_string.__class__.__name__ == "str":
+    Args:
+        image (np.array): The image based on which sizing is calculated.
+        element (str): The type of GUI element. Can be 'line', 'point', 'text', or 'text_width'.
+        size_value (str or int): The size value or "auto" to calculate size dynamically.
+
+    Returns:
+        int: The calculated size for the specified GUI element, or the input size if not "auto".
+    """
+    # Check if the size_value is explicitly "auto"; if not, directly return the input if it's numeric
+    if size_value != "auto":
+        try:
+            return int(size_value)  # Ensure it's a valid integer
+        except ValueError:
+            pass  # If it's not a valid integer, continue to calculate using default factors
+
+    # Default factor dictionary
+    default_factors = {
+        "line_width": _vars.auto_line_width_factor,
+        "node_size": _vars.auto_point_size_factor,
+        "point_size": _vars.auto_point_size_factor,
+        "label_size": _vars.auto_text_size_factor,
+        "label_width": _vars.auto_text_width_factor,
+        "text_size": _vars.auto_text_size_factor,
+        "text_width": _vars.auto_text_width_factor,
+    }
+
+    # Retrieve factor from the default table
+    factor = default_factors.get(element)
     
+    # Calculate the diagonal of the image for scaling purposes
+    image_diagonal = (image_height + image_width) / 2
+
+    # Calculate and return the size based on the factor
+    value = max(int(factor * image_diagonal), 2)
+
+    return value
+
+
+def _get_bgr(col_string, element=None):
+    
+    if col_string == "default" and element:
+        default_color = getattr(_vars, f"_default_{element}")
+        col_string = default_color
+        
+    if isinstance(col_string, str):
         col = Color(col_string)
         rgb = col.get_rgb()
-        rgb_255 = []
-        for component in rgb:
-            rgb_255.append(int(component * 255))
-    
+        rgb_255 = [int(component * 255) for component in rgb]
         colour = tuple((rgb_255[2], rgb_255[1], rgb_255[0]))
         
-    if col_string.__class__.__name__ == "int":
-        
+    elif isinstance(col_string, int):
         colour = (col_string, col_string, col_string)
         
     return colour
+
+
+def _get_GUI_data(annotation):
+
+    data = []
+
+    if annotation:
+        if "info" in annotation:
+            annotation_type = annotation["info"]["annotation_type"]
+        if "data" in annotation:
+            data = annotation["data"][annotation_type]
+
+    return data
+
+
+def _get_GUI_settings(kwargs, annotation=None):
+
+    GUI_settings = {}
+
+    if annotation:
+        if "settings" in annotation:
+            if "GUI" in annotation["settings"]:
+                for key, value in annotation["settings"]["GUI"].items():
+                    if not key in ["interactive"]:
+                        GUI_settings[key] = value
+
+    if kwargs:
+        for key, value in kwargs.items():
+            if key in _GUI_Settings.__annotations__:
+                GUI_settings[key] = value
+            elif key in ["interactive"]:
+                pass
+
+    return GUI_settings
 
 
 #%% functions - YAML helpers
@@ -2352,7 +2337,7 @@ def _print_mod(msg, context="caller", level=1):
         print(msg)
         
 def _pprint_fill_hbar(message, symbol="-", ret=False):
-    terminal_width = os.get_terminal_size()[0]
+    terminal_width = shutil.get_terminal_size()[0]
     message_length = len(message)
 
     if message_length >= terminal_width:
@@ -2418,7 +2403,7 @@ def _resize_image(
         image = cv2.resize(
             image,
             (width, height),
-            interpolation=settings.opencv_interpolation_flags[interpolation],
+            interpolation=_vars.opencv_interpolation_flags[interpolation],
         )
     
     elif not max_dim.__class__.__name__ == "NoneType":
@@ -2438,7 +2423,7 @@ def _resize_image(
             image = cv2.resize(
                 image,
                 (new_image_width, new_image_height),
-                interpolation=settings.opencv_interpolation_flags[interpolation],
+                interpolation=_vars.opencv_interpolation_flags[interpolation],
             )
             
     else:        
@@ -2450,7 +2435,7 @@ def _resize_image(
                 (0, 0),
                 fx=1 * factor,
                 fy=1 * factor,
-                interpolation=settings.opencv_interpolation_flags[interpolation],
+                interpolation=_vars.opencv_interpolation_flags[interpolation],
             )
 
     ## return results

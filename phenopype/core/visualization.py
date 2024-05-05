@@ -6,7 +6,7 @@ import numpy as np
 import math
 from dataclasses import make_dataclass
 
-from phenopype import settings
+from phenopype import _vars
 from phenopype import utils_lowlevel as ul
 
 
@@ -66,11 +66,11 @@ def draw_comment(
     if label_width == "auto":
         label_width = ul._auto_text_width(image)
     if label_colour == "default":
-        label_colour = settings._default_label_colour
+        label_colour = _vars._default_label_colour
 
     label_colour = ul._get_bgr(label_colour)
     
-    font = settings.opencv_font_flags[font]
+    font = _vars.opencv_font_flags[font]
 
     if background:
         background_colour = ul._get_bgr(background_colour)
@@ -79,7 +79,7 @@ def draw_comment(
     # =============================================================================
     # annotation management
 
-    annotation_type = settings._comment_type
+    annotation_type = _vars._comment_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -96,7 +96,7 @@ def draw_comment(
     
     ## prep label
     name = annotation["data"]["label"]
-    label_text = annotation["data"][settings._comment_type]
+    label_text = annotation["data"][_vars._comment_type]
     label =  name + ": " + label_text
     label_coords = (int(canvas.shape[0] // 10), int(canvas.shape[1] / 3))
             
@@ -156,10 +156,10 @@ def draw_contour(
     label_size="auto",
     label_width="auto",
     offset_coords=None,
-    bounding_box=False,
-    bounding_box_ext=20,
-    bounding_box_colour="default",
-    bounding_box_line_width="auto",
+    bbox=False,
+    bbox_ext=20,
+    bbox_colour="default",
+    bbox_line_width="auto",
     **kwargs,
 ):
     """
@@ -209,7 +209,7 @@ def draw_contour(
     # =============================================================================
     # annotation management
 
-    annotation_type = settings._contour_type
+    annotation_type = _vars._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -239,34 +239,21 @@ def draw_contour(
     flags = make_dataclass(
         cls_name="flags",
         fields=[
-            ("bounding_box", bool, bounding_box),
+            ("bbox", bool, bbox),
             ("label", bool, label),
             ("fill", bool, True),
         ],
     )
 
-    if line_width == "auto":
-        line_width = ul._auto_line_width(image, factor=0.001)
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-    if bounding_box_line_width == "auto":
-        bounding_box_line_width = ul._auto_line_width(image)
+    line_width = ul._get_size(image.shape[1], image.shape[0], "line_width", line_width)
+    label_size = ul._get_size(image.shape[1], image.shape[0], "label_size", label_size)
+    label_width = ul._get_size(image.shape[1], image.shape[0], "label_width", label_width)
+    bbox_line_width = ul._get_size(image.shape[1], image.shape[0], "line_width", bbox_line_width)
 
-    if fill_colour == "default":
-        fill_colour = settings._default_line_colour
-    if line_colour == "default":
-        line_colour = settings._default_line_colour
-    if label_colour == "default":
-        label_colour = settings._default_label_colour
-    if bounding_box_colour == "default":
-        bounding_box_colour = settings._default_line_colour
-
-    fill_colour = ul._get_bgr(fill_colour)
-    line_colour = ul._get_bgr(line_colour)
-    label_colour = ul._get_bgr(label_colour)
-    bounding_box_colour = ul._get_bgr(bounding_box_colour)
+    fill_colour = ul._get_bgr(fill_colour, "line_colour")
+    line_colour = ul._get_bgr(line_colour, "line_colour")
+    label_colour = ul._get_bgr(label_colour, "label_colour")
+    bbox_colour = ul._get_bgr(bbox_colour, "line_colour")
 
     ## filling and line settings
     if fill > 0:
@@ -307,16 +294,16 @@ def draw_contour(
         )
 
     ## 3) bounding boxes
-    if flags.bounding_box:
-        q = bounding_box_ext
+    if flags.bbox:
+        q = bbox_ext
         for contour in contours:
             rx, ry, rw, rh = cv2.boundingRect(contour)
             cv2.rectangle(
                 canvas,
                 (rx - q, ry - q),
                 (rx + rw + q, ry + rh + q),
-                bounding_box_colour,
-                bounding_box_line_width,
+                bbox_colour,
+                bbox_line_width,
             )
 
     ## 4) contour label
@@ -385,7 +372,7 @@ def draw_landmark(
     # =============================================================================
     # annotation management
 
-    annotation_type = settings._landmark_type
+    annotation_type = _vars._landmark_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -402,23 +389,14 @@ def draw_landmark(
 
     ## flags
     flags = make_dataclass(cls_name="flags", fields=[("label", bool, label)])
+    
+    point_size = ul._get_size(image.shape[1], image.shape[0], "point_size", point_size)
+    label_size = ul._get_size(image.shape[1], image.shape[0], "label_size", label_size)
+    label_width = ul._get_size(image.shape[1], image.shape[0], "label_width", label_width)
 
-    ## configure points
-    if point_size == "auto":
-        point_size = ul._auto_point_size(image)
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-
-    if label_colour == "default":
-        label_colour = settings._default_label_colour
-    if point_colour == "default":
-        point_colour = settings._default_point_colour
-
-    label_colour = ul._get_bgr(label_colour)
-    point_colour = ul._get_bgr(point_colour)
-
+    point_colour = ul._get_bgr(point_colour, "point_colour")
+    label_colour = ul._get_bgr(label_colour, "label_colour")
+    
     # =============================================================================
     # execute
 
@@ -495,7 +473,7 @@ def draw_mask(
     # =============================================================================
     # annotation management
 
-    annotation_type = settings._mask_type
+    annotation_type = _vars._mask_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -511,20 +489,12 @@ def draw_mask(
     # =============================================================================
     # setup
 
-    if line_width == "auto":
-        line_width = ul._auto_line_width(image)
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-
-    if line_colour == "default":
-        line_colour = settings._default_line_colour
-    if label_colour == "default":
-        label_colour = settings._default_label_colour
-
-    label_colour = ul._get_bgr(label_colour)
-    line_colour = ul._get_bgr(line_colour)
+    line_width = ul._get_size(image.shape[1], image.shape[0], "line_width", line_width)
+    label_size = ul._get_size(image.shape[1], image.shape[0], "label_size", label_size)
+    label_width = ul._get_size(image.shape[1], image.shape[0], "label_width", label_width)
+    
+    line_colour = ul._get_bgr(line_colour, "line_colour")
+    label_colour = ul._get_bgr(label_colour, "label_colour")
 
     # =============================================================================
     # execute
@@ -615,7 +585,7 @@ def draw_polyline(
     # =============================================================================
     # annotation management
 
-    annotation_type = settings._line_type
+    annotation_type = _vars._line_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -630,20 +600,12 @@ def draw_polyline(
     # =============================================================================
     # setup
 
-    if line_width == "auto":
-        line_width = ul._auto_line_width(image)
-
-    if line_colour == "default":
-        line_colour = settings._default_line_colour
-    line_colour = ul._get_bgr(line_colour)
-
+    
+    line_width = ul._get_size(image.shape[1], image.shape[0], "line_width", line_width)
+    line_colour = ul._get_bgr(line_colour, "line_colour")
     if flags.show_nodes:
-        if node_colour == "default":
-            node_colour = settings._default_point_colour
-        node_colour = ul._get_bgr(node_colour)
-        if node_size == "auto":
-            node_size = ul._auto_point_size(image)
-
+        node_size = ul._get_size(image.shape[1], image.shape[0], "point_size", node_size)
+        node_colour = ul._get_bgr(node_colour, "line_colour")
 
 
     # =============================================================================
@@ -723,26 +685,18 @@ def draw_QRcode(
     # setup
 
     flags = make_dataclass(cls_name="flags", fields=[("label", bool, label)])
+        
+    line_width = ul._get_size(image.shape[1], image.shape[0], "line_width", line_width)
+    label_size = ul._get_size(image.shape[1], image.shape[0], "label_size", label_size)
+    label_width = ul._get_size(image.shape[1], image.shape[0], "label_width", label_width)
     
-    if line_width == "auto":
-        line_width = ul._auto_line_width(image)
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-
-    if line_colour == "default":
-        line_colour = settings._default_line_colour
-    if label_colour == "default":
-        label_colour = settings._default_label_colour
-
-    label_colour = ul._get_bgr(label_colour)
-    line_colour = ul._get_bgr(line_colour)
+    line_colour = ul._get_bgr(line_colour, "line_colour")
+    label_colour = ul._get_bgr(label_colour, "label_colour")
 
     # =============================================================================
     # annotation management
 
-    annotation_type = settings._comment_type
+    annotation_type = _vars._comment_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -752,7 +706,7 @@ def draw_QRcode(
         kwargs=kwargs,
     )
 
-    points = annotation["data"][settings._mask_type]
+    points = annotation["data"][_vars._mask_type]
     label = annotation["data"][annotation_type]
 
     canvas = cv2.polylines(
@@ -827,7 +781,7 @@ def draw_reference(
     # =============================================================================
     # annotation management
 
-    annotation_type = settings._reference_type
+    annotation_type = _vars._reference_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
 
     annotation = ul._get_annotation(
@@ -838,27 +792,20 @@ def draw_reference(
     )
 
     px_ratio, unit = annotation["data"][annotation_type]
-    polygons = annotation["data"][settings._mask_type]
+    polygons = annotation["data"][_vars._mask_type]
 
     # =============================================================================
     # setup
 
     ## flags
     flags = make_dataclass(cls_name="flags", fields=[("label", bool, label)])
-
-    if line_width == "auto":
-        line_width = ul._auto_line_width(image)
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-    if line_colour == "default":
-        line_colour = settings._default_line_colour
-    if label_colour == "default":
-        label_colour = settings._default_label_colour
-
-    label_colour = ul._get_bgr(label_colour)
-    line_colour = ul._get_bgr(line_colour)
+    
+    line_width = ul._get_size(image.shape[1], image.shape[0], "line_width", line_width)
+    label_size = ul._get_size(image.shape[1], image.shape[0], "label_size", label_size)
+    label_width = ul._get_size(image.shape[1], image.shape[0], "label_width", label_width)
+    
+    line_colour = ul._get_bgr(line_colour, "line_colour")
+    label_colour = ul._get_bgr(label_colour, "label_colour")
 
     # =============================================================================
     # execute
@@ -866,8 +813,8 @@ def draw_reference(
     canvas = copy.deepcopy(image)
 
     ## draw referenc mask outline
-    if len(annotation["data"][settings._mask_type]) > 0:
-        mask_coord_list = annotation["data"][settings._mask_type]
+    if len(annotation["data"][_vars._mask_type]) > 0:
+        mask_coord_list = annotation["data"][_vars._mask_type]
         cv2.polylines(canvas, np.array([mask_coord_list[0]]), False, line_colour, line_width)
     
     if "support" in annotation["data"]:
@@ -909,8 +856,8 @@ def draw_reference(
             canvas,
             np.array([scale_box_inner]),
             False,
-            ul._get_bgr("black"),
-            ul._auto_line_width(canvas, factor=0.001),
+            line_colour,
+            line_width,
         )
 
         cv2.putText(
@@ -918,8 +865,8 @@ def draw_reference(
             "10 " + unit,
             (int(wp * 6), int(wp * 5)),
             cv2.FONT_HERSHEY_SIMPLEX,
-            ul._auto_text_size(canvas),
-            ul._get_bgr("black"),
+            label_size,
+            label_colour,
             label_width * 2,
             cv2.LINE_AA,
         )

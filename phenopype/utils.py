@@ -18,8 +18,8 @@ from pkg_resources import resource_filename
 import ruamel.yaml
 
 from phenopype import _config
+from phenopype import _vars
 from phenopype import core
-from phenopype import settings
 from phenopype import utils_lowlevel as ul
 
 try:
@@ -100,8 +100,8 @@ class Container(object):
                 )
                 
                 if contours == False:
-                    if settings._contour_type in annotations_loaded:
-                        annotations_loaded.pop(settings._contour_type)
+                    if _vars._contour_type in annotations_loaded:
+                        annotations_loaded.pop(_vars._contour_type)
                 
                 if annotations_loaded:
                     self.annotations.update(annotations_loaded)
@@ -189,7 +189,7 @@ class Container(object):
         kwargs_function["tag"] = self.tag
 
         ## verbosity
-        if settings.flag_verbose:
+        if _config.verbose:
             kwargs_function["verbose"] = True
 
         ## indicate pype use 
@@ -277,7 +277,7 @@ class Container(object):
                 self.canvas, ret_image=True, **kwargs_function
             )
             if "inplace" in kwargs_function:
-                annotations[settings._contour_type][kwargs_function["contour_id"]] = core.segmentation.detect_contour(self.image)[settings._contour_type]["a"]
+                annotations[_vars._contour_type][kwargs_function["contour_id"]] = core.segmentation.detect_contour(self.image)[_vars._contour_type]["a"]
                 self.image = copy.deepcopy(self.image_copy)
                 # self.annotations.update(annotations)
 
@@ -485,7 +485,7 @@ def load_image(path, mode="unchanged", **kwargs):
     if path.__class__.__name__ == "str":
         if os.path.isfile(path):
             ext = os.path.splitext(path)[1]
-            if ext.replace(".", "") in settings.default_filetypes:
+            if ext.replace(".", "") in _vars.default_filetypes:
                 if flags.mode == "unchanged":
                     image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
                 elif flags.mode == "colour":
@@ -607,7 +607,7 @@ def load_template(
     config_info = {
         "config_info": {
             "config_name": config_name,
-            "date_created": datetime.today().strftime(settings.strftime_format),
+            "date_created": datetime.today().strftime(_vars.strftime_format),
             "date_last_modified": None,
             "template_name": os.path.basename(template_path),
             "template_path": template_path,
@@ -648,82 +648,56 @@ def print_colours():
 
 
 
-def save_image(
-    image,
-    file_name,
-    dir_path,
-    suffix=None,
-    ext=None,
-    overwrite=False,
-    **kwargs
-):
-    """Save an image (array) to jpg.
+def save_image(image, file_name, dir_path, suffix=None, ext="jpg", overwrite=False):
+    """Save an image (array) to a specified format.
 
     Parameters
     ----------
-    image: array
-        image to save
-    name: str
-        name for saved image
-    save_dir: str, optional
-        directory to save image
-    append: str, optional
-        append image name with string to prevent overwriting
-    extension: str, optional
-        file extension to save image as
-    overwrite: boo, optional
-        overwrite images if name exists
-        original size).
-    kwargs:
-        developer options
+    image : array
+        Image to save.
+    file_name : str
+        Base name for the saved image.
+    dir_path : str
+        Directory to save the image.
+    suffix : str, optional
+        Suffix to append to the image name to prevent overwriting.
+    ext : str, optional
+        File extension to save image as.
+    overwrite : bool, optional
+        If True, overwrite existing files with the same name.
+
+    Returns
+    -------
+    bool
+        True if the image was saved successfully, False otherwise.
     """
+    # Normalize file extension
+    if not ext.startswith("."):
+        ext = "." + ext
 
-    ## kwargs
-    flag_overwrite = overwrite
-    
-    ## get file_name
-    if file_name[len(file_name)-4] == ".":
-        file_name_stem, ext_orig = os.path.splitext(file_name)
-    else:
-        file_name_stem = file_name
+    # Handle suffix
+    suffix = f"_{suffix}" if suffix else ""
 
-    ## add suffix 
-    if suffix.__class__.__name__ == "NoneType":
-        suffix = ""
-    if len(suffix) > 0:
-        suffix = "_" + suffix
-        
-    ## add extension
-    if ext.__class__.__name__ == "str":
-        if "." not in ext:
-            ext = "." + ext
-    else:
-        ext = ext_orig
-
-    ## construct save path
-    file_name_new = file_name_stem + suffix + ext
+    # Construct full file path
+    base_name, original_ext = os.path.splitext(file_name)
+    if original_ext:
+        file_name = base_name  # Remove original extension if it exists
+    file_name_new = f"{file_name}{suffix}{ext}"
     file_path = os.path.join(dir_path, file_name_new)
 
-    ## save
-    while True:
-        print_msg, saved = None, None
-        if os.path.isfile(file_path) and flag_overwrite == False:
-            print_msg = "- image not saved - file already exists (overwrite=False)."
-            saved = None
-            break
-        elif os.path.isfile(file_path) and flag_overwrite == True:
-            print_msg = "- image saved under " + file_path + " (overwritten)."
-            pass
-        elif not os.path.isfile(file_path):
-            print_msg = "- image saved under " + file_path + "."
-            pass
-        
-        saved = cv2.imwrite(file_path, image)
-        break
-    
-    ul._print(print_msg)
-    
-    return saved
+    # Check if file exists and handle overwrite logic
+    if os.path.isfile(file_path) and not overwrite:
+        print(f"Image not saved - file already exists (overwrite=False): {file_path}")
+        return False
+    else:
+        if overwrite and os.path.isfile(file_path):
+            print(f"Image saved and overwritten at: {file_path}")
+        else:
+            print(f"Image saved at: {file_path}")
+
+        # Save the image
+        success = cv2.imwrite(file_path, image)
+        return success
 
 
 

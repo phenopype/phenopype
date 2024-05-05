@@ -30,7 +30,7 @@ from collections import defaultdict, deque
 
 from phenopype import __version__
 from phenopype import _config
-from phenopype import settings
+from phenopype import _vars
 from phenopype import utils
 from phenopype import utils_lowlevel as ul
 
@@ -45,7 +45,7 @@ from phenopype.core import (
 #%% settings
 
 pd.options.display.max_rows = (
-    settings.pandas_max_rows
+    _vars.pandas_max_rows
 )  # how many rows of pd-dataframe to show
 pretty = pprint.PrettyPrinter(width=30)  # pretty print short strings
 ruamel.yaml.Representer.add_representer(
@@ -144,7 +144,7 @@ class Project_labelling:
                         )
                         time.sleep(1)
                         query1 = input("overwrite (y/n)?")
-                        if query1 in settings.confirm_options:
+                        if query1 in _vars.confirm_options:
                             pass
                         else:
                             print(
@@ -171,7 +171,7 @@ class Project_labelling:
                     query2 = input("Proceed? (y/n)\n")
                 else:
                     query2 = "y"
-                if query2 in settings.confirm_options:
+                if query2 in _vars.confirm_options:
                     os.makedirs(root_dir)
                     os.makedirs(os.path.join(root_dir, "data"))
                     break
@@ -184,8 +184,8 @@ class Project_labelling:
         if not os.path.isfile(project_attributes_path):
             project_attributes = {
                 "project_info": {
-                    "date_created": datetime.today().strftime(settings.strftime_format),
-                    "date_changed": datetime.today().strftime(settings.strftime_format),
+                    "date_created": datetime.today().strftime(_vars.strftime_format),
+                    "date_changed": datetime.today().strftime(_vars.strftime_format),
                     "phenopype_version": __version__,
                 },
                 "project_data": {
@@ -244,7 +244,7 @@ class Project_labelling:
     def add_files(
         self,
         images,
-        filetypes=settings.default_filetypes,
+        filetypes=_vars.default_filetypes,
         include=[],
         include_all=True,
         exclude=[],
@@ -262,7 +262,7 @@ class Project_labelling:
         images : str or list
             Either a directory containing images or a list of image paths.
         filetypes : list, optional
-            List of file extensions to include. Default is settings.default_filetypes.
+            List of file extensions to include. Default is _vars.default_filetypes.
         include : list, optional
             List of patterns to include. Default is [].
         include_all : bool, optional
@@ -371,10 +371,10 @@ class Project_labelling:
             self.attributes["project_data"]["source"][image_dir] = {
                 "found images": n_total_found,
                 "using": n_max,
-                "added/modified": datetime.today().strftime(settings.strftime_format),
+                "added/modified": datetime.today().strftime(_vars.strftime_format),
             }
             self.attributes["project_info"]["date_changed"] = datetime.today().strftime(
-                settings.strftime_format)
+                _vars.strftime_format)
             ul._save_yaml(self.attributes, os.path.join(self.root_dir, "attributes.yaml"))
         else:
             print("- no new files - nothing to save.")
@@ -640,12 +640,12 @@ class Project_labelling:
             labelling=True,
             query=cat,
             label_keymap=self.config["text"]["keymap"],
-            data={settings._comment_type: lab},
+            data={_vars._comment_type: lab},
             **kwargs,
         )
         
         ## save label
-        lab = gui.data[settings._comment_type]
+        lab = gui.data[_vars._comment_type]
         self.label["text"]["category"] = cat
         self.label["text"]["label"] = lab
         self.labels[self.current.image_name] = self.label     
@@ -676,7 +676,7 @@ class Project_labelling:
             window_aspect="normal",
             window_name="labelling-tool",
             labelling=True,
-            data={settings._coord_list_type: coords},
+            data={_vars._coord_list_type: coords},
             **kwargs,
         )
          
@@ -809,7 +809,7 @@ class Project:
                         )
                         # time.sleep(0.1)
                         query1 = input("overwrite (y/n)?")
-                        if query1 in settings.confirm_options:
+                        if query1 in _vars.confirm_options:
                             pass
                         else:
                             print(
@@ -836,7 +836,7 @@ class Project:
                     query2 = input("Proceed? (y/n)\n")
                 else:
                     query2 = "y"
-                if query2 in settings.confirm_options:
+                if query2 in _vars.confirm_options:
                     os.makedirs(root_dir)
                     os.makedirs(os.path.join(root_dir, "data"))
                     break
@@ -854,8 +854,8 @@ class Project:
         if not os.path.isfile(project_attributes_path):
             project_attributes = {
                 "project_info": {
-                    "date_created": datetime.today().strftime(settings.strftime_format),
-                    "date_changed": datetime.today().strftime(settings.strftime_format),
+                    "date_created": datetime.today().strftime(_vars.strftime_format),
+                    "date_changed": datetime.today().strftime(_vars.strftime_format),
                     "phenopype_version": __version__,
                 },
                 "project_data": {
@@ -919,7 +919,7 @@ class Project:
     def add_files(
         self,
         image_dir,
-        filetypes=settings.default_filetypes,
+        filetypes=_vars.default_filetypes,
         include=[],
         include_all=True,
         exclude=[],
@@ -957,7 +957,7 @@ class Project:
             path to directory with images
         filetypes: list or str, optional
             single or multiple string patterns to target files with certain endings.
-            "settings.default_filetypes" are configured in settings.py: 
+            "_vars.default_filetypes" are configured in _vars.py: 
             ['jpg', 'JPG', 'jpeg', 'JPEG', 'tif', 'png', 'bmp']
         include: list or str, optional
             single or multiple string patterns to target certain files to include
@@ -1132,7 +1132,7 @@ class Project:
             ## generate image attributes
             image_data_original = ul._load_image_data(file_path)
             image_data_phenopype = {
-                "date_added": datetime.today().strftime(settings.strftime_format),
+                "date_added": datetime.today().strftime(_vars.strftime_format),
                 "mode": flags.mode,
             }
 
@@ -1362,7 +1362,7 @@ class Project:
 
         if flags.interactive:
             q = input("Save modified template? ")
-            if q in settings.confirm_options:
+            if q in _vars.confirm_options:
                 template_dir = os.path.join(self.root_dir, "templates")
                 if not os.path.isdir(template_dir):
                     os.mkdir(template_dir)
@@ -1437,7 +1437,7 @@ class Project:
                 if os.path.isfile(model_config_path):
                     model_info["model_config_path"] = model_config_path
                 
-            model_info["date_added"] = datetime.today().strftime(settings.strftime_format)
+            model_info["date_added"] = datetime.today().strftime(_vars.strftime_format)
 
             ## load project attributes and temporarily drop project data list to
             ## be reattched later, so it is always at then end of the file
@@ -1504,9 +1504,12 @@ class Project:
             print("File already exists, not saving (overwrite=False)")
         else:
             
-            ## get px ratio and mask
-            annotations = kwargs.get("annotations", preprocessing.create_reference(reference_image))
-            annotations = preprocessing.create_mask(reference_image, annotations=annotations)
+            ## for tests
+            if kwargs.get("annotations"):
+                annotations = kwargs.get("annotations")
+            else:
+                annotations = preprocessing.create_reference(reference_image)
+                annotations = preprocessing.create_mask(reference_image, annotations=annotations)
             coords = annotations['mask']['a']['data']['mask'][0]
             
             ## save template image
@@ -1518,9 +1521,9 @@ class Project:
             reference_template_info = {
                 "source_image_path": os.path.abspath(image_path),
                 "template_path": os.path.abspath(template_path),
-                "template_px_ratio": annotations[settings._reference_type]["a"]["data"][settings._reference_type][0],
-                "unit": annotations[settings._reference_type]["a"]["data"][settings._reference_type][1],
-                "date_added": datetime.today().strftime(settings.strftime_format),
+                "template_px_ratio": annotations[_vars._reference_type]["a"]["data"][_vars._reference_type][0],
+                "unit": annotations[_vars._reference_type]["a"]["data"][_vars._reference_type][1],
+                "date_added": datetime.today().strftime(_vars.strftime_format),
             }
             
             ## load project attributes and temporarily drop project data list to
@@ -1622,7 +1625,7 @@ class Project:
                             ul._print("No directory provided for relinking!", lvl=1)
                             if flags.check.__class__.__name__ == "NoneType":
                                 flags.check = input("\nCheck original filepath and relink if possible [also for all other broken paths] (y/n)?\n")
-                            if flags.check in settings.confirm_options:
+                            if flags.check in _vars.confirm_options:
                                 filepath = attributes["image_original"]["filepath"]
                                 if os.path.isfile(filepath):
                                     attributes["image_phenopype"]["filepath"] = os.path.relpath(filepath, dirpath)
@@ -1679,7 +1682,7 @@ class Project:
             ul._print("All checks passed - numbers in data folder and attributes file match.", lvl=2)
             return
 
-        if check in settings.confirm_options:
+        if check in _vars.confirm_options:
             
             self.attributes["project_data"].pop("filenames", None)
             self.attributes["project_data"].pop("dirnames", None)
@@ -1969,7 +1972,7 @@ class Project:
                 )
 
             ## replace for all config files after positive user check
-            if check in settings.confirm_options:
+            if check in _vars.confirm_options:
                 flags.checked = True
                 with open(config_path, "w") as config_text:
                     config_text.write(new_config_string)
@@ -2077,7 +2080,7 @@ class Project:
                             test_pattern = file_name[-len(flags.tag):len(file_name)]
                             if not flags.tag == test_pattern:
                                 continue        
-                        if file_ext.strip(".") in settings.default_filetypes:
+                        if file_ext.strip(".") in _vars.default_filetypes:
                             if not flags.images:
                                 continue
                         if file_ext.strip(".") == "csv" and flags.exports == False:
@@ -2117,7 +2120,7 @@ class Project:
                             
                             file_name, file_ext  = os.path.splitext(file)
                                                     
-                            if file_ext.strip(".") in settings.default_filetypes:
+                            if file_ext.strip(".") in _vars.default_filetypes:
                                 if not flags.images:
                                     continue
                             
@@ -2214,7 +2217,7 @@ class Project:
         
         if method=="ml-morph":
 
-            annotation_type = settings._landmark_type
+            annotation_type = _vars._landmark_type
             df_summary = pd.DataFrame()
             file_path_save = os.path.join(training_data_path, "landmarks_ml-morph_" + tag + ".csv")
 
@@ -2265,11 +2268,11 @@ class Project:
 
                     ## select last mask if no id is given
                     if params["ml-morph"]["mask_id"].__class__.__name__ == "NoneType":
-                        mask_id = max(list(annotations[settings._mask_type].keys()))
+                        mask_id = max(list(annotations[_vars._mask_type].keys()))
                         
                     ## get bounding rectangle and crop image to mask coords
-                    if flags.export_mask and settings._mask_type in annotations:
-                        coords = annotations[settings._mask_type][mask_id]["data"][settings._mask_type][0]
+                    if flags.export_mask and _vars._mask_type in annotations:
+                        coords = annotations[_vars._mask_type][mask_id]["data"][_vars._mask_type][0]
                         rx, ry, rw, rh = cv2.boundingRect(np.asarray(coords, dtype="int32"))
                         image = image[
                             max(ry,0) : min(ry + rh, image_height), max(rx,1) : min(rx + rw, image_width)]
@@ -2473,8 +2476,8 @@ class Pype(object):
         # INIT
 
         ## kwargs
-        global window_max_dim
-        window_max_dim = kwargs.get("window_max_dim")
+        _config.window_min_dim = kwargs.get("window_max_dim", _config.window_min_dim)
+        _config.window_max_dim = kwargs.get("window_max_dim", _config.window_max_dim)
         delay = kwargs.get("delay", 100)
         
         ## flags
@@ -2541,7 +2544,7 @@ class Pype(object):
         # check version, load container and config
         if self.flags.dry_run:
             self._load_pype_config(image_path, tag, config_path)
-            self._iterate(config=self.config, annotations=copy.deepcopy(settings._annotation_types),
+            self._iterate(config=self.config, annotations=copy.deepcopy(_vars._annotation_types),
                       execute=False, autoshow=False, feedback=True)
             return
 
@@ -2638,7 +2641,7 @@ class Pype(object):
                         _config.gui_zoom_config = None
                     
                     ## add timestamp
-                    self.config["config_info"]["date_last_modified"] = datetime.today().strftime(settings.strftime_format)
+                    self.config["config_info"]["date_last_modified"] = datetime.today().strftime(_vars.strftime_format)
                     ul._save_yaml(self.config, self.config_path)
                         
                     ## feedback
@@ -2874,7 +2877,7 @@ class Pype(object):
         # reset values
         if not self.flags.dry_run:
             self.container.reset()
-        annotation_counter = dict.fromkeys(settings._annotation_types, -1)
+        annotation_counter = dict.fromkeys(_vars._annotation_types, -1)
 
         ## apply pype: loop through steps and contained methods
         step_list = self.config["processing_steps"]
@@ -2945,8 +2948,8 @@ class Pype(object):
                     self.config_parsed_flattened[step_name].append(method_name)
                     pass
                 elif self.flags.fix_names:
-                    if method_name in settings._legacy_names[step_name]:
-                        method_name_updated = settings._legacy_names[step_name][
+                    if method_name in _vars._legacy_names[step_name]:
+                        method_name_updated = _vars._legacy_names[step_name][
                             method_name
                         ]
                         self.config_updated["processing_steps"][step_idx][step_name][
@@ -2965,7 +2968,7 @@ class Pype(object):
                 # METHOD / ANNOTATION
                 # =============================================================================
                 
-                if method_name in list(settings._annotation_functions.keys()) + ["convert_annotation"]:
+                if method_name in list(_vars._annotation_functions.keys()) + ["convert_annotation"]:
                     if "ANNOTATION" in method_args:
                         annotation_args = dict(method_args["ANNOTATION"])
                         del method_args["ANNOTATION"]
@@ -2975,14 +2978,14 @@ class Pype(object):
                         self._log("debug", "Pype: Add annotation control args", 0)
 
                 ## annotation params
-                if method_name in settings._annotation_functions:
+                if method_name in _vars._annotation_functions:
 
-                    annotation_counter[settings._annotation_functions[method_name]] += 1
+                    annotation_counter[_vars._annotation_functions[method_name]] += 1
 
                     if not "type" in annotation_args:
-                        annotation_args.update({"type": settings._annotation_functions[method_name]})
+                        annotation_args.update({"type": _vars._annotation_functions[method_name]})
                     if not "id" in annotation_args:
-                        annotation_args.update({"id": string.ascii_lowercase[annotation_counter[settings._annotation_functions[method_name]]]})
+                        annotation_args.update({"id": string.ascii_lowercase[annotation_counter[_vars._annotation_functions[method_name]]]})
                     if not "edit" in annotation_args:
                         annotation_args.update({"edit": "overwrite" if method_name in [
                                     "contour_to_mask",

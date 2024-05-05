@@ -12,6 +12,8 @@ import phenopype as pp
 
 #%% variables
 
+# os.chdir(r"D:\git-repos\phenopype\phenopype")
+
 @pytest.fixture(scope="session")
 def settings():
     
@@ -135,19 +137,22 @@ def image_binary(image,  mask_polygon):
            
     return image_binary
 
+
 @pytest.fixture(scope="session")
 def contours(image_binary):
-
-    return pp.segmentation.detect_contour(
+    
+    contours = pp.segmentation.detect_contour(
         image_binary, 
         )    
+
+    return contours
 
 
         
 @pytest.fixture(scope="session")
 def reference_created():
-
-    return {'reference': {'a': {'info': {'annotation_type': 'reference',
+    
+    reference_created = {'reference': {'a': {'info': {'annotation_type': 'reference',
         'phenopype_function': 'create_reference',
         'phenopype_version': '3.0.dev0'},
        'settings': {},
@@ -159,6 +164,8 @@ def reference_created():
           (2517, 1957),
           (1665, 1957),
           (1665, 1111)]]}}}}
+
+    return reference_created
     
 @pytest.fixture(scope="session")
 def reference_detected():
@@ -181,8 +188,8 @@ def reference_detected():
 
 @pytest.fixture(scope="session")
 def landmarks():
-
-    return {'landmark': {'a': {'info': {'annotation_type': 'landmark',
+    
+    landmarks = {'landmark': {'a': {'info': {'annotation_type': 'landmark',
         'phenopype_function': 'set_landmark',
         'phenopype_version': '3.0.dev0'},
        'settings': {'point_size': 5,
@@ -198,11 +205,13 @@ def landmarks():
          (1238, 458),
          (832, 437)]}}}}
 
+    return landmarks
+
 
 @pytest.fixture(scope="session")
 def polyline():
     
-    return {'line': {'a': {'info': {'phenopype_function': 'set_polyline',
+    polyline =  {'line': {'a': {'info': {'phenopype_function': 'set_polyline',
         'phenopype_version': '3.0.dev0',
         'annotation_type': 'line'},
        'settings': {'line_width': 5, 'line_colour': (0, 255, 0)},
@@ -214,12 +223,36 @@ def polyline():
           (2092, 571)],
          [(924, 694), (1180, 869), (1574, 641), (1893, 814), (2119, 694)]]}}}}
     
+    return polyline
+    
 
 @pytest.fixture(scope="session")
 def comment():
     
-    return {'comment': {'a': {'info': {'phenopype_function': 'write_comment',
+    comment = {'comment': {'a': {'info': {'phenopype_function': 'write_comment',
         'phenopype_version': '3.0.dev0',
         'annotation_type': 'comment'},
        'settings': {},
        'data': {'label': 'test msg', 'comment': 'THIS IS A TEST'}}}}
+    
+    return comment
+
+
+@pytest.fixture
+def drawing():
+
+    drawing = {"drawing": {'a': {'info': {'annotation_type': 'drawing',
+   'phenopype_function': 'edit_contour',
+   'phenopype_version': '3.0.dev0'},
+  'settings': {'overlay_blend': 0.2,
+   'overlay_line_width': 1,
+   'overlay_colour_left': (0, 128, 0),
+   'overlay_colour_right': (0, 0, 255)},
+  'data': {'drawing': [[[(1375, 328), (1375, 328)], 0, 16],
+    [[(1416, 336), (1416, 336)], 0, 16],
+    [[(1445, 346), (1445, 346)], 0, 16],
+    [[(1474, 350), (1474, 350)], 0, 16],
+    [[(1677, 390), (1677, 390)], 0, 16],
+    [[(1708, 395), (1708, 395)], 0, 16]]}}}}
+    
+    return drawing

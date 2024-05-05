@@ -11,9 +11,9 @@ import phenopype as pp
 @pytest.fixture
 def all_annotations(comment, mask_polygon, reference_detected, polyline, landmarks):
     
-    annotations = {**comment, **mask_polygon, **reference_detected, **polyline, **landmarks}
+    all_annotations = {**comment, **mask_polygon, **reference_detected, **polyline, **landmarks}
 
-    return annotations
+    return all_annotations
 
 #%% tests
 
@@ -31,11 +31,10 @@ def test_pype(settings, all_annotations, reference_detected):
         include="stickle"
         )
     
-    project.add_reference(
-        tag=pytest.tag_1, 
-        reference_image_path=pytest.reference_image_path,
-        reference_tag="ref1",
-        feedback=False,
+    project.add_reference_template(
+        image_path=pytest.reference_image_path,
+        reference_id="ref1",
+        interactive=False,
         overwrite=True,
         annotations=annotations,
         )
@@ -56,10 +55,9 @@ def test_pype(settings, all_annotations, reference_detected):
         file_name="annotations_" + pytest.tag_1 + ".json",
         )
 
-    p = pp.Pype(project.dir_paths[0], pytest.tag_1, feedback=False, visualize=False)
-    p = pp.Pype(project.dir_paths[0], pytest.tag_2, feedback=False, visualize=False)
+    p = pp.Pype(project.dir_paths[0], pytest.tag_1, feedback=False, interactive=False, visualize=False)
+    p = pp.Pype(project.dir_paths[0], pytest.tag_2, feedback=False, interactive=False, visualize=False)
 
-    
     assert p.__class__.__name__ == "Pype"
     
     

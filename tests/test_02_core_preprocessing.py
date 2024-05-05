@@ -25,7 +25,7 @@ def test_create_mask(image, mask_polygon):
         image, 
         annotations=annotations, 
         annotation_id="a", 
-        feedback=False,
+        interactive=False,
         )
 
     assert len(annotations) > 0
@@ -56,7 +56,7 @@ def test_create_reference(reference_created, settings):
     annotations = pp.preprocessing.create_reference(
         image,
         annotations=annotations, 
-        feedback=False
+        interactive=False
         )
     
     assert len(annotations) > 0
@@ -120,7 +120,7 @@ def test_write_comment(image, comment):
     annotations = pp.preprocessing.write_comment(
         image=image,
         annotations=annotations,
-        feedback=False,
+        interactive=False,
         )
 
     assert len(annotations) > 0

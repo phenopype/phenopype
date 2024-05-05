@@ -11,7 +11,7 @@ import SimpleITK as sitk
 from tqdm import tqdm as _tqdm
 
 from phenopype import __version__
-from phenopype import settings
+from phenopype import _vars
 from phenopype import utils_lowlevel as ul
 
 
@@ -65,26 +65,8 @@ def set_landmark(
 
     annotation = kwargs.get("annotation")
 
-    gui_data = {settings._coord_type: ul._get_GUI_data(annotation)}
+    gui_data = {_vars._coord_type: ul._get_GUI_data(annotation)}
     gui_settings = ul._get_GUI_settings(kwargs, annotation)
-
-    # =============================================================================
-    # further prep
-
-    ## configure points
-    if point_size == "auto":
-        point_size = ul._auto_point_size(image)
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-    if label_colour == "default":
-        label_colour = settings._default_label_colour
-    if point_colour == "default":
-        point_colour = settings._default_point_colour
-
-    label_colour = ul._get_bgr(label_colour)
-    point_colour = ul._get_bgr(point_colour)
 
     # =============================================================================
     # execute
@@ -119,7 +101,7 @@ def set_landmark(
             "label_width": label_width,
             "label_colour": label_colour,
         },
-        "data": {annotation_type: gui.data[settings._coord_type],},
+        "data": {annotation_type: gui.data[_vars._coord_type],},
     }
 
     if len(gui_settings) > 0:
@@ -172,18 +154,9 @@ def set_polyline(
         kwargs=kwargs,
     )
 
-    gui_data = {settings._coord_list_type: ul._get_GUI_data(annotation)}
+    gui_data = {_vars._coord_list_type: ul._get_GUI_data(annotation)}
     gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
-    # =============================================================================
-    # setup
-
-    if line_width == "auto":
-        line_width = ul._auto_line_width(image)
-    if line_colour == "default":
-        line_colour = settings._default_line_colour
-
-    line_colour = ul._get_bgr(line_colour)
 
     # =============================================================================
     # execute
@@ -197,9 +170,7 @@ def set_polyline(
         **gui_settings,
     )
 
-
-    
-    line_coords = gui.data[settings._coord_list_type]
+    line_coords = gui.data[_vars._coord_list_type]
     n_lines = len(line_coords)
     line_lengths = []
     for line in line_coords:
@@ -264,7 +235,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
     # annotation management
 
     ## get contours
-    annotation_type = settings._contour_type
+    annotation_type = _vars._contour_type
     annotation_id = kwargs.get(annotation_type + "_id", None)
     annotation = ul._get_annotation(
         annotations=annotations,
@@ -296,7 +267,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
         mask = cv2.fillPoly(mask, [coords], 255, offset=(-rx + padding, -ry + padding))
 
         skeleton = cv2.ximgproc.thinning(
-            mask, thinningType=settings.opencv_skeletonize_flags[thinning]
+            mask, thinningType=_vars.opencv_skeletonize_flags[thinning]
         )
         skel_contour, skel_hierarchy = cv2.findContours(
             skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
@@ -400,15 +371,15 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
     # print(annotations)
 
     ## get contours
-    contour_id = kwargs.get(settings._contour_type + "_id", None)
+    contour_id = kwargs.get(_vars._contour_type + "_id", None)
     annotation = ul._get_annotation(
         annotations=annotations,
-        annotation_type=settings._contour_type,
+        annotation_type=_vars._contour_type,
         annotation_id=contour_id,
         kwargs=kwargs,
     )
     
-    contours = annotation["data"][settings._contour_type]
+    contours = annotation["data"][_vars._contour_type]
     contours_support = annotation["data"]["support"]
     
     ##  features
@@ -559,14 +530,14 @@ def compute_texture_features(
     # annotation management
 
     ## get contours
-    contour_id = kwargs.get(settings._contour_type + "_id", None)
+    contour_id = kwargs.get(_vars._contour_type + "_id", None)
     annotation = ul._get_annotation(
         annotations=annotations,
-        annotation_type=settings._contour_type,
+        annotation_type=_vars._contour_type,
         annotation_id=contour_id,
         kwargs=kwargs,
     )
-    contours = annotation["data"][settings._contour_type]
+    contours = annotation["data"][_vars._contour_type]
     contours_support = annotation["data"]["support"]
     
     ##  features
