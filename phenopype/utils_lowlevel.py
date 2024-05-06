@@ -110,20 +110,21 @@ class _GUI:
         
         ## apply args to settings
         self.settings = _GUI_Settings(
-            interactive, pype_mode, 
+            interactive, pype_mode, wait_time, 
             zoom_memory, zoom_magnification,zoom_mode, zoom_n_steps, 
-            wait_time, window_aspect, window_control,
-            window_name)
+            window_aspect, window_control,window_name)
         
         ## apply kwargs to setting
         for field in fields(self.settings):
             if field.name in kwargs:
                 field_val = kwargs[field.name] 
-                if "colour" in field.name: 
-                    field_val = _get_bgr(field.default, field.name)
-                if "size" in field.name or "width" in field.name: 
-                    field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field.default)
-                setattr(self.settings, field.name, field_val)
+            else:
+                field_val = field.default
+            if "colour" in field.name: 
+                field_val = _get_bgr(field_val, field.name)
+            if "size" in field.name or "width" in field.name: 
+                field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field_val)
+            setattr(self.settings, field.name, field_val)
                 
         ## basic settings (maybe integrate better)
         self.__dict__.update(kwargs)
@@ -274,10 +275,8 @@ class _GUI:
             
             self.settings.label_keymap = kwargs.get("label_keymap")
             self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
-            
             y_pos, x_pos = self.settings.label_position
-            
-            self.canvas = copy.deepcopy(self.canvas_copy)
+            self.canvas = copy.deepcopy(self.canvas_copy)                      
             cv2.putText(
                 self.canvas,
                 str(self.query) + ": " + str(self.data[_vars._comment_type]),

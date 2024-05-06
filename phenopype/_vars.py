@@ -1,10 +1,8 @@
 #%% load modules
 
 import cv2
-
 from pprint import PrettyPrinter
 
-from phenopype import _config
 
 #%% defaults
 
@@ -17,6 +15,7 @@ confirm_options = ["True", "true", "y", "yes", True]
 
 _default_label_colour = "red"
 _default_line_colour = "lime"
+_default_node_colour = "red"
 _default_point_colour = "red"
 _default_overlay_colour_left = "green"
 _default_overlay_colour_right = "red"
@@ -146,6 +145,7 @@ _reference_type = "reference"
 _shape_feature_type = "shape_features"
 _texture_feature_type = "texture_features"
 
+## USE DECORATORS
 _annotation_functions = {
     ## comments
     "write_comment": _comment_type,
@@ -191,43 +191,7 @@ ascii_codes = {i: chr(i) for i in range(128)}
 
 #%% GUI definitions
 
-## find better solution
-# from phenopype import utils_lowlevel
-# g = utils_lowlevel._GUI(np.zeros((1, 1, 1), dtype="uint8"), window_control="external")
-# cv2.waitKey(1)
-# cv2.destroyAllWindows()
-# _GUI_settings_args = list(g.settings.__dict__)
-# _GUI_data_args = list(g.data.keys())
-
-# _GUI_settings_args = [
-#     'interactive',
-#     'show_label',
-#     'label_colour',
-#     'label_size',
-#     'label_width',
-#     'show_nodes',
-#     'node_colour',
-#     'node_size',
-#     'line_colour',
-#     'line_width',
-#     'point_colour',
-#     'point_size',
-#     'overlay_blend',
-#     'overlay_line_width',
-#     'overlay_colour_left',
-#     'overlay_colour_right',
-#     'pype_mode',
-#     'zoom_memory',
-#     'zoom_mode',
-#     'zoom_magnification',
-#     'zoom_n_steps',
-#     'wait_time',
-#     'window_aspect',
-#     'window_control',
-#     'window_max_dim',
-#     'window_name',
-#  ]
-
+## GET RID OF THIS
 _GUI_data_args = [
     'comment', 
     'contour', 

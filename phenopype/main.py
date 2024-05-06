@@ -12,6 +12,7 @@ import sys
 import logging
 import random
 
+from IPython.display import clear_output
 from contextlib import redirect_stdout
 from dataclasses import make_dataclass
 
@@ -386,6 +387,7 @@ class Project_labelling:
         config_path,
         index=False,
         autosave=60,
+        skip=False,
         overwrite=False,
         image_path="abs",
         **kwargs,
@@ -440,7 +442,9 @@ class Project_labelling:
         self.current.exit = False
         self.current.idx = 0
         self.current.time_prev = time.time()
-
+        self.current.flag = "forward"
+        self.current.n_skipped = 0
+        
         ## load labels
         if os.path.isfile(self.labels_filepath):
             with open(self.labels_filepath, "r") as file:
@@ -479,6 +483,7 @@ class Project_labelling:
                 self.current.time_prev = self.current.time
                 print("\n")
                 
+            ## check if at end of list
             if self.current.idx > self.image_list_len-1:
                 self.current.idx = self.image_list_len-1
                 print("End of list!\n")
@@ -486,11 +491,7 @@ class Project_labelling:
             ## navigation
             self.current.idx_prev = copy.deepcopy(self.current.idx)
             self.current.image_name = self.image_list[self.current.idx]
-            self.current.image_info = self.file_dict[self.current.image_name]
-            self.current.filepath = self.current.image_info["filepath_" + flags.image_path]
-            self.current.image = utils.load_image(self.current.filepath)         
-            self.current.image_folder = os.path.basename(os.path.dirname(self.current.filepath))
-            
+
             ## fetch label
             if self.current.image_name in self.labels:
                 self.label = self.labels[self.current.image_name] 
@@ -499,26 +500,51 @@ class Project_labelling:
                 self.label = defaultdict(dict)
                 self.current.processed = False
                 
-            print("IDX: {}/{} | FILENAME: {}\n".format(
-                self.current.idx, 
-                self.image_list_len-1,
-                self.current.image_name))    
-            
-            ## go through config
-            for idx, (step_name, step) in enumerate(self.config.items()):
-                if step_name == "text":
-                    brk = self._text(self.current.image)
-                if step_name == "mask":
-                    brk = self._mask(self.current.image)
-                if brk:
-                    break
+            ## skip logic
+            if self.current.processed and skip and not self.current.idx in [0, len(self.image_list)]:
+                if self.current.flag == "backward":
+                    self.current.idx -= 1
+                    self.current.idx = max(self.current.idx, 0)
+                elif self.current.flag == "forward":
+                    self.current.idx += 1
+                    self.current.idx = min(self.current.idx, len(self.image_list))
+                self.current.n_skipped += 1
+                sys.stdout.write(f"\rSkipping: {self.current.n_skipped} labelled images ...")
+                sys.stdout.flush()
+                continue
+            else:
+                
+                ## get info
+                self.current.image_info = self.file_dict[self.current.image_name]
+                self.current.filepath = self.current.image_info["filepath_" + flags.image_path]
+                self.current.image_folder = os.path.basename(os.path.dirname(self.current.filepath))
+                
+                ## feedback
+                if self.current.n_skipped > 0:
+                    print("\n")
+                    self.current.n_skipped = 0
+                print("Index: {}/{} | Filename: {} | Folder: {}\n".format(
+                    self.current.idx, 
+                    self.image_list_len-1,
+                    self.current.image_name,
+                    self.current.image_folder))    
+                
+                ## load image 
+                self.current.image = utils.load_image(self.current.filepath)  
+                                
+                ## go through config
+                for idx, (step_name, step) in enumerate(self.config.items()):
+                    if step_name == "text":
+                        brk = self._text(self.current.image)
+                    if step_name == "mask":
+                        brk = self._mask(self.current.image)
+                    if brk:
+                        break
                 
             ## ensure to advance at end of config
             if self.current.idx == self.current.idx_prev:
                 if self.current.idx == 0 and self.current.keypress == 2424832:
                     print("Beginning of list!\n")
-                # elif self.current.idx == self.image_list_len and self.current.keypress == 2555904:
-                #     print("End of list!\n")
                 elif self.current.idx == self.image_list_len:    
                     print("End of list!\n")
                 else:
@@ -603,16 +629,20 @@ class Project_labelling:
             self.current.exit = True
             return True
         elif self.current.keypress == 2424832:
+            self.current.flag = "backward"
             self.current.idx -= 1
             self.current.idx = max(self.current.idx, 0)
             return True
         elif self.current.keypress == 2555904:
+            self.current.flag = "forward"
             self.current.idx += 1
             self.current.idx = min(self.current.idx, len(self.image_list))
             return True
         elif self.current.keypress == 13:
+            self.current.flag = "forward"
             return False
         else:
+            self.current.flag = "forward"
             self.current.idx += 1
             self.current.idx = max(self.current.idx, 0)
             self.current.idx = min(self.current.idx, len(self.image_list))
@@ -622,33 +652,34 @@ class Project_labelling:
                 
         ## check for existing label 
         try:   
-            cat, lab = self.label["text"]["category"], self.label["text"]["label"]
+            category, label = self.label["text"]["category"], self.label["text"]["label"]
         except:   
             self.label["text"] = {}
-            cat, lab = self.config["text"]["category"], ""
+            category, label = self.config["text"]["category"], ""
 
         ## check for args in options and fun call
         if "options" in self.config["text"]:
             kwargs.update(self.config["text"]["options"])
         kwargs.update(self.kwargs)
-            
+                    
         gui = ul._GUI(
             image,
             window_aspect="normal",
             window_name="labelling-tool",
             tool="labelling",
             labelling=True,
-            query=cat,
+            query=category,
             label_keymap=self.config["text"]["keymap"],
-            data={_vars._comment_type: lab},
+            data={_vars._comment_type: label},
             **kwargs,
         )
         
         ## save label
-        lab = gui.data[_vars._comment_type]
-        self.label["text"]["category"] = cat
-        self.label["text"]["label"] = lab
-        self.labels[self.current.image_name] = self.label     
+        label = gui.data[_vars._comment_type]
+        if not label == "":
+            self.label["text"]["category"] = category
+            self.label["text"]["label"] = label
+            self.labels[self.current.image_name] = self.label     
     
         ## navigation
         self.current.keypress = gui.keypress 
