@@ -438,12 +438,16 @@ class Project_labelling:
         self.image_list = list(self.file_dict)
         self.image_list_len = len(self.image_list)
         self.kwargs = kwargs
+        self.comment_key = self.config.get("comment", {}).get("key", None)
+
+        ## current state
         self.current = make_dataclass(cls_name="vars", fields=[])     
         self.current.exit = False
         self.current.idx = 0
         self.current.time_prev = time.time()
         self.current.flag = "forward"
         self.current.n_skipped = 0
+        self.current.comment = False
         
         ## load labels
         if os.path.isfile(self.labels_filepath):
@@ -466,9 +470,7 @@ class Project_labelling:
         if index:
             self.current.idx = index
             self.current.image_name =self.image_list[index]
-            
-        # assert self.current.image_name == self.image_list[self.current.idx]
-        
+                    
         # ============================================================================
         # run
 
@@ -497,7 +499,7 @@ class Project_labelling:
                 self.label = self.labels[self.current.image_name] 
                 self.current.processed = True
             else:
-                self.label = defaultdict(dict)
+                self.label = {}
                 self.current.processed = False
                 
             ## skip logic
@@ -528,6 +530,8 @@ class Project_labelling:
                     self.image_list_len-1,
                     self.current.image_name,
                     self.current.image_folder))    
+                print("Label: {}\n".format(
+                    self.label))    
                 
                 ## load image 
                 self.current.image = utils.load_image(self.current.filepath)  
@@ -538,6 +542,8 @@ class Project_labelling:
                         brk = self._text(self.current.image)
                     if step_name == "mask":
                         brk = self._mask(self.current.image)
+                    if step_name == "comment" and self.current.comment:
+                        brk = self._comment(self.current.image)
                     if brk:
                         break
                 
@@ -656,7 +662,7 @@ class Project_labelling:
         except:   
             self.label["text"] = {}
             category, label = self.config["text"]["category"], ""
-
+            
         ## check for args in options and fun call
         if "options" in self.config["text"]:
             kwargs.update(self.config["text"]["options"])
@@ -664,6 +670,7 @@ class Project_labelling:
                     
         gui = ul._GUI(
             image,
+            comment_key=self.comment_key,
             window_aspect="normal",
             window_name="labelling-tool",
             tool="labelling",
@@ -680,6 +687,10 @@ class Project_labelling:
             self.label["text"]["category"] = category
             self.label["text"]["label"] = label
             self.labels[self.current.image_name] = self.label     
+            
+        ## check for comment
+        if gui.flags.comment:
+            self.current.comment = True
     
         ## navigation
         self.current.keypress = gui.keypress 
@@ -720,9 +731,39 @@ class Project_labelling:
         self.current.keypress = gui.keypress 
         return self._keypress_eval()
         
-    def _comment(
-        self,
-        image):
+    def _comment(self, image, **kwargs):
+        
+        ## check for existing label 
+        try:   
+            label = self.label["comment"]
+        except:   
+            self.label["comment"] = {}
+            label = ""
+            
+        
+        gui = ul._GUI(
+            image,
+            comment_key=self.comment_key,
+            window_aspect="normal",
+            window_name="labelling-tool",
+            tool="comment",
+            query="comment",
+            data={_vars._comment_type: label},
+            **kwargs,
+        )
+        
+        ## save label
+        label = gui.data[_vars._comment_type]
+        if not label == "":
+            self.label["comment"] = gui.data[_vars._comment_type]
+            self.labels[self.current.image_name] = self.label     
+            
+        ## deactivate comment mode
+        self.current.comment = False
+    
+        ## navigation
+        self.current.keypress = gui.keypress 
+        return self._keypress_eval()
         
         pass 
     

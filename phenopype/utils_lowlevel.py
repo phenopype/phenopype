@@ -45,6 +45,7 @@ Image.MAX_IMAGE_PIXELS = 999999999
 
 @dataclass
 class _GUI_Settings:
+    comment_key: chr = None
     interactive: bool = True
     label_colour: tuple = "default"
     label_size: int = "auto"
@@ -157,7 +158,7 @@ class _GUI:
                 ("drawing", bool, False),
                 ("rect_start", tuple, None),
                 ("finished", bool, False),
-
+                ("comment", bool, False),
             ],
         )
         
@@ -491,6 +492,9 @@ class _GUI:
                 cv2.imshow(self.settings.window_name, self.canvas)
                 cv2.waitKeyEx(self.settings.wait_time)
                 self.flags.end = True
+            elif key == self.settings.comment_key:
+                self.flags.comment=True
+                print("COMMENTING!")
             else:
                 print(f"key {key} not coded!")
         else:
