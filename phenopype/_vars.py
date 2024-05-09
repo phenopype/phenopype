@@ -8,8 +8,8 @@ from pprint import PrettyPrinter
 
 auto_line_width_factor = 0.0025
 auto_point_size_factor = 0.0025
-auto_text_width_factor = 0.0005
-auto_text_size_factor = 0.00025
+auto_text_width_factor = 0.0025
+auto_text_size_factor = 0.0005
 
 confirm_options = ["True", "true", "y", "yes", True]
 

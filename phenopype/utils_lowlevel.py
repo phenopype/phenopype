@@ -1569,7 +1569,7 @@ def _get_size(image_height, image_width, element="line_width", size_value="auto"
     image_diagonal = (image_height + image_width) / 2
 
     # Calculate and return the size based on the factor
-    value = max(int(factor * image_diagonal), 2)
+    value = max(int(factor * image_diagonal), 1)
 
     return value
 
