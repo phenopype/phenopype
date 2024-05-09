@@ -1,4 +1,7 @@
-from ._version import __version__
+
+import importlib.metadata
+
+__version__ = importlib.metadata.version("phenopype")
 
 from . import _config
 

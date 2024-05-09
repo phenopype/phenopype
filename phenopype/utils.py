@@ -282,18 +282,13 @@ class Container(object):
                 # self.annotations.update(annotations)
 
         ## plugins.segmentation
-        if fun == "predict_contour_fastSAM":
-            self.image = plugins.segmentation.predict_contour_fastSAM(
-                self.image_copy, **kwargs_function)
-        if fun == "predict_contour_keras":
-            self.image = plugins.segmentation.predict_contour_keras(
-                self.image_copy,  **kwargs_function)
-        if fun == "predict_contour_torch":
-            if "model_config_path" in _config.models[kwargs_function["model_id"]]:
-                kwargs_function["model_config_path"] = _config.models[kwargs_function["model_id"]]["model_config_path"]
-            self.image = plugins.segmentation.predict_contour_torch(
-                self.image_copy, **kwargs_function)
-            
+        if fun == "predict_fastSAM":
+            self.image = plugins.segmentation.predict_fastSAM(self.image_copy, **kwargs_function)
+        if fun == "predict_keras":
+            self.image = plugins.segmentation.predict_keras(self.image_copy,  **kwargs_function)
+        if fun == "predict_torch":
+            self.image = plugins.segmentation.predict_torch(self.image_copy, **kwargs_function)
+
         ## core.measurement
         if fun == "set_landmark":
             annotations_updated = core.measurement.set_landmark(image=self.canvas, **kwargs_function)

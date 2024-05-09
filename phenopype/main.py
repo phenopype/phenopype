@@ -15,6 +15,7 @@ import random
 from IPython.display import clear_output
 from contextlib import redirect_stdout
 from dataclasses import make_dataclass
+from rich.pretty import pretty_repr
 
 import pprint
 import subprocess
@@ -947,30 +948,25 @@ class Project:
         else:
             project_attributes = ul._load_yaml(project_attributes_path)
             
+            ## filename checks
             if "filenames" in project_attributes["project_data"]:
-                
                 file_names_attr = project_attributes["project_data"]["filenames"]
                 dir_names_attr = project_attributes["project_data"]["dirnames"]
-
                 if len(dir_names_attr) == len(file_names_attr) == len(dir_names_counted):
                     flags.checked = True
-                    print("\nChecks for directory completeness passed!")
-
+                    print("\n - checks for directory completeness passed!")
                 else:
                     print("\nWARNING: Number of images in existing project and in project attributes are not matching")
-
-            else:
-                print("\nWARNING: Potentially broken project attributes file - could not check for completeness.")
+            if "models" in project_attributes:
                 
-            if len(dir_names_counted) > 0:
-                print('\nProject "{}" successfully loaded with {} images'.format(
-                        os.path.basename(root_dir), len(dir_paths)
-                    ))
-            else:
-                print('\nProject "{}" successfully loaded, but it didn\'t contain any images!'.format(
-                        os.path.basename(root_dir)
-                    ))
+                _config.models = project_attributes["models"]
+                print(f"- {len(project_attributes["models"])}model(s) loaded!")
 
+            if len(dir_names_counted) > 0:
+                print('\nProject "{}" successfully loaded with {} images'.format(os.path.basename(root_dir), len(dir_paths) ))
+            else:
+                print('\nProject "{}" successfully loaded, but it didn\'t contain any images!'.format(os.path.basename(root_dir)))
+                
         print("--------------------------------------------")
 
         ## attach to instance
@@ -1476,14 +1472,6 @@ class Project:
         # =============================================================================
         # setup
 
-        ## set flags
-        flags = make_dataclass(
-            cls_name="flags",
-            fields=[
-                ("overwrite", bool, overwrite), 
-                ],
-        )
-
         ## check model path
         if model_path.__class__.__name__ == "str":
             if os.path.isfile(model_path):
@@ -1508,7 +1496,7 @@ class Project:
             if model_config_path:
                 if os.path.isfile(model_config_path):
                     model_info["model_config_path"] = model_config_path
-                
+
             model_info["date_added"] = datetime.today().strftime(_vars.strftime_format)
 
             ## load project attributes and temporarily drop project data list to
@@ -1531,16 +1519,17 @@ class Project:
                 project_attributes, os.path.join(self.root_dir, "attributes.yaml")
             )
 
-            ul._print("\nSaved model info to project attributes.")
+            ul._print("\nRegistered model \"{}\" to project attributes: {}.".format(
+                model_id, pretty_repr(model_info)))
             break
 
-        if flags.activate == True:
-            _config.active_model_path = model_path
-            ul._print('- adding model to {}'.format(model_id))
-        else:
-            ul._print(
-                "- could not add model (overwrite=False/activate=False)"
-            )
+        # if flags.activate == True:
+        #     _config.active_model_path = model_path
+        #     ul._print('- adding model to {}'.format(model_id))
+        # else:
+        #     ul._print(
+        #         "- could not add model (overwrite=False/activate=False)"
+        #     )
 
     def add_reference_template(self, image_path, reference_id, template=True, overwrite=False, **kwargs):
         """
