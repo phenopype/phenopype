@@ -6,10 +6,9 @@ Known bugs
 5.0.0
 -----
 breaking:
-	- removed plugin-modules, now standalone package (pip install phenopype-plugins). 
-		- functions have their own dependencies, but they will not prohibit the package installation, e.g., to have access to only part of them
-		- easier integration of existing plugins, more consistent naming (predict_contour_...)
-		- new plugin for pytorch segmentation models  
+	- removed old plugin-module, now standalone package (pip install phenopype-plugins). 
+		- new plugin for pytorch and ultralytics (fastSAM)  
+		- each plugin-functions has its own dependency, which by itself will not hinder module installation ("opportunistic loading")
 bugfix:
 	- edit_contours: drawing was not in place when using zoom memory
 	- fastSAM plugin now uses correct prompts ("everything" and "box")

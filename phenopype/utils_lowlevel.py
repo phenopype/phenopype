@@ -45,6 +45,64 @@ Image.MAX_IMAGE_PIXELS = 999999999
 
 @dataclass
 class _GUI_Settings:
+    """
+    Configuration settings for the _GUI class, defining various parameters for GUI behavior and appearance.
+    
+    Attributes:
+    ----------
+    comment_key : chr, optional
+        Default key binding for adding comments in the GUI. Defaults to None.
+    interactive : bool
+        Enables or disables interactive features in the GUI. Defaults to True.
+    label_colour : tuple
+        Default color for labels, specified as a color name or RGB tuple. Defaults to "default", which uses a system-defined color.
+    label_size : int
+        Default font size for labels. Set to "auto" to automatically adjust based on the GUI size.
+    label_width : int
+        Line thickness of label text. Set to "auto" for automatic adjustment.
+    line_colour : tuple
+        Default line color for drawing. Defaults to "default".
+    line_width : int
+        Thickness of drawn lines. Defaults to "auto" for automatic adjustment.
+    node_colour : tuple
+        Color for interactive nodes. Defaults to "default".
+    node_size : int
+        Size of the nodes used in drawings. Defaults to "auto".
+    overlay_blend : float
+        Opacity for overlay elements. Defaults to 0.2.
+    overlay_colour_left : tuple
+        Color for the left side of the overlay. Defaults to "default".
+    overlay_colour_right : tuple
+        Color for the right side of the overlay. Defaults to "default".
+    point_colour : tuple
+        Default color for points. Defaults to "default".
+    point_size : int
+        Size of points. Defaults to "auto".
+    pype_mode : bool
+        Special mode for pipelined operations. Defaults to False.
+    return_input : bool
+        If True, the GUI returns user inputs for further processing. Defaults to False.
+    show_label : bool
+        Controls visibility of labels. Defaults to False.
+    show_nodes : bool
+        Determines whether nodes are visible on the GUI. Defaults to False.
+    wait_time : int
+        Time in milliseconds the GUI waits for a user input before updating. Defaults to 500.
+    window_aspect : str
+        The aspect ratio of the GUI window. Defaults to "normal".
+    window_control : str
+        Controls how the window should behave; either 'internal' or a custom specification. Defaults to "internal".
+    window_name : str
+        The title of the GUI window. Defaults to "phenopype".
+    zoom_magnification : float
+        Magnification factor for zoom. Defaults to 0.5.
+    zoom_memory : bool
+        If True, remembers the last zoom state between sessions. Defaults to False.
+    zoom_mode : str
+        The mode of zooming, such as 'continuous' or 'step'. Defaults to "continuous".
+    zoom_n_steps : int
+        Number of steps for zoom adjustment. Defaults to 20.
+    """
     comment_key: chr = None
     interactive: bool = True
     label_colour: tuple = "default"
@@ -78,55 +136,218 @@ class _GUI:
         image,
         tool=None,
         interactive=True,
-        pype_mode=False,
-        wait_time=500,
-        window_aspect="normal",
-        window_control="internal",
-        window_name="phenopype",
-        zoom_memory=False,
-        zoom_magnification=0.5,
-        zoom_mode="continuous",
-        zoom_n_steps=20,
         **kwargs
     ):
+        """
+        Central class to manage the Graphical User Interface (GUI) for user-image interaction in phenopype.
+    
+        This class initializes and manages an image display and interaction system using OpenCV windows. It supports various
+        tools and settings to interact dynamically with images for purposes such as annotation, labeling, and image manipulation.
+        It handles image resizing, tool initialization, and user input to perform tasks like drawing, commenting, and applying
+        transformations. See the _GUI_Settings dataclass documentation for a list of keyword arguments.
+    
+        Parameters:
+        ----------
+        image : ndarray
+            The image array (numpy array) on which the GUI operations will be performed.
+        tool : optional, default=None
+            The initial tool to load into the GUI for image manipulation. This can be a string identifier like 'draw', 'comment', etc.
+        interactive : bool, optional, default=True
+            Specifies whether the GUI should be interactive. If set to True, user input is enabled and GUI updates respond to interactions.
+        **kwargs : dict
+            Additional keyword arguments that may specify further GUI settings or override default settings for aspects like window dimensions,
+            color and size of graphical elements - see the _GUI_Settings dataclass documentation for a list of keyword arguments.
 
         """
-        Low level interactive image viewer class.
         
-        Future versions of phenopype will feature a more clean and userfriendly
-        code structure.
-        
-        Parameters
-        ----------
-
-        """       
-        
+        ## configure image   
         if not image.__class__.__name__ == "ndarray":
             raise TypeError("GUI module did not receive array-type - aborting!")
-
-        ## configure image    
         window_max_dim = kwargs.get("window_max_dim", _config.window_max_dim)
         window_min_dim = kwargs.get("window_min_dim", _config.window_min_dim)
-        self._set_up_image(image, window_max_dim, window_min_dim)     
         
+        ## get canvas dimensions
+        self._prepare_canvas(image, window_max_dim, window_min_dim)     
+
+        ## load settings from settings class
+        self._initialize_settings(tool, interactive, kwargs)
+        
+        ## initialize canvas (load previous zoom, mount, etc.)
+        self._initialize_canvas()     
+        
+        ## prepare GUI for the evebtual use of certain tools (comment and drawing)
+        self._prepare_tools(kwargs)
+        
+
+
+
+        ## RUN: load tools and allow for user input
+        if self.settings.interactive:
+
+            cv2.namedWindow(
+                self.settings.window_name, _vars.opencv_window_flags[self.settings.window_aspect]
+            )
+            cv2.startWindowThread()
+            cv2.setMouseCallback(self.settings.window_name, self._on_mouse_plain)
+            cv2.resizeWindow(
+                self.settings.window_name, self.canvas_width, self.canvas_height
+            )
+            cv2.imshow(self.settings.window_name, self.canvas)
+            # cv2.setWindowProperty(self.settings.window_name, cv2.WND_PROP_TOPMOST, 1)
+            self.keypress = None
+
+            if self.settings.window_control == "internal":
+                while not any([self.flags.end, self.flags.end_pype]):
+                        
+                    ## sync zoom settings with config
+                    _config.gui_zoom_config = self.zoom
+
+                    ## directly return key input
+                    if self.settings.return_input:
+                        self.keypress = cv2.waitKey(0)
+                        self._keyboard_input()
+                        self.flags.end = True
+                        cv2.destroyAllWindows()
+
+                    ## comment tool
+                    if self.tool == "comment":
+                        self.keypress = cv2.waitKey(1)
+                        self._comment_tool()
+                    elif self.tool == "labelling":
+                        self.keypress = cv2.waitKeyEx(0)
+                        self._labelling_tool()
+                    else:
+                        self.keypress = cv2.waitKey(self.settings.wait_time)
+                        
+                    ## draw nodes
+                    if self.tool in ["rectangle", "polygon", "polyline"]:
+                        if self.settings.show_nodes:
+                            for coord_list in self.data[_vars._coord_list_type]:
+                                self._canvas_draw(
+                                    tool="point", 
+                                    coord_list=coord_list,
+                                    size=self.settings.node_size,
+                                    colour=self.settings.node_colour,
+                                    )
+                        if self.flags.finished and kwargs.get("labelling"):
+                            cv2.waitKeyEx(self.settings.wait_time)
+                            self.flags.end = True
+
+                    ## Enter = close window and redo
+                    if self.keypress == 13:
+                        ## close unfinished polygon and append to polygon list
+                        if self.tool:
+                            if len(
+                                self.data[_vars._coord_type]
+                            ) > 2 and not self.tool in ["point"]:
+                                if not self.tool in ["polyline"]:
+                                    self.data[_vars._coord_type].append(
+                                        self.data[_vars._coord_type][0]
+                                    )
+                                self.data[_vars._coord_list_type].append(
+                                    self.data[_vars._coord_type]
+                                )
+                        self.flags.end = True
+                        cv2.destroyAllWindows()
+
+                    ## Ctrl + Enter = close window and move on
+                    elif self.keypress == 10:
+                        self.flags.end = True
+                        self.flags.end_pype = True
+                        cv2.destroyAllWindows()
+
+                    ## Esc = close window and terminate
+                    elif self.keypress == 27 and not kwargs.get("labelling"):
+                        cv2.destroyAllWindows()
+                        logging.shutdown()
+                        sys.exit("\n\nTERMINATE (by user)")
+
+                    ## Ctrl + z = undo
+                    elif self.keypress == 26 and self.tool == "draw":
+                        self.data[_vars._sequence_type] = self.data[
+                            _vars._sequence_type
+                        ][:-1]
+                        self._canvas_renew()
+                        self._canvas_draw(
+                            tool="line_bin",
+                            coord_list=self.data[_vars._sequence_type],
+                        )
+                        self._canvas_blend()
+                        self._canvas_draw_contours()
+                        self._canvas_mount()
+
+                    ## external window close
+                    elif _config.window_close:
+                        self.flags.end = True
+                        cv2.destroyAllWindows()
+                        
+                    if kwargs.get("labelling"):
+                        if self.keypress in [13, 27, 2424832, 2555904]:
+                            self.flags.end = True
+                            cv2.destroyAllWindows()
+                            
+        ## RUN: finish without loading tools or allowing feedback
+        else:
+            self.flags.end = True
+            self.flags.end_pype = True
+                                
+                      
+    def _prepare_canvas(self, image, window_max_dim, window_min_dim):
+        """
+        Adjust the canvas size based on maximum and minimum dimension constraints while maintaining aspect ratio.
+    
+        Args:
+            window_max_dim (int): The maximum allowed dimension for either width or height.
+            window_min_dim (int): The minimum allowed dimension for either width or height.
+        """
+        self.image = copy.deepcopy(image)
+        self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
+        aspect_ratio = self.image_width / self.image_height
+    
+        # Determine the dimension constraints based on the aspect ratio
+        if self.image_width >= self.image_height:
+            # Width is the dominating dimension or they are equal
+            target_width = min(window_max_dim, max(self.image_width, window_min_dim))
+            target_height = int(target_width / aspect_ratio)
+        else:
+            # Height is the dominating dimension
+            target_height = min(window_max_dim, max(self.image_height, window_min_dim))
+            target_width = int(target_height * aspect_ratio)
+    
+        # Apply constraints to not exceed max dimensions and not fall below min dimensions
+        self.canvas_width = min(target_width, window_max_dim)
+        self.canvas_height = min(target_height, window_max_dim)
+        
+        # Ensure the canvas dimensions do not fall below the minimum dimension constraints
+        if self.canvas_width < window_min_dim:
+            self.canvas_width = window_min_dim
+            self.canvas_height = int(self.canvas_width / aspect_ratio)
+        if self.canvas_height < window_min_dim:
+            self.canvas_height = window_min_dim
+            self.canvas_width = int(self.canvas_height * aspect_ratio)
+            
+                        
+    def _initialize_settings(self, tool, interactive, kwargs):
+    
         ## apply args to settings
-        self.settings = _GUI_Settings(
-            interactive, pype_mode, wait_time, 
-            zoom_memory, zoom_magnification,zoom_mode, zoom_n_steps, 
-            window_aspect, window_control,window_name)
-        
+        self.settings = _GUI_Settings()
+        self.settings.tool = tool
+        self.settings.interactive = interactive
+                        
         ## apply kwargs to setting
         for field in fields(self.settings):
             if field.name in kwargs:
                 field_val = kwargs[field.name] 
+                setattr(self.settings, field.name, field_val)
             else:
                 field_val = field.default
             if "colour" in field.name: 
                 field_val = _get_bgr(field_val, field.name)
+                setattr(self.settings, field.name, field_val)
             if "size" in field.name or "width" in field.name: 
                 field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field_val)
-            setattr(self.settings, field.name, field_val)
-                
+                setattr(self.settings, field.name, field_val)
+                 
         ## basic settings (maybe integrate better)
         self.__dict__.update(kwargs)
         self.tool = tool
@@ -161,42 +382,10 @@ class _GUI:
                 ("comment", bool, False),
             ],
         )
+               
+
+    def _initialize_canvas(self):
         
-        # =============================================================================
-        # initialize variables
-        # =============================================================================
-
-        ## binary image (for blending)
-        if self.tool == "draw":
-
-            if len(self.data[_vars._contour_type]) > 0:
-
-                ## coerce to multi channel image for colour mask
-                if len(self.image.shape) == 2:
-                    self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
-
-                ## create binary overlay
-                self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
-
-                ## draw contours onto overlay
-                for contour in self.data[_vars._contour_type]:
-                    cv2.drawContours(
-                        image=self.image_bin,
-                        contours=[contour],
-                        contourIdx=0,
-                        thickness=-1,
-                        color=255,
-                        maxLevel=3,
-                        offset=(0, 0),
-                    )
-            else:
-                print(
-                    "Could not find contours to edit - check annotations."
-                )
-                return
-            
-
-
         ## canvas resize factor
         self.canvas_fx, self.canvas_fy = (
             self.image_width / self.canvas_width,
@@ -227,13 +416,62 @@ class _GUI:
         if hasattr(_config, "gui_zoom_config") and self.settings.zoom_memory == True:
             if not _config.gui_zoom_config.__class__.__name__ == "NoneType":
                 self.zoom = _config.gui_zoom_config
-
-        # =============================================================================
-        # generate canvas
-        # =============================================================================
-
+    
         ## initialize canvas
         self._canvas_renew()
+
+        ## applies zooming step
+        self._canvas_mount()
+    
+        ## local control vars
+        _config.window_close = False
+        
+    def _prepare_tools(self, kwargs):
+        
+        if self.tool in ["comment", "labelling"]:
+            
+            self.settings.label_keymap = kwargs.get("label_keymap")
+            self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
+            y_pos, x_pos = self.settings.label_position
+            self.canvas = copy.deepcopy(self.canvas_copy)                      
+            cv2.putText(
+                self.canvas,
+                str(self.query) + ": " + str(self.data[_vars._comment_type]),
+                (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.settings.label_size,
+                self.settings.label_colour,
+                self.settings.label_width,
+                cv2.LINE_AA,
+            )
+
+        if self.tool == "draw":
+            if len(self.data[_vars._contour_type]) > 0:
+                if len(self.image.shape) == 2:
+                    self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
+                self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
+                self.image_bin_copy = copy.deepcopy(self.image_bin)
+                for contour in self.data[_vars._contour_type]:
+                    cv2.drawContours(
+                        image=self.image_bin,
+                        contours=[contour],
+                        contourIdx=0,
+                        thickness=-1,
+                        color=255,
+                        maxLevel=3,
+                        offset=(0, 0),
+                    )
+                self._canvas_draw(
+                    tool="line_bin", 
+                    coord_list=self.data[_vars._sequence_type],
+                )
+                self._canvas_blend()
+                self._canvas_draw_contours()
+                    
+            else:
+                print("Could not find contours to edit - check annotations.")
+                return
+            
         if self.tool in ["rectangle", "polygon", "polyline", "draw"]:
             self._canvas_draw(
                 tool="line", 
@@ -256,187 +494,9 @@ class _GUI:
                 size=self.settings.point_size,
                 colour=self.settings.point_colour,
                 )
-        if self.tool in ["draw"]:
-            self._canvas_draw(
-                tool="line_bin", 
-                coord_list=self.data[_vars._sequence_type],
-            )
-            self._canvas_blend()
-            self._canvas_draw_contours()
-        self._canvas_mount()
 
-        ## local control vars
-        _config.window_close = False
-        
-        # =============================================================================
-        # labelling tool
-        # =============================================================================
-        
-        if self.tool in ["comment", "labelling"]:
             
-            self.settings.label_keymap = kwargs.get("label_keymap")
-            self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
-            y_pos, x_pos = self.settings.label_position
-            self.canvas = copy.deepcopy(self.canvas_copy)                      
-            cv2.putText(
-                self.canvas,
-                str(self.query) + ": " + str(self.data[_vars._comment_type]),
-                (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                self.settings.label_size,
-                self.settings.label_colour,
-                self.settings.label_width,
-                cv2.LINE_AA,
-            )
-
-        # =============================================================================
-        # window control
-        # =============================================================================
-
-        if self.settings.interactive == False:
-
-            self.flags.end = True
-            self.flags.end_pype = True
-
-        else:
-            cv2.namedWindow(
-                self.settings.window_name, _vars.opencv_window_flags[window_aspect]
-            )
-            cv2.startWindowThread()
-            cv2.setMouseCallback(self.settings.window_name, self._on_mouse_plain)
-            cv2.resizeWindow(
-                self.settings.window_name, self.canvas_width, self.canvas_height
-            )
-            cv2.imshow(self.settings.window_name, self.canvas)
-            # cv2.setWindowProperty(self.settings.window_name, cv2.WND_PROP_TOPMOST, 1)
-            self.keypress = None
-
-            if self.settings.window_control == "internal":
-                while not any([self.flags.end, self.flags.end_pype]):
-                    if self.settings.interactive:
-                        
-                        ## sync zoom settings with config
-                        _config.gui_zoom_config = self.zoom
-
-                        ## directly return key input
-                        if self.settings.return_input:
-                            self.keypress = cv2.waitKey(0)
-                            self._keyboard_input()
-                            self.flags.end = True
-                            cv2.destroyAllWindows()
-
-                        ## comment tool
-                        if self.tool == "comment":
-                            self.keypress = cv2.waitKey(1)
-                            self._comment_tool()
-                        elif self.tool == "labelling":
-                            self.keypress = cv2.waitKeyEx(0)
-                            self._labelling_tool()
-                        else:
-                            self.keypress = cv2.waitKey(self.settings.wait_time)
-                            
-                        ## draw nodes
-                        if self.tool in ["rectangle", "polygon", "polyline"]:
-                            if self.settings.show_nodes:
-                                for coord_list in self.data[_vars._coord_list_type]:
-                                    self._canvas_draw(
-                                        tool="point", 
-                                        coord_list=coord_list,
-                                        size=self.settings.node_size,
-                                        colour=self.settings.node_colour,
-                                        )
-                            if self.flags.finished and kwargs.get("labelling"):
-                                cv2.waitKeyEx(self.settings.wait_time)
-                                self.flags.end = True
-
-                        ## Enter = close window and redo
-                        if self.keypress == 13:
-                            ## close unfinished polygon and append to polygon list
-                            if self.tool:
-                                if len(
-                                    self.data[_vars._coord_type]
-                                ) > 2 and not self.tool in ["point"]:
-                                    if not self.tool in ["polyline"]:
-                                        self.data[_vars._coord_type].append(
-                                            self.data[_vars._coord_type][0]
-                                        )
-                                    self.data[_vars._coord_list_type].append(
-                                        self.data[_vars._coord_type]
-                                    )
-                            self.flags.end = True
-                            cv2.destroyAllWindows()
-
-                        ## Ctrl + Enter = close window and move on
-                        elif self.keypress == 10:
-                            self.flags.end = True
-                            self.flags.end_pype = True
-                            cv2.destroyAllWindows()
-
-                        ## Esc = close window and terminate
-                        elif self.keypress == 27 and not kwargs.get("labelling"):
-                            cv2.destroyAllWindows()
-                            logging.shutdown()
-                            sys.exit("\n\nTERMINATE (by user)")
-
-                        ## Ctrl + z = undo
-                        elif self.keypress == 26 and self.tool == "draw":
-                            self.data[_vars._sequence_type] = self.data[
-                                _vars._sequence_type
-                            ][:-1]
-                            self._canvas_renew()
-                            self._canvas_draw(
-                                tool="line_bin",
-                                coord_list=self.data[_vars._sequence_type],
-                            )
-                            self._canvas_blend()
-                            self._canvas_draw_contours()
-                            self._canvas_mount()
-
-                        ## external window close
-                        elif _config.window_close:
-                            self.flags.end = True
-                            cv2.destroyAllWindows()
-                            
-                        if kwargs.get("labelling"):
-                            if self.keypress in [13, 27, 2424832, 2555904]:
-                                self.flags.end = True
-                                cv2.destroyAllWindows()
-                                
-    def _set_up_image(self, image, window_max_dim, window_min_dim):
-        """
-        Adjust the canvas size based on maximum and minimum dimension constraints while maintaining aspect ratio.
-    
-        Args:
-            window_max_dim (int): The maximum allowed dimension for either width or height.
-            window_min_dim (int): The minimum allowed dimension for either width or height.
-        """
-        self.image = copy.deepcopy(image)
-        self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
-        aspect_ratio = self.image_width / self.image_height
-    
-        # Determine the dimension constraints based on the aspect ratio
-        if self.image_width >= self.image_height:
-            # Width is the dominating dimension or they are equal
-            target_width = min(window_max_dim, max(self.image_width, window_min_dim))
-            target_height = int(target_width / aspect_ratio)
-        else:
-            # Height is the dominating dimension
-            target_height = min(window_max_dim, max(self.image_height, window_min_dim))
-            target_width = int(target_height * aspect_ratio)
-    
-        # Apply constraints to not exceed max dimensions and not fall below min dimensions
-        self.canvas_width = min(target_width, window_max_dim)
-        self.canvas_height = min(target_height, window_max_dim)
-        
-        # Ensure the canvas dimensions do not fall below the minimum dimension constraints
-        if self.canvas_width < window_min_dim:
-            self.canvas_width = window_min_dim
-            self.canvas_height = int(self.canvas_width / aspect_ratio)
-        if self.canvas_height < window_min_dim:
-            self.canvas_height = window_min_dim
-            self.canvas_width = int(self.canvas_height * aspect_ratio)
-                                
-
+     
     def _keyboard_input(self):
         self.keypress_trans = chr(self.keypress)
         return self
@@ -1021,7 +1081,7 @@ class _GUI:
 
         ## pull copy from original image
         self.image_copy = copy.deepcopy(self.image)
-        if self.tool == "draw":
+        if self.tool == "draw" and hasattr(self, "image_bin"):
             self.image_bin_copy = copy.deepcopy(self.image_bin)
 
     def _zoom_fun(self, x, y):
@@ -1121,8 +1181,8 @@ class _NoIndent(object):
         #     raise TypeError('Only lists and tuples can be wrapped')
         self.value = value
         
-    # def __repr__(self):
-    #     return repr(self.value)
+    def __repr__(self):
+        return repr(self.value)
     
     def to_list(self):
         return self.value
@@ -1763,6 +1823,16 @@ def _print(msg, lvl=0, **kwargs):
         if lvl >= _config.verbosity_level:
             print(msg)
         
+
+# def _label_formatter(label_dict):
+#     old_dict = copy.deepcopy(label_dict)
+#     new_dict = {}
+#     for key, val in old_dict.items():
+#         if key == "mask":
+#             if "coords" in val:
+#                 val["coords"] = np.array(val["coords"])
+#         new_dict[key] = val
+#     return new_dict
     
 #%% functions - CONTOURS
 

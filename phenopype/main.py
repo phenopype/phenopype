@@ -12,7 +12,6 @@ import sys
 import logging
 import random
 
-from IPython.display import clear_output
 from contextlib import redirect_stdout
 from dataclasses import make_dataclass
 from rich.pretty import pretty_repr
@@ -526,13 +525,17 @@ class Project_labelling:
                 if self.current.n_skipped > 0:
                     print("\n")
                     self.current.n_skipped = 0
-                print("Index: {}/{} | Filename: {} | Folder: {}\n".format(
+                    
+                                    
+                    
+                print("Index: {}/{} | Filename: {} | Folder: {} | Label: {}\n".format(
                     self.current.idx, 
                     self.image_list_len-1,
                     self.current.image_name,
-                    self.current.image_folder))    
-                print("Label: {}\n".format(
-                    self.label))    
+                    self.current.image_folder,
+                    pretty_repr(self.label)))    
+                # print("Label: {}\n".format(
+                #     self.label))    
                 
                 ## load image 
                 self.current.image = utils.load_image(self.current.filepath)  
@@ -960,7 +963,8 @@ class Project:
             if "models" in project_attributes:
                 
                 _config.models = project_attributes["models"]
-                print(f"- {len(project_attributes["models"])}model(s) loaded!")
+                n_models = len(project_attributes["models"])
+                print(f"- {n_models} model(s) loaded!")
 
             if len(dir_names_counted) > 0:
                 print('\nProject "{}" successfully loaded with {} images'.format(os.path.basename(root_dir), len(dir_paths) ))
@@ -1448,8 +1452,8 @@ class Project:
     
     def add_model(
         self,
-        model_id,
         model_path,
+        model_id,
         model_config_path=None,
         model_type="segmentation",
         overwrite=False,
@@ -1523,13 +1527,6 @@ class Project:
                 model_id, pretty_repr(model_info)))
             break
 
-        # if flags.activate == True:
-        #     _config.active_model_path = model_path
-        #     ul._print('- adding model to {}'.format(model_id))
-        # else:
-        #     ul._print(
-        #         "- could not add model (overwrite=False/activate=False)"
-        #     )
 
     def add_reference_template(self, image_path, reference_id, template=True, overwrite=False, **kwargs):
         """

@@ -21,6 +21,7 @@ dependencies = [
         "pyradiomics==3.1.0",
         "ruamel.yaml==0.16.12",
         "tqdm",
+		"rich",
         "watchdog",
     ]
 keywords = ["computer vision", "biology"]  

@@ -92,7 +92,36 @@ def image():
     
     return image
 
+
+@pytest.fixture(scope="session")
+def image_binary(image,  mask_polygon):
+        
+    annotations = mask_polygon
+        
+    image_blurred = pp.preprocessing.blur(image, kernel_size=7)
+    image_binary = pp.segmentation.threshold(
+            image=image_blurred, 
+            method="adaptive", 
+            blocksize=199, 
+            constant=10, 
+            channel="green",
+            annotations=annotations,
+            verbose=True,
+            )
+           
+    return image_binary
+
     
+
+@pytest.fixture(scope="session")
+def contours(image_binary):
+    
+    contours = pp.segmentation.detect_contour(
+        image_binary, 
+        )    
+
+    return contours
+
 @pytest.fixture(scope="session")
 def mask_polygon():
 
@@ -118,35 +147,6 @@ def mask_polygon():
           (1377, 273)]]}}}}
     
     return mask_polygon
-
-@pytest.fixture(scope="session")
-def image_binary(image,  mask_polygon):
-        
-    annotations = mask_polygon
-        
-    image_blurred = pp.preprocessing.blur(image, kernel_size=7)
-    image_binary = pp.segmentation.threshold(
-            image=image_blurred, 
-            method="adaptive", 
-            blocksize=199, 
-            constant=10, 
-            channel="green",
-            annotations=annotations,
-            verbose=True,
-            )
-           
-    return image_binary
-
-
-@pytest.fixture(scope="session")
-def contours(image_binary):
-    
-    contours = pp.segmentation.detect_contour(
-        image_binary, 
-        )    
-
-    return contours
-
 
         
 @pytest.fixture(scope="session")
