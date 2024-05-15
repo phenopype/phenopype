@@ -66,7 +66,7 @@ def load_image(path, mode="unchanged", **kwargs):
                     image = cv2.imread(path)
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             else:
-                print(
+                ul._print(
                     'Invalid file extension "{}" - could not load image:\n'.format(ext)
                 )
                 return
@@ -75,10 +75,10 @@ def load_image(path, mode="unchanged", **kwargs):
                 path, as_container=False
             )
         else:
-            print("Invalid image path - could not load image.")
+            ul._print("Invalid image path - could not load image.")
             return
     else:
-        print("Invalid input format - could not load image.")
+        ul._print("Invalid input format - could not load image.")
         return
 
     return image
@@ -131,10 +131,10 @@ def load_template(
                 config.template_loaded_current = ul._load_yaml(template_path)
 
             else:
-                print("Could not find template_path")
+                ul._print("Could not find template_path")
                 return
         else:
-            print("Wrong input format for template_path")
+            ul._print("Wrong input format for template_path")
             return
     else:
         template_loaded =  config.template_loaded_current
@@ -144,7 +144,7 @@ def load_template(
         dir_path.__class__.__name__ == "NoneType"
         and image_path.__class__.__name__ == "NoneType"
     ):
-        print("Need to specify image_path or dir_path")
+        ul._print("Need to specify image_path or dir_path")
         return
 
     elif (
@@ -154,7 +154,7 @@ def load_template(
         if os.path.isdir(dir_path):
             prepend = ""
         else:
-            print("Could not find dir_path")
+            ul._print("Could not find dir_path")
             return
 
     elif dir_path.__class__.__name__ == "NoneType":
@@ -339,13 +339,13 @@ def save_image(image, file_name, dir_path, suffix=None, ext="jpg", overwrite=Fal
 
     # Check if file exists and handle overwrite logic
     if os.path.isfile(file_path) and not overwrite:
-        print(f"Image not saved - file already exists (overwrite=False): {file_path}")
+        ul._print(f"Image not saved - file already exists (overwrite=False): {file_path}")
         return False
     else:
         if overwrite and os.path.isfile(file_path):
-            print(f"Image saved and overwritten at: {file_path}")
+            ul._print(f"Image saved and overwritten at: {file_path}")
         else:
-            print(f"Image saved at: {file_path}")
+            ul._print(f"Image saved at: {file_path}")
 
         # Save the image
         success = cv2.imwrite(file_path, image)
@@ -395,7 +395,7 @@ def show_image(
     elif image.__class__.__name__ == "list":
         pass
     else:
-        print("wrong input format.")
+        ul._print("wrong input format.")
         return
 
     ## open images list or single images
@@ -409,16 +409,16 @@ def show_image(
                 )
                 check = input(warning_string)
                 if check in ["y", "Y", "yes", "Yes"]:
-                    print("Proceed - Opening images ...")
+                    ul._print("Proceed - Opening images ...")
                     pass
                 else:
-                    print("Aborting")
+                    ul._print("Aborting")
                     break
             idx = 0
             for i in image:
                 idx += 1
                 if i.__class__.__name__ == "ndarray":
-                    print("phenopype" + " - " + str(idx))
+                    ul._print("phenopype" + " - " + str(idx))
                     ul._GUI(
                         i,
                         mode="",
@@ -434,7 +434,7 @@ def show_image(
                             int(idx + idx * position_offset),
                         )
                 else:
-                    print("skipped showing list item of type " + i.__class__.__name__)
+                    ul._print("skipped showing list item of type " + i.__class__.__name__)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             break
