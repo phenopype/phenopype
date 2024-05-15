@@ -7,10 +7,10 @@ Phenopype projects are composed of a directory tree in which each folder contain
 
 	import phenopype as pp
 
-	myproj = pp.Project(root_dir="\my_project\phenopype")
-	myproj.add_files(image_dir="\my_project\data_raw")
-	myproj.add_config(name = "v1")
-	pp.project.save(myproj)
+	myproj = pp.Project(root_dir="my_project")
+	myproj.add_files(image_dir="my-data")
+	myproj.add_config(tag = "v1", template_path="templates\template1.yaml")
+	...
 
 	## after closing Python, the project can be accessed by simply using Project class again:
 	myproj = pp.Project(root_dir="\my_project\phenopype")
@@ -20,25 +20,26 @@ Above code creates a folder structure as follows:
 .. code-block:: bash
 
 	my_project\
-	 data_raw
-	 phenopype\		# create phenopype project here with "pp.Project"
-	  data\ 		# created automatically
-	   file1\		# add files to project using "pp.Project.add_files"
-	    raw.jpg			# created by "pp.Project.add_files"
-	    attributes.yaml	# created by "pp.Project.add_files"
-	    pype_config_v1.yaml	# added with "pp.Project.add_config"
-	    results_v1.csv
-	   file2\
-	    ...
-	   ...
-	 data
-	 scripts
-	 manuscript
-	 figures
+		data\ 							# created automatically
+			file1\						# add files to project using "pp.Project.add_files"
+				raw.jpg					# created by "pp.Project.add_files"
+				attributes.yaml			# created by "pp.Project.add_files"
+				pype_config_v1.yaml		# added with "pp.Project.add_config"
+				results_v1.csv
+			file2\
+			...
+		...
+	my-data
+	scripts
+	templates
+	template1.yaml
+	manuscript
+	figures
+	...
 
 .. important::
 
-	Currently the only useful information contained in the project object (:code:`myproj`) is a list of all directories inside the project's directory tree. It is important to save `both` the project AND all results in the data directories using the appropriate functions in (:ref:`Export`). Future release will expand the functionality of the project class and its associated methods.
+	Currently the only useful information contained in the project object (:code:`myproj`) is a list of all directories inside the project's directory tree. Always save your progressing using the appropriate functions in (:ref:`Export`). 
 
 .. autoclass:: phenopype.main.Project
 	:members:
