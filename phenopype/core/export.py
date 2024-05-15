@@ -804,8 +804,8 @@ def save_ROI(
             ## skip if ROI is too large for canvas
             if any([xpos<=0, ypos<=0]):
                 if canvas_fit:
-                    roi = ul._resize_image(roi, max_dim=canvas_dim-2)
-                    roi_mask = ul._resize_image(roi_mask, max_dim=canvas_dim-2)
+                    roi = utils.resize_image(roi, max_dim=canvas_dim-2)
+                    roi_mask = utils.resize_image(roi_mask, max_dim=canvas_dim-2)
                     xpos = max((canvas_dim - roi.shape[1]) // 2,1)
                     ypos = max((canvas_dim - roi.shape[0]) // 2,1)
                 else:
@@ -837,7 +837,7 @@ def save_ROI(
         ## resizing final ROI
         
         if max_dim:
-            roi = ul._resize_image(roi, max_dim=max_dim)
+            roi = utils.resize_image(roi, max_dim=max_dim)
             
         # =============================================================================
         ## saving          
@@ -901,7 +901,7 @@ def save_canvas(
 
     """
     
-    image = ul._resize_image(image, resize)
+    image = utils.resize_image(image, resize)
 
     utils.save_image(
         image=image,

@@ -1,47 +1,448 @@
 #%% modules
 
-import cv2, copy, os, sys, warnings
+import copy
 import inspect
+import io
 import json
 import logging
-import numpy as np
-from dataclasses import dataclass, make_dataclass, fields
-import string
+import os
 import re
-from _ctypes import PyObj_FromPtr
-from colour import Color
-import shutil
-
-from timeit import default_timer as timer
 import ruamel.yaml
-from ruamel.yaml.constructor import SafeConstructor
-from ruamel.yaml import YAML
+import shutil
+import string
+import sys
+import warnings
 
-from functools import wraps
-
-from math import atan2, cos, sin, sqrt, pi
-
-from pathlib import Path
-from PIL import Image
-from stat import S_IWRITE
-from watchdog.observers import Observer
-from watchdog.events import PatternMatchingEventHandler
-
+from _ctypes import PyObj_FromPtr
 from contextlib import redirect_stdout
-import io
+from dataclasses import dataclass, fields, make_dataclass
+from math import atan2, cos, pi, sin, sqrt
+from pathlib import Path
+from stat import S_IWRITE
+from timeit import default_timer as timer
+
+import cv2
+import numpy as np
+from colour import Color
+from PIL import Image
+from ruamel.yaml import YAML
+from ruamel.yaml.constructor import SafeConstructor
+from watchdog.events import PatternMatchingEventHandler
+from watchdog.observers import Observer
+
 
 from phenopype import _config
 from phenopype import _vars
-from phenopype import main
+from phenopype import core
 from phenopype import utils
 
-
-#%% options
-
-Image.MAX_IMAGE_PIXELS = 999999999
-
+try:
+    import phenopype_plugins as plugins
+except:
+    pass
 
 #%% classes
+
+class _Container(object):
+    """
+    A phenopype container is a Python class where loaded images, dataframes,
+    detected contours, intermediate output, etc. are stored so that they are
+    available for inspection or storage at the end of the analysis. The
+    advantage of using containers is that they don’t litter the global environment
+    and namespace, while still containing all intermediate steps (e.g. binary
+    masks or contour DataFrames). Containers can be used manually to analyse images,
+    but typically they are created dynamically within the pype-routine.
+
+    Parameters
+    ----------
+    image_path : ndarray
+        path to an image to build the container from. Image directory will be used
+        as the working-directory to store all Pype-output in
+    version : str, optional
+        suffix to append to filename of results files. The default is "v1".
+
+    """
+
+    def __init__(self, image, dir_path, **kwargs):
+
+        ## set reference image
+        self.image_copy = image
+
+        ## assign copies
+        self.image = copy.deepcopy(self.image_copy)
+        self.canvas = copy.deepcopy(self.image_copy)
+
+        ## attributes (needs more order/cleaning)
+        self.tag = kwargs.get("tag")
+        self.file_prefix = kwargs.get("file_prefix")
+        self.file_suffix = kwargs.get("file_suffix")
+        self.dir_path = dir_path
+        self.image_name = kwargs.get("image_name")
+
+        ## annotations
+        self.annotations = {}
+
+    def _load(self, contours=False, **kwargs):
+        """
+        Autoload function for container: loads results files with given file_suffix
+        into the container. Can be used manually, but is typically used within the
+        pype routine.
+
+        Parameters
+        ----------
+        file_suffix : str, optional
+            suffix to include when looking for files to load
+
+        """
+
+        loaded = []
+
+        ## load annotations
+        annotations_file_name = self._construct_file_name("annotations", ".json")
+        
+        if annotations_file_name in os.listdir(self.dir_path):
+            try:
+                annotations_loaded = core.export.load_annotation(
+                    os.path.join(self.dir_path, annotations_file_name)
+                )
+                
+                if contours == False:
+                    if _vars._contour_type in annotations_loaded:
+                        annotations_loaded.pop(_vars._contour_type)
+                
+                if annotations_loaded:
+                    self.annotations.update(annotations_loaded)
+    
+                annotation_types_loaded = {}
+                for annotation_type in self.annotations.keys():
+                    id_list = []
+                    for annotation_id in self.annotations[annotation_type].keys():
+                        id_list.append(annotation_id)
+                    if len(id_list) > 0:
+                        annotation_types_loaded[annotation_type] = _NoIndent(
+                            id_list
+                        )
+    
+                loaded.append(
+                    "- annotations loaded:\n{}".format(
+                        json.dumps(
+                            annotation_types_loaded,
+                            indent=4,
+                            cls=_NoIndentEncoder,
+                        ).replace("}", "").replace("{", "")
+                    )
+                )
+            except:
+                print("WARNING - BROKEN ANNOTATIONS FILE")
+
+        ## load global objects from project attributes
+        self.attr_proj = _load_yaml(os.path.join(self.dir_path, r"../../", "attributes.yaml"), typ="safe")
+        if "reference_templates" in self.attr_proj:
+            for reference_id, reference_info in self.attr_proj["reference_templates"].items():
+                if not reference_id in _config.reference_templates:
+                    _config.reference_templates[reference_id] = reference_info
+                else:
+                    _config.reference_templates[reference_id].update(reference_info)    
+            loaded.append("loaded info for {} reference templates {} ".format(len(_config.reference_templates.keys()),(*list(_config.reference_templates.keys()),)))                
+        if "models" in self.attr_proj:          
+            for model_id, model_info in self.attr_proj["models"].items():
+                if not model_id in _config.models:
+                    _config.models[model_id] = model_info
+                else:
+                    _config.models[model_id].update(model_info)    
+            loaded.append("loaded info for {} models {} ".format(len(_config.models.keys()),(*list(_config.models.keys()),)))
+            
+        ## feedback
+        if len(loaded) > 0:
+            print("\n- ".join(loaded))
+        else:
+            print("- nothing to autoload")
+
+    def _reset(self):
+        """
+        Resets modified images, canvas and df_image_data to original state. Can be used manually, but is typically used within the
+        pype routine.
+
+        """
+
+        ## re-assign copies
+        self.image = copy.deepcopy(self.image_copy)
+        self.canvas = copy.deepcopy(self.image_copy)
+
+    def _run(
+            self, 
+            fun,
+            fun_kwargs={}, 
+            annotation_kwargs={}, 
+            annotation_counter={},
+            ):
+
+        ## annotation kwargs
+        annotations = copy.deepcopy(self.annotations)
+        annotation_type = annotation_kwargs.get("type")
+        annotation_id = annotation_kwargs.get("id")
+
+        flag_edit = annotation_kwargs.get("edit", False)
+        annotations_updated = None
+
+        ## function kwargs
+        kwargs_function = copy.deepcopy(fun_kwargs)
+        kwargs_function["annotations"] = annotations
+        kwargs_function["annotation_type"] = fun_kwargs.get("annotation_type",annotation_type)
+        kwargs_function["annotation_id"] = fun_kwargs.get("annotation_id",annotation_id)
+        kwargs_function["annotation_counter"] = annotation_counter
+
+        ## use pype tag
+        kwargs_function["tag"] = self.tag
+
+        ## verbosity
+        if _config.verbose:
+            kwargs_function["verbose"] = True
+
+        ## indicate pype use 
+        kwargs_function["pype_mode"] = True
+
+        ## attributes
+        if hasattr(self, "image_attributes"):
+            image_name = self.image_attributes["image_original"]["filename"]
+        elif self.image_name:
+            image_name = self.image_name
+
+        ## edit handling
+        if not all([
+                annotation_id.__class__.__name__ == "NoneType",
+                annotation_type.__class__.__name__ == "NoneType",
+            ]):
+            if annotation_type in annotations:
+                if annotation_id in annotations[annotation_type]:
+                    print_msg = '- loaded existing annotation of type "{}" with ID "{}"'.format(
+                        annotation_type, annotation_id
+                    )
+                    if flag_edit == True:
+                        print(print_msg + ": editing (edit=True)")
+                    elif flag_edit == False:
+                        print(print_msg + ": skipping (edit=False)")
+                        if annotation_type in ["drawing"]:
+                            kwargs_function["interactive"] = False
+                            annotations_updated, self.image = core.segmentation.edit_contour(
+                                self.canvas, ret_image=True, **kwargs_function
+                            )
+                        return
+                    elif flag_edit == "overwrite":
+                        print(print_msg + ": overwriting (edit=overwrite)")
+                        annotations[annotation_type][annotation_id] = {}
+                        pass
+
+        ## preprocessing
+        if fun == "blur":
+            self.image = core.preprocessing.blur(self.image, **kwargs_function)
+        if fun == "clip_histogram":
+            self.image = core.preprocessing.clip_histogram(self.image, **kwargs_function)
+        if fun == "create_mask":
+            annotations_updated = core.preprocessing.create_mask(self.image, **kwargs_function)
+        if fun == "create_reference":
+            annotations_updated = core.preprocessing.create_reference(self.image, **kwargs_function)
+        if fun == "detect_mask":
+            annotations_updated = core.preprocessing.detect_mask(self.image, **kwargs_function)
+        if fun == "detect_QRcode":
+            annotations_updated = core.preprocessing.detect_QRcode(self.image, **kwargs_function)
+        if fun == "write_comment":
+            annotations_updated = core.preprocessing.write_comment(self.image, **kwargs_function)
+        if fun == "detect_reference":
+            template_id = kwargs_function["template_id"]
+            if "template" not in _config.reference_templates[template_id]:
+                print(f"- loading reference template \"{template_id}\" into memory")
+                _config.reference_templates[template_id]["template"] = utils.load_image(
+                    _config.reference_templates[template_id]["template_path"])
+            annotations_updated = core.preprocessing.detect_reference(
+                self.image,
+                _config.reference_templates[template_id]["template"],
+                _config.reference_templates[template_id]["template_px_ratio"],
+                _config.reference_templates[template_id]["unit"],
+                **kwargs_function)
+
+        if fun == "decompose_image":
+            self.image = core.preprocessing.decompose_image(self.image_copy, **kwargs_function)
+        if fun == "manage_channels":
+            self.image_channels = core.preprocessing.manage_channels(self.image, **kwargs_function)
+
+        ## core.segmentation
+        if fun == "contour_to_mask":
+            annotations_updated = core.segmentation.contour_to_mask(**kwargs_function)
+        if fun == "threshold":
+            self.image = core.segmentation.threshold(self.image, **kwargs_function)
+        if fun == "watershed":
+            self.image = core.segmentation.watershed(self.image, **kwargs_function)
+        if fun == "mask_to_contour":
+            annotations_updated = core.segmentation.mask_to_contour(**kwargs_function)
+        if fun == "morphology":
+            self.image = core.segmentation.morphology(self.image, **kwargs_function)
+        if fun == "detect_contour":
+            annotations_updated = core.segmentation.detect_contour(self.image, **kwargs_function)
+        if fun == "edit_contour":
+            annotations_updated, self.image = core.segmentation.edit_contour(
+                self.canvas, ret_image=True, **kwargs_function
+            )
+            if "inplace" in kwargs_function:
+                annotations[_vars._contour_type][kwargs_function["contour_id"]] = core.segmentation.detect_contour(self.image)[_vars._contour_type]["a"]
+                self.image = copy.deepcopy(self.image_copy)
+                # self.annotations.update(annotations)
+
+        ## plugins.segmentation
+        if fun == "predict_fastSAM":
+            self.image = plugins.segmentation.predict_fastSAM(self.image_copy, **kwargs_function)
+        if fun == "predict_keras":
+            self.image = plugins.segmentation.predict_keras(self.image_copy,  **kwargs_function)
+        if fun == "predict_torch":
+            self.image = plugins.segmentation.predict_torch(self.image_copy, **kwargs_function)
+
+        ## core.measurement
+        if fun == "set_landmark":
+            annotations_updated = core.measurement.set_landmark(image=self.canvas, **kwargs_function)
+        if fun == "set_polyline":
+            annotations_updated = core.measurement.set_polyline(self.canvas, **kwargs_function)
+        if fun == "detect_skeleton":
+            annotations_updated = core.measurement.detect_skeleton(**kwargs_function)
+        if fun == "compute_shape_features":
+            annotations_updated = core.measurement.compute_shape_features(**kwargs_function)
+        if fun == "compute_texture_features":
+            annotations_updated = core.measurement.compute_texture_features(
+                self.image, **kwargs_function
+            )
+
+        ## plugins.measurement
+        if fun == "detect_landmark":
+            annotations_updated = plugins.measurement.detect_landmark(
+                image = self.image,
+                model_path = self.active_model_path,
+                **kwargs_function)
+
+        ## visualization
+        if fun == "select_canvas":
+            core.visualization.select_canvas(self, **kwargs_function)
+        if fun == "draw_comment":
+            self.canvas = core.visualization.draw_comment(self.canvas, **kwargs_function)
+        if fun == "draw_contour":
+            self.canvas = core.visualization.draw_contour(self.canvas, **kwargs_function)
+        if fun == "draw_landmark":
+            self.canvas = core.visualization.draw_landmark(self.canvas, **kwargs_function)
+        if fun == "draw_mask":
+            self.canvas = core.visualization.draw_mask(self.canvas, **kwargs_function)
+        if fun == "draw_polyline":
+            self.canvas = core.visualization.draw_polyline(self.canvas, **kwargs_function)
+        if fun == "draw_QRcode":
+            self.canvas = core.visualization.draw_QRcode(self.canvas, **kwargs_function)
+        if fun == "draw_reference":
+            self.canvas = core.visualization.draw_reference(self.canvas, **kwargs_function)
+
+        ## export
+        if fun == "convert_annotation":
+            annotations_updated = core.export.convert_annotation(**kwargs_function)
+        if fun == "save_annotation":
+            if not "file_name" in kwargs_function:
+                kwargs_function["file_name"] = self._construct_file_name("annotations", "json")
+            core.export.save_annotation(dir_path=self.dir_path,**kwargs_function)
+        if fun == "save_canvas":
+            if not "file_name" in kwargs_function:
+                ext = kwargs_function.get("ext", ".jpg")
+                kwargs_function["file_name"] = self._construct_file_name("canvas", ext)
+            core.export.save_canvas(
+                self.canvas,
+                dir_path=self.dir_path,
+                **kwargs_function,
+            )
+        if fun == "save_ROI":
+            if not "file_name" in kwargs_function:
+                ext = kwargs_function.get("ext", ".jpg")
+                kwargs_function["file_name"] = self._construct_file_name("roi", ext)
+            if not "dir_path" in kwargs_function:
+                kwargs_function["dir_path"] = os.path.join(self.dir_path, "ROI")
+                if not os.path.isdir(kwargs_function["dir_path"]):
+                    os.makedirs(kwargs_function["dir_path"])
+            core.export.save_ROI(
+                self.image_copy,
+                **kwargs_function,
+            )
+
+        if fun == "export_csv":
+            core.export.export_csv(
+                dir_path=self.dir_path,
+                save_prefix=self.file_prefix,
+                save_suffix=self.file_suffix,
+                image_name=image_name,
+                **kwargs_function,
+            )
+
+        ## save annotation to dict
+        if annotations_updated:
+            
+            if not annotation_type in annotations:
+                annotations[annotation_type] = {}
+                
+            annotations[annotation_type][annotation_id] = annotations_updated[annotation_type][annotation_id]
+            self.annotations.update(annotations)
+
+
+    def _save(self, dir_path=None, export_list=[], overwrite=False, **kwargs):
+        """
+        Autosave function for container.
+
+        Parameters
+        ----------
+        dir_path: str, optional
+            provide a custom directory where files should be save - overwrites
+            dir_path provided from container, if applicable
+        export_list: list, optional
+            used in pype rountine to check against already performed saving operations.
+            running container.save() with an empty export_list will assumed that nothing
+            has been saved so far, and will try
+        overwrite : bool, optional
+            gloabl overwrite flag in case file exists
+
+        """
+
+        ## kwargs
+        flag_autosave = False
+
+        if hasattr(self, "canvas") and not "save_canvas" in export_list:
+            print("- save_canvas")
+            core.export.save_canvas(
+                self.canvas,
+                file_name=self._construct_file_name("canvas", "jpg"),
+                dir_path=self.dir_path,
+                **kwargs,
+            )
+            flag_autosave = True
+
+        if hasattr(self, "annotations") and not "save_annotation" in export_list:
+            print("- save_annotation")
+            core.export.save_annotation(
+                self.annotations,
+                file_name=self._construct_file_name("annotations", "json"),
+                dir_path=self.dir_path,
+                **kwargs,
+            )
+            flag_autosave = True
+
+        if not flag_autosave:
+            print("- nothing to autosave")
+
+    def _construct_file_name(self, stem, ext):
+
+        if not ext.startswith("."):
+            ext = "." + ext
+
+        if self.file_prefix:
+            prefix = self.file_prefix + "_"
+        else:
+            prefix = ""
+        if self.file_suffix:
+            suffix = "_" + self.file_suffix
+        else:
+            suffix = ""
+
+        return prefix + stem + suffix + ext
+
 
 @dataclass
 class _GUI_Settings:
@@ -1284,74 +1685,6 @@ class _YamlFileMonitor:
         self.observer.stop()
         self.observer.join()
 
-
-#%% decorators 
-
-def annotation_function(fun, *args, **kwargs):
-    
-    @wraps(fun)
-    def annotation_function_wrapper(*args, **kwargs):
-                
-        ## determine the annotation type from function name
-        kwargs["annotation_type"] = _get_annotation_type(fun.__name__)
-
-        ## get annotation using 
-        if "annotations" in kwargs:
-            if kwargs["annotations"].__class__.__name__ in ["dict"]:
-                if len(kwargs["annotations"]) > 0:                      
-                    kwargs["annotation_id"] = _get_annotation_id(**kwargs)   
-                    kwargs["annotation"] = _get_annotation2(**kwargs)
-                else:
-                    print("empty annotations supplied")
-            else:
-                print("wrong annotations data supplied - need dict")
-                
-        ## run function
-        kwargs["annotation"] = fun(*args, **kwargs)
-    
-        ## return and update annotations    
-        if "annotations" in kwargs:
-            return _update_annotations(**kwargs)
-        else:
-            return kwargs["annotation"]
-    
-    ## close function wrapper
-    return annotation_function_wrapper
-
-
-def capture_stdout_log(fun, logger, *logger_args):
-    
-    @wraps(fun)
-    def capture_stdout_log_wrapper():
-                
-        string_buffer = io.StringIO()
-        with redirect_stdout(string_buffer):
-                
-            fun()
-    
-        ## reformat stdout
-        stdout = string_buffer.getvalue()
-        stdout_list = stdout.split("\n")
-        for line in stdout_list:
-            if not line == "":
-                if line.endswith("\n"):
-                    line = line[:-2]
-                logger(logger_args)
-                
-    ## close function wrapper
-    return capture_stdout_log_wrapper
-
-def deprecation_warning(new_func=None):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            warnings.simplefilter('always', DeprecationWarning)  # turn off filter
-            warnings.warn(f"{func.__name__} is deprecated; use {new_func.__name__} instead.", category=DeprecationWarning, stacklevel=2)
-            warnings.simplefilter('default', DeprecationWarning)  # reset filter
-            return new_func(*args, **kwargs)
-        return wrapper
-    return decorator
-    
 #%% functions - ANNOTATION helpers
 
 
@@ -1969,6 +2302,31 @@ def _extract_roi_center(image, coords, dim_final):
     
     return image[start_y:end_y, start_x:end_x], (start_y, end_y,start_x,end_x)
 
+
+def _calc_contour_stats(contour, mode="moments"):
+    if mode=="moments":
+        M = cv2.moments(contour)
+        cx = int(M["m10"] / M["m00"])
+        cy = int(M["m01"] / M["m00"])
+        center = [cx, cy]
+        # Calculate maximum distance from centroid to contour points for an approximated diameter
+        max_dist = max(np.linalg.norm(np.array([px, py]) - np.array(center)) for px, py in contour[:, 0, :])
+        diameter = int(max_dist * 2)  # Diameter is twice the maximum distance
+        area = int(cv2.contourArea(contour))
+    elif mode=="circle":
+        center, radius = cv2.minEnclosingCircle(contour)
+        center = [int(center[0]), int(center[1])]
+        diameter = int(radius * 2)
+        area = int(cv2.contourArea(contour))
+    elif mode=="rectangle":
+        x, y, w, h = cv2.boundingRect(contour)
+        center = [x + w // 2, y + h // 2]  # Center of the bounding box
+        diameter = int((w**2 + h**2)**0.5)  # Approximate diameter from the diagonal of the bounding box
+        area = int(cv2.contourArea(contour))  # Area remains calculated by contourArea for accuracy
+    
+    return center, area, diameter
+
+
 #%% functions - VARIOUS
 
 def _calc_distance_2point(x1,x2,y1,y2):
@@ -2331,7 +2689,7 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
 
     ## return
     if as_container:
-        return utils.Container(
+        return _Container(
             image=image, 
             dir_path=dir_path, 
             file_suffix=tag, 
@@ -2434,88 +2792,6 @@ def _pprint_hbar(symbol="-", ret=False):
         print(string)
     else:
         return string
-
-def _resize_image(
-        image, 
-        factor=1, 
-        factor_ret=False,
-        width=None,
-        height=None,
-        max_dim=None, 
-        interpolation="cubic",
-        ):
-    """
-    Resize image by resize factor 
-
-    Parameters
-    ----------
-    image: array 
-        image to be resized
-    max_dim: int, optional
-        maximum size of any dimension that the image will be resized to. if 
-        image is smaller, no resizing will be performed. maintains aspect ratio
-    factor: float, optional
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
-        original size). at 1, no resizing will be performed
-    interpolation: {'nearest', 'linear', 'cubic', 'area', 'lanczos', 'lin_exact', 'inter', 'warp_fill', 'warp_inverse'} str, optional
-        interpolation algorithm to use - refer to https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
-
-    Returns
-    -------
-    image : ndarray
-        resized image
-
-    """
-    image_height, image_width = image.shape[0:2]
-
-    ## method
-    if not all([
-            width.__class__.__name__ == "NoneType",
-            height.__class__.__name__ == "NoneType",
-            ]):
-        image = cv2.resize(
-            image,
-            (width, height),
-            interpolation=_vars.opencv_interpolation_flags[interpolation],
-        )
-    
-    elif not max_dim.__class__.__name__ == "NoneType":
-        if image_height > max_dim or image_width > max_dim:
-            if image_width >= image_height:
-                factor = max_dim / image_width
-                new_image_width, new_image_height = (
-                    max_dim,
-                    int(factor * image_height),
-                )
-            elif image_height > image_width:
-                factor = max_dim / image_height
-                new_image_width, new_image_height = (
-                    int(factor * image_width),
-                    max_dim,
-                )
-            image = cv2.resize(
-                image,
-                (new_image_width, new_image_height),
-                interpolation=_vars.opencv_interpolation_flags[interpolation],
-            )
-            
-    else:        
-        if factor == 1:
-            pass
-        else:
-            image = cv2.resize(
-                image,
-                (0, 0),
-                fx=1 * factor,
-                fy=1 * factor,
-                interpolation=_vars.opencv_interpolation_flags[interpolation],
-            )
-
-    ## return results
-    if factor_ret:
-        return image, factor    
-    else:
-        return image
 
 
 def _resize_mask(original_bbox, resize_x, resize_y):

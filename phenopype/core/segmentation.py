@@ -141,6 +141,7 @@ def detect_contour(
     match_against=None,
     apply_drawing=False,
     offset_coords=[0, 0],
+    stats_mode="moments",
     min_nodes=3,
     max_nodes=inf,
     min_area=0,
@@ -279,13 +280,10 @@ def detect_contour(
 
             ## number of contour nodes
             if len(contour) > min_nodes and len(contour) < max_nodes:
-
-                ## measure basic shape features
-                center, radius = cv2.minEnclosingCircle(contour)
-                center = [int(center[0]), int(center[1])]
-                diameter = int(radius * 2)
-                area = int(cv2.contourArea(contour))
-
+                
+                ## calc summary stats
+                center, area, diameter = ul._calc_contour_stats(contour, stats_mode)
+                
                 ## contour hierarchy
                 if hierarchy[3] == -1:
                     hierarchy_level = "parent"
@@ -293,12 +291,10 @@ def detect_contour(
                     hierarchy_level = "child"
 
                 ## contour filter
-                if all(
-                    [
+                if all([
                         diameter > min_diameter and diameter < max_diameter,
                         area > min_area and area < max_area,
-                    ]
-                ):
+                    ]):
 
                     ## populate data lists
                     contours.append(contour)

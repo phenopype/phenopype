@@ -27,13 +27,14 @@ from datetime import datetime
 
 import shutil
 from ruamel.yaml.comments import CommentedMap as ordereddict
-from collections import defaultdict, deque
+from collections import deque
 
 from phenopype import __version__
 from phenopype import _config
 from phenopype import _vars
-from phenopype import utils
+from phenopype import decorators
 from phenopype import utils_lowlevel as ul
+from phenopype import utils
 
 from phenopype.core import (
     preprocessing,
@@ -1222,7 +1223,7 @@ class Project:
 
             elif flags.mode == "mod":
                 image = utils.load_image(file_path)
-                image = ul._resize_image(
+                image = utils.resize_image(
                     image, 
                     factor=resize_factor, 
                     max_dim=resize_max_dim
@@ -1595,7 +1596,7 @@ class Project:
             ul._save_yaml(project_attributes, os.path.join(self.root_dir, "attributes.yaml"))
             print(f"Updated project attributes with reference {reference_id}")       
             
-    @ul.deprecation_warning(new_func=add_reference_template)
+    @decorators.deprecation_warning(new_func=add_reference_template)
     def add_reference(self, template):
         pass
                 
@@ -2342,7 +2343,7 @@ class Project:
                         
                     ## resize image or cropped image
                     if flags.resize_factor != 1:
-                        image = ul._resize_image(image, factor=flags.resize_factor, interpolation="cubic")
+                        image = utils.resize_image(image, factor=flags.resize_factor, interpolation="cubic")
                         image_height = int(image_height * flags.resize_factor)
                         
                         ## multiply all landmarks with resize factor
@@ -2626,7 +2627,7 @@ class Pype(object):
         if self.flags.autoload:
             self._log("info", "Pype: AUTOLOAD", 0)
             with io.StringIO() as buffer, redirect_stdout(buffer):
-                self.container.load(contours=load_contours)
+                self.container._load(contours=load_contours)
                 stdout = buffer.getvalue()
                 self._log("info", stdout, 1)
 
@@ -2718,7 +2719,7 @@ class Pype(object):
             else:
                 export_list = self.config_parsed_flattened["export"]
             with io.StringIO() as buffer, redirect_stdout(buffer):
-                self.container.save(export_list=export_list)
+                self.container._save(export_list=export_list)
                 stdout = buffer.getvalue()
                 self._log("info", stdout, 1)
                 
@@ -2743,7 +2744,7 @@ class Pype(object):
             if os.path.isfile(image_path):
                 image = utils.load_image(image_path)
                 dir_path = os.path.dirname(image_path)
-                self.container = utils.Container(
+                self.container = ul._Container(
                     image=image,
                     dir_path=dir_path,
                     tag=tag,
@@ -2934,7 +2935,7 @@ class Pype(object):
 
         # reset values
         if not self.flags.dry_run:
-            self.container.reset()
+            self.container._reset()
         annotation_counter = dict.fromkeys(_vars._annotation_types, -1)
 
         ## apply pype: loop through steps and contained methods
@@ -2974,7 +2975,7 @@ class Pype(object):
                     self.container.canvas.__class__.__name__ == "NoneType"
                     and not "select_canvas" in check_list
                 ):
-                    self.container.run("select_canvas")
+                    self.container._run("select_canvas")
                     if flags.interactive and flags.autoshow:
                         self._log("info", "select_canvas (DEFAULT)", 1)
                         
@@ -3092,7 +3093,7 @@ class Pype(object):
                     try:
                         if not self.flags.debug:
                             with redirect_stdout(buffer):
-                                self.container.run(
+                                self.container._run(
                                     fun=method_name,
                                     fun_kwargs=method_args,
                                     annotation_kwargs=annotation_args,
@@ -3102,7 +3103,7 @@ class Pype(object):
                                 self._log("info", stdout, 2)
                                 _config.last_print_msg = ""
                         else:
-                            self.container.run(
+                            self.container._run(
                                 fun=method_name,
                                 fun_kwargs=method_args,
                                 annotation_kwargs=annotation_args,
@@ -3140,7 +3141,7 @@ class Pype(object):
             try:
                 self._log("info", "Pype: AUTOSHOW", 0)
                 if self.container.canvas.__class__.__name__ == "NoneType":
-                    self.container.run(fun="select_canvas")
+                    self.container._run(fun="select_canvas")
                     self._log("info", "select_canvas", 1)
                             
                 # =============================================================================

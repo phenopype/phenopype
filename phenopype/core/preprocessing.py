@@ -1,19 +1,18 @@
 #%% modules
 
-import copy
 import cv2
+import math
 import numpy as np
 import sys
 
 from dataclasses import make_dataclass
-import math
-
 
 from phenopype.core import segmentation
 from phenopype import __version__
 from phenopype import _vars
-from phenopype import utils
+from phenopype import decorators
 from phenopype import utils_lowlevel as ul
+from phenopype import utils
 
 #%% functions
 
@@ -322,7 +321,7 @@ def detect_mask(
 
     if len(image.shape) == 3:
         image = decompose_image(image, "gray")
-    image_resized = ul._resize_image(image, resize)
+    image_resized = utils.resize_image(image, resize)
 
     circle_args_exec = {
         "dp": 1,
@@ -800,7 +799,7 @@ def detect_reference(
         kwargs=kwargs,
     )
 
-@ul.annotation_function
+@decorators.annotation_function
 def detect_QRcode(
     image,
     rot_steps=20,

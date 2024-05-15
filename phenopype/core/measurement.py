@@ -12,12 +12,13 @@ from tqdm import tqdm as _tqdm
 
 from phenopype import __version__
 from phenopype import _vars
+from phenopype import decorators
 from phenopype import utils_lowlevel as ul
 
 
 #%% methods
 
-@ul.annotation_function
+@decorators.annotation_function
 def set_landmark(
     image,
     point_colour="default",
