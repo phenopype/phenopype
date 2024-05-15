@@ -30,11 +30,11 @@ from ruamel.yaml.comments import CommentedMap as ordereddict
 from collections import deque
 
 from phenopype import __version__
-from phenopype import _config
 from phenopype import _vars
+from phenopype import config
 from phenopype import decorators
-from phenopype import utils_lowlevel as ul
 from phenopype import utils
+from phenopype import utils_lowlevel as ul
 
 from phenopype.core import (
     preprocessing,
@@ -44,15 +44,6 @@ from phenopype.core import (
     visualization,
 )
 
-#%% settings
-
-pd.options.display.max_rows = (
-    _vars.pandas_max_rows
-)  # how many rows of pd-dataframe to show
-pretty = pprint.PrettyPrinter(width=30)  # pretty print short strings
-ruamel.yaml.Representer.add_representer(
-    ordereddict, ruamel.yaml.Representer.represent_dict
-)  # suppress !!omap node info
 
 #%% classes
 
@@ -95,16 +86,13 @@ class Project_labelling:
             Project attributes loaded from attributes.yaml.
         file_dict : dict
             Dictionary containing information about project files.
-    
-        Methods
-        -------
-        [List of methods]
-    
+      
         Notes
         -----
         This class is used to create and manage labeling projects. It initializes project attributes,
         loads existing project data, creates project directories, and checks for missing files if specified.
         """
+        
         ## set flags
         flags = make_dataclass(
             cls_name="flags",
@@ -963,7 +951,7 @@ class Project:
                     print("\nWARNING: Number of images in existing project and in project attributes are not matching")
             if "models" in project_attributes:
                 
-                _config.models = project_attributes["models"]
+                config.models = project_attributes["models"]
                 n_models = len(project_attributes["models"])
                 print(f"- {n_models} model(s) loaded!")
 
@@ -1426,8 +1414,8 @@ class Project:
                     tag=tag,
                     overwrite=flags.overwrite,
                 )
-            _config.template_path_current = None
-            _config.template_loaded_current = None
+            config.template_path_current = None
+            config.template_loaded_current = None
             
         else:
             print("Could not find template_path")
@@ -2535,8 +2523,8 @@ class Pype(object):
         # INIT
 
         ## kwargs
-        _config.window_min_dim = kwargs.get("window_max_dim", _config.window_min_dim)
-        _config.window_max_dim = kwargs.get("window_max_dim", _config.window_max_dim)
+        config.window_min_dim = kwargs.get("window_max_dim", config.window_min_dim)
+        config.window_max_dim = kwargs.get("window_max_dim", config.window_max_dim)
         delay = kwargs.get("delay", 100)
         
         ## flags
@@ -2559,8 +2547,8 @@ class Pype(object):
         
         if self.flags.debug:
             
-            self.verbose = _config.verbose
-            _config.verbose = True
+            self.verbose = config.verbose
+            config.verbose = True
             
         if image_path.__class__.__name__ == "str":
             image_path = os.path.abspath(image_path)
@@ -2603,7 +2591,7 @@ class Pype(object):
         # check version, load container and config
         if self.flags.dry_run:
             self._load_pype_config(image_path, tag, config_path)
-            self._iterate(config=self.config, annotations=copy.deepcopy(_vars._annotation_types),
+            self._iterate(annotations=copy.deepcopy(_vars._annotation_types),
                       execute=False, autoshow=False, feedback=True)
             return
 
@@ -2633,7 +2621,6 @@ class Pype(object):
 
         ## check pype config for annotations
         self._iterate(
-            config=self.config,
             annotations=self.container.annotations,
             execute=False,
             autoshow=False,
@@ -2650,7 +2637,7 @@ class Pype(object):
             self.flags.autoshow = False
             
         ## clear old zoom memory
-        _config.gui_zoom_config = None
+        config.gui_zoom_config = None
 
         # =============================================================================
         # PYPE LOOP
@@ -2659,7 +2646,7 @@ class Pype(object):
         while True:
 
             ## pype restart flag
-            _config.pype_restart = False
+            config.pype_restart = False
 
             ## refresh config
             if self.flags.interactive:
@@ -2681,7 +2668,6 @@ class Pype(object):
 
             ## run pype config in sequence
             self._iterate(
-                config=self.config,
                 annotations=self.container.annotations,
                 interactive=self.flags.interactive,
                 autoshow=self.flags.autoshow,
@@ -2697,7 +2683,7 @@ class Pype(object):
                         
                     ## reset zoom settings
                     if not self.flags.zoom_memory:
-                        _config.gui_zoom_config = None
+                        config.gui_zoom_config = None
                     
                     ## add timestamp
                     self.config["config_info"]["date_last_modified"] = datetime.today().strftime(_vars.strftime_format)
@@ -2736,7 +2722,7 @@ class Pype(object):
         logging.shutdown()
         
         if self.flags.debug:
-            _config.verbose = self.verbose
+            config.verbose = self.verbose
 
 
     def _load_container(self, image_path, tag):
@@ -2908,7 +2894,6 @@ class Pype(object):
 
     def _iterate(
         self, 
-        config, 
         annotations, 
         execute=True, 
         autoshow=True, 
@@ -3101,7 +3086,7 @@ class Pype(object):
                                 )
                                 stdout = buffer.getvalue()
                                 self._log("info", stdout, 2)
-                                _config.last_print_msg = ""
+                                config.last_print_msg = ""
                         else:
                             self.container._run(
                                 fun=method_name,
@@ -3116,14 +3101,14 @@ class Pype(object):
                         
                         ## cleanup
                         if self.flags.debug:
-                            _config.verbose = self.verbose
+                            config.verbose = self.verbose
                             
                             ## raise error and end
                             raise
 
 
                     ## check for pype-restart after config change
-                    if _config.pype_restart:
+                    if config.pype_restart:
                         self._log("debug", "Pype: restart", 0)
                         return
                     

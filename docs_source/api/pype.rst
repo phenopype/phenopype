@@ -11,14 +11,14 @@ phenopype's core method to process image datasets with high throughput and repro
 	2 <tutorial_2.ipynb#Window-control>`__:
 
 	-  Editing and saving the opened configuration file in the text editor
-	   will trigger another iteration, i.e. close the image window and run
+	   will trigger another iteration, i.e. close the image window and run
 	   the config file again.
 	-  Closing the image window manually (with the X button in the upper
 	   right), also runs triggers another run.
 	-  ``Esc`` will close all windows and interrupt the pype routine
 	   (triggers ``sys.exit()``, which will also end a Python session if run
 	   from the command line), as well as any loops.
-	-  Each step that requires user interaction (e.g. ``create_mask`` or
+	-  Each step that requires user interaction (e.g.``create_mask`` or
 	   ``landmarks``) needs to be confirmed with ``Enter`` until the next
 	   function in the sequence is executed.
 	-  At the end of the analysis, when the final steps (visualization and
@@ -37,17 +37,17 @@ phenopype's core method to process image datasets with high throughput and repro
 	   overwrite previous input, immediately change to ``edit: false``
 	   argument, and save the config file.
 	-  If a ``Pype`` is initialized on a project directory it will attempt
-	   to load input data (e.g. masks) that contain the provided ``tag``
+	   to load input data (e.g. masks) that contain the provided ``tag``
 	   argument. For example,\ ``pp.Pype(path, tag="v1"`` will attempt to
 	   load any files in the directory that contain the suffix ``"v1"``
-	   (e.g. ``"annoations_v1.json"``).
+	   (e.g.``"annoations_v1.json"``).
 
 	**Visualizing the results**
 
 	Aspects of visual feedback during a ``pype`` run (can be completely
 	suppressed by setting ``visualize=False``:
 
-	-  Visual feedback (i.e. output from ``landmarks``, ``detect_contours``
+	-  Visual feedback (i.e. output from ``landmarks``, ``detect_contours``
 	   or ``create_mask``) are drawn onto a “canvas” (a copy of the original
 	   image).
 	-  Use ``select_canvas`` to draw the results either on the raw image, a
@@ -57,7 +57,7 @@ phenopype's core method to process image datasets with high throughput and repro
 	-  Output from all functions, **needs to be specified manually**. For
 	   example, after using ``- landmarks``, ``- draw_landmarks`` should be
 	   called in the ``visualization`` module.
-	-  Visual parameters of interactive tools (e.g. ``point_size`` or
+	-  Visual parameters of interactive tools (e.g. ``point_size`` or
 	   ``line_thickness``) are specified separately in the respective
 	   function, *and* in the ``visualization`` module.
 

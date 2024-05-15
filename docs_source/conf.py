@@ -2,17 +2,18 @@
 
 import os
 import sys
+# import cv2 
 
-sys.path.insert(0, os.path.abspath('../../'))
-
+sys.path.insert(0, os.path.abspath('../phenopype'))
+# sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'phenopype'
 copyright = 'Moritz Lürig'
 author = 'Moritz Lürig'
 
-from phenopype._version import __version__ as version
-release = version
+import importlib.metadata
+release = importlib.metadata.version("phenopype")
 
 # -- General configuration ---------------------------------------------------
 
@@ -23,7 +24,7 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.autosectionlabel',
     'myst_parser',
-    'nbsphinx',
+    # 'nbsphinx',
     'sphinx_design',
     "sphinx_copybutton"
     ]
@@ -45,7 +46,7 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output -------------------------------------------------
 
-html_base_url = "https://www.phenopype.org/gallery/"
+html_base_url = "https://www.phenopype.org/"
 html_logo = "../assets/phenopype_logo.png"
 html_theme = "furo"
 html_show_sourcelink = True

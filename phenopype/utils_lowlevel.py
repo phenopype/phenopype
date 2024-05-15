@@ -31,8 +31,8 @@ from watchdog.events import PatternMatchingEventHandler
 from watchdog.observers import Observer
 
 
-from phenopype import _config
 from phenopype import _vars
+from phenopype import config
 from phenopype import core
 from phenopype import utils
 
@@ -139,18 +139,18 @@ class _Container(object):
         self.attr_proj = _load_yaml(os.path.join(self.dir_path, r"../../", "attributes.yaml"), typ="safe")
         if "reference_templates" in self.attr_proj:
             for reference_id, reference_info in self.attr_proj["reference_templates"].items():
-                if not reference_id in _config.reference_templates:
-                    _config.reference_templates[reference_id] = reference_info
+                if not reference_id in config.reference_templates:
+                    config.reference_templates[reference_id] = reference_info
                 else:
-                    _config.reference_templates[reference_id].update(reference_info)    
-            loaded.append("loaded info for {} reference templates {} ".format(len(_config.reference_templates.keys()),(*list(_config.reference_templates.keys()),)))                
+                    config.reference_templates[reference_id].update(reference_info)    
+            loaded.append("loaded info for {} reference templates {} ".format(len(config.reference_templates.keys()),(*list(config.reference_templates.keys()),)))                
         if "models" in self.attr_proj:          
             for model_id, model_info in self.attr_proj["models"].items():
-                if not model_id in _config.models:
-                    _config.models[model_id] = model_info
+                if not model_id in config.models:
+                    config.models[model_id] = model_info
                 else:
-                    _config.models[model_id].update(model_info)    
-            loaded.append("loaded info for {} models {} ".format(len(_config.models.keys()),(*list(_config.models.keys()),)))
+                    config.models[model_id].update(model_info)    
+            loaded.append("loaded info for {} models {} ".format(len(config.models.keys()),(*list(config.models.keys()),)))
             
         ## feedback
         if len(loaded) > 0:
@@ -196,7 +196,7 @@ class _Container(object):
         kwargs_function["tag"] = self.tag
 
         ## verbosity
-        if _config.verbose:
+        if config.verbose:
             kwargs_function["verbose"] = True
 
         ## indicate pype use 
@@ -250,15 +250,15 @@ class _Container(object):
             annotations_updated = core.preprocessing.write_comment(self.image, **kwargs_function)
         if fun == "detect_reference":
             template_id = kwargs_function["template_id"]
-            if "template" not in _config.reference_templates[template_id]:
+            if "template" not in config.reference_templates[template_id]:
                 print(f"- loading reference template \"{template_id}\" into memory")
-                _config.reference_templates[template_id]["template"] = utils.load_image(
-                    _config.reference_templates[template_id]["template_path"])
+                config.reference_templates[template_id]["template"] = utils.load_image(
+                    config.reference_templates[template_id]["template_path"])
             annotations_updated = core.preprocessing.detect_reference(
                 self.image,
-                _config.reference_templates[template_id]["template"],
-                _config.reference_templates[template_id]["template_px_ratio"],
-                _config.reference_templates[template_id]["unit"],
+                config.reference_templates[template_id]["template"],
+                config.reference_templates[template_id]["template_px_ratio"],
+                config.reference_templates[template_id]["unit"],
                 **kwargs_function)
 
         if fun == "decompose_image":
@@ -564,8 +564,8 @@ class _GUI:
         ## configure image   
         if not image.__class__.__name__ == "ndarray":
             raise TypeError("GUI module did not receive array-type - aborting!")
-        window_max_dim = kwargs.get("window_max_dim", _config.window_max_dim)
-        window_min_dim = kwargs.get("window_min_dim", _config.window_min_dim)
+        window_max_dim = kwargs.get("window_max_dim", config.window_max_dim)
+        window_min_dim = kwargs.get("window_min_dim", config.window_min_dim)
         
         ## get canvas dimensions
         self._prepare_canvas(image, window_max_dim, window_min_dim)     
@@ -601,7 +601,7 @@ class _GUI:
                 while not any([self.flags.end, self.flags.end_pype]):
                         
                     ## sync zoom settings with config
-                    _config.gui_zoom_config = self.zoom
+                    config.gui_zoom_config = self.zoom
 
                     ## directly return key input
                     if self.settings.return_input:
@@ -678,7 +678,7 @@ class _GUI:
                         self._canvas_mount()
 
                     ## external window close
-                    elif _config.window_close:
+                    elif config.window_close:
                         self.flags.end = True
                         cv2.destroyAllWindows()
                         
@@ -814,9 +814,9 @@ class _GUI:
                 mag * self.zoom.step_y,
             )
         ## update zoom from previous call
-        if hasattr(_config, "gui_zoom_config") and self.settings.zoom_memory == True:
-            if not _config.gui_zoom_config.__class__.__name__ == "NoneType":
-                self.zoom = _config.gui_zoom_config
+        if hasattr(config, "gui_zoom_config") and self.settings.zoom_memory == True:
+            if not config.gui_zoom_config.__class__.__name__ == "NoneType":
+                self.zoom = config.gui_zoom_config
     
         ## initialize canvas
         self._canvas_renew()
@@ -825,7 +825,7 @@ class _GUI:
         self._canvas_mount()
     
         ## local control vars
-        _config.window_close = False
+        config.window_close = False
         
     def _prepare_tools(self, kwargs):
         
@@ -1663,7 +1663,7 @@ class _YamlFileMonitor:
 
         if self.time_diff > 1:
             self.content = _load_yaml(self.filepath)
-            _config.window_close, _config.pype_restart = True, True
+            config.window_close, config.pype_restart = True, True
             # cv2.destroyAllWindows()
             cv2.destroyWindow("phenopype")
             cv2.waitKey(self.delay)
@@ -1784,8 +1784,8 @@ def _get_annotation(
                 if prep_msg:
                     print_msg = prep_msg + "\n\t" + print_msg
                 if pype_mode:
-                    if not print_msg == _config.last_print_msg:
-                        _config.last_print_msg = print_msg
+                    if not print_msg == config.last_print_msg:
+                        config.last_print_msg = print_msg
                         break
                     else:
                         pass
@@ -1878,12 +1878,12 @@ def _printer(print_msg, pype_mode=False,**kwargs):
     
     ## cleaned feedback (skip identical messages)
     while True:
-        if print_msg and _config.verbose:
+        if print_msg and config.verbose:
             # if prep_msg:
             #     print_msg = prep_msg + "\n\t" + print_msg
             if pype_mode:
-                if not print_msg == _config.last_print_msg:
-                    _config.last_print_msg = print_msg
+                if not print_msg == config.last_print_msg:
+                    config.last_print_msg = print_msg
                     break
                 else:
                     pass
@@ -2152,8 +2152,8 @@ def _overwrite_check_dir(path, overwrite):
 #%% functions - PRINTING / LOGGING
 
 def _print(msg, lvl=0, **kwargs):
-    if _config.verbose:
-        if lvl >= _config.verbosity_level:
+    if config.verbose:
+        if lvl >= config.verbosity_level:
             print(msg)
         
 

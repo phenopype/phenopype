@@ -12,8 +12,8 @@ from contextlib import redirect_stdout
 from pkg_resources import resource_filename
 import ruamel.yaml
 
-from phenopype import _config
 from phenopype import _vars
+from phenopype import config
 from phenopype import utils_lowlevel as ul
 
 
@@ -122,13 +122,13 @@ def load_template(
     flags = make_dataclass(cls_name="flags", fields=[("overwrite", bool, overwrite)])
 
     ## create config from template
-    if not _config.template_path_current == template_path:
+    if not config.template_path_current == template_path:
 
         if template_path.__class__.__name__ == "str":
             if os.path.isfile(template_path):
                 template_loaded = ul._load_yaml(template_path)
-                _config.template_path_current = template_path
-                _config.template_loaded_current = ul._load_yaml(template_path)
+                config.template_path_current = template_path
+                config.template_loaded_current = ul._load_yaml(template_path)
 
             else:
                 print("Could not find template_path")
@@ -137,7 +137,7 @@ def load_template(
             print("Wrong input format for template_path")
             return
     else:
-        template_loaded =  _config.template_loaded_current
+        template_loaded =  config.template_loaded_current
 
     ## construct config-name
     if (

@@ -11,8 +11,9 @@ from phenopype.core import segmentation
 from phenopype import __version__
 from phenopype import _vars
 from phenopype import decorators
-from phenopype import utils_lowlevel as ul
 from phenopype import utils
+from phenopype import utils_lowlevel as ul
+
 
 #%% functions
 

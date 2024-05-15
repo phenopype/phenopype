@@ -3,7 +3,7 @@ import importlib.metadata
 
 __version__ = importlib.metadata.version("phenopype")
 
-from . import _config, utils_lowlevel
+from . import config, utils_lowlevel
 
 from .main import Project, Project_labelling, Pype
 from .core import preprocessing, segmentation, measurement, export, visualization

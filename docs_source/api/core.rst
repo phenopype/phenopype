@@ -1,12 +1,11 @@
 Core modules
 ------------
 
-Core image processing functions. Any function can be executed in prototyping, low throughput, and high throughput workflow. In general, the typical order in which the different steps are performed is:
+Core image processing functions. Any function can be executed in manual mode (python code) or interactive mode (yaml files). In general, the typical order in which the different steps are performed is something like:
 
 **preprocessing > segmentation > measurement > visualization > export**
 
-However, since phenopype version 2 **you can arrange them however you like**. In general, any function can either take an array or a phenopype container. If an array is passed, additional input arguments may be required (e.g. to draw contours onto an image, but an array and a DataFrame containing the contours must be supplied, whereas a container already includes both).
-
+However, since phenopype version 2 **you can arrange them however you like**. 
 
 Preprocessing
 """""""""""""
