@@ -3,6 +3,12 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+
+5.0.1
+-----
+bugfix:
+	- fixed detect_contour centroid calculation
+
 5.0.0
 -----
 breaking:
