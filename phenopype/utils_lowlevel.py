@@ -2303,7 +2303,7 @@ def _extract_roi_center(image, coords, dim_final):
     return image[start_y:end_y, start_x:end_x], (start_y, end_y,start_x,end_x)
 
 
-def _calc_contour_stats(contour, mode="moments"):
+def _calc_contour_stats(contour, mode="circle"):
     if mode=="moments":
         M = cv2.moments(contour)
         cx = int(M["m10"] / M["m00"])

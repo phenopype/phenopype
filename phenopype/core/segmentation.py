@@ -141,7 +141,7 @@ def detect_contour(
     match_against=None,
     apply_drawing=False,
     offset_coords=[0, 0],
-    stats_mode="moments",
+    stats_mode="circle",
     min_nodes=3,
     max_nodes=inf,
     min_area=0,
