@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
 
+import importlib.metadata
 import os
 import sys
-# import cv2 
 
 sys.path.insert(0, os.path.abspath('../phenopype'))
-# sys.path.insert(0, os.path.abspath('../..'))
+release = importlib.metadata.version("phenopype")
+
 # -- Project information -----------------------------------------------------
 
 project = 'phenopype'
 copyright = 'Moritz Lürig'
 author = 'Moritz Lürig'
-
-import importlib.metadata
-release = importlib.metadata.version("phenopype")
 
 # -- General configuration ---------------------------------------------------
 
@@ -23,38 +21,56 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.githubpages',
     'sphinx.ext.autosectionlabel',
-    'myst_parser',
-    # 'nbsphinx',
+    'myst_nb',
     'sphinx_design',
-    "sphinx_copybutton"
-    ]
-    
+    'sphinx_copybutton',
+    'sphinxemoji.sphinxemoji',
+]
+
+sphinxemoji_style = 'twemoji'
+sphinxemoji_source = 'https://unpkg.com/twemoji@latest/dist/twemoji.min.js'
+
 autodoc_member_order = 'bysource'
-suppress_warnings = ['autosectionlabel.*']
+suppress_warnings = [
+    'autosectionlabel.*',
+    'mystnb.nbcell',
+    'myst.header',
+    'myst.strikethrough',
+]
+myst_enable_extensions = [
+    'colon_fence',
+    'strikethrough',
+]
+
+myst_heading_anchors = 3
+nb_execution_mode = 'off'
+# nb_remove_code_outputs = True
 
 master_doc = 'index'
-
-nbsphinx_allow_errors = True
-
-html_codeblock_linenos_style = 'table'
 copybutton_remove_prompts = True
 
-exclude_patterns = ['.ipynb_checkpoints', "README.md", "conf.py", ".git"]
+exclude_patterns = [
+    '.ipynb_checkpoints',
+    'README.md',
+    'conf.py',
+    '.git',
+]
 
 pygments_style = 'sphinx'
 
+# -- HTML configuration ---------------------------------------------------
 
-# -- Options for HTML output -------------------------------------------------
-
-html_base_url = "https://www.phenopype.org/"
-html_logo = "../assets/phenopype_logo.png"
-html_theme = "furo"
+html_codeblock_linenos_style = 'table'
+html_base_url = 'https://www.phenopype.org/'
+html_logo = '../assets/phenopype_logo.png'
+html_theme = 'furo'
 html_show_sourcelink = True
-html_last_updated_fmt = "%Y-%m-%d %H:%M:%S"
-html_title = "phenopype docs"
+html_last_updated_fmt = '%Y-%m-%d %H:%M:%S'
+html_title = 'phenopype docs'
 html_static_path = ['_assets']
 html_css_files = ['css/custom.css']
 html_js_files = [
     'js/custom.js',
-    "https://cdn.jsdelivr.net/gh/mluerig/website-assets/assets/js/enforce_trailing_slash.min.js"]
-templates_path = ["_templates"]
+    'https://cdn.jsdelivr.net/gh/mluerig/website-assets/assets/js/enforce_trailing_slash.min.js',
+]
+templates_path = ['_templates']

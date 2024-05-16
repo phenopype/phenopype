@@ -2570,7 +2570,11 @@ class Pype(object):
             self.logger.addHandler(stdout_handler)
 
         ## log file
-        log_file_path = os.path.join(image_path, f"pype_logs_{tag}.log")
+        if os.path.isdir(image_path):
+            log_file_path = os.path.join(image_path, f"pype_logs_{tag}.log")
+        elif os.path.isfile(image_path):
+            log_file_path = os.path.join(os.path.dirname(image_path), f"pype_logs_{tag}.log")
+
         if os.path.isfile(log_file_path) and log_ow:
             os.remove(log_file_path)
             
@@ -2685,8 +2689,9 @@ class Pype(object):
                     if not self.flags.zoom_memory:
                         config.gui_zoom_config = None
                     
-                    ## add timestamp
-                    self.config["config_info"]["date_last_modified"] = datetime.today().strftime(_vars.strftime_format)
+                    ## add 
+                    if "config_info" in self.config:
+                        self.config["config_info"]["date_last_modified"] = datetime.today().strftime(_vars.strftime_format)
                     ul._save_yaml(self.config, self.config_path)
                         
                     ## feedback
@@ -2777,12 +2782,6 @@ class Pype(object):
         if os.path.isfile(config_path):
             self.config = ul._load_yaml(config_path)
             self.config_path = config_path
-
-            if "template_locked" in self.config:
-                if self.config["template_locked"] == True:
-                    raise AttributeError(
-                        'Attempting to load config from locked template - create config file using "load_template" first.'
-                    )
         else:
             raise FileNotFoundError(
                 'Could not find config file "{}" in image directory: "{}"'.format(

@@ -30,6 +30,18 @@ You can also use phenopype interactively (recommended), e.g. using a code editor
 .. warning:: 
 
 	Always remember to activate your environment before running phenopype from Python, Spyder or a jupyter notebook.
+	
+	
+Install the plugins package
+===========================
+
+To install the phenopype-plugins package, simply do:
+
+.. code-block:: bash
+
+	pip install phenopype-plugins
+
+More detail information can be found at <https://github.com/phenopype/phenopype-plugins>`_ 
 
 
 Installing updates

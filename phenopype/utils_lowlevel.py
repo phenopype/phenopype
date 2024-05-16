@@ -136,22 +136,24 @@ class _Container(object):
                 print("WARNING - BROKEN ANNOTATIONS FILE")
 
         ## load global objects from project attributes
-        self.attr_proj = _load_yaml(os.path.join(self.dir_path, r"../../", "attributes.yaml"), typ="safe")
-        if "reference_templates" in self.attr_proj:
-            for reference_id, reference_info in self.attr_proj["reference_templates"].items():
-                if not reference_id in config.reference_templates:
-                    config.reference_templates[reference_id] = reference_info
-                else:
-                    config.reference_templates[reference_id].update(reference_info)    
-            loaded.append("loaded info for {} reference templates {} ".format(len(config.reference_templates.keys()),(*list(config.reference_templates.keys()),)))                
-        if "models" in self.attr_proj:          
-            for model_id, model_info in self.attr_proj["models"].items():
-                if not model_id in config.models:
-                    config.models[model_id] = model_info
-                else:
-                    config.models[model_id].update(model_info)    
-            loaded.append("loaded info for {} models {} ".format(len(config.models.keys()),(*list(config.models.keys()),)))
-            
+        proj_attributes_path = os.path.join(self.dir_path, r"../../", "attributes.yaml")
+        if os.path.isfile(proj_attributes_path):
+            self.attr_proj = _load_yaml(proj_attributes_path, typ="safe")
+            if "reference_templates" in self.attr_proj:
+                for reference_id, reference_info in self.attr_proj["reference_templates"].items():
+                    if not reference_id in config.reference_templates:
+                        config.reference_templates[reference_id] = reference_info
+                    else:
+                        config.reference_templates[reference_id].update(reference_info)    
+                loaded.append("loaded info for {} reference templates {} ".format(len(config.reference_templates.keys()),(*list(config.reference_templates.keys()),)))                
+            if "models" in self.attr_proj:          
+                for model_id, model_info in self.attr_proj["models"].items():
+                    if not model_id in config.models:
+                        config.models[model_id] = model_info
+                    else:
+                        config.models[model_id].update(model_info)    
+                loaded.append("loaded info for {} models {} ".format(len(config.models.keys()),(*list(config.models.keys()),)))
+                
         ## feedback
         if len(loaded) > 0:
             print("\n- ".join(loaded))
