@@ -4,6 +4,12 @@ Known bugs
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
 
+5.0.2
+-----
+bugfix: 
+	- broken imports - refactored!
+	- errors when Pype doesn't find function 
+
 5.0.1
 -----
 bugfix:
