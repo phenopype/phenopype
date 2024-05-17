@@ -8,6 +8,7 @@
 .ipynb_checkpoints
 .tox
 .pytest_cache
+jupyter_execute
 nppBackup
 __pycache__
 _config.yml

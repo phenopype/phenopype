@@ -38,8 +38,19 @@ suppress_warnings = [
     'myst.strikethrough',
 ]
 myst_enable_extensions = [
-    'colon_fence',
-    'strikethrough',
+    "amsmath",
+    "attrs_inline",
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "fieldlist",
+    "html_admonition",
+    "html_image",
+    "replacements",
+    "smartquotes",
+    "strikethrough",
+    "substitution",
+    "tasklist",
 ]
 
 myst_heading_anchors = 3
