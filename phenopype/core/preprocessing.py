@@ -7,17 +7,26 @@ import sys
 
 from dataclasses import make_dataclass
 
-from phenopype.core import segmentation
 from phenopype import __version__
 from phenopype import _vars
 from phenopype import decorators
 from phenopype import utils
 from phenopype import utils_lowlevel as ul
+from phenopype import core
 
-
+from phenopype.utils_lowlevel import _get_annotation_type
 #%% functions
 
-def blur(image, kernel_size=5, method="averaging", sigma_color=75, sigma_space=75, verbose=False, custom_kernel=None):
+def blur(
+    image, 
+    kernel_size=5, 
+    method="averaging", 
+    sigma_color=75,
+    sigma_space=75, 
+    verbose=False, 
+    custom_kernel=None,
+    **kwargs
+    ):
     """
     Apply a blurring algorithm to an image with enhanced features.
 
@@ -168,7 +177,7 @@ def create_mask(
     fun_name = sys._getframe().f_code.co_name
 
     annotations = kwargs.get("annotations", {})
-    annotation_type = ul._get_annotation_type(fun_name)
+    annotation_type = _get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
     annotation = ul._get_annotation(
@@ -357,7 +366,7 @@ def detect_mask(
                 x, y, radius = circle / resize
                 mask = np.zeros(image.shape[:2], dtype=np.uint8)
                 mask = cv2.circle(mask, (int(x), int(y)), int(radius), 255, -1)
-                mask_contours = segmentation.detect_contour(
+                mask_contours = core.segmentation.detect_contour(
                     mask, retrieval="ext", approximation="KCOS", verbose=False,
                 )
                 mask_coords = mask_contours["contour"]["a"]["data"][_vars._contour_type][0]

@@ -6,7 +6,6 @@ import os
 import sys
 import webbrowser
 
-from datetime import datetime
 from dataclasses import make_dataclass
 from contextlib import redirect_stdout
 from pkg_resources import resource_filename

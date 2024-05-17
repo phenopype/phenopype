@@ -1,48 +1,40 @@
 #%% imports
 
+# Standard library imports
 import copy
+import io
 import json
-import os
-import numpy as np
-import pandas as pd
-import platform
-import string
-import io 
-import sys
 import logging
+import os
+import platform
 import random
-
-from contextlib import redirect_stdout
-from dataclasses import make_dataclass
-from rich.pretty import pretty_repr
-
-import pprint
+import shutil
+import string
 import subprocess
+import sys
 import time
 import zipfile
-
-import cv2
-import ruamel.yaml
+from collections import deque
+from contextlib import redirect_stdout
+from dataclasses import make_dataclass
 from datetime import datetime
 
-import shutil
-from ruamel.yaml.comments import CommentedMap as ordereddict
-from collections import deque
+# Third-party imports
+import cv2
+import numpy as np
+import pandas as pd
+from rich.pretty import pretty_repr
+from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.compat import OrderedDict
 
-from phenopype import __version__
-from phenopype import _vars
-from phenopype import config
-from phenopype import decorators
-from phenopype import utils
+# Local application imports
+from phenopype import __version__, _vars, config, core, decorators, utils, _PluginsPlaceholder
 from phenopype import utils_lowlevel as ul
 
-from phenopype.core import (
-    preprocessing,
-    segmentation,
-    measurement,
-    export,
-    visualization,
-)
+try:
+    import phenopype_plugins as plugins
+except:
+    plugins = _PluginsPlaceholder()
 
 
 #%% classes
@@ -1391,7 +1383,7 @@ class Project:
             if not os.path.isdir(container.dir_path):
                 os.mkdir(container.dir_path)
 
-            config_path = utils.load_template(
+            config_path = ul._load_template(
                 template_path=template_path,
                 dir_path=container.dir_path,
                 tag="template-mod",
@@ -1408,7 +1400,7 @@ class Project:
         
         if os.path.isfile(template_path):
             for dir_path in flags.dir_paths:
-                utils.load_template(
+                ul._load_template(
                     template_path=template_path,
                     dir_path=dir_path,
                     tag=tag,
@@ -1555,8 +1547,8 @@ class Project:
             if kwargs.get("annotations"):
                 annotations = kwargs.get("annotations")
             else:
-                annotations = preprocessing.create_reference(reference_image)
-                annotations = preprocessing.create_mask(reference_image, annotations=annotations)
+                annotations = core.preprocessing.create_reference(reference_image)
+                annotations = core.preprocessing.create_mask(reference_image, annotations=annotations)
             coords = annotations['mask']['a']['data']['mask'][0]
             
             ## save template image
@@ -2288,7 +2280,7 @@ class Project:
                             
                 ## load data
                 attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
-                annotations = export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
+                annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
                 filename = attributes["image_original"]["filename"]
                 image_height = attributes["image_phenopype"]["height"]
                 
@@ -2385,12 +2377,12 @@ class Project:
                 annotation_path = os.path.join(dirpath, "annotations_" + tag + ".json")
                 
                 if os.path.isfile(annotation_path):
-                    annotations = export.load_annotation(annotation_path)   
+                    annotations = core.export.load_annotation(annotation_path)   
                     image = utils.load_image(dirpath)
                     attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
                     file_name = attributes["image_original"]["filename"] 
                     try:
-                        roi, mask = export.save_ROI(
+                        roi, mask = core.export.save_ROI(
                             image=image,
                             annotations=annotations,
                             which=which,
@@ -2427,7 +2419,7 @@ class Project:
             for idx, dirpath in enumerate(self.dir_paths, 1):
                             
                 attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
-                annotations = export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
+                annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
                 filename = attributes["image_original"]["filename"]               
                 
                 print("Preparing training data for: ({}/{}) ".format(idx, len(self.dir_paths)) + filename)
@@ -2440,7 +2432,7 @@ class Project:
                 if annotation_id.__class__.__name__ == "NoneType":
                     annotation_id = max(list(annotations[annotation_type].keys()))
                     
-                mask = visualization.draw_contour(image=mask, annotations=annotations, contour_id=annotation_id, line_width=0, line_colour=1, fill=1)
+                mask = core.visualization.draw_contour(image=mask, annotations=annotations, contour_id=annotation_id, line_width=0, line_colour=1, fill=1)
                 mask_resized = cv2.resize(mask, (img_size, img_size))
                 
                 image = utils.load_image(dirpath)
@@ -2552,7 +2544,7 @@ class Pype(object):
             
         if image_path.__class__.__name__ == "str":
             image_path = os.path.abspath(image_path)
-            
+                        
         # =============================================================================
         # LOGGING
             
@@ -2590,11 +2582,11 @@ class Pype(object):
         ## check name, load container and config
         ul._check_pype_tag(tag)
         self._load_container(image_path=image_path, tag=tag)
-        self._load_pype_config(image_path=image_path, tag=tag, config_path=config_path)
+        self._load_config(image_path=image_path, tag=tag, config_path=config_path)
 
         # check version, load container and config
         if self.flags.dry_run:
-            self._load_pype_config(image_path, tag, config_path)
+            self._load_config(image_path, tag, config_path)
             self._iterate(annotations=copy.deepcopy(_vars._annotation_types),
                       execute=False, autoshow=False, feedback=True)
             return
@@ -2758,7 +2750,7 @@ class Pype(object):
         else:
             raise TypeError("Invalid input for image path (str required)")
 
-    def _load_pype_config(self, image_path, tag, config_path):
+    def _load_config(self, image_path, tag, config_path):
 
         if config_path.__class__.__name__ == "NoneType":
             if os.path.isfile(image_path):
@@ -2971,42 +2963,34 @@ class Pype(object):
                 # =============================================================================
 
                 ## format method name and arguments
-                if method.__class__.__name__ in ["dict", "ordereddict", "CommentedMap"]:
+                if isinstance(method, (dict, OrderedDict, CommentedMap)):
                     method = dict(method)
-                    method_name = list(method.keys())[0]
-                    if not list(method.values())[0].__class__.__name__ == "NoneType":
-                        method_args = dict(list(method.values())[0])
-                    else:
-                        method_args = {}
-                elif method.__class__.__name__ == "str":
+                    method_name = next(iter(method))
+                    method_args = dict(method[method_name]) if method[method_name] is not None else {}
+                elif isinstance(method, str):
                     method_name = method
                     method_args = {}
-
-                ## feedback
+                    
+                ## feedback - check if method exists
                 if flags.execute:
-                    self._log("info", method_name, 1)
-
-                ## check if method exists
-                if hasattr(eval(step_name), method_name):
-                    self.config_parsed_flattened[step_name].append(method_name)
-                    pass
-                elif self.flags.fix_names:
-                    if method_name in _vars._legacy_names[step_name]:
-                        method_name_updated = _vars._legacy_names[step_name][
-                            method_name
-                        ]
-                        self.config_updated["processing_steps"][step_idx][step_name][
-                            method_idx
-                        ] = {method_name_updated: method_args}
-                        method_name = method_name_updated
-                        print("Stage: fixed method name")
-                else:
-                    print("Pype:",
-                        "phenopype.{} has no function called {} - will attempt to look for similarly named functions - fix the config file!".format(
-                            step_name, method_name
-                        )
-                    )
-
+                    if hasattr(eval("core."+ step_name), method_name) or hasattr(eval("plugins."+ step_name), method_name):
+                        self.config_parsed_flattened[step_name].append(method_name)
+                        self._log("info", method_name, 1)
+                    else:    
+                        if self.flags.fix_names and method_name in _vars._legacy_names[step_name]:
+                            method_name_updated = _vars._legacy_names[step_name][
+                                method_name
+                            ]
+                            self.config_updated["processing_steps"][step_idx][step_name][
+                                method_idx
+                            ] = {method_name_updated: method_args}
+                            method_name = method_name_updated
+                            self._log("info", f"{method_name} does not exist in phenopype.{step_name} - updated method name to {method_name_updated}", 1)
+                        else:
+                            error_msg =  f"{method_name} does not exist in phenopype.core.{step_name} or phenopype_plugins.{step_name} modules."
+                            self._log("error", error_msg, 1)
+                            raise NameError(error_msg)
+                            
                 # =============================================================================
                 # METHOD / ANNOTATION
                 # =============================================================================

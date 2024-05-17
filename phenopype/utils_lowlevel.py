@@ -12,10 +12,10 @@ import shutil
 import string
 import sys
 import warnings
-
 from _ctypes import PyObj_FromPtr
 from contextlib import redirect_stdout
 from dataclasses import dataclass, fields, make_dataclass
+from datetime import datetime
 from math import atan2, cos, pi, sin, sqrt
 from pathlib import Path
 from stat import S_IWRITE
@@ -30,16 +30,13 @@ from ruamel.yaml.constructor import SafeConstructor
 from watchdog.events import PatternMatchingEventHandler
 from watchdog.observers import Observer
 
-
-from phenopype import _vars
-from phenopype import config
-from phenopype import core
-from phenopype import utils
+from phenopype import _vars, config, core, utils, _PluginsPlaceholder
 
 try:
     import phenopype_plugins as plugins
 except:
-    pass
+    plugins = _PluginsPlaceholder()
+
 
 #%% classes
 
@@ -898,7 +895,7 @@ class _GUI:
                 colour=self.settings.point_colour,
                 )
 
-            
+        self._canvas_mount()
      
     def _keyboard_input(self):
         self.keypress_trans = chr(self.keypress)
@@ -1680,14 +1677,14 @@ class _YamlFileMonitor:
     #         print("waiting")
     #         cv2.destroyAllWindows()
     #         cv2.waitKey(self.delay)
-    #         _config.window_close, _config.pype_restart = True, True
+    #         config.window_close, config.pype_restart = True, True
 
 
     def _stop(self):
         self.observer.stop()
         self.observer.join()
-
-#%% functions - ANNOTATION helpers
+        
+#%% functions - annotations helpers
 
 
 def _get_annotation(
@@ -1923,6 +1920,318 @@ def _update_annotations(
     annotations[annotation_type][annotation_id] = copy.deepcopy(annotation)
 
     return annotations
+
+#%% I/O helpers
+
+def _file_walker(
+    directory,
+    filetypes=[],
+    include=[],
+    include_all=True,
+    exclude=[],
+    recursive=False,
+    unique="path",
+    **kwargs
+):
+    """
+    
+    Parameters
+    ----------
+    directory : str
+        path to directory to search for files
+    recursive: (optional): bool,
+        "False" searches only current directory for valid files; "True" walks 
+        through all subdirectories
+    filetypes (optional): list of str
+        single or multiple string patterns to target files with certain endings
+    include (optional): list of str
+        single or multiple string patterns to target certain files to include
+    include_all (optional): bool,
+        either all (True) or any (False) of the provided keywords have to match
+    exclude (optional): list of str
+        single or multiple string patterns to target certain files to exclude - can overrule "include"
+    unique (optional): str (default: "filepath")
+        how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
+        if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
+        whereas filename will ignore all those files after their first occurrence.
+
+    Returns
+    -------
+    None.
+
+    """
+    ## kwargs
+    pype_mode = kwargs.get("pype_mode", False)
+    if not filetypes.__class__.__name__ == "list":
+        filetypes = [filetypes]
+    if not include.__class__.__name__ == "list":
+        include = [include]
+    if not exclude.__class__.__name__ == "list":
+        exclude = [exclude]
+    flag_include_all = include_all
+    flag_recursive = recursive
+    flag_unique = unique
+
+    ## find files
+    filepaths1, filepaths2, filepaths3, filepaths4 = [], [], [], []
+    if flag_recursive == True:
+        for root, dirs, files in os.walk(directory):
+            for file in os.listdir(root):
+                filepath = os.path.join(root, file)
+                if os.path.isfile(filepath):
+                    filepaths1.append(filepath)
+    else:
+        for file in os.listdir(directory):
+            filepath = os.path.join(directory, file)
+            if os.path.isfile(filepath):
+                filepaths1.append(filepath)
+
+    ## file endings
+    if len(filetypes) > 0:
+        for filepath in filepaths1:
+            if filepath.endswith(tuple(filetypes)):
+                filepaths2.append(filepath)
+    elif len(filetypes) == 0:
+        filepaths2 = filepaths1
+
+    ## include
+    if len(include) > 0:
+        for filepath in filepaths2:
+            if flag_include_all:
+                if all(inc in os.path.basename(filepath) for inc in include):
+                    filepaths3.append(filepath)
+            else:
+                if pype_mode:
+                    if any(inc in Path(filepath).stem for inc in include):
+                        filepaths3.append(filepath)
+                else:
+                    if any(inc in os.path.basename(filepath) for inc in include):
+                        filepaths3.append(filepath)
+    else:
+        filepaths3 = filepaths2
+
+    ## exclude
+    if len(exclude) > 0:
+        for filepath in filepaths3:
+            if not any(exc in os.path.basename(filepath) for exc in exclude):
+                filepaths4.append(filepath)
+    else:
+        filepaths4 = filepaths3
+
+    ## check if files found
+    filepaths = filepaths4
+    if len(filepaths) == 0 and not pype_mode:
+        print("No files found under the given location that match given criteria.")
+        return [], []
+    
+    ## allow unique filenames filepath or by filename only
+    filenames, unique_filename, unique, duplicate = [], [], [], []
+    for filepath in filepaths:
+        filenames.append(os.path.basename(filepath))
+    if flag_unique in ["filepaths", "filepath", "path"]:
+        for filename, filepath in zip(filenames, filepaths):
+            if not filepath in unique:
+                unique.append(filepath)
+            else:
+                duplicate.append(filepath)
+    elif flag_unique in ["filenames", "filename", "name"]:
+        for filename, filepath in zip(filenames, filepaths):
+            if not filename in unique_filename:
+                unique_filename.append(filename)
+                unique.append(filepath)
+            else:
+                duplicate.append(filepath)
+
+    return unique, duplicate
+
+def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwargs):
+    """
+    Parameters
+    ----------
+    dirpath: str
+        path to a phenopype project directory containing raw image, attributes 
+        file, masks files, results df, etc.
+    tag : str
+        pype suffix that is appended to all output
+        
+    Returns
+    -------
+    container
+        A phenopype container is a Python class where loaded images, 
+        dataframes, detected contours, intermediate output, etc. are stored 
+        so that they are available for inspection or storage at the end of 
+        the analysis. 
+
+    """
+
+    ## check if directory
+    if not os.path.isdir(dir_path):
+        print("Not a valid phenoype directory - cannot load files.")
+        return
+
+    ## check if attributes file and load otherwise
+    if not os.path.isfile(os.path.join(dir_path, "attributes.yaml")):
+        print("Attributes file missing - cannot load files.")
+        return
+    else:
+        attributes = _load_yaml(os.path.join(dir_path, "attributes.yaml"))
+
+    ## check if requires info is contained in attributes and load image
+    if not "image_phenopype" in attributes or not "image_original" in attributes:
+        print("Attributes doesn't contain required meta-data - cannot load files.")
+        return
+
+    ## load image
+    if attributes["image_phenopype"]["mode"] == "link":
+        file_path = attributes["image_phenopype"]["filepath"]
+        image_path = os.path.join(
+            dir_path, file_path)
+        if not os.path.isfile(image_path):
+            raise FileNotFoundError("Link mode: did not find image - images folder set up correctly?")
+    else:
+        image_path = os.path.join(dir_path, attributes["image_phenopype"]["filename"])
+    image = utils.load_image(image_path)
+
+    ## return
+    if as_container:
+        return _Container(
+            image=image, 
+            dir_path=dir_path, 
+            file_suffix=tag, 
+            tag=tag,
+            image_name = attributes["image_original"]["filename"],
+            )
+    else:
+        return image
+
+
+def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize=1):
+    """
+    Create a DataFreame with image information (e.g. dimensions).
+
+    Parameters
+    ----------
+    image: str or ndarray
+        can be a path to an image stored on the harddrive OR an array already 
+        loaded to Python.
+    path_and_type: bool, optional
+        return image path and filetype to image_data dictionary
+
+    Returns
+    -------
+    image_data: dict
+        contains image data (+meta data, if selected)
+
+    """
+    
+    if image_path.__class__.__name__ == "str":
+        if os.path.isfile(image_path):
+            image = Image.open(image_path)
+            width, height = image.size
+            image.close()
+            image_data = {
+                "filename": os.path.split(image_path)[1],
+                "width": width,
+                "height": height,
+            }
+
+            if path_and_type:
+                if not image_rel_path.__class__.__name__ == "NoneType":
+                    image_path = image_rel_path
+                
+                image_data.update(
+                    {
+                        "filepath": image_path,
+                        "filetype": os.path.splitext(image_path)[1],
+                    }
+                )
+        else:
+            raise FileNotFoundError("Invalid image path - could not load image.")
+    else:
+        raise TypeError("Not a valid image file - cannot read image data.")
+
+
+    ## issue warnings for large images
+    if width * height > 125000000:
+        warnings.warn("Large image - expect slow processing.")
+    elif width * height > 250000000:
+        warnings.warn(
+            "Extremely large image - expect very slow processing \
+                      and consider resizing."
+        )
+
+    ## return image data
+    return image_data
+
+
+def _load_template(template_path, tag="v1", overwrite=False, keep_comments=True, image_path=None, dir_path=None, ret_path=False):
+    flags = make_dataclass("Flags", [("overwrite", bool, overwrite)])
+    
+    # Validate template path
+    if config.template_path_current != template_path:
+        if not isinstance(template_path, str) or not os.path.isfile(template_path):
+            print("Invalid or non-existent template_path")
+            return
+        template_loaded = _load_yaml(template_path)
+        config.template_path_current = template_path
+        config.template_loaded_current = template_loaded
+    else:
+        template_loaded = config.template_loaded_current
+
+    # Validate dir_path and image_path
+    if dir_path is None and image_path is None:
+        print("Need to specify image_path or dir_path")
+        return
+    elif dir_path is not None and image_path is None:
+        if not os.path.isdir(dir_path):
+            print("Could not find dir_path")
+            return
+        prepend = ""
+    elif dir_path is None:
+        dir_path = os.path.dirname(image_path)
+        image_name_root = os.path.splitext(os.path.basename(image_path))[0]
+        prepend = f"{image_name_root}_"
+
+    # Construct config name
+    suffix = f"_{tag}" if isinstance(tag, str) else ""
+    config_name = f"{prepend}pype_config{suffix}.yaml"
+    config_path = os.path.join(dir_path, config_name)
+
+    # Prepare configuration
+    if "template_locked" in template_loaded:
+        template_loaded.pop("template_locked")
+
+    config_info = {
+        "config_info": {
+            "config_name": config_name,
+            "date_created": datetime.today().strftime(_vars.strftime_format),
+            "date_last_modified": None,
+            "template_name": os.path.basename(template_path),
+            "template_path": template_path,
+        }
+    }
+
+    yaml = ruamel.yaml.YAML()
+    yaml.width = 4096
+    yaml.indent(mapping=4, sequence=4, offset=4)
+
+    if keep_comments:
+        with io.StringIO() as buf, redirect_stdout(buf):
+            yaml.dump(config_info, sys.stdout)
+            output = buf.getvalue()
+            output = yaml.load(output)
+        for key in reversed(output):
+            template_loaded.insert(0, key, output[key])
+    else:
+        template_loaded = {**config_info, **template_loaded}
+        _yaml_recursive_delete_comments(template_loaded)
+
+    if _save_prompt("template", config_path, flags.overwrite):
+        with open(config_path, "wb") as yaml_file:
+            yaml.dump(template_loaded, yaml_file)
+
+    if ret_path:
+        return config_path
 
 
 #%% functions - GUI helpers
@@ -2473,126 +2782,7 @@ def _equalize_histogram(image, detected_rect_mask, template):
     return interp_template_values[image]
 
 
-def _file_walker(
-    directory,
-    filetypes=[],
-    include=[],
-    include_all=True,
-    exclude=[],
-    recursive=False,
-    unique="path",
-    **kwargs
-):
-    """
-    
-    Parameters
-    ----------
-    directory : str
-        path to directory to search for files
-    recursive: (optional): bool,
-        "False" searches only current directory for valid files; "True" walks 
-        through all subdirectories
-    filetypes (optional): list of str
-        single or multiple string patterns to target files with certain endings
-    include (optional): list of str
-        single or multiple string patterns to target certain files to include
-    include_all (optional): bool,
-        either all (True) or any (False) of the provided keywords have to match
-    exclude (optional): list of str
-        single or multiple string patterns to target certain files to exclude - can overrule "include"
-    unique (optional): str (default: "filepath")
-        how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
-        if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
-        whereas filename will ignore all those files after their first occurrence.
 
-    Returns
-    -------
-    None.
-
-    """
-    ## kwargs
-    pype_mode = kwargs.get("pype_mode", False)
-    if not filetypes.__class__.__name__ == "list":
-        filetypes = [filetypes]
-    if not include.__class__.__name__ == "list":
-        include = [include]
-    if not exclude.__class__.__name__ == "list":
-        exclude = [exclude]
-    flag_include_all = include_all
-    flag_recursive = recursive
-    flag_unique = unique
-
-    ## find files
-    filepaths1, filepaths2, filepaths3, filepaths4 = [], [], [], []
-    if flag_recursive == True:
-        for root, dirs, files in os.walk(directory):
-            for file in os.listdir(root):
-                filepath = os.path.join(root, file)
-                if os.path.isfile(filepath):
-                    filepaths1.append(filepath)
-    else:
-        for file in os.listdir(directory):
-            filepath = os.path.join(directory, file)
-            if os.path.isfile(filepath):
-                filepaths1.append(filepath)
-
-    ## file endings
-    if len(filetypes) > 0:
-        for filepath in filepaths1:
-            if filepath.endswith(tuple(filetypes)):
-                filepaths2.append(filepath)
-    elif len(filetypes) == 0:
-        filepaths2 = filepaths1
-
-    ## include
-    if len(include) > 0:
-        for filepath in filepaths2:
-            if flag_include_all:
-                if all(inc in os.path.basename(filepath) for inc in include):
-                    filepaths3.append(filepath)
-            else:
-                if pype_mode:
-                    if any(inc in Path(filepath).stem for inc in include):
-                        filepaths3.append(filepath)
-                else:
-                    if any(inc in os.path.basename(filepath) for inc in include):
-                        filepaths3.append(filepath)
-    else:
-        filepaths3 = filepaths2
-
-    ## exclude
-    if len(exclude) > 0:
-        for filepath in filepaths3:
-            if not any(exc in os.path.basename(filepath) for exc in exclude):
-                filepaths4.append(filepath)
-    else:
-        filepaths4 = filepaths3
-
-    ## check if files found
-    filepaths = filepaths4
-    if len(filepaths) == 0 and not pype_mode:
-        print("No files found under the given location that match given criteria.")
-        return [], []
-    
-    ## allow unique filenames filepath or by filename only
-    filenames, unique_filename, unique, duplicate = [], [], [], []
-    for filepath in filepaths:
-        filenames.append(os.path.basename(filepath))
-    if flag_unique in ["filepaths", "filepath", "path"]:
-        for filename, filepath in zip(filenames, filepaths):
-            if not filepath in unique:
-                unique.append(filepath)
-            else:
-                duplicate.append(filepath)
-    elif flag_unique in ["filenames", "filename", "name"]:
-        for filename, filepath in zip(filenames, filepaths):
-            if not filename in unique_filename:
-                unique_filename.append(filename)
-                unique.append(filepath)
-            else:
-                duplicate.append(filepath)
-
-    return unique, duplicate
 
 
 def _get_caller_name(skip=2):
@@ -2641,124 +2831,6 @@ def _get_caller_name(skip=2):
     return name
 
 
-def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwargs):
-    """
-    Parameters
-    ----------
-    dirpath: str
-        path to a phenopype project directory containing raw image, attributes 
-        file, masks files, results df, etc.
-    tag : str
-        pype suffix that is appended to all output
-        
-    Returns
-    -------
-    container
-        A phenopype container is a Python class where loaded images, 
-        dataframes, detected contours, intermediate output, etc. are stored 
-        so that they are available for inspection or storage at the end of 
-        the analysis. 
-
-    """
-
-    ## check if directory
-    if not os.path.isdir(dir_path):
-        print("Not a valid phenoype directory - cannot load files.")
-        return
-
-    ## check if attributes file and load otherwise
-    if not os.path.isfile(os.path.join(dir_path, "attributes.yaml")):
-        print("Attributes file missing - cannot load files.")
-        return
-    else:
-        attributes = _load_yaml(os.path.join(dir_path, "attributes.yaml"))
-
-    ## check if requires info is contained in attributes and load image
-    if not "image_phenopype" in attributes or not "image_original" in attributes:
-        print("Attributes doesn't contain required meta-data - cannot load files.")
-        return
-
-    ## load image
-    if attributes["image_phenopype"]["mode"] == "link":
-        file_path = attributes["image_phenopype"]["filepath"]
-        image_path = os.path.join(
-            dir_path, file_path)
-        if not os.path.isfile(image_path):
-            raise FileNotFoundError("Link mode: did not find image - images folder set up correctly?")
-    else:
-        image_path = os.path.join(dir_path, attributes["image_phenopype"]["filename"])
-    image = utils.load_image(image_path)
-
-    ## return
-    if as_container:
-        return _Container(
-            image=image, 
-            dir_path=dir_path, 
-            file_suffix=tag, 
-            tag=tag,
-            image_name = attributes["image_original"]["filename"],
-            )
-    else:
-        return image
-
-
-def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize=1):
-    """
-    Create a DataFreame with image information (e.g. dimensions).
-
-    Parameters
-    ----------
-    image: str or ndarray
-        can be a path to an image stored on the harddrive OR an array already 
-        loaded to Python.
-    path_and_type: bool, optional
-        return image path and filetype to image_data dictionary
-
-    Returns
-    -------
-    image_data: dict
-        contains image data (+meta data, if selected)
-
-    """
-    
-    if image_path.__class__.__name__ == "str":
-        if os.path.isfile(image_path):
-            image = Image.open(image_path)
-            width, height = image.size
-            image.close()
-            image_data = {
-                "filename": os.path.split(image_path)[1],
-                "width": width,
-                "height": height,
-            }
-
-            if path_and_type:
-                if not image_rel_path.__class__.__name__ == "NoneType":
-                    image_path = image_rel_path
-                
-                image_data.update(
-                    {
-                        "filepath": image_path,
-                        "filetype": os.path.splitext(image_path)[1],
-                    }
-                )
-        else:
-            raise FileNotFoundError("Invalid image path - could not load image.")
-    else:
-        raise TypeError("Not a valid image file - cannot read image data.")
-
-
-    ## issue warnings for large images
-    if width * height > 125000000:
-        warnings.warn("Large image - expect slow processing.")
-    elif width * height > 250000000:
-        warnings.warn(
-            "Extremely large image - expect very slow processing \
-                      and consider resizing."
-        )
-
-    ## return image data
-    return image_data
 
 
 
