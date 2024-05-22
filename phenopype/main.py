@@ -2503,6 +2503,7 @@ class Pype(object):
         autosave=True,
         autoshow=True,
         log_ow=False,
+        dir_path=None,
         config_path=None,
         fix_names=True,
         load_contours=False,
@@ -2538,12 +2539,14 @@ class Pype(object):
         )
         
         if self.flags.debug:
-            
             self.verbose = config.verbose
             config.verbose = True
             
         if image_path.__class__.__name__ == "str":
             image_path = os.path.abspath(image_path)
+        if not dir_path:
+            dir_path = os.path.dirname(image_path)
+
                         
         # =============================================================================
         # LOGGING
@@ -2565,7 +2568,7 @@ class Pype(object):
         if os.path.isdir(image_path):
             log_file_path = os.path.join(image_path, f"pype_logs_{tag}.log")
         elif os.path.isfile(image_path):
-            log_file_path = os.path.join(os.path.dirname(image_path), f"pype_logs_{tag}.log")
+            log_file_path = os.path.join(dir_path, f"pype_logs_{tag}.log")
 
         if os.path.isfile(log_file_path) and log_ow:
             os.remove(log_file_path)
@@ -2581,7 +2584,7 @@ class Pype(object):
 
         ## check name, load container and config
         ul._check_pype_tag(tag)
-        self._load_container(image_path=image_path, tag=tag)
+        self._load_container(image_path=image_path, dir_path=dir_path, tag=tag)
         self._load_config(image_path=image_path, tag=tag, config_path=config_path)
 
         # check version, load container and config
@@ -2722,11 +2725,10 @@ class Pype(object):
             config.verbose = self.verbose
 
 
-    def _load_container(self, image_path, tag):
+    def _load_container(self, image_path, dir_path, tag):
         if image_path.__class__.__name__ == "str":
             if os.path.isfile(image_path):
                 image = utils.load_image(image_path)
-                dir_path = os.path.dirname(image_path)
                 self.container = ul._Container(
                     image=image,
                     dir_path=dir_path,
@@ -2745,7 +2747,7 @@ class Pype(object):
                         os.path.dirname(image_path)
                     )
                 )
-        elif image_path.__class__.__name__ == "Container":
+        elif image_path.__class__.__name__ == "_Container":
             self.container = copy.deepcopy(image_path)
         else:
             raise TypeError("Invalid input for image path (str required)")

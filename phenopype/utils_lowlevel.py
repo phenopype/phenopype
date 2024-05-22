@@ -352,8 +352,8 @@ class _Container(object):
             )
         if fun == "save_ROI":
             if not "file_name" in kwargs_function:
-                ext = kwargs_function.get("ext", ".jpg")
-                kwargs_function["file_name"] = self._construct_file_name("roi", ext)
+                kwargs_function["file_name"] = self._construct_file_name(
+                    self.image_name, "png")
             if not "dir_path" in kwargs_function:
                 kwargs_function["dir_path"] = os.path.join(self.dir_path, "ROI")
                 if not os.path.isdir(kwargs_function["dir_path"]):
@@ -577,9 +577,6 @@ class _GUI:
         
         ## prepare GUI for the evebtual use of certain tools (comment and drawing)
         self._prepare_tools(kwargs)
-        
-
-
 
         ## RUN: load tools and allow for user input
         if self.settings.interactive:
@@ -846,7 +843,9 @@ class _GUI:
             )
 
         if self.tool == "draw":
+            self.settings.line_width_draw = copy.deepcopy(self.settings.line_width)
             if len(self.data[_vars._contour_type]) > 0:
+                ## draw contours if they're there
                 if len(self.image.shape) == 2:
                     self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
                 self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
@@ -861,13 +860,15 @@ class _GUI:
                         maxLevel=3,
                         offset=(0, 0),
                     )
+                ## initial pass
+                self._canvas_renew()
                 self._canvas_draw(
-                    tool="line_bin", 
-                    coord_list=self.data[_vars._sequence_type],
+                    tool="line_bin", coord_list=self.data[_vars._sequence_type]
                 )
                 self._canvas_blend()
                 self._canvas_draw_contours()
-                    
+                self._canvas_mount()
+                
             else:
                 print("Could not find contours to edit - check annotations.")
                 return
@@ -1321,7 +1322,7 @@ class _GUI:
                 [
                     self.data[_vars._coord_type],
                     self.colour_current_bin,
-                    int(self.settings.line_width * self.zoom.global_fx),
+                    int(self.settings.line_width_draw * self.zoom.global_fx),
                 ]
             )
             self.data[_vars._coord_type] = []
@@ -1350,7 +1351,7 @@ class _GUI:
                 (self.ix, self.iy),
                 (x, y),
                 self.colour_current,
-                self.settings.line_width,
+                self.settings.line_width_draw,
             )
             self.ix, self.iy = x, y
             cv2.imshow(self.settings.window_name, self.canvas)
@@ -1362,19 +1363,19 @@ class _GUI:
                 self.line_width_orig -= 1
 
             self.canvas = copy.deepcopy(self.canvas_copy)
-            self.settings.line_width = int(
+            self.settings.line_width_draw = int(
                 self.line_width_orig
                 / ((self.zoom.x2 - self.zoom.x1) / self.image_width)
             )
             cv2.line(
-                self.canvas, (x, y), (x, y), _get_bgr("black"), self.settings.line_width
+                self.canvas, (x, y), (x, y), _get_bgr("black"), self.settings.line_width_draw
             )
             cv2.line(
                 self.canvas,
                 (x, y),
                 (x, y),
                 _get_bgr("white"),
-                max(self.settings.line_width - 5, 1),
+                max(self.settings.line_width_draw - 5, 1),
             )
             cv2.imshow(self.settings.window_name, self.canvas)
 
@@ -1548,7 +1549,7 @@ class _GUI:
 
         ## adjust brush size
         if self.tool == "draw":
-            self.settings.line_width = int(
+            self.settings.line_width_draw = int(
                 self.line_width_orig
                 / ((self.zoom.x2 - self.zoom.x1) / self.image_width)
             )

@@ -710,7 +710,23 @@ def save_ROI(
     )
 
     data = annotation["data"][annotation_type]
-
+    
+    # =============================================================================
+    # prep save
+    
+    ## add suffix 
+    if suffix is None:
+        suffix = ""
+    else:
+        suffix = "_" + suffix
+        
+    ## add extension
+    if "." not in ext:
+        ext = "." + ext
+        
+    # =============================================================================
+    # run
+    
     if which == "max":
         area = list()
         for idx, roi_coords in enumerate(data):
@@ -829,9 +845,13 @@ def save_ROI(
                 roi_alpha = np.zeros((roi.shape[0], roi.shape[1], 4), dtype=np.uint8)
                 roi_alpha[:,:,0:3] = roi
                 roi_alpha[:, :, 3] = roi_mask
+                roi_canvas = roi_alpha
+                ext = ".png"
             else:
                 roi[roi_mask==0] = ul._get_bgr(background)
+                roi_canvas = roi
             roi = roi_canvas
+                
                 
         # =============================================================================
         ## resizing final ROI
@@ -843,17 +863,7 @@ def save_ROI(
         ## saving          
                 
         if not kwargs.get("training_data"):
-            
-            ## add suffix 
-            if suffix is None:
-                suffix = ""
-            else:
-                suffix = "_" + suffix
-                
-            ## add extension
-            if "." not in ext:
-                ext = "." + ext
-                 
+                             
             ## add counter
             if counter:
                 roi_name = file_name + suffix + "_" + str(idx+1).zfill(3) + ext

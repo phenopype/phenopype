@@ -17,7 +17,7 @@ _default_label_colour = "red"
 _default_line_colour = "lime"
 _default_node_colour = "red"
 _default_point_colour = "red"
-_default_overlay_colour_left = "green"
+_default_overlay_colour_left = "lime"
 _default_overlay_colour_right = "red"
 
 

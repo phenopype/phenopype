@@ -62,8 +62,13 @@ def load_image(path, mode="unchanged", **kwargs):
                 elif flags.mode == "gray":
                     image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
                 elif flags.mode == "rgb":
-                    image = cv2.imread(path)
-                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+                    if image.shape[2] == 4:
+                        b, g, r, a = cv2.split(image)
+                        image = cv2.merge((r, g, b, a))
+                    else:
+                        b, g, r = cv2.split(image)
+                        image = cv2.merge((r, g, b))
             else:
                 ul._print(
                     'Invalid file extension "{}" - could not load image:\n'.format(ext)

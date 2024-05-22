@@ -900,7 +900,7 @@ def select_canvas(image, canvas="raw", multi_channel=True, invert=False, **kwarg
 
     """
 
-    if image.__class__.__name__ == "Container":
+    if image.__class__.__name__ == "_Container":
         
         ## method
         if canvas == "mod":
@@ -959,7 +959,7 @@ def select_canvas(image, canvas="raw", multi_channel=True, invert=False, **kwarg
 
     ## check if colour
     if multi_channel:
-        if image.__class__.__name__ == "Container":
+        if image.__class__.__name__ == "_Container":
             if len(image.canvas.shape) < 3:
                 image.canvas = cv2.cvtColor(image.canvas, cv2.COLOR_GRAY2BGR)
         elif image.__class__.__name__ == "ndarray":
