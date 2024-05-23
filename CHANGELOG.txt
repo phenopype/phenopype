@@ -3,6 +3,11 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+5.0.3
+-----
+bugfix: 
+	- broken drawing function
+	- Pype didn't work without project
 
 5.0.2
 -----
