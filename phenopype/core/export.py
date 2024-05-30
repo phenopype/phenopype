@@ -745,8 +745,8 @@ def save_ROI(
         
     for idx, roi_coords in enumerate(data):
 
-        if annotation_type == _vars._mask_type:
-            coords = ul._convert_tup_list_arr(roi_coords)[0]
+        if annotation_type == _vars._mask_type and not isinstance(roi_coords, np.ndarray):
+            coords = ul._convert_tup_list_arr(roi_coords)
         else:
             coords = copy.deepcopy(roi_coords)
 
