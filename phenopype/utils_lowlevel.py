@@ -654,10 +654,10 @@ class _GUI:
                         cv2.destroyAllWindows()
 
                     ## Esc = close window and terminate
-                    elif self.keypress == 27 and not kwargs.get("labelling"):
+                    elif self.keypress == 27 and not kwargs.get("labelling") or cv2.getWindowProperty(self.settings.window_name, cv2.WND_PROP_VISIBLE) < 1:
                         cv2.destroyAllWindows()
                         logging.shutdown()
-                        sys.exit("\n\nTERMINATE (by user)")
+                        sys.exit("GUI closed with Esc / [X] by user.")
 
                     ## Ctrl + z = undo
                     elif self.keypress == 26 and self.tool == "draw":
