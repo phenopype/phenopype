@@ -27,9 +27,8 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e .
+          pip install --upgrade pip setuptools wheel
+          pip install -e .[test]
 
       - name: Run tests
         run: |
@@ -54,9 +53,8 @@ jobs:
         run: |
           python -m venv venv
           venv\Scripts\activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e .
+          pip install --upgrade pip setuptools wheel
+          pip install -e .[test]
 
       - name: Run tests
         run: |
