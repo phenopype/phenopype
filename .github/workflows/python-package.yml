@@ -4,10 +4,7 @@ on:
   push:
     branches:
       - main
-      - dev-py310
-  pull_request:
-    branches:
-      - main
+      - dev-ci
       - dev-py310
 jobs:
   test-linux:
@@ -17,7 +14,7 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/setup-python@v2
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -42,7 +39,7 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/setup-python@v2
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
