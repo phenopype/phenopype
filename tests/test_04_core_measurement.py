@@ -55,17 +55,4 @@ def test_detect_skeleton(image_binary):
     
     assert len(annotations) > 0
     
-def test_compute_texture_feature(image, image_binary):
-    
-    annotations = pp.segmentation.detect_contour(
-        image_binary, 
-        )    
-    
-    annotations = pp.measurement.compute_texture_features(
-        image,
-        annotations,
-        features=["firstorder", "shape", "glcm", "gldm", "glrlm", "glszm", "ngtdm"],
-    )
-    
-    assert len(annotations) > 0
         

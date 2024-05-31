@@ -5,12 +5,15 @@ import inspect
 import io
 import json
 import logging
+import math
 import os
 import re
 import ruamel.yaml
 import shutil
 import string
 import sys
+import time
+import threading
 import warnings
 from _ctypes import PyObj_FromPtr
 from contextlib import redirect_stdout
@@ -27,6 +30,7 @@ from colour import Color
 from PIL import Image
 from ruamel.yaml import YAML
 from ruamel.yaml.constructor import SafeConstructor
+from screeninfo import get_monitors
 from watchdog.events import PatternMatchingEventHandler
 from watchdog.observers import Observer
 
@@ -722,15 +726,14 @@ class _GUI:
         if self.canvas_height < window_min_dim:
             self.canvas_height = window_min_dim
             self.canvas_width = int(self.canvas_height * aspect_ratio)
-            
-                        
+                     
     def _initialize_settings(self, tool, interactive, kwargs):
     
         ## apply args to settings
         self.settings = _GUI_Settings()
         self.settings.tool = tool
         self.settings.interactive = interactive
-                        
+                                
         ## apply kwargs to setting
         for field in fields(self.settings):
             if field.name in kwargs:
@@ -742,9 +745,10 @@ class _GUI:
                 field_val = _get_bgr(field_val, field.name)
                 setattr(self.settings, field.name, field_val)
             if "size" in field.name or "width" in field.name: 
-                field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field_val)
+                # field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field_val)
+                field_val = _get_size(self.image_height, self.image_width, field.name, field_val)
                 setattr(self.settings, field.name, field_val)
-                 
+        
         ## basic settings (maybe integrate better)
         self.__dict__.update(kwargs)
         self.tool = tool
@@ -844,8 +848,8 @@ class _GUI:
 
         if self.tool == "draw":
             self.settings.line_width_draw = copy.deepcopy(self.settings.line_width)
+            ## draw contours if they're there
             if len(self.data[_vars._contour_type]) > 0:
-                ## draw contours if they're there
                 if len(self.image.shape) == 2:
                     self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
                 self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
@@ -862,9 +866,7 @@ class _GUI:
                     )
                 ## initial pass
                 self._canvas_renew()
-                self._canvas_draw(
-                    tool="line_bin", coord_list=self.data[_vars._sequence_type]
-                )
+                self._canvas_draw(tool="line_bin", coord_list=self.data[_vars._sequence_type])
                 self._canvas_blend()
                 self._canvas_draw_contours()
                 self._canvas_mount()
@@ -1091,7 +1093,7 @@ class _GUI:
 
             ## skip if in reference mode
             if reference and len(self.data[_vars._coord_type]) == 2:
-                print("already two points selected")
+                print("- already two points selected!")
                 return
 
             ## convert cursor coords from zoomed canvas to original coordinate space
@@ -1121,7 +1123,7 @@ class _GUI:
 
             ## if in reference mode, append to ref coords
             if reference and len(self.data[_vars._coord_type]) == 2:
-                print("Reference set")
+                print("- reference set")
 
         if event == cv2.EVENT_RBUTTONDOWN:
 
@@ -1132,7 +1134,7 @@ class _GUI:
                 self.data[_vars._coord_list_type] = self.data[ _vars._coord_list_type][:-1]
 
             ## apply tool and refresh canvas
-            print("remove")
+            print("- remove polygon")
             self._canvas_renew()
             self._canvas_draw(
                 tool="line", 
@@ -1159,7 +1161,7 @@ class _GUI:
                 )
 
             ## add current points to polygon and empyt point list
-            print("poly")
+            print("- polygon complete")
             self.data[_vars._coord_list_type].append(self.data[_vars._coord_type])
             self.data[_vars._coord_type] = []
 
@@ -1463,14 +1465,14 @@ class _GUI:
         self.canvas = self.image_copy[
             self.zoom.y1 : self.zoom.y2, self.zoom.x1 : self.zoom.x2
         ]
-
+        
         ## resize canvas to fit window
         self.canvas = cv2.resize(
             self.canvas,
             (self.canvas_width, self.canvas_height),
             interpolation=cv2.INTER_LINEAR,
         )
-
+        
         ## copy canvas for mousedrag refresh
         self.canvas_copy = copy.deepcopy(self.canvas)
 
@@ -1646,7 +1648,7 @@ class _YamlFileMonitor:
         )
         self.event_handler.on_any_event = self._on_update
 
-        ## intitialize
+        ## initialize
         self.content = _load_yaml(self.filepath)
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
@@ -1656,34 +1658,26 @@ class _YamlFileMonitor:
         self.time_diff = 10
 
     def _on_update(self, event):
-
-        if not self.time_start.__class__.__name__ == "NoneType":
+        if self.time_start is not None:
             self.time_end = timer()
             self.time_diff = self.time_end - self.time_start
-
         if self.time_diff > 1:
             self.content = _load_yaml(self.filepath)
             config.window_close, config.pype_restart = True, True
-            # cv2.destroyAllWindows()
-            cv2.destroyWindow("phenopype")
-            cv2.waitKey(self.delay)
-        else:
-            pass
-
+            start_time = timer()
+            while cv2.getWindowProperty("phenopype", cv2.WND_PROP_VISIBLE) < 1:
+                cv2.destroyAllWindows()
+                time.sleep(1)
+                current_time = timer() - start_time
+                if current_time > 3:
+                    print_msg = f"FORCING WINDOW CLOSURE...{current_time}"
+                    _print(print_msg, watch_last=True)
         self.time_start = timer()
-        
-    # def _on_update(self, event):
-    #     print("action")
-    #     while cv2.getWindowProperty('phenopype', cv2.WND_PROP_VISIBLE) >= 0:
-    #         print("waiting")
-    #         cv2.destroyAllWindows()
-    #         cv2.waitKey(self.delay)
-    #         config.window_close, config.pype_restart = True, True
-
 
     def _stop(self):
         self.observer.stop()
         self.observer.join()
+
         
 #%% functions - annotations helpers
 
@@ -2237,13 +2231,33 @@ def _load_template(template_path, tag="v1", overwrite=False, keep_comments=True,
 
 #%% functions - GUI helpers
 
+def _get_monitor_resolution():
+    monitors = get_monitors()
+    if monitors:
+        monitor = monitors[0]
+        resolution_width = monitor.width
+        resolution_height = monitor.height
+        width_mm = monitor.width_mm
+        height_mm = monitor.height_mm
+        
+        # Calculate diagonal size in pixels
+        diagonal_pixels = math.sqrt(resolution_width**2 + resolution_height**2)
+        
+        return resolution_width, resolution_height, diagonal_pixels
+    else:
+        raise Exception("No monitors found")
+
 def _get_size(image_height, image_width, element="line_width", size_value="auto"):
     """
-    Calculate automatic sizing for GUI elements based on image dimensions, or return the input size.
+    Calculate automatic sizing for GUI elements based on image dimensions and monitor resolution, or return the input size.
     
     Args:
-        image (np.array): The image based on which sizing is calculated.
-        element (str): The type of GUI element. Can be 'line', 'point', 'text', or 'text_width'.
+        image_height (int): The height of the image.
+        image_width (int): The width of the image.
+        resolution_width (int): The width resolution of the monitor.
+        resolution_height (int): The height resolution of the monitor.
+        diagonal_size_inches (float): The diagonal size of the monitor in inches.
+        element (str): The type of GUI element. Can be 'line_width', 'point_size', 'text_size', or 'text_width'.
         size_value (str or int): The size value or "auto" to calculate size dynamically.
 
     Returns:
@@ -2255,6 +2269,9 @@ def _get_size(image_height, image_width, element="line_width", size_value="auto"
             return int(size_value)  # Ensure it's a valid integer
         except ValueError:
             pass  # If it's not a valid integer, continue to calculate using default factors
+
+    # Get monitor resolution
+    resolution_width, resolution_height, diagonal_pixels = _get_monitor_resolution()
 
     # Default factor dictionary
     default_factors = {
@@ -2271,10 +2288,17 @@ def _get_size(image_height, image_width, element="line_width", size_value="auto"
     factor = default_factors.get(element)
     
     # Calculate the diagonal of the image for scaling purposes
-    image_diagonal = (image_height + image_width) / 2
+    image_diagonal = math.sqrt(image_height**2 + image_width**2)
 
-    # Calculate and return the size based on the factor
-    value = max(int(factor * image_diagonal), 1)
+    # Calculate size based on the factor
+    value = int(factor * image_diagonal)
+    
+    # Adjust for line width and other elements to ensure visibility and reasonable size on the monitor
+    if element == "line_width":
+        # Nonlinear scaling: logarithmic scaling to prevent lines from getting too wide on large screens
+        value = max(config.min_visible_px, min(int(math.log1p(value) * 2), config.max_linewidth_px))
+    elif element in ["point_size", "node_size"]:
+        value = max(config.min_visible_px, value)
 
     return value
 
@@ -2463,10 +2487,47 @@ def _overwrite_check_dir(path, overwrite):
     
 #%% functions - PRINTING / LOGGING
 
-def _print(msg, lvl=0, **kwargs):
+def _print(msg, lvl=0, watch_last=False, **kwargs):
     if config.verbose:
         if lvl >= config.verbosity_level:
-            print(msg)
+            if watch_last:
+                if not msg == config.last_print_msg:
+                    print(msg)
+            config.last_print_msg = msg
+
+            
+def _print_mod(msg, context="caller", level=1):
+    if context=="caller":
+        caller = _get_caller_name(level)
+        print(caller + ":", msg)
+    elif context=="none":
+        print(msg)
+        
+def _pprint_fill_hbar(message, symbol="-", ret=False):
+    terminal_width = shutil.get_terminal_size()[0]
+    message_length = len(message)
+
+    if message_length >= terminal_width:
+        formatted_message = message
+    else:
+        bar_length = (terminal_width - message_length - 2) // 2
+        horizontal_bar = symbol * bar_length
+        formatted_message = f"{horizontal_bar} {message} {horizontal_bar}"
+        residual = terminal_width - len(formatted_message)
+        formatted_message = formatted_message + symbol * residual
+        
+    if not ret:
+        print(formatted_message)
+    else:
+        return formatted_message
+
+def _pprint_hbar(symbol="-", ret=False):
+    terminal_width = os.get_terminal_size()[0]
+    string = symbol * terminal_width
+    if not ret:
+        print(string)
+    else:
+        return string
         
 
 # def _label_formatter(label_dict):
@@ -2640,6 +2701,9 @@ def _calc_contour_stats(contour, mode="circle"):
 
 
 #%% functions - VARIOUS
+
+def _calc_ppi(resolution_width, resolution_height, diagonal_size_inches):
+    return math.sqrt(resolution_width**2 + resolution_height**2) / diagonal_size_inches
 
 def _calc_distance_2point(x1,x2,y1,y2):
     return sqrt((x2-x1)**2 + (y2-y1)**2)
@@ -2833,40 +2897,6 @@ def _get_caller_name(skip=2):
 
 
 
-
-
-def _print_mod(msg, context="caller", level=1):
-    if context=="caller":
-        caller = _get_caller_name(level)
-        print(caller + ":", msg)
-    elif context=="none":
-        print(msg)
-        
-def _pprint_fill_hbar(message, symbol="-", ret=False):
-    terminal_width = shutil.get_terminal_size()[0]
-    message_length = len(message)
-
-    if message_length >= terminal_width:
-        formatted_message = message
-    else:
-        bar_length = (terminal_width - message_length - 2) // 2
-        horizontal_bar = symbol * bar_length
-        formatted_message = f"{horizontal_bar} {message} {horizontal_bar}"
-        residual = terminal_width - len(formatted_message)
-        formatted_message = formatted_message + symbol * residual
-        
-    if not ret:
-        print(formatted_message)
-    else:
-        return formatted_message
-
-def _pprint_hbar(symbol="-", ret=False):
-    terminal_width = os.get_terminal_size()[0]
-    string = symbol * terminal_width
-    if not ret:
-        print(string)
-    else:
-        return string
 
 
 def _resize_mask(original_bbox, resize_x, resize_y):

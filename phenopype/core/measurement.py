@@ -6,8 +6,7 @@ import numpy as np
 import sys
 
 import logging
-from radiomics import featureextractor
-import SimpleITK as sitk
+
 from tqdm import tqdm as _tqdm
 
 from phenopype import __version__

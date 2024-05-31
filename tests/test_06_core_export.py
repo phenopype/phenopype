@@ -132,12 +132,6 @@ def test_save_ROI(image, mask_polygon, settings):
 def test_export_csv(image, contours, comment, settings):
     
     annotations = {**contours, **comment}
-    
-    annotations = pp.measurement.compute_texture_features(
-        image,
-        annotations,
-        features=["firstorder", "shape", "glcm", "gldm", "glrlm", "glszm", "ngtdm"],
-    )
 
     annotations = pp.measurement.compute_shape_features(
         annotations=annotations,
@@ -157,4 +151,4 @@ def test_export_csv(image, contours, comment, settings):
         dir_path=save_dir,
         )
 
-    assert os.path.isfile(os.path.join(save_dir, "texture_features.csv"))
+    assert os.path.isfile(os.path.join(save_dir, "shape_features.csv"))
