@@ -2497,6 +2497,7 @@ class Pype(object):
         image_path,
         tag,
         skip=False,
+        skip_pattern="canvas",
         interactive=True,
         feedback=True,
         autoload=True,
@@ -2597,7 +2598,7 @@ class Pype(object):
         ## check whether directory is skipped
         if self.flags.skip:
             if self._check_directory_skip(
-                tag=tag, skip_pattern=skip, dir_path=self.container.dir_path
+                tag=tag, skip_pattern=skip_pattern, dir_path=self.container.dir_path
             ):
                 return
             
@@ -2796,35 +2797,32 @@ class Pype(object):
         self._log("debug", "Pype: starting config file monitor", 0)
 
     def _check_directory_skip(self, tag, skip_pattern, dir_path):
-
-        ## skip directories that already contain specified files
-        if skip_pattern.__class__.__name__ == "str":
+            
+        # Normalize skip_pattern to a list
+        if isinstance(skip_pattern, str):
             skip_pattern = [skip_pattern]
-        elif skip_pattern.__class__.__name__ == "bool":
-            skip_pattern = [""]
-        elif skip_pattern.__class__.__name__ in ["list", "CommentedSeq"]:
-            skip_pattern = skip_pattern
-
-        file_pattern = []
-        for pattern in skip_pattern:
-            file_pattern.append(pattern + "_" + tag)
-
+    
+        # Walk through directory files
         filepaths, duplicates = ul._file_walker(
             dir_path,
-            include=file_pattern,
+            include="_" + tag,
             include_all=False,
             exclude=["pype_config", "attributes"],
             pype_mode=True,
         )
+        results = [os.path.basename(path) for path in filepaths]
 
-        if len(filepaths) > 0:
-            files = []
-            for file in filepaths:
-                files.append(os.path.basename(file))
-            print('\nFound existing files {} - skipped\n'.format((*files,)))
+        ## find matches
+        match = []
+        for pattern in skip_pattern:
+            match.append(any(pattern in filename for filename in results))
+
+        ## print results
+        if any(match):
+            ul._print(f'\nFound files {[s for s, m in zip(skip_pattern, match) if m]} - skipping\n')
             return True
-        else:
-            return False
+        return False
+    
 
     def _check_final(self):
 
