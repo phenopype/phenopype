@@ -2465,31 +2465,49 @@ class Pype(object):
     
     Parameters
     ----------
-
-    image: array or str 
-        can be either a numpy array or a string that provides the path to 
-        source image file or path to a valid phenopype directory
-    name: str
-        name of pype-config - will be appended to all results files
-    config_template: str, optional
-        chose from list of provided templates  
-        (e.g. ex1, ex2, ...)
-    config_path: str, optional
-        custom path to a pype template (needs to adhere yaml syntax and 
-        phenopype structure)
-    delay: int, optional
-        time in ms to add between reload attemps of yaml monitor. increase this 
-        value if saved changes in config file are not parsed in the first attempt.
-    dir_path: str, optional
-        path to an existing directory where all output should be stored
-    skip: bool, optional
-        skip directories that already have "name" as a suffix in the filename
-    interactive: bool, optional
-        don't open text editor or window, just apply functions and terminate
-    max_dim: int, optional
-        maximum dimension that window can have 
-    kwargs: 
-        developer options
+    image_path : str
+        Path to the source image file or a valid phenopype directory.
+    tag : str
+        Tag to label and identify the Pype configuration, appended to all result files.
+    skip : bool, optional
+        Skip directories that already contain processed files with the specified tag (default is False).
+    skip_pattern : str, optional
+        Pattern to identify files that should be skipped (default is "canvas").
+    interactive : bool, optional
+        If True, enables interactive mode which may open text editors or image windows (default is True).
+    feedback : bool, optional
+        Enable verbose feedback throughout the processing steps (default is True).
+    autoload : bool, optional
+        Automatically load existing data or configurations if available (default is True).
+    autosave : bool, optional
+        Automatically save results upon completion of processing (default is True).
+    autoshow : bool, optional
+        Automatically display images after processing (default is True).
+    log_ow : bool, optional
+        Overwrite existing log files (default is False).
+    dir_path : str, optional
+        Specify a directory where all output should be stored. Defaults to the directory of the image path.
+    config_path : str, optional
+        Custom path to a Pype configuration file. Must adhere to YAML syntax and phenopype structure.
+    fix_names : bool, optional
+        Automatically correct deprecated function names to the current accepted names (default is True).
+    load_contours : bool, optional
+        Preload contours from saved data (default is False).
+    zoom_memory : bool, optional
+        Remember zoom settings between sessions (default is True).
+    debug : bool, optional
+        Enable debug mode to provide detailed error messages and processing info (default is False).
+    kwargs : dict
+        Additional keyword arguments for developer options.
+    
+    Returns
+    -------
+    Pype instance (for inspection)
+    
+    Examples
+    --------
+    >>> pype_instance = Pype(image_path="path/to/image.jpg", tag="experiment_1")
+    Initializes a Pype instance for non-interactive processing with automatic saving enabled.
     """
 
     def __init__(
