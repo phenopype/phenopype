@@ -37,7 +37,6 @@ try:
 except:
     plugins = _PluginsPlaceholder()
 
-
 #%% classes
 
 class _Container(object):
@@ -577,7 +576,7 @@ class _GUI:
         
         ## prepare GUI for the evebtual use of certain tools (comment and drawing)
         self._prepare_tools(kwargs)
-
+        
         ## RUN: load tools and allow for user input
         if self.settings.interactive:
 
@@ -690,13 +689,7 @@ class _GUI:
                                 
                       
     def _prepare_canvas(self, image, window_max_dim, window_min_dim):
-        """
-        Adjust the canvas size based on maximum and minimum dimension constraints while maintaining aspect ratio.
-    
-        Args:
-            window_max_dim (int): The maximum allowed dimension for either width or height.
-            window_min_dim (int): The minimum allowed dimension for either width or height.
-        """
+
         self.image = copy.deepcopy(image)
         self.image_width, self.image_height = self.image.shape[1], self.image.shape[0]
         aspect_ratio = self.image_width / self.image_height
@@ -826,7 +819,7 @@ class _GUI:
     def _prepare_tools(self, kwargs):
         
         if self.tool in ["comment", "labelling"]:
-            
+                        
             self.settings.label_keymap = kwargs.get("label_keymap")
             self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
             y_pos, x_pos = self.settings.label_position
@@ -841,7 +834,7 @@ class _GUI:
                 self.settings.label_width,
                 cv2.LINE_AA,
             )
-
+            
         if self.tool == "draw":
             self.settings.line_width_draw = copy.deepcopy(self.settings.line_width)
             if len(self.data[_vars._contour_type]) > 0:
@@ -888,6 +881,7 @@ class _GUI:
                         size=self.settings.node_size,
                         colour=self.settings.node_colour,
                         )
+                    
         if self.tool in ["point"]:
             self._canvas_draw(
                 tool="point", 
@@ -895,8 +889,6 @@ class _GUI:
                 size=self.settings.point_size,
                 colour=self.settings.point_colour,
                 )
-
-        self._canvas_mount()
      
     def _keyboard_input(self):
         self.keypress_trans = chr(self.keypress)
@@ -930,7 +922,7 @@ class _GUI:
         
         
     def _labelling_tool(self):
-        
+                
         y_pos, x_pos = self.settings.label_position
         
         if self.keypress in [13, 27, 2424832, 2555904]:

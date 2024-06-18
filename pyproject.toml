@@ -14,7 +14,7 @@ license = {file = "LICENSE"}
 requires-python = "==3.9.*"
 dependencies = [
         "colour",
-        "numpy",
+        "numpy<2",
         "opencv-contrib-python==4.5.2.54",
         "pandas",
         "pillow",
