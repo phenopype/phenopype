@@ -471,10 +471,13 @@ class Project_labelling:
                 self.current.idx = self.image_list_len-1
                 print("End of list!\n")
                 
-            ## navigation
+            ## navigation and info
             self.current.idx_prev = copy.deepcopy(self.current.idx)
             self.current.image_name = self.image_list[self.current.idx]
-
+            self.current.image_info = self.file_dict[self.current.image_name]
+            self.current.filepath = self.current.image_info["filepath_" + flags.image_path]
+            self.current.image_folder = os.path.basename(os.path.dirname(self.current.filepath))
+                
             ## fetch label
             if self.current.image_name in self.labels:
                 self.label = self.labels[self.current.image_name] 
@@ -483,8 +486,17 @@ class Project_labelling:
                 self.label = {}
                 self.current.processed = False
                 
+            ## check existence
+            if os.path.isfile(self.current.filepath):
+                self.current.exists = True
+            else:
+                self.current.exists = False
+                                
             ## skip logic
-            if self.current.processed and skip and not self.current.idx in [0, len(self.image_list)]:
+            if any([
+                    self.current.processed and skip and not self.current.idx in [0, len(self.image_list)],
+                    not self.current.exists 
+                    ]):
                 if self.current.flag == "backward":
                     self.current.idx -= 1
                     self.current.idx = max(self.current.idx, 0)
@@ -492,35 +504,34 @@ class Project_labelling:
                     self.current.idx += 1
                     self.current.idx = min(self.current.idx, len(self.image_list))
                 self.current.n_skipped += 1
-                sys.stdout.write(f"\rSkipping: {self.current.n_skipped} labelled images ...")
-                sys.stdout.flush()
-                continue
+                if skip:
+                    sys.stdout.write(f"\rSkipping: {self.current.n_skipped} labelled images ...")
+                    sys.stdout.flush()
+                elif not self.current.exists:
+                    sys.stdout.write(f"\rSkipping: {self.current.n_skipped} missing images ...")
+                    sys.stdout.flush()
+                if not self.current.exists and self.current.idx in [0, len(self.image_list)]:
+                    break
+                else:
+                    continue
             else:
-                
-                ## get info
-                self.current.image_info = self.file_dict[self.current.image_name]
-                self.current.filepath = self.current.image_info["filepath_" + flags.image_path]
-                self.current.image_folder = os.path.basename(os.path.dirname(self.current.filepath))
-                
+                                
                 ## feedback
                 if self.current.n_skipped > 0:
                     print("\n")
                     self.current.n_skipped = 0
-                    
-                                    
-                    
-                print("Index: {}/{} | Filename: {} | Folder: {} | Label: {}\n".format(
+
+                print("Index: {}/{} | Filename: {} | Folder: {} | Labels: {}\n".format(
                     self.current.idx, 
                     self.image_list_len-1,
                     self.current.image_name,
                     self.current.image_folder,
-                    pretty_repr(self.label)))    
-                # print("Label: {}\n".format(
-                #     self.label))    
+                    list(self.label.keys())))
+                    
+
+                ## load image
+                self.current.image = utils.load_image(self.current.filepath)                      
                 
-                ## load image 
-                self.current.image = utils.load_image(self.current.filepath)  
-                                
                 ## go through config
                 for idx, (step_name, step) in enumerate(self.config.items()):
                     if step_name == "text":

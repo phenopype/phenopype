@@ -5,6 +5,7 @@ import inspect
 import io
 import json
 import logging
+import math
 import os
 import re
 import ruamel.yaml
@@ -560,8 +561,6 @@ class _GUI:
         """
         
         ## configure image   
-        if not image.__class__.__name__ == "ndarray":
-            raise TypeError("GUI module did not receive array-type - aborting!")
         window_max_dim = kwargs.get("window_max_dim", config.window_max_dim)
         window_min_dim = kwargs.get("window_min_dim", config.window_min_dim)
         
@@ -881,6 +880,7 @@ class _GUI:
                         size=self.settings.node_size,
                         colour=self.settings.node_colour,
                         )
+            self._canvas_mount()
                     
         if self.tool in ["point"]:
             self._canvas_draw(
@@ -889,6 +889,7 @@ class _GUI:
                 size=self.settings.point_size,
                 colour=self.settings.point_colour,
                 )
+            self._canvas_mount()
      
     def _keyboard_input(self):
         self.keypress_trans = chr(self.keypress)
@@ -1638,7 +1639,7 @@ class _YamlFileMonitor:
         )
         self.event_handler.on_any_event = self._on_update
 
-        ## intitialize
+        ## initialize
         self.content = _load_yaml(self.filepath)
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.dirpath, recursive=False)
@@ -1648,34 +1649,26 @@ class _YamlFileMonitor:
         self.time_diff = 10
 
     def _on_update(self, event):
-
-        if not self.time_start.__class__.__name__ == "NoneType":
+        if self.time_start is not None:
             self.time_end = timer()
             self.time_diff = self.time_end - self.time_start
-
         if self.time_diff > 1:
             self.content = _load_yaml(self.filepath)
             config.window_close, config.pype_restart = True, True
-            # cv2.destroyAllWindows()
-            cv2.destroyWindow("phenopype")
-            cv2.waitKey(self.delay)
-        else:
-            pass
-
+            start_time = timer()
+            while cv2.getWindowProperty("phenopype", cv2.WND_PROP_VISIBLE) < 1:
+                cv2.destroyAllWindows()
+                time.sleep(1)
+                current_time = timer() - start_time
+                if current_time > 3:
+                    print_msg = f"FORCING WINDOW CLOSURE...{current_time}"
+                    _print(print_msg, watch_last=True)
         self.time_start = timer()
-        
-    # def _on_update(self, event):
-    #     print("action")
-    #     while cv2.getWindowProperty('phenopype', cv2.WND_PROP_VISIBLE) >= 0:
-    #         print("waiting")
-    #         cv2.destroyAllWindows()
-    #         cv2.waitKey(self.delay)
-    #         config.window_close, config.pype_restart = True, True
-
 
     def _stop(self):
         self.observer.stop()
         self.observer.join()
+
         
 #%% functions - annotations helpers
 
@@ -2266,9 +2259,13 @@ def _get_size(image_height, image_width, element="line_width", size_value="auto"
     image_diagonal = (image_height + image_width) / 2
 
     # Calculate and return the size based on the factor
-    value = max(int(factor * image_diagonal), 1)
+    value = int(factor * image_diagonal)
 
-    return value
+    adj_value = max(config.min_visible_px, min(int(math.log1p(value) * 2), config.max_linewidth_px))
+    
+    # print(element, value, adj_value)
+
+    return adj_value
 
 
 def _get_bgr(col_string, element=None):
@@ -2460,6 +2457,24 @@ def _print(msg, lvl=0, **kwargs):
         if lvl >= config.verbosity_level:
             print(msg)
         
+
+def _print_label_status(original):
+    # Initialize the new dictionary
+    status_dict = {}
+    
+    # Check for each key in the original dictionary
+    for key in original:
+        if key in ['text', 'mask'] and isinstance(original[key], dict):
+            # If the value is a dictionary and the key is 'text' or 'mask'
+            status_dict[key] = True
+        elif key == 'comment' and isinstance(original[key], str):
+            # If the value is a string and the key is 'comment'
+            status_dict[key] = True
+        else:
+            # Otherwise set to False
+            status_dict[key] = False
+            
+    return status_dict
 
 # def _label_formatter(label_dict):
 #     old_dict = copy.deepcopy(label_dict)
