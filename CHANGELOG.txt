@@ -3,6 +3,11 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+5.0.5
+-----
+- bugfix:
+	- labelling tool: would be in endless loop when skipping labelled or missing files and hitting beginning or end of file list. now exits loop on default 
+
 5.0.4
 -----
 - labelling tool: will skip missing files instead of crashing
