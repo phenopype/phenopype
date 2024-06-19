@@ -471,10 +471,13 @@ class Project_labelling:
                 self.current.idx = self.image_list_len-1
                 print("End of list!\n")
                 
-            ## navigation
+            ## navigation and info
             self.current.idx_prev = copy.deepcopy(self.current.idx)
             self.current.image_name = self.image_list[self.current.idx]
-
+            self.current.image_info = self.file_dict[self.current.image_name]
+            self.current.filepath = self.current.image_info["filepath_" + flags.image_path]
+            self.current.image_folder = os.path.basename(os.path.dirname(self.current.filepath))
+                
             ## fetch label
             if self.current.image_name in self.labels:
                 self.label = self.labels[self.current.image_name] 
@@ -483,8 +486,17 @@ class Project_labelling:
                 self.label = {}
                 self.current.processed = False
                 
+            ## check existence
+            if os.path.isfile(self.current.filepath):
+                self.current.exists = True
+            else:
+                self.current.exists = False
+                                
             ## skip logic
-            if self.current.processed and skip and not self.current.idx in [0, len(self.image_list)]:
+            if any([
+                    self.current.processed and skip and not self.current.idx in [0, len(self.image_list)],
+                    not self.current.exists 
+                    ]):
                 if self.current.flag == "backward":
                     self.current.idx -= 1
                     self.current.idx = max(self.current.idx, 0)
@@ -492,35 +504,34 @@ class Project_labelling:
                     self.current.idx += 1
                     self.current.idx = min(self.current.idx, len(self.image_list))
                 self.current.n_skipped += 1
-                sys.stdout.write(f"\rSkipping: {self.current.n_skipped} labelled images ...")
-                sys.stdout.flush()
-                continue
+                if skip:
+                    sys.stdout.write(f"\rSkipping: {self.current.n_skipped} labelled images ...")
+                    sys.stdout.flush()
+                elif not self.current.exists:
+                    sys.stdout.write(f"\rSkipping: {self.current.n_skipped} missing images ...")
+                    sys.stdout.flush()
+                if not self.current.exists and self.current.idx in [0, len(self.image_list)]:
+                    break
+                else:
+                    continue
             else:
-                
-                ## get info
-                self.current.image_info = self.file_dict[self.current.image_name]
-                self.current.filepath = self.current.image_info["filepath_" + flags.image_path]
-                self.current.image_folder = os.path.basename(os.path.dirname(self.current.filepath))
-                
+                                
                 ## feedback
                 if self.current.n_skipped > 0:
                     print("\n")
                     self.current.n_skipped = 0
-                    
-                                    
-                    
-                print("Index: {}/{} | Filename: {} | Folder: {} | Label: {}\n".format(
+
+                print("Index: {}/{} | Filename: {} | Folder: {} | Labels: {}\n".format(
                     self.current.idx, 
                     self.image_list_len-1,
                     self.current.image_name,
                     self.current.image_folder,
-                    pretty_repr(self.label)))    
-                # print("Label: {}\n".format(
-                #     self.label))    
+                    list(self.label.keys())))
+                    
+
+                ## load image
+                self.current.image = utils.load_image(self.current.filepath)                      
                 
-                ## load image 
-                self.current.image = utils.load_image(self.current.filepath)  
-                                
                 ## go through config
                 for idx, (step_name, step) in enumerate(self.config.items()):
                     if step_name == "text":
@@ -2465,31 +2476,49 @@ class Pype(object):
     
     Parameters
     ----------
-
-    image: array or str 
-        can be either a numpy array or a string that provides the path to 
-        source image file or path to a valid phenopype directory
-    name: str
-        name of pype-config - will be appended to all results files
-    config_template: str, optional
-        chose from list of provided templates  
-        (e.g. ex1, ex2, ...)
-    config_path: str, optional
-        custom path to a pype template (needs to adhere yaml syntax and 
-        phenopype structure)
-    delay: int, optional
-        time in ms to add between reload attemps of yaml monitor. increase this 
-        value if saved changes in config file are not parsed in the first attempt.
-    dir_path: str, optional
-        path to an existing directory where all output should be stored
-    skip: bool, optional
-        skip directories that already have "name" as a suffix in the filename
-    interactive: bool, optional
-        don't open text editor or window, just apply functions and terminate
-    max_dim: int, optional
-        maximum dimension that window can have 
-    kwargs: 
-        developer options
+    image_path : str
+        Path to the source image file or a valid phenopype directory.
+    tag : str
+        Tag to label and identify the Pype configuration, appended to all result files.
+    skip : bool, optional
+        Skip directories that already contain processed files with the specified tag (default is False).
+    skip_pattern : str, optional
+        Pattern to identify files that should be skipped (default is "canvas").
+    interactive : bool, optional
+        If True, enables interactive mode which may open text editors or image windows (default is True).
+    feedback : bool, optional
+        Enable verbose feedback throughout the processing steps (default is True).
+    autoload : bool, optional
+        Automatically load existing data or configurations if available (default is True).
+    autosave : bool, optional
+        Automatically save results upon completion of processing (default is True).
+    autoshow : bool, optional
+        Automatically display images after processing (default is True).
+    log_ow : bool, optional
+        Overwrite existing log files (default is False).
+    dir_path : str, optional
+        Specify a directory where all output should be stored. Defaults to the directory of the image path.
+    config_path : str, optional
+        Custom path to a Pype configuration file. Must adhere to YAML syntax and phenopype structure.
+    fix_names : bool, optional
+        Automatically correct deprecated function names to the current accepted names (default is True).
+    load_contours : bool, optional
+        Preload contours from saved data (default is False).
+    zoom_memory : bool, optional
+        Remember zoom settings between sessions (default is True).
+    debug : bool, optional
+        Enable debug mode to provide detailed error messages and processing info (default is False).
+    kwargs : dict
+        Additional keyword arguments for developer options.
+    
+    Returns
+    -------
+    Pype instance (for inspection)
+    
+    Examples
+    --------
+    >>> pype_instance = Pype(image_path="path/to/image.jpg", tag="experiment_1")
+    Initializes a Pype instance for non-interactive processing with automatic saving enabled.
     """
 
     def __init__(
@@ -2497,6 +2526,7 @@ class Pype(object):
         image_path,
         tag,
         skip=False,
+        skip_pattern="canvas",
         interactive=True,
         feedback=True,
         autoload=True,
@@ -2597,7 +2627,7 @@ class Pype(object):
         ## check whether directory is skipped
         if self.flags.skip:
             if self._check_directory_skip(
-                tag=tag, skip_pattern=skip, dir_path=self.container.dir_path
+                tag=tag, skip_pattern=skip_pattern, dir_path=self.container.dir_path
             ):
                 return
             
@@ -2796,35 +2826,32 @@ class Pype(object):
         self._log("debug", "Pype: starting config file monitor", 0)
 
     def _check_directory_skip(self, tag, skip_pattern, dir_path):
-
-        ## skip directories that already contain specified files
-        if skip_pattern.__class__.__name__ == "str":
+            
+        # Normalize skip_pattern to a list
+        if isinstance(skip_pattern, str):
             skip_pattern = [skip_pattern]
-        elif skip_pattern.__class__.__name__ == "bool":
-            skip_pattern = [""]
-        elif skip_pattern.__class__.__name__ in ["list", "CommentedSeq"]:
-            skip_pattern = skip_pattern
-
-        file_pattern = []
-        for pattern in skip_pattern:
-            file_pattern.append(pattern + "_" + tag)
-
+    
+        # Walk through directory files
         filepaths, duplicates = ul._file_walker(
             dir_path,
-            include=file_pattern,
+            include="_" + tag,
             include_all=False,
             exclude=["pype_config", "attributes"],
             pype_mode=True,
         )
+        results = [os.path.basename(path) for path in filepaths]
 
-        if len(filepaths) > 0:
-            files = []
-            for file in filepaths:
-                files.append(os.path.basename(file))
-            print('\nFound existing files {} - skipped\n'.format((*files,)))
+        ## find matches
+        match = []
+        for pattern in skip_pattern:
+            match.append(any(pattern in filename for filename in results))
+
+        ## print results
+        if any(match):
+            ul._print(f'\nFound files {[s for s, m in zip(skip_pattern, match) if m]} - skipping\n')
             return True
-        else:
-            return False
+        return False
+    
 
     def _check_final(self):
 

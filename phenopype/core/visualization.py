@@ -6,7 +6,7 @@ import numpy as np
 import math
 from dataclasses import make_dataclass
 
-from phenopype import _vars
+from phenopype import _vars, config
 from phenopype import utils_lowlevel as ul
 
 
@@ -61,15 +61,12 @@ def draw_comment(
     # =============================================================================
     # setup
     
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-    if label_colour == "default":
-        label_colour = _vars._default_label_colour
-
-    label_colour = ul._get_bgr(label_colour)
+        
+    label_size = ul._get_size(image.shape[1], image.shape[0], "label_size", label_size)
+    label_width = ul._get_size(image.shape[1], image.shape[0], "label_width", label_width)
     
+    label_colour = ul._get_bgr(label_colour, "label_colour")
+
     font = _vars.opencv_font_flags[font]
 
     if background:
@@ -110,7 +107,7 @@ def draw_comment(
         background_coords = int(background_coords[0] - (background_pad)), \
             int(background_coords[1] + (text_size[1]/8) + (background_pad))
 
-        background_border_line_width = int(ul._auto_line_width(canvas) / 1.5)
+        background_border_line_width = ul._get_size(image.shape[1], image.shape[0], "line_width")
 
         cv2.rectangle(
             canvas, 

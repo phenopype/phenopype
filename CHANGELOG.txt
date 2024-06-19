@@ -3,6 +3,16 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+5.0.4
+-----
+- labelling tool: will skip missing files instead of crashing
+- Pype: skip=True now uses the skip_pattern argment, where single (e.g., "canvas") or multiple string patterns (e.g., ["canvas", "annotations", "shape"]) can be provided, which, if detected in the image folder, will trigger a skip to the next folder
+- numpy<2 now a requirement (numpy2 release will be integrated in future releases)
+bugfix:
+	- now possible to close windows with [x] button without crashing
+	- fixed broken skipping option in pype
+	- fixed drawing of comments onto canvas
+
 5.0.3
 -----
 bugfix: 

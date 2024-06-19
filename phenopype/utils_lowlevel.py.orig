@@ -41,7 +41,6 @@ try:
 except:
     plugins = _PluginsPlaceholder()
 
-
 #%% classes
 
 class _Container(object):
@@ -577,7 +576,7 @@ class _GUI:
         ## initialize canvas (load previous zoom, mount, etc.)
         self._initialize_canvas()     
         
-        ## prepare GUI for the eventual use of certain tools (comment and drawing)
+        ## prepare GUI for the evebtual use of certain tools (comment and drawing)
         self._prepare_tools(kwargs)
         
         ## RUN: load tools and allow for user input
@@ -725,7 +724,7 @@ class _GUI:
         self.settings = _GUI_Settings()
         self.settings.tool = tool
         self.settings.interactive = interactive
-                        
+                                
         ## apply kwargs to setting
         for field in fields(self.settings):
             if field.name in kwargs:
@@ -737,9 +736,10 @@ class _GUI:
                 field_val = _get_bgr(field_val, field.name)
                 setattr(self.settings, field.name, field_val)
             if "size" in field.name or "width" in field.name: 
-                field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field_val)
+                # field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field_val)
+                field_val = _get_size(self.image_height, self.image_width, field.name, field_val)
                 setattr(self.settings, field.name, field_val)
-                 
+        
         ## basic settings (maybe integrate better)
         self.__dict__.update(kwargs)
         self.tool = tool
@@ -821,7 +821,7 @@ class _GUI:
     def _prepare_tools(self, kwargs):
         
         if self.tool in ["comment", "labelling"]:
-            
+                        
             self.settings.label_keymap = kwargs.get("label_keymap")
             self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
             y_pos, x_pos = self.settings.label_position
@@ -836,12 +836,11 @@ class _GUI:
                 self.settings.label_width,
                 cv2.LINE_AA,
             )
-
+            
         if self.tool == "draw":
             self.settings.line_width_draw = copy.deepcopy(self.settings.line_width)
             ## draw contours if they're there
             if len(self.data[_vars._contour_type]) > 0:
-
                 if len(self.image.shape) == 2:
                     self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
                 self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
@@ -925,7 +924,7 @@ class _GUI:
         
         
     def _labelling_tool(self):
-        
+                
         y_pos, x_pos = self.settings.label_position
         
         if self.keypress in [13, 27, 2424832, 2555904]:
@@ -1458,14 +1457,14 @@ class _GUI:
         self.canvas = self.image_copy[
             self.zoom.y1 : self.zoom.y2, self.zoom.x1 : self.zoom.x2
         ]
-
+        
         ## resize canvas to fit window
         self.canvas = cv2.resize(
             self.canvas,
             (self.canvas_width, self.canvas_height),
             interpolation=cv2.INTER_LINEAR,
         )
-
+        
         ## copy canvas for mousedrag refresh
         self.canvas_copy = copy.deepcopy(self.canvas)
 
@@ -1670,6 +1669,7 @@ class _YamlFileMonitor:
     def _stop(self):
         self.observer.stop()
         self.observer.join()
+
         
 #%% functions - annotations helpers
 
@@ -2240,7 +2240,21 @@ def _get_monitor_resolution():
         raise Exception("No monitors found")
 
 def _get_size(image_height, image_width, element="line_width", size_value="auto"):
- 
+    """
+    Calculate automatic sizing for GUI elements based on image dimensions and monitor resolution, or return the input size.
+    
+    Args:
+        image_height (int): The height of the image.
+        image_width (int): The width of the image.
+        resolution_width (int): The width resolution of the monitor.
+        resolution_height (int): The height resolution of the monitor.
+        diagonal_size_inches (float): The diagonal size of the monitor in inches.
+        element (str): The type of GUI element. Can be 'line_width', 'point_size', 'text_size', or 'text_width'.
+        size_value (str or int): The size value or "auto" to calculate size dynamically.
+
+    Returns:
+        int: The calculated size for the specified GUI element, or the input size if not "auto".
+    """
     # Check if the size_value is explicitly "auto"; if not, directly return the input if it's numeric
     if size_value != "auto":
         try:
@@ -2268,8 +2282,20 @@ def _get_size(image_height, image_width, element="line_width", size_value="auto"
     # Calculate the diagonal of the image for scaling purposes
     image_diagonal = math.sqrt(image_height**2 + image_width**2)
 
+<<<<<<< HEAD
     # Calculate size based on the factor
     value = int(factor * image_diagonal)
+    
+    # Adjust for line width and other elements to ensure visibility and reasonable size on the monitor
+    if element == "line_width":
+        # Nonlinear scaling: logarithmic scaling to prevent lines from getting too wide on large screens
+        value = max(config.min_visible_px, min(int(math.log1p(value) * 2), config.max_linewidth_px))
+    elif element in ["point_size", "node_size"]:
+        value = max(config.min_visible_px, value)
+=======
+    # Calculate and return the size based on the factor
+    value = int(factor * image_diagonal)
+>>>>>>> main
 
     adj_value = max(config.min_visible_px, min(int(math.log1p(value) * 2), config.max_linewidth_px))
     
@@ -2470,23 +2496,7 @@ def _print(msg, lvl=0, watch_last=False, **kwargs):
                     print(msg)
             config.last_print_msg = msg
 
-def _print_label_status(original):
-    # Initialize the new dictionary
-    status_dict = {}
-    
-    # Check for each key in the original dictionary
-    for key in original:
-        if key in ['text', 'mask'] and isinstance(original[key], dict):
-            # If the value is a dictionary and the key is 'text' or 'mask'
-            status_dict[key] = True
-        elif key == 'comment' and isinstance(original[key], str):
-            # If the value is a string and the key is 'comment'
-            status_dict[key] = True
-        else:
-            # Otherwise set to False
-            status_dict[key] = False
-    return status_dict
-
+            
 def _print_mod(msg, context="caller", level=1):
     if context=="caller":
         caller = _get_caller_name(level)
@@ -2520,6 +2530,24 @@ def _pprint_hbar(symbol="-", ret=False):
     else:
         return string
         
+
+def _print_label_status(original):
+    # Initialize the new dictionary
+    status_dict = {}
+    
+    # Check for each key in the original dictionary
+    for key in original:
+        if key in ['text', 'mask'] and isinstance(original[key], dict):
+            # If the value is a dictionary and the key is 'text' or 'mask'
+            status_dict[key] = True
+        elif key == 'comment' and isinstance(original[key], str):
+            # If the value is a string and the key is 'comment'
+            status_dict[key] = True
+        else:
+            # Otherwise set to False
+            status_dict[key] = False
+            
+    return status_dict
 
 # def _label_formatter(label_dict):
 #     old_dict = copy.deepcopy(label_dict)
@@ -2692,6 +2720,9 @@ def _calc_contour_stats(contour, mode="circle"):
 
 
 #%% functions - VARIOUS
+
+def _calc_ppi(resolution_width, resolution_height, diagonal_size_inches):
+    return math.sqrt(resolution_width**2 + resolution_height**2) / diagonal_size_inches
 
 def _calc_distance_2point(x1,x2,y1,y2):
     return sqrt((x2-x1)**2 + (y2-y1)**2)
@@ -2882,6 +2913,8 @@ def _get_caller_name(skip=2):
     del parentframe, stack
 
     return name
+
+
 
 
 
