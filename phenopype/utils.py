@@ -177,21 +177,17 @@ def resize_image(
         return image
 
 
-def save_image(image, file_name, dir_path, suffix=None, ext="jpg", overwrite=False):
+def save_image(image, file_path, suffix=None, overwrite=False):
     """Save an image (array) to a specified format.
 
     Parameters
     ----------
     image : array
         Image to save.
-    file_name : str
-        Base name for the saved image.
-    dir_path : str
-        Directory to save the image.
+    file_path : str
+        Full path (including directory, base name, and extension) to save the image.
     suffix : str, optional
         Suffix to append to the image name to prevent overwriting.
-    ext : str, optional
-        File extension to save image as.
     overwrite : bool, optional
         If True, overwrite existing files with the same name.
 
@@ -200,32 +196,29 @@ def save_image(image, file_name, dir_path, suffix=None, ext="jpg", overwrite=Fal
     bool
         True if the image was saved successfully, False otherwise.
     """
-    # Normalize file extension
-    if not ext.startswith("."):
-        ext = "." + ext
-
+    # Normalize file path and extract base name and extension
+    dir_path, file_name = os.path.split(file_path)
+    base_name, ext = os.path.splitext(file_name)
+    
     # Handle suffix
     suffix = f"_{suffix}" if suffix else ""
-
-    # Construct full file path
-    base_name, original_ext = os.path.splitext(file_name)
-    if original_ext:
-        file_name = base_name  # Remove original extension if it exists
-    file_name_new = f"{file_name}{suffix}{ext}"
-    file_path = os.path.join(dir_path, file_name_new)
+    
+    # Construct new file path
+    file_name_new = f"{base_name}{suffix}{ext}"
+    new_file_path = os.path.join(dir_path, file_name_new)
 
     # Check if file exists and handle overwrite logic
-    if os.path.isfile(file_path) and not overwrite:
-        ul._print(f"Image not saved - file already exists (overwrite=False): {file_path}")
+    if os.path.isfile(new_file_path) and not overwrite:
+        print(f"Image not saved - file already exists (overwrite=False): {new_file_path}")
         return False
     else:
-        if overwrite and os.path.isfile(file_path):
-            ul._print(f"Image saved and overwritten at: {file_path}")
+        if overwrite and os.path.isfile(new_file_path):
+            print(f"Image saved and overwritten at: {new_file_path}")
         else:
-            ul._print(f"Image saved at: {file_path}")
+            print(f"Image saved at: {new_file_path}")
 
         # Save the image
-        success = cv2.imwrite(file_path, image)
+        success = cv2.imwrite(new_file_path, image)
         return success
 
 

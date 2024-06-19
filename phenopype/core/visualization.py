@@ -426,6 +426,7 @@ def draw_mask(
     annotations,
     line_colour="default",
     line_width="auto",
+    fill=0,
     label=False,
     label_colour="default",
     label_size="auto",
@@ -497,21 +498,21 @@ def draw_mask(
     # execute
 
     canvas = copy.deepcopy(image)
-
+    
     for coords in polygons:
-        cv2.polylines(
-            canvas, np.array([coords]), False, line_colour, line_width,
-        )
-
+        if fill > 0:
+            cv2.fillPoly(canvas, np.array([coords]), line_colour)
+        else:
+            cv2.polylines(canvas, np.array([coords]), False, line_colour, line_width)
+    
         if flags.label:
-
-            if coords[0].__class__.__name__ == "list":
+            if isinstance(coords[0], list):
                 label_coords = tuple(coords[0])
-            elif coords[0].__class__.__name__ == "ndarray":
+            elif isinstance(coords[0], np.ndarray):
                 label_coords = tuple(coords[0][0])
-            elif coords[0].__class__.__name__ == "tuple":
+            elif isinstance(coords[0], tuple):
                 label_coords = coords[0]
-
+    
             cv2.putText(
                 canvas,
                 label,
@@ -522,11 +523,14 @@ def draw_mask(
                 label_width,
                 cv2.LINE_AA,
             )
-
-    # =============================================================================
-    # return
+    
+    if fill > 0:
+        # Blend the original canvas with the filled polygons
+        original_canvas = copy.deepcopy(image)
+        canvas = cv2.addWeighted(original_canvas, 1 - fill, canvas, fill, 0)
 
     return canvas
+        
 
 
 def draw_polyline(

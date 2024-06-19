@@ -13,16 +13,16 @@ authors = [
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
 dependencies = [
-        "colour",
-        "numpy",
-        "opencv-contrib-python",
-        "pandas",
-        "pillow",
-        "ruamel.yaml",
-        "tqdm",
+	"colour",
+	"numpy",
+	"opencv-contrib-python",
+	"pandas",
+	"pillow",
+	"ruamel.yaml",
+	"tqdm",
 	"rich",
 	"screeninfo",
-        "watchdog",
+	"watchdog",
     ]
 keywords = ["computer vision", "biology"]  
 
