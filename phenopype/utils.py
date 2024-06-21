@@ -109,15 +109,19 @@ def resize_image(
     Parameters
     ----------
     image: array 
-        image to be resized
-    max_dim: int, optional
-        maximum size of any dimension that the image will be resized to. if 
-        image is smaller, no resizing will be performed. maintains aspect ratio
+        Image to be resized
     factor: float, optional
-        resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of 
-        original size). at 1, no resizing will be performed
+        Resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of original size). At 1, no resizing will be performed
+    factor_ret: bool, optional
+        If True, returns the image and the resize factor
+    width: int, optional
+        Width to resize the image to. If specified, height must also be specified
+    height: int, optional
+        Height to resize the image to. If specified, width must also be specified
+    max_dim: int, optional
+        Maximum size of any dimension that the image will be resized to. Maintains aspect ratio
     interpolation: {'nearest', 'linear', 'cubic', 'area', 'lanczos', 'lin_exact', 'inter', 'warp_fill', 'warp_inverse'} str, optional
-        interpolation algorithm to use - refer to https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
+        interpolation algorithm to use - refer to https://docs.opencv.org/4.9.0/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
 
     Returns
     -------
@@ -125,56 +129,40 @@ def resize_image(
         resized image
 
     """
-    image_height, image_width = image.shape[0:2]
+    
+    image_height, image_width = image.shape[:2]
 
-    ## method
-    if not all([
-            width.__class__.__name__ == "NoneType",
-            height.__class__.__name__ == "NoneType",
-            ]):
+    if width is not None and height is not None:
         image = cv2.resize(
             image,
             (width, height),
-            interpolation=_vars.opencv_interpolation_flags[interpolation],
+            interpolation=_vars.opencv_interpolation_flags[interpolation]
         )
-    
-    elif not max_dim.__class__.__name__ == "NoneType":
+    elif max_dim is not None:
         if image_height > max_dim or image_width > max_dim:
             if image_width >= image_height:
                 factor = max_dim / image_width
-                new_image_width, new_image_height = (
-                    max_dim,
-                    int(factor * image_height),
-                )
-            elif image_height > image_width:
+            else:
                 factor = max_dim / image_height
-                new_image_width, new_image_height = (
-                    int(factor * image_width),
-                    max_dim,
-                )
+            new_image_width = int(image_width * factor)
+            new_image_height = int(image_height * factor)
             image = cv2.resize(
                 image,
                 (new_image_width, new_image_height),
-                interpolation=_vars.opencv_interpolation_flags[interpolation],
+                interpolation=_vars.opencv_interpolation_flags[interpolation]
             )
-            
-    else:        
-        if factor == 1:
-            pass
-        else:
-            image = cv2.resize(
-                image,
-                (0, 0),
-                fx=1 * factor,
-                fy=1 * factor,
-                interpolation=_vars.opencv_interpolation_flags[interpolation],
-            )
+    elif factor != 1:
+        image = cv2.resize(
+            image,
+            (0, 0),
+            fx=factor,
+            fy=factor,
+            interpolation=_vars.opencv_interpolation_flags[interpolation]
+        )
 
-    ## return results
     if factor_ret:
-        return image, factor    
-    else:
-        return image
+        return image, factor
+    return image
 
 
 def save_image(image, file_path, suffix=None, overwrite=False):

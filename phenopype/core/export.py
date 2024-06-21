@@ -177,7 +177,7 @@ def export_csv(
 
     ## format annotation type
     if annotation_type.__class__.__name__ == "NoneType":
-        print("- no annotation_type selected - exporting all annotations")
+        ul._print("- no annotation_type selected - exporting all annotations")
         annotation_types = list(annotations.keys())
     elif annotation_type.__class__.__name__ == "str":
         annotation_types = [annotation_type]
@@ -345,7 +345,7 @@ def export_csv(
                     )
 
         if len(list_flattened) > 0:
-            print("- exported csv for type " + annotation_type)
+            ul._print("- exported csv for type " + annotation_type)
             df = pd.concat(list_flattened)
             filepath = os.path.join(
                 dir_path, save_prefix + annotation_type + save_suffix + ".csv"
@@ -542,13 +542,13 @@ def save_annotation(
                         annotation_file = json.load(file)
                         annotation_file = defaultdict(dict, annotation_file)
                     except Exception as ex:
-                        print(
+                        ul._print(
                             "load_annotation: "
                             + str(ex.__class__.__name__)
                             + " - "
                             + str(ex)
                         )
-                        print("Could not read {} - creating new file.".format(filepath))
+                        ul._print("Could not read {} - creating new file.".format(filepath))
                         annotation_file = defaultdict(dict, {})
 
                 ul._print("- loading existing annotation file")
@@ -793,8 +793,8 @@ def save_ROI(
                     angle = angle - 90
             else:
                 angle = angle_apply
-            roi_rot = ul._rotate_image(roi, angle)
-            roi_mask_rot = ul._rotate_image(roi_mask, angle)
+            roi_rot = ul._rotate_image(roi, angle, allow_crop=False)
+            roi_mask_rot = ul._rotate_image(roi_mask, angle, allow_crop=False)
             contour, _ = cv2.findContours(roi_mask_rot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             rx, ry, rw, rh = cv2.boundingRect(contour[0])
             roi = roi_rot[ry : ry + rh, rx : rx + rw]

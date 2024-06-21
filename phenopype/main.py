@@ -2,6 +2,7 @@
 
 # Standard library imports
 import copy
+import glob
 import io
 import json
 import logging
@@ -1826,11 +1827,10 @@ class Project:
             )
             
             if len(results) == 0:
-                results = ["no-results"]
-                
-            ## search feedback
-            print("file \"{}\": found {} results in {} project folders".format(
-                file, len(results), len(self.dir_names)))
+                results = ["no-results"]  
+            else:
+                print("file \"{}\": found {} results in {} project folders".format(
+                    file, len(results), len(self.dir_names)))
 
             ## save to csv
             if all([flags.aggregate_csv,
@@ -1872,21 +1872,24 @@ class Project:
                         shutil.copyfile(old_path, new_path)
                     
             
+
     def copy_tag(
             self, 
             tag_src, 
             tag_dst, 
             copy_annotations=True, 
-            copy_config=True,
+            copy_config=True, 
+            copy_exports=False, 
             overwrite=False, 
-            **kwargs):
+            **kwargs
+            ):
         """
         Make a copy of data generated under a specific tag and save it under a 
         new tag - e.g.: 
-            
+                
             annotations_v1.json ==> annotations_v2.json
             pype_config_v1.yaml ==> pype_config_v2.yaml
-
+    
         Parameters
         ----------
         tag_src : str
@@ -1897,21 +1900,23 @@ class Project:
             copy annotations file. The default is True.
         copy_config : bool, optional
             copy config file. The default is True.
+        copy_exports : bool, optional
+            copy export files ending with tag_src + ".csv". The default is False.
         overwrite : bool, optional
              overwrites if tag exists. The default is False.
         kwargs: 
             developer options
-
+    
         Returns
         -------
         None.
-
+    
         """
-   
+    
         ## go through project directories
         for directory in self.dir_paths:
             dir_name = os.path.basename(directory)
-
+    
             if copy_annotations:
                 annotations_path = os.path.join(
                     self.root_dir, "data", dir_name, "annotations_" + tag_src + ".json"
@@ -1921,12 +1926,11 @@ class Project:
                 )
                 
                 if os.path.isfile(annotations_path): 
-                    if ul._overwrite_check_file(new_annotations_path, overwrite):
+                    if ul._overwrite_check(new_annotations_path, overwrite):
                         shutil.copyfile(annotations_path, new_annotations_path)
-                        print("Copy annotations for {}".format(dir_name))
+                        ul._print(f"Copied annotations for {dir_name}")
                 else:
-                    print("Missing annotations for {} - skipping".format(dir_name))
-
+                    ul._print(f"Missing annotations for {dir_name} - skipping", lvl=1)
                     
             if copy_config:
                 config_path = os.path.join(
@@ -1937,11 +1941,24 @@ class Project:
                 )
                 
                 if os.path.isfile(config_path): 
-                    if ul._overwrite_check_file(new_config_path, overwrite):
+                    if ul._overwrite_check(new_config_path, overwrite):
                         shutil.copyfile(config_path, new_config_path)
-                        print("Copy config for {}".format(dir_name))
+                        ul._print(f"Copied config for {dir_name}".format())
                 else:
-                    print("Missing config for {} - skipping".format(dir_name))
+                    ul._print(f"Missing config for {dir_name} - skipping", lvl=1)
+    
+            if copy_exports:
+                export_pattern = os.path.join(self.root_dir, "data", dir_name, f"*{tag_src}.csv")
+                for export_path in glob.glob(export_pattern):
+                    new_export_path = export_path.replace(tag_src + ".csv", tag_dst + ".csv")
+                    
+                    if os.path.isfile(export_path):
+                        if ul._overwrite_check(new_export_path, overwrite):
+                            shutil.copyfile(export_path, new_export_path)
+                            ul._print(f"Copied exported csv files for {dir_name}")
+                    else:
+                        ul._print(f"Missing exported csv files for {dir_name} - skipping", lvl=1)
+
 
                 
     def edit_config(
@@ -2568,15 +2585,11 @@ class Pype(object):
             ],
         )
         
-        if self.flags.debug:
-            self.verbose = config.verbose
-            config.verbose = True
-            
-        if image_path.__class__.__name__ == "str":
+        ## image exists?
+        if isinstance(image_path, str):
             image_path = os.path.abspath(image_path)
         if not dir_path:
             dir_path = os.path.dirname(image_path)
-
                         
         # =============================================================================
         # LOGGING
@@ -2587,12 +2600,16 @@ class Pype(object):
         if (self.logger.hasHandlers()):
             self.logger.handlers.clear()
                         
+        ## handle feedback
         if self.flags.feedback:
             stdout_handler = logging.StreamHandler(sys.stdout)
             stdout_handler.setLevel(logging.DEBUG)
             stdout_formatter = logging.Formatter('%(asctime)s: %(message)s', "%H:%M:%S")
             stdout_handler.setFormatter(stdout_formatter)
             self.logger.addHandler(stdout_handler)
+        if not self.flags.feedback or self.flags.debug:
+            config.verbose_user = copy.deepcopy(config.verbose)
+            config.verbose = False
 
         ## log file
         if os.path.isdir(image_path):
@@ -2603,6 +2620,7 @@ class Pype(object):
         if os.path.isfile(log_file_path) and log_ow:
             os.remove(log_file_path)
             
+        ## format logfile
         file_handler = logging.FileHandler(log_file_path)
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', "%Y-%m-%d %H:%M:%S")
@@ -2748,13 +2766,13 @@ class Pype(object):
         
         # =============================================================================
 
-        ## end logging
+        ## cleanup
         logging.shutdown()
-        
-        if self.flags.debug:
-            config.verbose = self.verbose
-
-
+        if not self.flags.feedback or self.flags.debug:
+            config.verbose = config.verbose_user
+        if hasattr(self, "YFM"):
+            self.YFM._stop()
+                        
     def _load_container(self, image_path, dir_path, tag):
         if image_path.__class__.__name__ == "str":
             if os.path.isfile(image_path):
@@ -2854,25 +2872,18 @@ class Pype(object):
     
 
     def _check_final(self):
-
-        ## check components before starting pype to see if something went wrong
-        if (
-            not hasattr(self.container, "image")
-            or self.container.image.__class__.__name__ == "NoneType"
-        ):
+        """
+        Check components before starting to see if something went wrong.
+        """
+        if not hasattr(self.container, "image") or self.container.image is None:
             raise AttributeError("No image was loaded")
-            return
-        if (
-            not hasattr(self.container, "dir_path")
-            or self.container.dir_path.__class__.__name__ == "NoneType"
-        ):
+    
+        if not hasattr(self.container, "dir_path") or self.container.dir_path is None:
             raise AttributeError("Could not determine dir_path to save output.")
-            return
-        if not hasattr(self, "config") or self.config.__class__.__name__ == "NoneType":
-            raise AttributeError(
-                "No config file was provided or loading config did not succeed."
-            )
-            return
+    
+        if not hasattr(self, "config") or self.config is None:
+            raise AttributeError("No config file was provided or loading config did not succeed.")
+
         
     def _log(self, lvl, messages, ind=0, passthrough=False):
         
@@ -3085,7 +3096,7 @@ class Pype(object):
                     method_args["interactive"] = flags.interactive                        
                     method_args["zoom_memory"] = self.flags.zoom_memory           
                     method_args["tqdm_off"] = not self.flags.feedback
-                    
+
                     ## excecute and capture stdout
                     try:
                         if not self.flags.debug:
@@ -3107,15 +3118,11 @@ class Pype(object):
                                 annotation_counter=annotation_counter,
                             )
                     except Exception as ex:
-                        print(buffer.getvalue())
                         error_msg =  f"{step_name}.{method_name}: {str(ex.__class__.__name__)} - {ex}"
                         self._log("error", error_msg, 1)
                         
                         ## cleanup
                         if self.flags.debug:
-                            config.verbose = self.verbose
-                            
-                            ## raise error and end
                             raise
 
 

@@ -13,33 +13,31 @@ from phenopype import utils_lowlevel as ul
 
 #%% decorators 
 
-def annotation_function(fun, *args, **kwargs):
+def annotation_function(fun):
     
     @wraps(fun)
     def annotation_function_wrapper(*args, **kwargs):
-                
+
         ## determine the annotation type from function name
         kwargs["annotation_type"] = ul._get_annotation_type(fun.__name__)
 
         ## get annotation using 
         if "annotations" in kwargs:
-            if kwargs["annotations"].__class__.__name__ in ["dict"]:
-                if len(kwargs["annotations"]) > 0:                      
-                    kwargs["annotation_id"] = ul._get_annotation_id(**kwargs)   
+            if isinstance(kwargs["annotations"], dict):
+                if len(kwargs["annotations"]) > 0:
+                    kwargs["annotation_id"] = ul._get_annotation_id(**kwargs)
                     kwargs["annotation"] = ul._get_annotation2(**kwargs)
-                else:
-                    print("empty annotations supplied")
-            else:
-                print("wrong annotations data supplied - need dict")
                 
         ## run function
         kwargs["annotation"] = fun(*args, **kwargs)
     
         ## return and update annotations    
         if "annotations" in kwargs:
-            return ul._update_annotations(**kwargs)
+            result = ul._update_annotations(**kwargs)
         else:
-            return kwargs["annotation"]
+            result = kwargs["annotation"]
+
+        return result
     
     ## close function wrapper
     return annotation_function_wrapper

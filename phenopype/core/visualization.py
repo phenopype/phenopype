@@ -646,7 +646,7 @@ def draw_QRcode(
     annotations,
     line_colour="default",
     line_width="auto",
-    label=False,
+    label=True,
     label_colour="default",
     label_size="auto",
     label_width="auto",
@@ -733,6 +733,13 @@ def draw_QRcode(
             label_width,
             cv2.LINE_AA,
         )
+                
+        canvas = cv2.polylines(
+            canvas, 
+            [np.asarray(points, np.int32)], 
+            True, 
+            ul._get_bgr(label_colour, "label_colour"), 
+            5)
 
     # =============================================================================
     # return

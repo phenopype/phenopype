@@ -16,6 +16,7 @@ import time
 import threading
 import warnings
 from _ctypes import PyObj_FromPtr
+from collections import defaultdict
 from contextlib import redirect_stdout
 from dataclasses import dataclass, fields, make_dataclass
 from datetime import datetime
@@ -821,7 +822,7 @@ class _GUI:
     def _prepare_tools(self, kwargs):
         
         if self.tool in ["comment", "labelling"]:
-            
+                        
             self.settings.label_keymap = kwargs.get("label_keymap")
             self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
             y_pos, x_pos = self.settings.label_position
@@ -836,12 +837,11 @@ class _GUI:
                 self.settings.label_width,
                 cv2.LINE_AA,
             )
-
+            
         if self.tool == "draw":
             self.settings.line_width_draw = copy.deepcopy(self.settings.line_width)
             ## draw contours if they're there
             if len(self.data[_vars._contour_type]) > 0:
-
                 if len(self.image.shape) == 2:
                     self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
                 self.image_bin = np.zeros(self.image.shape[0:2], dtype=np.uint8)
@@ -925,7 +925,7 @@ class _GUI:
         
         
     def _labelling_tool(self):
-        
+                
         y_pos, x_pos = self.settings.label_position
         
         if self.keypress in [13, 27, 2424832, 2555904]:
@@ -1663,125 +1663,66 @@ class _YamlFileMonitor:
                 time.sleep(1)
                 current_time = timer() - start_time
                 if current_time > 3:
-                    print_msg = f"FORCING WINDOW CLOSURE...{current_time}"
+                    print_msg = f"FORCING WINDOW CLOSURE..."
                     _print(print_msg, watch_last=True)
+                    break
         self.time_start = timer()
 
     def _stop(self):
         self.observer.stop()
         self.observer.join()
         
+    def __del__(self):
+        self.stop()
+        
 #%% functions - annotations helpers
 
 
-def _get_annotation(
-    annotations,
-    annotation_type,
-    annotation_id=None,
-    reduce_counter=False,
-    prep_msg=None,
-    kwargs={},
-):
+def _get_annotation(annotations, annotation_type, annotation_id=None, reduce_counter=False, prep_msg=None, **kwargs):
 
-    ## setup
-    pype_mode = kwargs.get("pype_mode", False)
-    prep_msg = kwargs.get("prep_msg", "")
-    verbose = kwargs.get("verbose", False)
+    annotation_counter = kwargs.get("annotation_counter", {})
+    annotations = copy.deepcopy(annotations or {})
 
-    annotations = copy.deepcopy(annotations)
-    
-    if annotations.__class__.__name__ == "NoneType":
-        annotations = {}
-
-    if not annotation_type.__class__.__name__ == "NoneType":
-        annotation_id_str = annotation_type + "_id"
-        print_msg = ""
-    else:
+    if not annotation_type:
         return {}
 
-    ## get non-generic id for plotting
+    annotation_id_str = f"{annotation_type}_id"
+    print_msg = ""
+
     if annotation_id_str in kwargs:
         annotation_id = kwargs.get(annotation_id_str)
-        
-    if annotations.__class__.__name__ in ["dict", "defaultdict"]:
 
-        ## get ID from last used annotation function of that type
-        if annotation_id.__class__.__name__ == "NoneType":
-
-            if kwargs.get("annotation_counter"):
-                print_msg = '- "{}" not provided: '.format(annotation_id_str)
-                annotation_counter = kwargs.get("annotation_counter")
-                annotation_id = string.ascii_lowercase[
-                    annotation_counter[annotation_type]
-                ]
+    if isinstance(annotations, (dict, defaultdict)):
+        if not annotation_id:
+            if annotation_counter:
+                print_msg = f'- "{annotation_id_str}" not provided: '
+                annotation_id = string.ascii_lowercase[annotation_counter.get(annotation_type, 0)]
                 if annotation_id == "z":
-                    print_msg = (
-                        print_msg
-                        + '- no precursing annotations of type "{}" found'.format(
-                            annotation_type
-                        )
-                    )
+                    print_msg += f'- no preceding annotations of type "{annotation_type}" found'
                     annotation_id = None
                 else:
                     if reduce_counter:
                         annotation_id = chr(ord(annotation_id) - 1)
-                    print_msg = (
-                        print_msg
-                        + 'using last annotation of type "{}" with ID "{}"'.format(
-                            annotation_type, annotation_id
-                        )
-                    )
+                    print_msg += f'using last annotation of type "{annotation_type}" with ID "{annotation_id}"'
+
             if annotation_type in annotations:
-                    annotation_id = max(list(annotations[annotation_type].keys()))
-                    print_msg = '"{}" not specified - using endmost in provided annotations: "{}"'.format(
-                        annotation_id_str, annotation_id
-                    )
+                annotation_id = max(annotations[annotation_type], default=None)
+                if annotation_id is not None:
+                    print_msg = f'"{annotation_id_str}" not specified - using endmost in provided annotations: "{annotation_id}"'
+                else:
+                    annotation_id = None
 
-            else:
-                annotation = {}
-                print_msg = '"{}" not specified and annotation type not found'.format(
-                    annotation_id_str
-                )
-
-        ## check if type is given
         if annotation_type in annotations:
-
-            ## extract item
-            if annotation_id:
-                if annotation_id in annotations[annotation_type]:
-                    annotation = copy.deepcopy(annotations[annotation_type][annotation_id])
-                else:
-                    print_msg = 'could not find "{}" with ID "{}"'.format(
-                        annotation_type, annotation_id
-                    )
-                    annotation = {}
-            else:
-                annotation = {}
+            annotation = annotations[annotation_type].get(annotation_id, {})
+            if not annotation:
+                print_msg = f'could not find "{annotation_type}" with ID "{annotation_id}"'
         else:
-            print_msg = 'incompatible annotation type supplied - need "{}" type'.format(
-                annotation_type
-            )
+            print_msg = f'incompatible annotation type supplied - need "{annotation_type}" type'
             annotation = {}
-
-
-        ## cleaned feedback (skip identical messages)
-        while True:
-            if print_msg and verbose:
-                if prep_msg:
-                    print_msg = prep_msg + "\n\t" + print_msg
-                if pype_mode:
-                    if not print_msg == config.last_print_msg:
-                        config.last_print_msg = print_msg
-                        break
-                    else:
-                        pass
-                else:
-                    pass
-                _print(print_msg)
-                break
-            break
     else:
         annotation = {}
+        
+    _print(print_msg, watch_last=True)
 
     return annotation
     
@@ -1796,7 +1737,6 @@ def _get_annotation_id(
 ):
 
     ## setup
-    pype_mode = kwargs.get("pype_mode", False)
     annotation_counter = kwargs.get("annotation_counter", None)
     print_msg = None
     
@@ -1812,13 +1752,13 @@ def _get_annotation_id(
             else:
                 if reduce_counter:
                     annotation_id = chr(ord(annotation_id) - 1)
-                print_msg = '- using last created annotation of type \"{}\" with ID "{}"'.format(
+                print_msg = '- using last annotation of type \"{}\" with ID "{}"'.format(
                     annotation_type, annotation_id
                     )
         else:
             if annotation_type in annotations:
                 annotation_id = max(list(annotations[annotation_type].keys()))
-                print_msg = '- using endmost annotation of type "{}" with ID "{}"'.format(
+                print_msg = '- using last annotation of type "{}" with ID "{}"'.format(
                     annotation_type, annotation_id
                 )
 
@@ -1827,12 +1767,11 @@ def _get_annotation_id(
                 print_msg = '- annotation_id not specified and annotation of type "{}" not found'.format(
                     annotation_type
                 )
-    else:
-        pass
-    if verbose:
-        _printer(print_msg, pype_mode)                
+
+    _print(print_msg, watch_last=True)                
 
     return annotation_id
+
 
 def _get_annotation_type(fun_name):
 
@@ -1858,27 +1797,6 @@ def _get_annotation2(annotations, annotation_type, annotation_id, **kwargs):
         annotation = {}
         
     return annotation
-    
-
-def _printer(print_msg, pype_mode=False,**kwargs):
-    
-    ## cleaned feedback (skip identical messages)
-    while True:
-        if print_msg and config.verbose:
-            # if prep_msg:
-            #     print_msg = prep_msg + "\n\t" + print_msg
-            if pype_mode:
-                if not print_msg == config.last_print_msg:
-                    config.last_print_msg = print_msg
-                    break
-                else:
-                    pass
-            else:
-                pass
-            print(print_msg)
-            break
-        break
-
 
 
 def _update_annotations(
@@ -2213,9 +2131,8 @@ def _load_template(template_path, tag="v1", overwrite=False, keep_comments=True,
         template_loaded = {**config_info, **template_loaded}
         _yaml_recursive_delete_comments(template_loaded)
 
-    if _save_prompt("template", config_path, flags.overwrite):
-        with open(config_path, "wb") as yaml_file:
-            yaml.dump(template_loaded, yaml_file)
+    if _overwrite_check(config_path, flags.overwrite):
+        _save_yaml(template_loaded, config_path)
 
     if ret_path:
         return config_path
@@ -2271,6 +2188,7 @@ def _get_size(image_height, image_width, element="line_width", size_value="auto"
     # Calculate size based on the factor
     value = int(factor * image_diagonal)
 
+    ## adjust value to minimally visible pixels
     adj_value = max(config.min_visible_px, min(int(math.log1p(value) * 2), config.max_linewidth_px))
     
     # print(element, value, adj_value)
@@ -2292,6 +2210,9 @@ def _get_bgr(col_string, element=None):
         
     elif isinstance(col_string, int):
         colour = (col_string, col_string, col_string)
+        
+    elif isinstance(col_string, tuple):
+        colour = col_string
         
     return colour
 
@@ -2428,47 +2349,50 @@ def _yaml_recursive_delete_comments(d):
 
 #%% functions - DIALOGS
 
-def _overwrite_check_file(path, overwrite):
-    
-    filename = os.path.basename(path)
-    
-    if os.path.isfile(path) and overwrite == False:
-        print(
-            filename + " not saved - file already exists (overwrite=False)."
-        )
+
+def _overwrite_check(path, overwrite):
+
+    base_name = os.path.basename(path)
+    exists = os.path.isdir(path) or os.path.isfile(path)
+
+    if exists and not overwrite:
+        _print(f"{base_name} not saved - already exists (overwrite=False)", lvl=1)
         return False
-    elif os.path.isfile(path) and overwrite == True:
-        print(filename + " saved under " + path + " (overwritten).")
-        return True
-    elif not os.path.isfile(path):
-        print(filename + " saved under " + path + ".")
+    else:
+        if exists and overwrite:
+            _print(f"{base_name} saved (overwritten)")
+        else:
+            _print(f"{base_name} saved")
         return True
     
-def _overwrite_check_dir(path, overwrite):
-    
-    dirname = os.path.basename(path)
-    
-    if os.path.isdir(path) and overwrite == False:
-        print(
-            dirname + " not saved - file already exists (overwrite=False)."
-        )
-        return False
-    elif os.path.isdir(path) and overwrite == True:
-        print(dirname + " saved under " + path + " (overwritten).")
-        return True
-    elif not os.path.isdir(path):
-        print(dirname + " saved under " + path + ".")
-        return True
     
 #%% functions - PRINTING / LOGGING
 
-def _print(msg, lvl=0, watch_last=False, **kwargs):
-    if config.verbose:
-        if lvl >= config.verbosity_level:
-            if watch_last:
-                if not msg == config.last_print_msg:
-                    print(msg)
-            config.last_print_msg = msg
+# def _print(msg, lvl=0, watch_last=False, **kwargs):
+#     if config.verbose:
+#         if lvl >= config.verbosity_level:
+#             if watch_last: 
+#                 if msg != config.last_print_msg:    
+#                     print(msg)
+#             else:
+#                 print(msg)
+#             config.last_print_msg = msg
+
+def _print(msg, level=0, watch_last=False, **kwargs):
+    level = kwargs.get("lvl", level)
+    if not config.verbose:
+        return
+
+    if level < config.verbosity_level:
+        return
+
+    if watch_last and msg == config.last_print_msg:
+        return
+
+    print(msg)
+    config.last_print_msg = msg
+
+
 
 def _print_label_status(original):
     # Initialize the new dictionary
@@ -2485,6 +2409,7 @@ def _print_label_status(original):
         else:
             # Otherwise set to False
             status_dict[key] = False
+            
     return status_dict
 
 def _print_mod(msg, context="caller", level=1):
@@ -2567,15 +2492,13 @@ def _resize_contour(contour, img_orig, img_resized):
 
     return contour
 
-# def _rotate_coords(array, center, angle, offset=(0,0)):
+def _rotate_coords_center(array, center, angle):
         
-#     dt = array.dtype
+    radian = angle * (pi/180)
+    rotation_matrix = np.array([[np.cos(radian),np.sin(radian)],[-np.sin(radian),np.cos(radian)]])
+    rotated_array = np.dot(array - center, rotation_matrix)+center
     
-#     radian = np.deg2rad(angle)
-#     rotation_matrix = np.array([[np.cos(radian),np.sin(radian)],[-np.sin(radian),np.cos(radian)]])
-#     rotated_array = np.dot(array - center, rotation_matrix) + _rotate_point(center, angle) + offset
-    
-#     return rotated_array.astype(dt)
+    return rotated_array
 
 def _rotate_coords(coords, angle):
     
@@ -2884,7 +2807,6 @@ def _get_caller_name(skip=2):
     return name
 
 
-
 def _resize_mask(original_bbox, resize_x, resize_y):
 
     resized_bbox = (
@@ -2898,50 +2820,93 @@ def _resize_mask(original_bbox, resize_x, resize_y):
 
 
 def _rotate_image(image, angle, ret_center=False):
+#     """
+#     Rotates an image (angle in degrees) and expands image to avoid cropping
+#     Source: https://stackoverflow.com/a/47248339/5238559
+#     """
+    
+#     height, width = image.shape[:2] # image shape has 3 dimensions
+#     image_center = (width/2, height/2) # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+    
+#     rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.)
+    
+#     # rotation calculates the cos and sin, taking absolutes of those.
+#     abs_cos = abs(rotation_mat[0,0]) 
+#     abs_sin = abs(rotation_mat[0,1])
+    
+#     # find the new width and height bounds
+#     bound_w = int(height * abs_sin + width * abs_cos)
+#     bound_h = int(height * abs_cos + width * abs_sin)
+    
+#     # subtract old image center (bringing image back to origo) and adding the new image center coordinates
+#     rotation_mat[0, 2] += bound_w/2 - image_center[0]
+#     rotation_mat[1, 2] += bound_h/2 - image_center[1]
+    
+#     # rotate image with the new bounds and translated rotation matrix
+#     rotated_image = cv2.warpAffine(image, rotation_mat, (bound_w, bound_h))
+    
+#     if ret_center:
+#         return rotated_image, image_center
+#     else:
+#         return rotated_image
+
+# def _rotate_image_crop(image, angle, ret_center=False):
+    
+#     row, col = image.shape[1::-1]
+#     center = tuple(np.array([row, col]) / 2)
+#     rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1)
+#     rotated_image = cv2.warpAffine(image, rotation_matrix, (row, col), flags=cv2.INTER_LINEAR)
+    
+#     if ret_center:
+#         return rotated_image, center
+#     else:
+#         return rotated_image
+
+
+def _rotate_image(image, angle, allow_crop=True, ret=False):
+    
     """
-    Rotates an image (angle in degrees) and expands image to avoid cropping
-    Source: https://stackoverflow.com/a/47248339/5238559
+    Rotates an image by the given angle.
+
+    Parameters
+    ----------
+    image : ndarray
+        The image to rotate.
+    angle : float
+        The angle to rotate the image.
+    preserve_dimensions : bool, optional
+        If True, the image is rotated without cropping by expanding its dimensions. Default is True.
+    ret_center : bool, optional
+        If True, returns the center of the image. Default is False.
+
+    Returns
+    -------
+    rotated_image : ndarray
+        The rotated image.
+    center : tuple, optional
+        The center of the image (only if ret_center is True).
     """
     
-    height, width = image.shape[:2] # image shape has 3 dimensions
-    image_center = (width/2, height/2) # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
-    
-    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.)
-    
-    # rotation calculates the cos and sin, taking absolutes of those.
-    abs_cos = abs(rotation_mat[0,0]) 
-    abs_sin = abs(rotation_mat[0,1])
-    
-    # find the new width and height bounds
-    bound_w = int(height * abs_sin + width * abs_cos)
-    bound_h = int(height * abs_cos + width * abs_sin)
-    
-    # subtract old image center (bringing image back to origo) and adding the new image center coordinates
-    rotation_mat[0, 2] += bound_w/2 - image_center[0]
-    rotation_mat[1, 2] += bound_h/2 - image_center[1]
-    
-    # rotate image with the new bounds and translated rotation matrix
-    rotated_image = cv2.warpAffine(image, rotation_mat, (bound_w, bound_h))
-    
-    if ret_center:
+    height, width = image.shape[:2]
+    image_center = (width / 2, height / 2)
+    rotation_matrix = cv2.getRotationMatrix2D(image_center, angle, 1)
+
+    if allow_crop:
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (width, height), flags=cv2.INTER_LINEAR)
+    else:
+
+        abs_cos = abs(rotation_matrix[0, 0])
+        abs_sin = abs(rotation_matrix[0, 1])
+
+        bound_w = int(height * abs_sin + width * abs_cos)
+        bound_h = int(height * abs_cos + width * abs_sin)
+
+        rotation_matrix[0, 2] += bound_w / 2 - image_center[0]
+        rotation_matrix[1, 2] += bound_h / 2 - image_center[1]
+
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (bound_w, bound_h))
+
+    if ret:
         return rotated_image, image_center
     else:
         return rotated_image
-
-
-def _save_prompt(object_type, filepath, ow_flag):
-
-    if os.path.isfile(filepath) and ow_flag == False:
-        print_msg = "- {} not saved - file already exists (overwrite=False)".format(
-            object_type
-        )
-        ret = False
-    elif os.path.isfile(filepath) and ow_flag == True:
-        print_msg = "- {} saved under {} (overwritten)".format(object_type, filepath)
-        ret = True
-    elif not os.path.isfile(filepath):
-        print_msg = "- {} saved under {}".format(object_type, filepath)
-        ret = True
-
-    print(print_msg)
-    return ret

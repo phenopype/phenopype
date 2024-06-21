@@ -1,20 +1,24 @@
 #%% modules
 
+import copy
 import cv2
 import math
 import numpy as np
 import sys
-
+import time
 from dataclasses import make_dataclass
+from tqdm import tqdm
 
 from phenopype import __version__
 from phenopype import _vars
+from phenopype import config
 from phenopype import decorators
 from phenopype import utils
 from phenopype import utils_lowlevel as ul
 from phenopype import core
 
 from phenopype.utils_lowlevel import _get_annotation_type
+
 #%% functions
 
 def blur(
@@ -813,6 +817,7 @@ def detect_reference(
 def detect_QRcode(
     image,
     rot_steps=20,
+    preprocess=True,
     enter_manually=False,
     show_results=False,
     label = "QR-code",
@@ -867,44 +872,49 @@ def detect_QRcode(
         cls_name="flags",
         fields=[("found", bool, False), 
                 ("enter_manually",bool, enter_manually),
-                ("show_results",bool, show_results)
+                ("show_results",bool, show_results),
+                ("preprocess",bool, preprocess),
                 ],
-    )
-    
-    if label_size == "auto":
-        label_size = ul._auto_text_size(image)
-    if label_width == "auto":
-        label_width = ul._auto_text_width(image)
-
-    if label_colour == "default":
-        label_colour = _vars._default_label_colour
-
-    label_colour = ul._get_bgr(label_colour)
-    
+    )    
 
     # =============================================================================
     # execute
     
+
+    image_copy, resize_factor = utils.resize_image(image.copy(), max_dim=1000, factor_ret=True)
+
+    ## preprocessing
+    if flags.preprocess:
+        ul._print("- preprocessing image")
+        image_copy = cv2.cvtColor(image_copy, cv2.COLOR_BGR2GRAY)
+        image_copy = cv2.GaussianBlur(image_copy, (5, 5), 0)
+        _, image_copy = cv2.threshold(image_copy, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    
     ## init QR-code detector
     qrCodeDetector = cv2.QRCodeDetector()
-    
+    decodedText, points, _ = qrCodeDetector.detectAndDecode(image_copy)
+
     ## rotate image 
-    print("- rotating image to detect code:")
-    for angle in range(0, 360, rot_steps):
-        print("  - rotating image - {} degrees".format(angle))
-        image_rot, image_center = ul._rotate_image(image, angle, ret_center=True)  
-        decodedText, points_rot, _ = qrCodeDetector.detectAndDecode(image_rot)
-        if not decodedText == "" and not points_rot.__class__.__name__ == 'NoneType':
-            flags.found = True
-            break
-            
+    if not points:
+        ul._print("- rotating image")
+        for angle in range(0, 360, rot_steps):
+            image_rot, image_center = ul._rotate_image(image_copy, angle, allow_crop=False, ret=True)  
+            decodedText, points_rot, _ = qrCodeDetector.detectAndDecode(image_rot)
+            if decodedText and points_rot is not None:
+                flags.found = True
+                points = ul._rotate_coords_center(points_rot, image_center, angle)         
+                break
+    else:
+        flags.found
+        
+    ## format points
     if flags.found:
-        points = ul._rotate_coords(points_rot, image_center, angle)         
+        points = (points / resize_factor).astype(int)
         points = ul._convert_arr_tup_list(points)
-        print("found text: {}".format(decodedText))
+        ul._print("- found QRcode: {}".format(decodedText))
     else:
         if flags.enter_manually:
-            print("- did not find QR-code - enter code manually")
+            ul._print("- did not find QR-code - enter manually:")
             gui = ul._GUI(
                 image,
                 tool="comment",
@@ -917,20 +927,9 @@ def detect_QRcode(
             )
             decodedText = gui.data[_vars._comment_type]
         else:
-            print("- did not find QR-code")
+            ul._print("- did not find QR-code")
             return
                 
-    # =============================================================================
-    # execute
-    
-    if flags.show_results and flags.found:
-        canvas = cv2.polylines(
-            image, 
-            [np.asarray(points, np.int32)], 
-            True, 
-            label_colour, 
-            5)
-        utils.show_image(canvas)
                 
     # =============================================================================
     # assemble results
