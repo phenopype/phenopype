@@ -815,11 +815,12 @@ def detect_reference(
 @decorators.annotation_function
 def detect_QRcode(
     image,
-    rot_steps=20,
+    rot_steps=10,
     preprocess=True,
+    rotate=True,
+    max_dim=1000,
     enter_manually=False,
-    show_results=False,
-    label = "QR-code",
+    label="QR-code",
     label_colour="default",
     label_size="auto",
     label_width="auto",
@@ -833,11 +834,11 @@ def detect_QRcode(
     ----------
     image: ndarray 
         input image
-    rot_steps : TYPE, optional
+    rot_steps : int, optional
         angle by which image is rotated (until 360 is reached). The default is 20.
-    enter_manually : TYPE, optional
-        enter code manually of detection fails. The default is False.
-    show_results : TYPE, optional
+    enter_manually : bool, optional
+        enter code manually if detection fails. The default is False.
+    show_results : bool, optional
         show the detection results. The default is False.
     label_colour : {"default", ... see phenopype.print_colours()} str, optional
         text colour - default colour as specified in settings
@@ -850,7 +851,6 @@ def detect_QRcode(
     -------
     annotations: dict
         phenopype annotation
-
     """
     
     # =============================================================================
@@ -870,43 +870,49 @@ def detect_QRcode(
     flags = make_dataclass(
         cls_name="flags",
         fields=[("found", bool, False), 
-                ("enter_manually",bool, enter_manually),
-                ("show_results",bool, show_results),
-                ("preprocess",bool, preprocess),
+                ("enter_manually", bool, enter_manually),
+                ("preprocess", bool, preprocess),
+                ("rotate", bool, rotate),
                 ],
     )    
 
     # =============================================================================
     # execute
     
-
-    image_copy, resize_factor = utils.resize_image(image.copy(), max_dim=1000, factor_ret=True)
-
-    ## preprocessing
-    if flags.preprocess:
-        ul._print("- preprocessing image")
-        image_copy = cv2.cvtColor(image_copy, cv2.COLOR_BGR2GRAY)
-        image_copy = cv2.GaussianBlur(image_copy, (5, 5), 0)
-        _, image_copy = cv2.threshold(image_copy, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    image_copy, resize_factor = utils.resize_image(image.copy(), max_dim=max_dim, factor_ret=True)
     
-    ## init QR-code detector
+    
+    # Initialize QR-code detector
     qrCodeDetector = cv2.QRCodeDetector()
-    decodedText, points, _ = qrCodeDetector.detectAndDecode(image_copy)
-
-    ## rotate image 
-    if points is None or points.size == 0:
-        ul._print("- rotating image")
+    
+    # Attempt to decode QR code from the original image
+    decodedText, points = qrCodeDetector.detectAndDecode(image_copy)[:2]
+    
+    # If not found, apply preprocessing and attempt again
+    if points is None or points.size == 0 or decodedText=="":
+        ul._print("- preprocessing image", lvl=1)
+        image_prep = cv2.cvtColor(image_copy, cv2.COLOR_BGR2GRAY)
+        image_prep = cv2.GaussianBlur(image_prep, (5, 5), 0)
+        _, image_prep = cv2.threshold(image_prep, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        decodedText, points = qrCodeDetector.detectAndDecode(image_prep)[:2]
+    
+    # Rotate image and attempt decoding for both unprocessed and preprocessed images
+    if points is None or points.size == 0 or decodedText=="":
+        ul._print("- rotating image", lvl=1)
         for angle in range(0, 360, rot_steps):
-            image_rot, image_center = ul._rotate_image(image_copy, angle, allow_crop=False, ret=True)  
-            decodedText, points_rot, _ = qrCodeDetector.detectAndDecode(image_rot)
-            if decodedText and points_rot is not None:
-                flags.found = True
-                points = ul._rotate_coords_center(points_rot, image_center, angle)         
+            for image_variant in [image_copy, image_prep]:
+                image_rot, image_center = ul._rotate_image(image_variant, angle, allow_crop=True, ret=True)
+                decodedText, points_rot = qrCodeDetector.detectAndDecode(image_rot)[:2]
+                if decodedText and points_rot is not None:
+                    flags.found = True
+                    points = ul._rotate_coords_center(points_rot, image_center, angle)
+                    break
+            if flags.found:
                 break
     else:
         flags.found = True
          
-    ## format points
+    # Format points
     if flags.found:
         points = (points / resize_factor).astype(int)
         points = ul._convert_arr_tup_list(points)
@@ -959,6 +965,7 @@ def detect_QRcode(
     # return
     
     return annotation
+
 
 def decompose_image(
     image, channel="gray", invert=False, 

@@ -735,12 +735,6 @@ def draw_QRcode(
             cv2.LINE_AA,
         )
                 
-        canvas = cv2.polylines(
-            canvas, 
-            [np.asarray(points, np.int32)], 
-            True, 
-            ul._get_bgr(label_colour, "label_colour"), 
-            line_width)
 
     # =============================================================================
     # return
