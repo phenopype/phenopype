@@ -13,6 +13,7 @@ import pandas as pd
 from phenopype import __version__
 from phenopype import _vars
 from phenopype import config
+from phenopype import decorators
 from phenopype import utils
 from phenopype import utils_lowlevel as ul
 from phenopype.core import preprocessing
@@ -881,7 +882,8 @@ def save_ROI(
                 
         else:
             return roi, roi_mask
-
+        
+@decorators.legacy_args
 def save_canvas(
         image, 
         file_path, 

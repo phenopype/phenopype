@@ -14,11 +14,13 @@ def test_save_canvas(image, settings):
 
     pp.export.save_canvas(
         image, 
+        file_name="canvas.jpg",
         dir_path=pytest.test_dir,
         )
     
     pp.export.save_canvas(
         image, 
+        file_name="canvas.jpg",
         dir_path=pytest.test_dir,
         ext="jpg",
         overwrite=True,

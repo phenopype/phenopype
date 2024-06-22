@@ -35,9 +35,8 @@ def test_load_image(settings, project):
    
 def test_save_image(image):
 
-    pp.save_image(image, file_name="test", dir_path=pytest.test_dir)
-    pp.save_image(image, file_name="test", dir_path=pytest.test_dir)
-    pp.save_image(image, file_name="test", dir_path=pytest.test_dir, overwrite=True)
+    pp.save_image(image, file_name="test.jpg", dir_path=pytest.test_dir)
+    pp.save_image(image, file_name="test.jpg", dir_path=pytest.test_dir, overwrite=True)
 
 
     assert os.path.isfile(os.path.join(pytest.test_dir, "test.jpg"))
