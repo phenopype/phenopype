@@ -2607,9 +2607,9 @@ class Pype(object):
             stdout_formatter = logging.Formatter('%(asctime)s: %(message)s', "%H:%M:%S")
             stdout_handler.setFormatter(stdout_formatter)
             self.logger.addHandler(stdout_handler)
-        if not self.flags.feedback or self.flags.debug:
+        else:
             config.verbose_user = copy.deepcopy(config.verbose)
-            config.verbose = False
+            config.verbose = False       
 
         ## log file
         if os.path.isdir(image_path):
@@ -2641,12 +2641,10 @@ class Pype(object):
             self._iterate(annotations=copy.deepcopy(_vars._annotation_types),
                       execute=False, autoshow=False, feedback=True)
             return
-
+        
         ## check whether directory is skipped
         if self.flags.skip:
-            if self._check_directory_skip(
-                tag=tag, skip_pattern=skip_pattern, dir_path=self.container.dir_path
-            ):
+            if self._check_directory_skip(tag=tag, skip_pattern=skip_pattern, dir_path=self.container.dir_path):
                 return
             
         # =============================================================================
@@ -2654,6 +2652,7 @@ class Pype(object):
         
         startup_msg_list = []
         startup_msg_list.append(ul._pprint_fill_hbar(self.container.image_name, symbol="=", ret=True))
+
         self._log("info", startup_msg_list, 0, passthrough=True)
         
         # =============================================================================
@@ -2768,7 +2767,7 @@ class Pype(object):
 
         ## cleanup
         logging.shutdown()
-        if not self.flags.feedback or self.flags.debug:
+        if not self.flags.feedback:
             config.verbose = config.verbose_user
         if hasattr(self, "YFM"):
             self.YFM._stop()
@@ -2866,7 +2865,8 @@ class Pype(object):
 
         ## print results
         if any(match):
-            ul._print(f'\nFound files {[s for s, m in zip(skip_pattern, match) if m]} - skipping\n')
+            ul._pprint_fill_hbar(self.container.image_name, symbol="=")
+            ul._print(f'- found files {[s for s, m in zip(skip_pattern, match) if m]} - skipping...')
             return True
         return False
     
@@ -3088,42 +3088,34 @@ class Pype(object):
 
                 ## run method with error handling
                 if flags.execute:
-                
-                    ## open buffer
-                    buffer = io.StringIO()
-                    
+                                    
                     ## some function specific switches
                     method_args["interactive"] = flags.interactive                        
                     method_args["zoom_memory"] = self.flags.zoom_memory           
                     method_args["tqdm_off"] = not self.flags.feedback
 
-                    ## excecute and capture stdout
-                    try:
-                        if not self.flags.debug:
-                            with redirect_stdout(buffer):
-                                self.container._run(
-                                    fun=method_name,
-                                    fun_kwargs=method_args,
-                                    annotation_kwargs=annotation_args,
-                                    annotation_counter=annotation_counter,
-                                )
-                                stdout = buffer.getvalue()
-                                self._log("info", stdout, 2)
-                                config.last_print_msg = ""
-                        else:
+                    ## open buffer, excecute and capture stdout
+                    buffer = io.StringIO()
+                    with redirect_stdout(buffer):
+                        try:
                             self.container._run(
                                 fun=method_name,
                                 fun_kwargs=method_args,
                                 annotation_kwargs=annotation_args,
                                 annotation_counter=annotation_counter,
                             )
-                    except Exception as ex:
-                        error_msg =  f"{step_name}.{method_name}: {str(ex.__class__.__name__)} - {ex}"
-                        self._log("error", error_msg, 1)
-                        
-                        ## cleanup
-                        if self.flags.debug:
-                            raise
+                            stdout = buffer.getvalue()
+                            self._log("info", stdout, 2)
+                            config.last_print_msg = ""
+                        except Exception as ex:
+                            stdout = buffer.getvalue()
+                            self._log("info", stdout, 2)
+                            error_msg =  f"{step_name}.{method_name}: {str(ex.__class__.__name__)} - {ex}"
+                            self._log("error", error_msg, 1)
+                            
+                            ## cleanup
+                            if self.flags.debug:
+                                raise
 
 
                     ## check for pype-restart after config change

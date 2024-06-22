@@ -137,6 +137,7 @@ class _Container(object):
             except:
                 print("WARNING - BROKEN ANNOTATIONS FILE")
 
+
         ## load global objects from project attributes
         proj_attributes_path = os.path.join(self.dir_path, r"../../", "attributes.yaml")
         if os.path.isfile(proj_attributes_path):
@@ -185,7 +186,7 @@ class _Container(object):
         annotations = copy.deepcopy(self.annotations)
         annotation_type = annotation_kwargs.get("type")
         annotation_id = annotation_kwargs.get("id")
-
+        
         flag_edit = annotation_kwargs.get("edit", False)
         annotations_updated = None
 
@@ -223,9 +224,9 @@ class _Container(object):
                         annotation_type, annotation_id
                     )
                     if flag_edit == True:
-                        print(print_msg + ": editing (edit=True)")
+                        _print(print_msg + ": editing (edit=True)")
                     elif flag_edit == False:
-                        print(print_msg + ": skipping (edit=False)")
+                        _print(print_msg + ": skipping (edit=False)")
                         if annotation_type in ["drawing"]:
                             kwargs_function["interactive"] = False
                             annotations_updated, self.image = core.segmentation.edit_contour(
@@ -233,7 +234,7 @@ class _Container(object):
                             )
                         return
                     elif flag_edit == "overwrite":
-                        print(print_msg + ": overwriting (edit=overwrite)")
+                        _print(print_msg + ": overwriting (edit=overwrite)")
                         annotations[annotation_type][annotation_id] = {}
                         pass
 
@@ -255,7 +256,7 @@ class _Container(object):
         if fun == "detect_reference":
             template_id = kwargs_function["template_id"]
             if "template" not in config.reference_templates[template_id]:
-                print(f"- loading reference template \"{template_id}\" into memory")
+                _print(f"- loading reference template \"{template_id}\" into memory")
                 config.reference_templates[template_id]["template"] = utils.load_image(
                     config.reference_templates[template_id]["template_path"])
             annotations_updated = core.preprocessing.detect_reference(
@@ -347,14 +348,10 @@ class _Container(object):
                 kwargs_function["file_name"] = self._construct_file_name("annotations", "json")
             core.export.save_annotation(dir_path=self.dir_path,**kwargs_function)
         if fun == "save_canvas":
-            if not "file_name" in kwargs_function:
-                ext = kwargs_function.get("ext", ".jpg")
-                kwargs_function["file_name"] = self._construct_file_name("canvas", ext)
-            core.export.save_canvas(
-                self.canvas,
-                dir_path=self.dir_path,
-                **kwargs_function,
-            )
+            if not "file_path" in kwargs_function:
+                file_name = self._construct_file_name("canvas", kwargs_function.get("ext", ".jpg"))
+                file_path = os.path.join(self.dir_path, file_name)
+            core.export.save_canvas(self.canvas,file_path=file_path,**kwargs_function)
         if fun == "save_ROI":
             if not "file_name" in kwargs_function:
                 kwargs_function["file_name"] = self._construct_file_name(
@@ -899,10 +896,8 @@ class _GUI:
 
     def _comment_tool(self):
 
-        if self.keypress > 0 and not self.keypress in [8, 13, 27]:
-            self.data[_vars._comment_type] = self.data[_vars._comment_type] + chr(
-                self.keypress
-            )
+        if self.keypress > 0 and self.keypress not in [8, 13, 27]:
+            self.data[_vars._comment_type] += chr(self.keypress)
         elif self.keypress == 8:
             self.data[_vars._comment_type] = self.data[_vars._comment_type][
                 0 : len(self.data[_vars._comment_type]) - 1
@@ -910,6 +905,8 @@ class _GUI:
 
         self.canvas = copy.deepcopy(self.canvas_copy)
         y_pos, x_pos = self.settings.label_position
+
+        self.data[_vars._comment_type] = self.data[_vars._comment_type].replace('\n', '')
 
         cv2.putText(
             self.canvas,
@@ -1663,7 +1660,7 @@ class _YamlFileMonitor:
                 time.sleep(1)
                 current_time = timer() - start_time
                 if current_time > 3:
-                    print_msg = f"FORCING WINDOW CLOSURE..."
+                    print_msg = "FORCING WINDOW CLOSURE..."
                     _print(print_msg, watch_last=True)
                     break
         self.time_start = timer()
@@ -1673,7 +1670,7 @@ class _YamlFileMonitor:
         self.observer.join()
         
     def __del__(self):
-        self.stop()
+        self._stop()
         
 #%% functions - annotations helpers
 
@@ -1687,7 +1684,6 @@ def _get_annotation(annotations, annotation_type, annotation_id=None, reduce_cou
         return {}
 
     annotation_id_str = f"{annotation_type}_id"
-    print_msg = ""
 
     if annotation_id_str in kwargs:
         annotation_id = kwargs.get(annotation_id_str)
@@ -1695,35 +1691,33 @@ def _get_annotation(annotations, annotation_type, annotation_id=None, reduce_cou
     if isinstance(annotations, (dict, defaultdict)):
         if not annotation_id:
             if annotation_counter:
-                print_msg = f'- "{annotation_id_str}" not provided: '
+                _print(f'- "{annotation_id_str}" not provided: ')
                 annotation_id = string.ascii_lowercase[annotation_counter.get(annotation_type, 0)]
                 if annotation_id == "z":
-                    print_msg += f'- no preceding annotations of type "{annotation_type}" found'
+                    _print(f'- no preceding annotations of type "{annotation_type}" found')
                     annotation_id = None
                 else:
                     if reduce_counter:
                         annotation_id = chr(ord(annotation_id) - 1)
-                    print_msg += f'using last annotation of type "{annotation_type}" with ID "{annotation_id}"'
+                    _print(f'- using last annotation of type "{annotation_type}" with ID "{annotation_id}"')
 
             if annotation_type in annotations:
                 annotation_id = max(annotations[annotation_type], default=None)
                 if annotation_id is not None:
-                    print_msg = f'"{annotation_id_str}" not specified - using endmost in provided annotations: "{annotation_id}"'
+                    _print(f"- '{annotation_id_str}' not specified - using last annotation of type {annotation_type} ('{annotation_id}')")
                 else:
                     annotation_id = None
 
         if annotation_type in annotations:
             annotation = annotations[annotation_type].get(annotation_id, {})
             if not annotation:
-                print_msg = f'could not find "{annotation_type}" with ID "{annotation_id}"'
+                _print(f'- could not find "{annotation_type}" with ID "{annotation_id}"', lvl=1)
         else:
-            print_msg = f'incompatible annotation type supplied - need "{annotation_type}" type'
+            _print(f'- incompatible annotation type supplied - need "{annotation_type}" type', lvl=1)
             annotation = {}
     else:
         annotation = {}
         
-    _print(print_msg, watch_last=True)
-
     return annotation
     
 
@@ -1747,7 +1741,7 @@ def _get_annotation_id(
                 annotation_counter[annotation_type]
             ]
             if annotation_id == "z":
-                print_msg = '- no precursing annotations of type "{}" found'.format(annotation_type)
+                print_msg = '- no previous annotations of type "{}" found'.format(annotation_type)
                 annotation_id = "a"
             else:
                 if reduce_counter:
@@ -1767,8 +1761,9 @@ def _get_annotation_id(
                 print_msg = '- annotation_id not specified and annotation of type "{}" not found'.format(
                     annotation_type
                 )
-
-    _print(print_msg, watch_last=True)                
+                
+    if print_msg:
+        _print(print_msg, watch_last=True)                
 
     return annotation_id
 
@@ -2819,7 +2814,7 @@ def _resize_mask(original_bbox, resize_x, resize_y):
     return resized_bbox
 
 
-def _rotate_image(image, angle, ret_center=False):
+# def _rotate_image(image, angle, ret_center=False):
 #     """
 #     Rotates an image (angle in degrees) and expands image to avoid cropping
 #     Source: https://stackoverflow.com/a/47248339/5238559

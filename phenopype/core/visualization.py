@@ -4,6 +4,7 @@ import copy
 import cv2
 import numpy as np
 import math
+import sys
 from dataclasses import make_dataclass
 
 from phenopype import _vars, config
@@ -706,7 +707,7 @@ def draw_QRcode(
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
-
+        
     points = annotation["data"][_vars._mask_type]
     label = annotation["data"][annotation_type]
 
@@ -739,7 +740,7 @@ def draw_QRcode(
             [np.asarray(points, np.int32)], 
             True, 
             ul._get_bgr(label_colour, "label_colour"), 
-            5)
+            line_width)
 
     # =============================================================================
     # return

@@ -17,7 +17,6 @@ from phenopype import utils
 from phenopype import utils_lowlevel as ul
 from phenopype import core
 
-from phenopype.utils_lowlevel import _get_annotation_type
 
 #%% functions
 
@@ -181,7 +180,7 @@ def create_mask(
     fun_name = sys._getframe().f_code.co_name
 
     annotations = kwargs.get("annotations", {})
-    annotation_type = _get_annotation_type(fun_name)
+    annotation_type = ul._get_annotation_type(fun_name)
     annotation_id = kwargs.get("annotation_id", None)
 
     annotation = ul._get_annotation(
@@ -861,10 +860,10 @@ def detect_QRcode(
     annotation_type = ul._get_annotation_type(fun_name)
 
     annotation = kwargs.get("annotation")
-    
+        
     gui_data = {_vars._comment_type: ul._get_GUI_data(annotation)}
     gui_settings = ul._get_GUI_settings(kwargs, annotation)
-
+    
     # =============================================================================
     # setup
     
@@ -895,7 +894,7 @@ def detect_QRcode(
     decodedText, points, _ = qrCodeDetector.detectAndDecode(image_copy)
 
     ## rotate image 
-    if not points:
+    if points is None or points.size == 0:
         ul._print("- rotating image")
         for angle in range(0, 360, rot_steps):
             image_rot, image_center = ul._rotate_image(image_copy, angle, allow_crop=False, ret=True)  
@@ -905,13 +904,13 @@ def detect_QRcode(
                 points = ul._rotate_coords_center(points_rot, image_center, angle)         
                 break
     else:
-        flags.found
-        
+        flags.found = True
+         
     ## format points
     if flags.found:
         points = (points / resize_factor).astype(int)
         points = ul._convert_arr_tup_list(points)
-        ul._print("- found QRcode: {}".format(decodedText))
+        ul._print("- found QRcode: '{}'".format(decodedText))
     else:
         if flags.enter_manually:
             ul._print("- did not find QR-code - enter manually:")
@@ -942,7 +941,6 @@ def detect_QRcode(
         },
         "settings": {
             "rotation_steps": rot_steps,
-            "angle": angle,
             "label_size": label_size,
             "label_width": label_width,
             "label_colour": label_colour,

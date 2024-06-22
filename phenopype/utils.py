@@ -13,6 +13,7 @@ import ruamel.yaml
 
 from phenopype import _vars
 from phenopype import config
+from phenopype import decorators
 from phenopype import utils_lowlevel as ul
 
 
@@ -164,8 +165,8 @@ def resize_image(
         return image, factor
     return image
 
-
-def save_image(image, file_path, suffix=None, overwrite=False):
+@decorators.legacy_args
+def save_image(image, file_path, suffix=None, overwrite=False, **kwargs):
     """Save an image (array) to a specified format.
 
     Parameters
@@ -196,16 +197,7 @@ def save_image(image, file_path, suffix=None, overwrite=False):
     new_file_path = os.path.join(dir_path, file_name_new)
 
     # Check if file exists and handle overwrite logic
-    if os.path.isfile(new_file_path) and not overwrite:
-        print(f"Image not saved - file already exists (overwrite=False): {new_file_path}")
-        return False
-    else:
-        if overwrite and os.path.isfile(new_file_path):
-            print(f"Image saved and overwritten at: {new_file_path}")
-        else:
-            print(f"Image saved at: {new_file_path}")
-
-        # Save the image
+    if ul._overwrite_check(new_file_path, overwrite):
         success = cv2.imwrite(new_file_path, image)
         return success
 

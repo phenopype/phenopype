@@ -5,6 +5,7 @@ Created on Tue May 14 20:02:39 2024
 @author: mluerig
 """
 import io
+import os
 import warnings
 from contextlib import redirect_stdout
 from functools import wraps
@@ -76,3 +77,26 @@ def deprecation_warning(new_func=None):
         return wrapper
     return decorator
     
+
+def legacy_args(fun):
+    @wraps(fun)
+    def wrapper(*args, **kwargs):
+        if fun.__name__ == "save_image":
+            if 'file_path' not in kwargs or not kwargs['file_path']:
+                file_name = kwargs.get('file_name')
+                dir_path = kwargs.get('dir_path')
+                if file_name and dir_path:
+                    kwargs['file_path'] = os.path.join(dir_path, file_name)
+                    ul._print(f"WARNING - using 'file_name' and 'dir_path' is deprecated for >{fun.__name__}< - use 'file_path' instead", lvl=1)
+        
+        elif fun.__name__ == "save_canvas":
+            if 'file_path' not in kwargs or not kwargs['file_path']:
+                file_name = kwargs.get('file_name')
+                dir_path = kwargs.get('dir_path')
+                if file_name and dir_path:
+                    kwargs['file_path'] = os.path.join(dir_path, file_name)
+                    print(f"Warning - using file_name and dir_path is deprecated for {fun.__name__} - use file_path instead")
+        
+        return fun(*args, **kwargs)
+    
+    return wrapper

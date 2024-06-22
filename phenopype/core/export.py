@@ -884,8 +884,7 @@ def save_ROI(
 
 def save_canvas(
         image, 
-        dir_path, 
-        file_name="canvas", 
+        file_path, 
         ext="jpg",
         resize=0.5,
         overwrite=True,
@@ -915,8 +914,8 @@ def save_canvas(
 
     utils.save_image(
         image=image,
-        file_name=file_name,
+        file_path=file_path,
         ext=ext,
-        dir_path=dir_path,
         overwrite=overwrite,
+        **kwargs
     )
