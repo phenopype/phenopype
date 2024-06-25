@@ -3,6 +3,15 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+6.0.0
+-----
+- MAJOR dependency change: phenopype is now usable with Python >=3.9, and the latest opencv-contrib-python versions. pyradiomics is now part of the plugins package, streamlining the entire installation procedure.
+- back to continuous integration and unit tests with GH actions! Real code coverage soon to follow...
+- improvided QR-code detection algorithm (with preprocessing, resizing and rotation)
+- streamling some utility functions - (e.g. save_image to take only paths)
+- bugfix:
+	- more stable logging in Pype debug mode
+ 
 5.0.5
 -----
 - bugfix:
