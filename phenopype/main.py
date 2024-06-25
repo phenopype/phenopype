@@ -2589,8 +2589,31 @@ class Pype(object):
         ## image exists?
         if isinstance(image_path, str):
             image_path = os.path.abspath(image_path)
-        if not dir_path:
-            dir_path = os.path.dirname(image_path)
+            if not dir_path:
+                if os.path.isfile(image_path):
+                    dir_path = os.path.dirname(image_path)
+                else:
+                    dir_path = image_path
+            
+        # =============================================================================
+        # CHECKS 
+        
+        ## check whether directory is skipped
+        if self.flags.skip:
+            if self._check_directory_skip(tag=tag, skip_pattern=skip_pattern, dir_path=dir_path):
+                return
+
+        ## check name, load container and config
+        ul._check_pype_tag(tag)
+        self._load_container(image_path=image_path, dir_path=dir_path, tag=tag)
+        self._load_config(image_path=image_path, tag=tag, config_path=config_path)
+
+        # check version, load container and config
+        if self.flags.dry_run:
+            self._load_config(image_path, tag, config_path)
+            self._iterate(annotations=copy.deepcopy(_vars._annotation_types),
+                      execute=False, autoshow=False, feedback=True)
+            return
                         
         # =============================================================================
         # LOGGING
@@ -2617,7 +2640,6 @@ class Pype(object):
             log_file_path = os.path.join(image_path, f"pype_logs_{tag}.log")
         elif os.path.isfile(image_path):
             log_file_path = os.path.join(dir_path, f"pype_logs_{tag}.log")
-
         if os.path.isfile(log_file_path) and log_ow:
             os.remove(log_file_path)
             
@@ -2626,28 +2648,8 @@ class Pype(object):
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', "%Y-%m-%d %H:%M:%S")
         file_handler.setFormatter(file_formatter)
-        self.logger.addHandler(file_handler)
+        self.logger.addHandler(file_handler)       
 
-        # =============================================================================
-        # CHECKS 
-
-        ## check name, load container and config
-        ul._check_pype_tag(tag)
-        self._load_container(image_path=image_path, dir_path=dir_path, tag=tag)
-        self._load_config(image_path=image_path, tag=tag, config_path=config_path)
-
-        # check version, load container and config
-        if self.flags.dry_run:
-            self._load_config(image_path, tag, config_path)
-            self._iterate(annotations=copy.deepcopy(_vars._annotation_types),
-                      execute=False, autoshow=False, feedback=True)
-            return
-        
-        ## check whether directory is skipped
-        if self.flags.skip:
-            if self._check_directory_skip(tag=tag, skip_pattern=skip_pattern, dir_path=self.container.dir_path):
-                return
-            
         # =============================================================================
         # FEEDBACK 
         
@@ -2857,6 +2859,7 @@ class Pype(object):
             exclude=["pype_config", "attributes"],
             pype_mode=True,
         )
+
         results = [os.path.basename(path) for path in filepaths]
 
         ## find matches
@@ -2866,8 +2869,7 @@ class Pype(object):
 
         ## print results
         if any(match):
-            ul._pprint_fill_hbar(self.container.image_name, symbol="=")
-            ul._print(f'- found files {[s for s, m in zip(skip_pattern, match) if m]} - skipping...')
+            ul._print(f'{os.path.basename(dir_path)}: found files {[s for s, m in zip(skip_pattern, match) if m]} - skipping...')
             return True
         return False
     

@@ -1823,6 +1823,7 @@ def _update_annotations(
 
 #%% I/O helpers
 
+
 def _file_walker(
     directory,
     filetypes=[],
@@ -1834,115 +1835,198 @@ def _file_walker(
     **kwargs
 ):
     """
-    
+    Walks through a directory and returns a list of files based on specified criteria.
+
     Parameters
     ----------
     directory : str
-        path to directory to search for files
-    recursive: (optional): bool,
-        "False" searches only current directory for valid files; "True" walks 
-        through all subdirectories
-    filetypes (optional): list of str
-        single or multiple string patterns to target files with certain endings
-    include (optional): list of str
-        single or multiple string patterns to target certain files to include
-    include_all (optional): bool,
-        either all (True) or any (False) of the provided keywords have to match
-    exclude (optional): list of str
-        single or multiple string patterns to target certain files to exclude - can overrule "include"
-    unique (optional): str (default: "filepath")
-        how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
-        if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
-        whereas filename will ignore all those files after their first occurrence.
+        Path to the directory to search for files.
+    filetypes : list of str, optional
+        List of file extensions to include (e.g., ['.txt', '.jpg']). If empty, includes all file types.
+    include : list of str, optional
+        List of substrings that files must include in their names. If empty, includes all files.
+    include_all : bool, optional
+        If True, all substrings in `include` must be present in the file name. If False, any substring in `include` can be present. Default is True.
+    exclude : list of str, optional
+        List of substrings that files must not include in their names. If empty, no files are excluded.
+    recursive : bool, optional
+        If True, walks through all subdirectories. If False, only searches the specified directory. Default is False.
+    unique : {'path', 'filename'}, optional
+        Determines how to handle duplicate files. 'path' considers the full file path, while 'filename' considers only the file name. Default is 'path'.
+    **kwargs
+        Additional keyword arguments. Currently supports 'pype_mode' which if True, suppresses printing of "No files found" message.
 
     Returns
     -------
-    None.
-
+    tuple of lists
+        A tuple containing two lists:
+        - unique: List of unique file paths based on the specified `unique` criteria.
+        - duplicate: List of duplicate file paths based on the specified `unique` criteria.
     """
-    ## kwargs
     pype_mode = kwargs.get("pype_mode", False)
-    if not filetypes.__class__.__name__ == "list":
-        filetypes = [filetypes]
-    if not include.__class__.__name__ == "list":
-        include = [include]
-    if not exclude.__class__.__name__ == "list":
-        exclude = [exclude]
-    flag_include_all = include_all
-    flag_recursive = recursive
-    flag_unique = unique
+    filetypes = set(filetypes) if isinstance(filetypes, list) else {filetypes}
+    include = set(include) if isinstance(include, list) else {include}
+    exclude = set(exclude) if isinstance(exclude, list) else {exclude}
 
-    ## find files
-    filepaths1, filepaths2, filepaths3, filepaths4 = [], [], [], []
-    if flag_recursive == True:
-        for root, dirs, files in os.walk(directory):
-            for file in os.listdir(root):
-                filepath = os.path.join(root, file)
-                if os.path.isfile(filepath):
-                    filepaths1.append(filepath)
-    else:
-        for file in os.listdir(directory):
-            filepath = os.path.join(directory, file)
+    filepaths = []
+
+    for root, _, files in (os.walk(directory) if recursive else [(directory, None, os.listdir(directory))]):
+        for file in files:
+            filepath = os.path.join(root, file)
             if os.path.isfile(filepath):
-                filepaths1.append(filepath)
+                # Filetypes check
+                if filetypes and not any(filepath.endswith(ft) for ft in filetypes):
+                    continue
+                # Include check
+                if include:
+                    basename = os.path.basename(filepath)
+                    if include_all and not all(inc in basename for inc in include):
+                        continue
+                    elif not include_all and not any(inc in basename for inc in include):
+                        continue
+                # Exclude check
+                if exclude and any(exc in os.path.basename(filepath) for exc in exclude):
+                    continue
+                filepaths.append(filepath)
 
-    ## file endings
-    if len(filetypes) > 0:
-        for filepath in filepaths1:
-            if filepath.endswith(tuple(filetypes)):
-                filepaths2.append(filepath)
-    elif len(filetypes) == 0:
-        filepaths2 = filepaths1
-
-    ## include
-    if len(include) > 0:
-        for filepath in filepaths2:
-            if flag_include_all:
-                if all(inc in os.path.basename(filepath) for inc in include):
-                    filepaths3.append(filepath)
-            else:
-                if pype_mode:
-                    if any(inc in Path(filepath).stem for inc in include):
-                        filepaths3.append(filepath)
-                else:
-                    if any(inc in os.path.basename(filepath) for inc in include):
-                        filepaths3.append(filepath)
-    else:
-        filepaths3 = filepaths2
-
-    ## exclude
-    if len(exclude) > 0:
-        for filepath in filepaths3:
-            if not any(exc in os.path.basename(filepath) for exc in exclude):
-                filepaths4.append(filepath)
-    else:
-        filepaths4 = filepaths3
-
-    ## check if files found
-    filepaths = filepaths4
-    if len(filepaths) == 0 and not pype_mode:
-        print("No files found under the given location that match given criteria.")
+    if not filepaths and not pype_mode:
+        _print("No files found under the given location that match given criteria.", lvl=1)
         return [], []
-    
-    ## allow unique filenames filepath or by filename only
-    filenames, unique_filename, unique, duplicate = [], [], [], []
-    for filepath in filepaths:
-        filenames.append(os.path.basename(filepath))
-    if flag_unique in ["filepaths", "filepath", "path"]:
-        for filename, filepath in zip(filenames, filepaths):
-            if not filepath in unique:
-                unique.append(filepath)
-            else:
-                duplicate.append(filepath)
-    elif flag_unique in ["filenames", "filename", "name"]:
-        for filename, filepath in zip(filenames, filepaths):
-            if not filename in unique_filename:
-                unique_filename.append(filename)
-                unique.append(filepath)
-            else:
-                duplicate.append(filepath)
+
+    unique_files = {}
+    if unique in ["filepaths", "filepath", "path"]:
+        for filepath in filepaths:
+            unique_files[filepath] = filepath
+    elif unique in ["filenames", "filename", "name"]:
+        for filepath in filepaths:
+            filename = os.path.basename(filepath)
+            if filename not in unique_files:
+                unique_files[filename] = filepath
+
+    unique = list(unique_files.values())
+    duplicate = [f for f in filepaths if f not in unique_files.values()]
 
     return unique, duplicate
+# def _file_walker(
+#     directory,
+#     filetypes=[],
+#     include=[],
+#     include_all=True,
+#     exclude=[],
+#     recursive=False,
+#     unique="path",
+#     **kwargs
+# ):
+#     """
+    
+#     Parameters
+#     ----------
+#     directory : str
+#         path to directory to search for files
+#     recursive: (optional): bool,
+#         "False" searches only current directory for valid files; "True" walks 
+#         through all subdirectories
+#     filetypes (optional): list of str
+#         single or multiple string patterns to target files with certain endings
+#     include (optional): list of str
+#         single or multiple string patterns to target certain files to include
+#     include_all (optional): bool,
+#         either all (True) or any (False) of the provided keywords have to match
+#     exclude (optional): list of str
+#         single or multiple string patterns to target certain files to exclude - can overrule "include"
+#     unique (optional): str (default: "filepath")
+#         how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
+#         if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
+#         whereas filename will ignore all those files after their first occurrence.
+
+#     Returns
+#     -------
+#     None.
+
+#     """
+#     ## kwargs
+#     pype_mode = kwargs.get("pype_mode", False)
+#     if not filetypes.__class__.__name__ == "list":
+#         filetypes = [filetypes]
+#     if not include.__class__.__name__ == "list":
+#         include = [include]
+#     if not exclude.__class__.__name__ == "list":
+#         exclude = [exclude]
+#     flag_include_all = include_all
+#     flag_recursive = recursive
+#     flag_unique = unique
+
+#     ## find files
+#     filepaths1, filepaths2, filepaths3, filepaths4 = [], [], [], []
+#     if flag_recursive == True:
+#         for root, dirs, files in os.walk(directory):
+#             for file in os.listdir(root):
+#                 filepath = os.path.join(root, file)
+#                 if os.path.isfile(filepath):
+#                     filepaths1.append(filepath)
+#     else:
+#         for file in os.listdir(directory):
+#             filepath = os.path.join(directory, file)
+#             if os.path.isfile(filepath):
+#                 filepaths1.append(filepath)
+
+#     ## file endings
+#     if len(filetypes) > 0:
+#         for filepath in filepaths1:
+#             if filepath.endswith(tuple(filetypes)):
+#                 filepaths2.append(filepath)
+#     elif len(filetypes) == 0:
+#         filepaths2 = filepaths1
+
+#     ## include
+#     if len(include) > 0:
+#         for filepath in filepaths2:
+#             if flag_include_all:
+#                 if all(inc in os.path.basename(filepath) for inc in include):
+#                     filepaths3.append(filepath)
+#             else:
+#                 if pype_mode:
+#                     if any(inc in Path(filepath).stem for inc in include):
+#                         filepaths3.append(filepath)
+#                 else:
+#                     if any(inc in os.path.basename(filepath) for inc in include):
+#                         filepaths3.append(filepath)
+#     else:
+#         filepaths3 = filepaths2
+
+#     ## exclude
+#     if len(exclude) > 0:
+#         for filepath in filepaths3:
+#             if not any(exc in os.path.basename(filepath) for exc in exclude):
+#                 filepaths4.append(filepath)
+#     else:
+#         filepaths4 = filepaths3
+
+#     ## check if files found
+#     filepaths = filepaths4
+#     if len(filepaths) == 0 and not pype_mode:
+#         print("No files found under the given location that match given criteria.")
+#         return [], []
+    
+#     ## allow unique filenames filepath or by filename only
+#     filenames, unique_filename, unique, duplicate = [], [], [], []
+#     for filepath in filepaths:
+#         filenames.append(os.path.basename(filepath))
+#     if flag_unique in ["filepaths", "filepath", "path"]:
+#         for filename, filepath in zip(filenames, filepaths):
+#             if not filepath in unique:
+#                 unique.append(filepath)
+#             else:
+#                 duplicate.append(filepath)
+#     elif flag_unique in ["filenames", "filename", "name"]:
+#         for filename, filepath in zip(filenames, filepaths):
+#             if not filename in unique_filename:
+#                 unique_filename.append(filename)
+#                 unique.append(filepath)
+#             else:
+#                 duplicate.append(filepath)
+
+#     return unique, duplicate
 
 def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwargs):
     """
