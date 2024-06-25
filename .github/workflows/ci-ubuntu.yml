@@ -3,9 +3,10 @@ name: Ubuntu
 on:
   push:
     branches:
-      - main
       - dev-ci
-      - dev-py310
+    paths:
+      - 'phenopype/**'
+      - 'tests/**'
 
 jobs:
   test-linux:
