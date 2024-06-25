@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - dev-ci
-    paths:
-      - 'phenopype/**'
-      - 'tests/**'
+    # paths:
+      # - 'phenopype/**'
+      # - 'tests/**'
 
 jobs:
   test-linux:
