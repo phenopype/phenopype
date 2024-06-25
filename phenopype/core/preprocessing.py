@@ -820,7 +820,7 @@ def detect_QRcode(
     rotate=True,
     max_dim=1000,
     enter_manually=False,
-    label="QR-code",
+    label="ID",
     label_colour="default",
     label_size="auto",
     label_width="auto",

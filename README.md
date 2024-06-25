@@ -1,39 +1,33 @@
+<h1 align="center">
+<img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo_text.png" width="300">
+</h1><br>
 
-![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo_text.png)
+| | |
+| --- | --- | 
+| About | [![pyOpenSci](https://tinyurl.com/y22nb8up)](https://github.com/pyOpenSci/software-review/issues/24)  [![Author](https://img.shields.io/badge/Author-Moritz_L%C3%BCrig-red)](https://luerig.net) [![License](https://img.shields.io/badge/License-LGPL-yellow)](https://opensource.org/licenses/LGPL-3.0)|
+| Testing | [![Coverage Status](https://coveralls.io/repos/github/phenopype/phenopype/badge.svg?branch=main)](https://coveralls.io/github/phenopype/phenopype?branch=main) [![Windows](https://github.com/phenopype/phenopype/actions/workflows/ci-windows.yml/badge.svg)](https://github.com/phenopype/phenopype/actions/workflows/ci-windows.yml) [![Ubuntu](https://github.com/phenopype/phenopype/actions/workflows/ci-ubuntu.yml/badge.svg)](https://github.com/phenopype/phenopype/actions/workflows/ci-ubuntu.yml) |
+| Docs | [![Website](https://img.shields.io/badge/phenopype.org-Docs-blue)](https://phenopype.org/docs) [![Website](https://img.shields.io/badge/phenopype.org-Vignettes-blue)](https://phenopype.org/gallery) |
 
-| Code review | Windows | Linux | OSX | Code coverage | Code Style |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-|[![pyOpenSci](https://tinyurl.com/y22nb8up)](https://github.com/pyOpenSci/software-review/issues/24) | [![Windows](https://github.com/phenopype/phenopype/actions/workflows/ci-windows.yml/badge.svg)](https://github.com/phenopype/phenopype/actions/workflows/ci-windows.yml) | [![Ubuntu](https://github.com/phenopype/phenopype/actions/workflows/ci-ubuntu.yml/badge.svg)](https://github.com/phenopype/phenopype/actions/workflows/ci-ubuntu.yml) | *none* | [![Coverage Status](https://coveralls.io/repos/github/phenopype/phenopype/badge.svg?branch=main)](https://coveralls.io/github/phenopype/phenopype?branch=main) | [![Code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) |  
+# phenopype
 
+phenopype is a Python package for rapid extraction of phenotypic information from standardized images. It comes with a basic toolset for image preprocessing and signal-processing-based segmentation, but also leverages state of the art AI segmentation models like [Fast Segment Anything](https://github.com/CASIA-IVA-Lab/FastSAM) through a growing [set of plugins](https://github.com/phenopype/phenopype-plugins). Additionally, phenopype includes functionality for visualization of image processing results and export into various file and training data formats (json, csv, coco, ...).
 
+phenopype is aiming to augment, rather than replace the utility of existing computer vision libraries. Put differently, phenopype does not intend to be an exhaustive library of granular image processing functions, like OpenCV, scikit-image or ImageJ, but instead provides a set of wrappers and convenient management tools to allow users to *get their data fast* without having to fiddle with too much code. As such, phenopype may also serve as a stepping stone for ecologists and evolutionary biologists who are interested in implementing computer vision workflows. 
 
-**Author:** [Moritz Lürig](https://luerig.net)  
-**License:** [LGPL](https://opensource.org/licenses/LGPL-3.0)  
-**Homepage** [www.phenopype.org](https://www.phenopype.org)  
-**Publication** https://doi.org/10.1111/2041-210x.13771
+<h1 align="center">
+<img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_features.png" width="600">
+</h1><br>
 
----
+## Quickstart
 
-#### What is phenopype?
+https://www.phenopype.org/docs/quickstart/
 
-phenopype is a Python package to rapidly extract high dimensional phenotypic data from digital images. At the core, phenopype provides a project management ecosystem for large image datasets, signal processing based segmentation and data extraction routines, and the possibility to export the processed data in various formats - e.g. for direct analysis (`csv` - e.g. landmarks, coordinates, etc.), or for further processing in other machine learning pipelines (`json` - e.g. segmentation masks).  
-
-#### Why phenopype
-phenopype is aiming to augment, rather than replace the utility of existing CV low level libraries for scientists who want to extract phenotypic data from images. Put differently, phenopype does not intend to be an exhaustive library of granular image processing functions, like OpenCV, scikit-image or ImageJ, but instead, it is a set of wrappers and convenient management tools to allow biologists to *get their data fast* without having to fiddle with too much code.
-
-#### Who uses phenopype?
-phenopype is intended for ecologists and evolutionary biologists with "laboratory grade" images, which, for example, contain specimens that have been photographed against a standardized background. It is also useful for anyone interested in building a robust training dataset for deep learning models: with phenopype segmentation masks can be created semi-automatically (instead of annotating the images by hand), and, in the process, phenotypic data can already by extracted and evaluated. 
-
-![](https://github.com/phenopype/phenopype/raw/main/assets/phenopype_features.png)
-
----
-
-#### Main features
+## Main features
 
 (For a complete list [check the API reference](https://www.phenopype.org/docs/api/))
 
 - image analysis workflow:
-  - preprocessing (automatic reference detection, colour and size correction, morphology operations)
+  - preprocessing (automatic reference-card and QR-code detection, colour and size correction, morphology operations)
   - segmentation (thresholding, watershed, contour-filtering, foreground-background subtraction)
   - measurement (pixel intensities, landmarks, shape features, texture features)
   - visualization (various options) and export (csv, json, ROI images, ...)
@@ -43,24 +37,12 @@ phenopype is intended for ecologists and evolutionary biologists with "laborator
 
 ![](https://github.com/mluerig/phenopype/raw/master/source/phenopype_demo.gif)
 
----
 
-#### Quickstart
+## Contributions and feedback
 
-https://www.phenopype.org/docs/quickstart/
+phenopype development is ongoing and contributions towards making it more broadly applicable and user-friendly are more than  welcome. This can be done by submitting issues or feature requests in the [issue tracker](https://github.com/phenopype/phenopype/issues). You can also [get in touch with me](https://www.luerig.net) directly if you would like to contribute.
 
-#### Documentation
-
-https://www.phenopype.org/docs/
-
-#### Vignette gallery
-
-https://www.phenopype.org/gallery/
-
-#### Contributions and feedback
-phenopype development is ongoing and contributions towards making it more broadly applicable and user-friendly are most welcome. This can be in the form of feature requests (e.g. more functions from the [OpenCV library](https://docs.opencv.org/master/modules.html)) or by reporting bugs via the [issue tracker](https://github.com/phenopype/phenopype/issues). You can also [get in touch with me](https://www.luerig.net) directly if you would like to contribute code - in that case, please have a look at the [API](https://www.phenopype.org/docs/api/).
-
-#### How to cite phenopype
+## How to cite phenopype
 
 Lürig, M. D. (2021). phenopype : A phenotyping pipeline for Python. Methods in Ecology and Evolution. https://doi.org/10.1111/2041-210x.13771
 	
