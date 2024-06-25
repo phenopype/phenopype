@@ -184,45 +184,54 @@ class Project_labelling:
                     os.path.basename(root_dir)
                 )
             )
+            
+            ## on first load create empty file dict
+            self.root_dir = root_dir
+            self.data_dir = os.path.join(root_dir, "data")
+            self.attributes = project_attributes
+            self.file_dict = {}
+            
         else:
             project_attributes = ul._load_yaml(project_attributes_path, typ="safe")
-            
 
-        print("--------------------------------------------")
-        
-        ## attach to instance
-        self.root_dir = root_dir
-        self.data_dir = os.path.join(root_dir, "data")
-        self.attributes = project_attributes
+            ## attach to instance
+            self.root_dir = root_dir
+            self.data_dir = os.path.join(root_dir, "data")
+            self.attributes = project_attributes
 
-        if "images.json" in os.listdir(self.data_dir):
-            with open(os.path.join(self.data_dir, "images.json")) as file:
-                self.file_dict = json.load(file)
-            print('\nLabelling project "{}" successfully loaded with {} images'.format(
-                    os.path.basename(root_dir), len(self.file_dict)
-                ))
-        else:
-            self.file_dict = {}
-            if not flags.overwrite:
-                print('\nLablling project "{}" successfully loaded, but it didn\'t contain any images!'.format(
-                        os.path.basename(root_dir)
+            if "images.json" in os.listdir(self.data_dir):
+                with open(os.path.join(self.data_dir, "images.json")) as file:
+                    self.file_dict = json.load(file)
+                print('\nLabelling project "{}" successfully loaded with {} images'.format(
+                        os.path.basename(root_dir), len(self.file_dict)
                     ))
+            else:
+                self.file_dict = {}
+                if not flags.overwrite:
+                    print('\nLablling project "{}" successfully loaded, but it didn\'t contain any images!'.format(
+                            os.path.basename(root_dir)
+                        ))
+    
+            if flags.check:
+                print("Checking for missing files:")
+                missing = []
+                for key, value in self.file_dict.items():
+                    if flags.check_path == "abs":
+                        if not os.path.isfile(value["filepath_abs"]):
+                            missing.append(value["filepath_abs"])
+                    if flags.check_path == "rel":
+                        if not os.path.isfile(value["filepath_rel"]):
+                            missing.append(value["filepath_rel"])
+                if len(missing) > 0:
+                    self.missing = missing
+                    print(f"- found {len(missing)} images (access with project.missing)")
+                elif len(missing) == 0:
+                    print("- all files found!")   
+                    
+            print("--------------------------------------------")     
+        
 
-        if flags.check:
-            print("Checking for missing files:")
-            missing = []
-            for key, value in self.file_dict.items():
-                if flags.check_path == "abs":
-                    if not os.path.isfile(value["filepath_abs"]):
-                        missing.append(value["filepath_abs"])
-                if flags.check_path == "rel":
-                    if not os.path.isfile(value["filepath_rel"]):
-                        missing.append(value["filepath_rel"])
-            if len(missing) > 0:
-                self.missing = missing
-                print(f"- found {len(missing)} images (access with project.missing)")
-            elif len(missing) == 0:
-                print("- all files found!")   
+            
     
     def add_files(
         self,
@@ -449,10 +458,10 @@ class Project_labelling:
             self.current.image_name = self.image_list[self.current.idx]
 
         ## set custom idx
-        if index:
+        if isinstance(index, (int, float)) and index is not False:
             self.current.idx = index
             self.current.image_name =self.image_list[index]
-                    
+                                
         # ============================================================================
         # run
 
@@ -466,12 +475,7 @@ class Project_labelling:
                 self._save()
                 self.current.time_prev = self.current.time
                 print("\n")
-                
-            ## check if at end of list
-            if self.current.idx > self.image_list_len-1:
-                self.current.idx = self.image_list_len-1
-                print("End of list!\n")
-                
+                                
             ## navigation and info
             self.current.idx_prev = copy.deepcopy(self.current.idx)
             self.current.image_name = self.image_list[self.current.idx]
@@ -505,16 +509,16 @@ class Project_labelling:
                     self.current.idx += 1
                     self.current.idx = min(self.current.idx, len(self.image_list))
                 self.current.n_skipped += 1
+                
                 if skip:
                     sys.stdout.write(f"\rSkipping: {self.current.n_skipped} labelled images ...")
                     sys.stdout.flush()
                 elif not self.current.exists:
                     sys.stdout.write(f"\rSkipping: {self.current.n_skipped} missing images ...")
                     sys.stdout.flush()
-                if not self.current.exists and self.current.idx in [0, len(self.image_list)]:
+                if self.current.idx <= 0:
+                    print("Beginning of list - exiting...\n")
                     break
-                else:
-                    continue
             else:
                                 
                 ## feedback
@@ -528,7 +532,6 @@ class Project_labelling:
                     self.current.image_name,
                     self.current.image_folder,
                     list(self.label.keys())))
-                    
 
                 ## load image
                 self.current.image = utils.load_image(self.current.filepath)                      
@@ -543,19 +546,21 @@ class Project_labelling:
                         brk = self._comment(self.current.image)
                     if brk:
                         break
-                
-            ## ensure to advance at end of config
-            if self.current.idx == self.current.idx_prev:
-                if self.current.idx == 0 and self.current.keypress == 2424832:
-                    print("Beginning of list!\n")
-                elif self.current.idx == self.image_list_len:    
-                    print("End of list!\n")
-                else:
-                    self.current.idx += 1
-                    
+                                                        
+            ## check if at end of list
+            if self.current.idx > self.image_list_len-1:
+                print("End of list - exiting...\n")
+                self.current.idx = self.image_list_len-1
+                self.current.exit = True
+            if self.current.idx < 0:
+                print("Beginning of list - exiting...\n")
+                self.current.idx = 0
+                self.current.exit = True
+                   
+        self._save()
         cv2.destroyAllWindows()
 
-                     
+        
     def export(
         self,
         tag,
@@ -634,12 +639,10 @@ class Project_labelling:
         elif self.current.keypress == 2424832:
             self.current.flag = "backward"
             self.current.idx -= 1
-            self.current.idx = max(self.current.idx, 0)
             return True
         elif self.current.keypress == 2555904:
             self.current.flag = "forward"
             self.current.idx += 1
-            self.current.idx = min(self.current.idx, len(self.image_list))
             return True
         elif self.current.keypress == 13:
             self.current.flag = "forward"
@@ -647,8 +650,6 @@ class Project_labelling:
         else:
             self.current.flag = "forward"
             self.current.idx += 1
-            self.current.idx = max(self.current.idx, 0)
-            self.current.idx = min(self.current.idx, len(self.image_list))
             return False
             
     def _text(self, image, **kwargs):
