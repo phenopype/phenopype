@@ -1,5 +1,5 @@
 <h1 align="center">
-<img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo_text.png" width="300">
+<img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo.png" width="300">
 </h1><br>
 
 | | |
