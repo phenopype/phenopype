@@ -614,12 +614,11 @@ def save_annotation(
                 for key, value in annotation_file[annotation_type][annotation_id][section].items():
 
                     ## unindent lists for better legibility
-                    if key in [x for x in _vars._annotation_types if not x in [
-                            _vars._comment_type, _vars._reference_type,]] + ["support"]:
-                        if (type(value) == list and len(value) > 0 and type(value[0]) in [np.ndarray]):
+                    if key in [x for x in _vars._annotation_types if x not in [_vars._comment_type, _vars._reference_type]] + ["support"]:
+                        if isinstance(value, list) and value and isinstance(value[0], np.ndarray):
                             value = [elem.tolist() for elem in value]
                         value = [ul._NoIndent(elem) for elem in value]
-                    elif type(value) in [tuple, list]:
+                    elif isinstance(value, (tuple, list)):
                         value = ul._NoIndent(value)
                     annotation_file[annotation_type][annotation_id][section][key] = value
 

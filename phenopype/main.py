@@ -19,6 +19,8 @@ from collections import deque
 from contextlib import redirect_stdout
 from dataclasses import make_dataclass
 from datetime import datetime
+from tqdm import tqdm
+from rich import progress
 
 # Third-party imports
 import cv2
@@ -951,7 +953,7 @@ class Project:
                 dir_names_attr = project_attributes["project_data"]["dirnames"]
                 if len(dir_names_attr) == len(file_names_attr) == len(dir_names_counted):
                     flags.checked = True
-                    print("\n - checks for directory completeness passed!")
+                    print("\n- checks for directory completeness passed!")
                 else:
                     print("\nWARNING: Number of images in existing project and in project attributes are not matching")
             if "models" in project_attributes:
@@ -1311,11 +1313,10 @@ class Project:
 
     def add_config(
         self,
-        tag,
         template_path,
+        tag,
         subset=[],
-        interactive=False,
-        image_number=1,
+        keep_comments=True,
         overwrite=False,
         **kwargs
     ):
@@ -1354,7 +1355,6 @@ class Project:
         flags = make_dataclass(
             cls_name="flags",
             fields=[
-                ("interactive", bool, interactive), 
                 ("overwrite", bool, overwrite),
                 ],
         )
@@ -1367,82 +1367,43 @@ class Project:
             if len(indices) == 0:
                 print("No directories or files found using given subset - aborting.")
                 return
-            flags.dir_paths = [self.dir_paths[i] for i in indices]
+            dir_paths = [self.dir_paths[i] for i in indices]
         else: 
-            flags.dir_paths = self.dir_paths
+            dir_paths = self.dir_paths
 
         ## check tag sanity
         ul._check_pype_tag(tag)
         
-        # =============================================================================
-        ## interactive template modification
+        ## load template 
+        template = ul._load_yaml(template_path)
         
-        if flags.interactive:
-            if len(flags.dir_paths) > 0:
-                dir_path = flags.dir_paths[image_number - 1]
-            else:
-                print(
-                    "Project contains no images - could not add config files in interactive mode."
-                )
-                return
-
-            if os.path.isdir(dir_path):
-                container = ul._load_project_image_directory(dir_path)
-                container.dir_path = os.path.join(self.root_dir, "_template-mod")
-            else:
-                print("Could not enter interactive mode - invalid directory.")
-                return
-
-            if not os.path.isdir(container.dir_path):
-                os.mkdir(container.dir_path)
-
-            config_path = ul._load_template(
-                template_path=template_path,
-                dir_path=container.dir_path,
-                tag="template-mod",
-                overwrite=True,
-                ret_path=True,
-            )
-
-            ## run pype
-            p = Pype(container, tag="template-mod", config_path=config_path,)
-            template_path = p.config_path
-
-        # =============================================================================
-        ## save config to each directory
+        # Construct config name
+        config_name = f"pype_config_{tag}.yaml"
         
-        if os.path.isfile(template_path):
-            for dir_path in flags.dir_paths:
-                ul._load_template(
-                    template_path=template_path,
-                    dir_path=dir_path,
-                    tag=tag,
-                    overwrite=flags.overwrite,
-                )
-            config.template_path_current = None
-            config.template_loaded_current = None
-            
-        else:
-            print("Could not find template_path")
-            return
+        config = ul._format_config(template, os.path.basename(template_path), config_name, keep_comments)
 
-        if flags.interactive:
-            q = input("Save modified template? ")
-            if q in _vars.confirm_options:
-                template_dir = os.path.join(self.root_dir, "templates")
-                if not os.path.isdir(template_dir):
-                    os.mkdir(template_dir)
-                q = input("Enter template file name: ")
-                if q.endswith(".yaml"):
-                    ext = ""
+
+        ul._print("Saving configs to project data folders:")
+        
+        pbar = ul._create_progress_bar(dir_paths)
+
+        with pbar:
+            task = pbar.add_task(description=False, total=len(dir_paths))
+            for dir_path in dir_paths:
+                config_path = os.path.join(dir_path, config_name)
+                
+                if ul._overwrite_check(config_path, overwrite, silent=True):
+                    ul._save_yaml(config, config_path)
+                    description = f"{os.path.basename(dir_path)}"
                 else:
-                    ext = ".yaml"
-                template_file_name = q + ext
+                    description = f"Couldn't save {os.path.basename(dir_path)} (overwrite=False)"
+                
+                pbar.update(task, description=description)
+                pbar.advance(task)
 
-                template_save_path = os.path.join(template_dir, template_file_name)
-                if ul._save_prompt("template", template_save_path, False):
-                    ul._save_yaml(p.config, template_save_path)
-                      
+        
+
+
     
     def add_model(
         self,
@@ -1593,18 +1554,12 @@ class Project:
     def add_reference(self, template):
         pass
                 
-    def check_files(
-            self, 
-            feedback=True,
-            image_links=False,
-            new_dir=None,
-            ret_missing=False,
-            ):
+    def check_files(self, feedback=True, image_links=False, new_dir=None, ret_missing=False):
         """
         Check all project files for completeness by comparing the images in the
         "data" folder to the file list the project attributes. Will attempt to 
         fix discrepancies, but ask for feedback first.
-
+    
         Parameters
         ----------
         feedback : bool, optional
@@ -1612,148 +1567,120 @@ class Project:
         image_links : bool, optional
             checks whether image can be loaded from path, otherwise tries to load 
             from original filepath (will ask first). The default is False.
-            
-
+        ret_missing : bool, optional
+            If True, return missing filenames. The default is False.
+    
         Returns
         -------
-        None.
-
+        list, optional
+            List of unmatched filenames if ret_missing is True.
         """
-        
-        # =============================================================================
-        # setup
-
-        ## set flags
-        flags = make_dataclass(
-            cls_name="flags",
-            fields=[
-                ("image_links", bool, image_links), 
-                ("feedback", bool, feedback),
-                ("check", bool, None),
-                ],
-        )
-
-                
-        ## load filenames
-        if "filenames" in self.attributes["project_data"]:
-            filenames = self.attributes["project_data"]["filenames"]
-            dirnames = self.attributes["project_data"]["dirnames"]
-        elif self.attributes["project_data"].__class__.__name__ in ["list","CommentedSeq"]:
-             dirnames = self.attributes["project_data"]
-             filenames = []
-             self.attributes["project_data"] = {}
-        else:
-            print("could not read project attributes file!")
-            return
-        
-        ## make lists
-        filenames_check, dirnames_check, new_dir_files = [], [], None
-
-        if os.path.isdir(str(new_dir)):
-            new_dir_files = os.listdir(new_dir)
-            
-        for dirpath in self.dir_paths:
-            attributes_path = os.path.join(dirpath, "attributes.yaml")
-            attributes = ul._load_yaml(attributes_path)
-            filename = attributes["image_original"]["filename"]
-            filenames_check.append(filename)
-            dirnames_check.append(os.path.basename(dirpath))
-            
-            if flags.image_links:
-                filepath = attributes["image_phenopype"]["filepath"]
-                if attributes["image_phenopype"]["mode"] == "link":
-                    if not os.path.isfile(os.path.join(dirpath, filepath)):
-                        ul._print("Could not find image(s) saved or linked to phenopype project:{}".format(filename))
-                        if new_dir_files:
-                            ul._print("- attempting to relink from {}".format(os.path.basename(new_dir)))
-                            if filename in new_dir_files:
-                                new_file_path = os.path.join(new_dir, filename)
-                                attributes["image_phenopype"]["filepath"] = os.path.relpath(new_file_path, dirpath) 
-                                ul._save_yaml(attributes, attributes_path)
-                                ul._print("File found and successfully relinked!", lvl=1)
-                            else:
-                                ul._print("File not found in provided new_dir!")
-                        else:
-                            ul._print("No directory provided for relinking!", lvl=1)
-                            if flags.check.__class__.__name__ == "NoneType":
-                                flags.check = input("\nCheck original filepath and relink if possible [also for all other broken paths] (y/n)?\n")
-                            if flags.check in _vars.confirm_options:
-                                filepath = attributes["image_original"]["filepath"]
-                                if os.path.isfile(filepath):
-                                    attributes["image_phenopype"]["filepath"] = os.path.relpath(filepath, dirpath)
-                                    ul._print("Re-linking successful - saving new path to attributes!", lvl=1)
-                                    ul._save_yaml(attributes, attributes_path)
     
-                            else:
-                                ul._print("File not found - could not re-link!")
-
-        filenames_unmatched, dirnames_unmatched = [], []
-        
-        for filename in filenames:
-            if not filename in filenames_check:
-                filenames_unmatched.append(filename)
-
-        for dirname in dirnames:
-            if not filename in dirnames_check:
-                dirnames_unmatched.append(filename)  
+        # Setup flags
+        Flags = make_dataclass("Flags", [("image_links", bool, image_links), 
+                                         ("feedback", bool, feedback), 
+                                         ("check", bool, None)])
+        flags = Flags()
+    
+        # Load filenames
+        project_data = self.attributes.get("project_data", {})
+        if "filenames" in project_data:
+            filenames = project_data["filenames"]
+            dirnames = project_data["dirnames"]
+        elif isinstance(project_data, (list, tuple)):
+            dirnames = project_data
+            filenames = []
+            self.attributes["project_data"] = {}
+        else:
+            ul._print("Could not read project attributes file!")
+            return
+    
+        # Initialize lists
+        filenames_check, dirnames_check = [], []
+        new_dir_files = os.listdir(new_dir) if os.path.isdir(new_dir) else None
+    
+        # Process directories
+        ul._print("Checking images in project data folder:")        
+        pbar = ul._create_progress_bar(self.dir_paths)
+        with pbar:
+            task = pbar.add_task(description=False, total=len(self.dir_paths))
+            for dirpath in self.dir_paths:
+                attributes_path = os.path.join(dirpath, "attributes.yaml")
+                attributes = ul._load_yaml(attributes_path)
+                filename = attributes["image_original"]["filename"]
+                filenames_check.append(filename)
+                dirname = os.path.basename(dirpath)
+                dirnames_check.append(dirname)
                 
-        if len(filenames_unmatched) > 0:
+                if flags.image_links:
+                    filepath = attributes["image_phenopype"]["filepath"]
+                    if attributes["image_phenopype"]["mode"] == "link":
+                        if not os.path.isfile(os.path.join(dirpath, filepath)):
+                            # ul._print(f"Could not find image(s) saved or linked to phenopype project: {filename}")
+                            if new_dir_files:
+                                # ul._print(f"- attempting to relink from {os.path.basename(new_dir)}")
+                                if filename in new_dir_files:
+                                    new_file_path = os.path.join(new_dir, filename)
+                                    attributes["image_phenopype"]["filepath"] = os.path.relpath(new_file_path, dirpath)
+                                    ul._save_yaml(attributes, attributes_path)
+                                    # ul._print("File found and successfully relinked!", lvl=1)
+                                # else:
+                                    # ul._print("File not found in provided new_dir!")
+                            else:
+                                # ul._print("No directory provided for relinking!", lvl=1)
+                                if flags.check is None:
+                                    flags.check = input("\nCheck original filepath and relink if possible [also for all other broken paths] (y/n)?\n")
+                                if flags.check in _vars.confirm_options:
+                                    filepath = attributes["image_original"]["filepath"]
+                                    if os.path.isfile(filepath):
+                                        attributes["image_phenopype"]["filepath"] = os.path.relpath(filepath, dirpath)
+                                        # ul._print("Re-linking successful - saving new path to attributes!", lvl=1)
+                                        ul._save_yaml(attributes, attributes_path)
+                                # else:
+                                    # ul._print("File not found - could not re-link!")
+                pbar.update(task, description=dirname)
+                pbar.advance(task)
+            
+        # Find unmatched filenames and dirnames
+        filenames_unmatched = [filename for filename in filenames if filename not in filenames_check]
+        dirnames_unmatched = [dirname for dirname in dirnames if dirname not in dirnames_check]
+    
+        # Print unmatched information
+        if filenames_unmatched:
             ul._print(filenames_unmatched)
-            ul._print("\n")
-            ul._print("--------------------------------------------")
-            ul._print("phenopype found {} files in the data folder, but {} from the project attributes are unaccounted for.".format(
-                len(filenames_check),
-                len(filenames_unmatched)))
-            time.sleep(1)
-            if flags.feedback:
-                check = input("update project attributes (y/n)?")
-            else:
-                check = "y"
-        elif len(filenames) == 0:
-            ul._print("\n")
-            ul._print("--------------------------------------------")
-            ul._print("phenopype found {} files in the data folder, but 0 are listed in the project attributes.".format(len(filenames_check)))
-            time.sleep(1)
-            if flags.feedback:
-                check = input("update project attributes (y/n)?")
-            else:
-                check = "y"
+            ul._print("\n--------------------------------------------")
+            ul._print(f"phenopype found {len(filenames_check)} files in the data folder, but {len(filenames_unmatched)} from the project attributes are unaccounted for.")
+        elif not filenames:
+            ul._print("\n--------------------------------------------")
+            ul._print(f"phenopype found {len(filenames_check)} files in the data folder, but 0 are listed in the project attributes.")
         elif len(filenames) < len(filenames_check):
-            ul._print("\n")
-            ul._print("--------------------------------------------")
-            ul._print("phenopype found {} files in the data folder, but only {} are listed in the project attributes.".format(
-                len(filenames_check),
-                len(filenames)
-                ))
-            time.sleep(1)
-            if flags.feedback:
-                check = input("update project attributes (y/n)?")
-            else:
-                check = "y"
+            ul._print("\n--------------------------------------------")
+            ul._print(f"phenopype found {len(filenames_check)} files in the data folder, but only {len(filenames)} are listed in the project attributes.")
         else:
             ul._print("All checks passed - numbers in data folder and attributes file match.", lvl=2)
             return
-
+    
+        # Ask for feedback and update attributes if confirmed
+        if flags.feedback:
+            check = input("update project attributes (y/n)?") if filenames_unmatched or not filenames or len(filenames) < len(filenames_check) else "y"
+        else:
+            check = "y"
+    
         if check in _vars.confirm_options:
-            
-            self.attributes["project_data"].pop("filenames", None)
-            self.attributes["project_data"].pop("dirnames", None)
             self.attributes["project_data"]["filenames"] = filenames_check
             self.attributes["project_data"]["dirnames"] = dirnames_check
             self.file_names = filenames_check
             self.dir_names = dirnames_check
-            
             ul._save_yaml(self.attributes, self.attributes_path)
-            
-            ul._print("project attributes updated; now has {} files".format(len(filenames_check)), lvl=2)
+            ul._print(f"project attributes updated; now has {len(filenames_check)} files", lvl=2)
         else:
             ul._print("project attributes not updated", lvl=2)
-        print("--------------------------------------------")    
-        
-        
+    
+        ul._print("--------------------------------------------")
+    
         if ret_missing:
             return filenames_unmatched
-        
+            
 
     def collect_results(
             self,
@@ -1915,52 +1842,56 @@ class Project:
         """
     
         ## go through project directories
-        for directory in self.dir_paths:
-            dir_name = os.path.basename(directory)
-    
-            if copy_annotations:
-                annotations_path = os.path.join(
-                    self.root_dir, "data", dir_name, "annotations_" + tag_src + ".json"
-                )
-                new_annotations_path = os.path.join(
-                    self.root_dir, "data", dir_name, "annotations_" + tag_dst + ".json"
-                )
-                
-                if os.path.isfile(annotations_path): 
-                    if ul._overwrite_check(new_annotations_path, overwrite):
-                        shutil.copyfile(annotations_path, new_annotations_path)
-                        ul._print(f"Copied annotations for {dir_name}")
-                else:
-                    ul._print(f"Missing annotations for {dir_name} - skipping", lvl=1)
+        ul._print(f"Copying tag {tag_src} to {tag_dst}:")        
+        pbar = ul._create_progress_bar(self.dir_paths)
+        with pbar:
+            task = pbar.add_task(description=False, total=len(self.dir_paths))
+            for directory in self.dir_paths:
+                dir_name = os.path.basename(directory)
+        
+                if copy_annotations:
+                    annotations_path = os.path.join(
+                        self.root_dir, "data", dir_name, "annotations_" + tag_src + ".json"
+                    )
+                    new_annotations_path = os.path.join(
+                        self.root_dir, "data", dir_name, "annotations_" + tag_dst + ".json"
+                    )
                     
-            if copy_config:
-                config_path = os.path.join(
-                    self.root_dir, "data", dir_name, "pype_config_" + tag_src + ".yaml"
-                )
-                new_config_path = os.path.join(
-                    self.root_dir, "data", dir_name, "pype_config_" + tag_dst + ".yaml"
-                )
-                
-                if os.path.isfile(config_path): 
-                    if ul._overwrite_check(new_config_path, overwrite):
-                        shutil.copyfile(config_path, new_config_path)
-                        ul._print(f"Copied config for {dir_name}".format())
-                else:
-                    ul._print(f"Missing config for {dir_name} - skipping", lvl=1)
-    
-            if copy_exports:
-                export_pattern = os.path.join(self.root_dir, "data", dir_name, f"*{tag_src}.csv")
-                for export_path in glob.glob(export_pattern):
-                    new_export_path = export_path.replace(tag_src + ".csv", tag_dst + ".csv")
+                    if os.path.isfile(annotations_path): 
+                        if ul._overwrite_check(new_annotations_path, overwrite, silent=True):
+                            shutil.copyfile(annotations_path, new_annotations_path)
+                    # else:
+                    #     ul._print(f"Missing annotations for {dir_name} - skipping", lvl=1)
+                        
+                if copy_config:
+                    config_path = os.path.join(
+                        self.root_dir, "data", dir_name, "pype_config_" + tag_src + ".yaml"
+                    )
+                    new_config_path = os.path.join(
+                        self.root_dir, "data", dir_name, "pype_config_" + tag_dst + ".yaml"
+                    )
                     
-                    if os.path.isfile(export_path):
-                        if ul._overwrite_check(new_export_path, overwrite):
-                            shutil.copyfile(export_path, new_export_path)
-                            ul._print(f"Copied exported csv files for {dir_name}")
-                    else:
-                        ul._print(f"Missing exported csv files for {dir_name} - skipping", lvl=1)
-
-
+                    if os.path.isfile(config_path): 
+                        if ul._overwrite_check(new_config_path, overwrite, silent=True):
+                            shutil.copyfile(config_path, new_config_path)
+                    #         ul._print(f"Copied config for {dir_name}".format())
+                    # else:
+                    #     ul._print(f"Missing config for {dir_name} - skipping", lvl=1)
+        
+                if copy_exports:
+                    export_pattern = os.path.join(self.root_dir, "data", dir_name, f"*{tag_src}.csv")
+                    for export_path in glob.glob(export_pattern):
+                        new_export_path = export_path.replace(tag_src + ".csv", tag_dst + ".csv")
+                        
+                        if os.path.isfile(export_path):
+                            if ul._overwrite_check(new_export_path, overwrite, silent=True):
+                                shutil.copyfile(export_path, new_export_path)
+                        #         ul._print(f"Copied exported csv files for {dir_name}")
+                        # else:
+                        #     ul._print(f"Missing exported csv files for {dir_name} - skipping", lvl=1)
+                
+                pbar.update(task, description=dir_name)
+                pbar.advance(task)
                 
     def edit_config(
             self, 
@@ -3024,15 +2955,16 @@ class Pype(object):
                             method_name_updated = _vars._legacy_names[step_name][
                                 method_name
                             ]
-                            self.config_updated["processing_steps"][step_idx][step_name][
-                                method_idx
-                            ] = {method_name_updated: method_args}
+                            # self.config_updated["processing_steps"][step_idx][step_name][
+                            #     method_idx
+                            # ] = {method_name_updated: method_args}
                             method_name = method_name_updated
                             self._log("info", f"{method_name} does not exist in phenopype.{step_name} - updated method name to {method_name_updated}", 1)
                         else:
                             error_msg =  f"{method_name} does not exist in phenopype.core.{step_name} or phenopype_plugins.{step_name} modules."
                             self._log("error", error_msg, 1)
-                            raise NameError(error_msg)
+                            if self.flags.debug:
+                                raise NameError(error_msg)
                             
                 # =============================================================================
                 # METHOD / ANNOTATION

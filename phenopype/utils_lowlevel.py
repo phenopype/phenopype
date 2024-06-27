@@ -13,7 +13,6 @@ import shutil
 import string
 import sys
 import time
-import threading
 import warnings
 from _ctypes import PyObj_FromPtr
 from collections import defaultdict
@@ -24,13 +23,13 @@ from math import atan2, cos, pi, sin, sqrt
 from pathlib import Path
 from stat import S_IWRITE
 from timeit import default_timer as timer
+from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn
 
 import cv2
 import numpy as np
 from colour import Color
 from PIL import Image
-from ruamel.yaml import YAML
-from ruamel.yaml.constructor import SafeConstructor
+from ruamel.yaml import YAML, constructor
 from screeninfo import get_monitors
 from watchdog.events import PatternMatchingEventHandler
 from watchdog.observers import Observer
@@ -310,9 +309,9 @@ class _Container(object):
             annotations_updated = core.measurement.detect_skeleton(**kwargs_function)
         if fun == "compute_shape_features":
             annotations_updated = core.measurement.compute_shape_features(**kwargs_function)
-        if fun == "compute_texture_features":
-            annotations_updated = core.measurement.compute_texture_features(
-                self.image, **kwargs_function
+        if fun == "compute_texture_moments":
+            annotations_updated = core.measurement.compute_texture_moments(
+                self.image_copy, **kwargs_function
             )
 
         ## plugins.measurement
@@ -321,6 +320,10 @@ class _Container(object):
                 image = self.image,
                 model_path = self.active_model_path,
                 **kwargs_function)
+        if fun == "extract_radiomic_features":
+            annotations_updated = plugins.measurement.extract_radiomic_features(
+                self.image_copy, **kwargs_function
+            )
 
         ## visualization
         if fun == "select_canvas":
@@ -1660,7 +1663,7 @@ class _YamlFileMonitor:
                 time.sleep(1)
                 current_time = timer() - start_time
                 if current_time > 3:
-                    print_msg = "FORCING WINDOW CLOSURE..."
+                    print_msg = "<<< OpenCV window issue - attempting fix >>>"
                     _print(print_msg, watch_last=True)
                     break
         self.time_start = timer()
@@ -2148,73 +2151,36 @@ def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize
     return image_data
 
 
-def _load_template(template_path, tag="v1", overwrite=False, keep_comments=True, image_path=None, dir_path=None, ret_path=False):
-    flags = make_dataclass("Flags", [("overwrite", bool, overwrite)])
-    
-    # Validate template path
-    if config.template_path_current != template_path:
-        if not isinstance(template_path, str) or not os.path.isfile(template_path):
-            print("Invalid or non-existent template_path")
-            return
-        template_loaded = _load_yaml(template_path)
-        config.template_path_current = template_path
-        config.template_loaded_current = template_loaded
-    else:
-        template_loaded = config.template_loaded_current
-
-    # Validate dir_path and image_path
-    if dir_path is None and image_path is None:
-        print("Need to specify image_path or dir_path")
-        return
-    elif dir_path is not None and image_path is None:
-        if not os.path.isdir(dir_path):
-            print("Could not find dir_path")
-            return
-        prepend = ""
-    elif dir_path is None:
-        dir_path = os.path.dirname(image_path)
-        image_name_root = os.path.splitext(os.path.basename(image_path))[0]
-        prepend = f"{image_name_root}_"
-
-    # Construct config name
-    suffix = f"_{tag}" if isinstance(tag, str) else ""
-    config_name = f"{prepend}pype_config{suffix}.yaml"
-    config_path = os.path.join(dir_path, config_name)
+def _format_config(template, template_name, config_name, keep_comments=True):
 
     # Prepare configuration
-    if "template_locked" in template_loaded:
-        template_loaded.pop("template_locked")
+    if "template_locked" in template:
+        template.pop("template_locked")
 
     config_info = {
         "config_info": {
             "config_name": config_name,
             "date_created": datetime.today().strftime(_vars.strftime_format),
             "date_last_modified": None,
-            "template_name": os.path.basename(template_path),
-            "template_path": template_path,
+            "template_name": template_name,
         }
     }
 
-    yaml = ruamel.yaml.YAML()
+    yaml = YAML()
     yaml.width = 4096
     yaml.indent(mapping=4, sequence=4, offset=4)
 
     if keep_comments:
         with io.StringIO() as buf, redirect_stdout(buf):
-            yaml.dump(config_info, sys.stdout)
+            yaml.dump(template, sys.stdout)
             output = buf.getvalue()
             output = yaml.load(output)
         for key in reversed(output):
-            template_loaded.insert(0, key, output[key])
+            template.insert(0, key, output[key])
     else:
-        template_loaded = {**config_info, **template_loaded}
-        _yaml_recursive_delete_comments(template_loaded)
+        _yaml_recursive_delete_comments(template)
 
-    if _overwrite_check(config_path, flags.overwrite):
-        _save_yaml(template_loaded, config_path)
-
-    if ret_path:
-        return config_path
+    return {**config_info, **template}
 
 
 #%% functions - GUI helpers
@@ -2225,8 +2191,6 @@ def _get_monitor_resolution():
         monitor = monitors[0]
         resolution_width = monitor.width
         resolution_height = monitor.height
-        width_mm = monitor.width_mm
-        height_mm = monitor.height_mm
         
         # Calculate diagonal size in pixels
         diagonal_pixels = math.sqrt(resolution_width**2 + resolution_height**2)
@@ -2354,7 +2318,7 @@ def _load_yaml(filepath, typ="rt", pure=False, legacy=False):
             value = self.construct_mapping(node)
             data.update(value)
 
-    SafeConstructor.add_constructor(u"tag:yaml.org,2002:map", _construct_yaml_map)
+    constructor.SafeConstructor.add_constructor(u"tag:yaml.org,2002:map", _construct_yaml_map)
     yaml = YAML(typ=typ, pure=pure)
     yaml.indent(mapping=4, sequence=4, offset=4)
 
@@ -2429,40 +2393,43 @@ def _yaml_recursive_delete_comments(d):
 #%% functions - DIALOGS
 
 
-def _overwrite_check(path, overwrite):
+def _overwrite_check(path, overwrite, **kwargs):
 
     base_name = os.path.basename(path)
     exists = os.path.isdir(path) or os.path.isfile(path)
 
     if exists and not overwrite:
-        _print(f"{base_name} not saved - already exists (overwrite=False)", lvl=1)
+        _print(f"{base_name} not saved - already exists (overwrite=False)", lvl=1, **kwargs)
         return False
     else:
         if exists and overwrite:
-            _print(f"{base_name} saved (overwritten)")
+            _print(f"{base_name} saved (overwritten)", **kwargs)
         else:
-            _print(f"{base_name} saved")
+            _print(f"{base_name} saved", **kwargs)
         return True
     
     
 #%% functions - PRINTING / LOGGING
 
-# def _print(msg, lvl=0, watch_last=False, **kwargs):
-#     if config.verbose:
-#         if lvl >= config.verbosity_level:
-#             if watch_last: 
-#                 if msg != config.last_print_msg:    
-#                     print(msg)
-#             else:
-#                 print(msg)
-#             config.last_print_msg = msg
+def _create_progress_bar(items):
+    
+    terminal_width = shutil.get_terminal_size()[0]
+    
+    return Progress(
+        TextColumn("{task.description}"),
+        BarColumn(bar_width=terminal_width),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TextColumn("({task.completed}/{task.total})"),
+        TimeRemainingColumn(),
+    ) 
 
-def _print(msg, level=0, watch_last=False, **kwargs):
-    level = kwargs.get("lvl", level)
-    if not config.verbose:
+
+def _print(msg, lvl=0, watch_last=False, silent=False, **kwargs):
+    lvl = kwargs.get("level", lvl)
+    if not config.verbose or silent:
         return
 
-    if level < config.verbosity_level:
+    if lvl < config.verbosity_level:
         return
 
     if watch_last and msg == config.last_print_msg:
