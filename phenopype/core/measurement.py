@@ -478,7 +478,7 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
     )
 
 
-def compute_texture_features(
+def compute_texture_moments(
     image,
     annotations,
     features=["firstorder"],
@@ -567,7 +567,7 @@ def compute_texture_features(
     for coords in contours:
         foreground_mask_inverted = cv2.fillPoly(foreground_mask_inverted, [coords], 255)
         
-    texture_features = []
+    moments_features = []
     if image.ndim == 2:
         layers = 1
         image = np.dstack((image,image)) 
@@ -579,7 +579,7 @@ def compute_texture_features(
     
     for idx1, (coords, support) in _tqdm(
             enumerate(zip(contours, contours_support)),
-            "Computing texture features",
+            "Computing basic moments",
             total=len(contours),
             disable=tqdm_off
     ):
@@ -592,30 +592,33 @@ def compute_texture_features(
 
                 if (idx2 + 1) > image.shape[2]:
                     continue
-
                 
                 rx, ry, rw, rh = cv2.boundingRect(coords)
                 data = image[ry : ry + rh, rx : rx + rw, idx2]
                 mask = foreground_mask_inverted[ry : ry + rh, rx : rx + rw]
-                sitk_data = sitk.GetImageFromArray(data)
-                sitk_mask = sitk.GetImageFromArray(mask)
                 
                 if len(np.unique(mask)) > 1:
-                
-                    extractor = featureextractor.RadiomicsFeatureExtractor()
-                    extractor.disableAllFeatures()
-                    extractor.enableFeaturesByName(**feature_activation)
-                    detected_features = extractor.execute(sitk_data, sitk_mask, label=255)
+                    # Apply mask
+                    masked_data = data[mask == 0]
+                    
+                    # Compute first-order statistics
+                    mean = np.mean(masked_data)
+                    std = np.std(masked_data)
+                    var = np.var(masked_data)
+                    skewness = np.mean((masked_data - mean)**3) / (std**3)
+                    kurtosis = np.mean((masked_data - mean)**4) / (std**4) - 3
+
+                    output[channel + "_mean"] = float(mean)
+                    output[channel + "_std"] = float(std)
+                    output[channel + "_variance"] = float(var)
+                    output[channel + "_skewness"] = float(skewness)
+                    output[channel + "_kurtosis"] = float(kurtosis)
 
                 else:
                     continue
 
-                for key, val in detected_features.items():
-                    if not "diagnostics" in key:
-                        output[channel + "_" + key.split("_", 1)[1]] = float(val)
-
-        texture_features.append(output)
-        
+        moments_features.append(output)
+       
         
 
     # =============================================================================
@@ -633,7 +636,7 @@ def compute_texture_features(
             "channels_names": channel_names,
             "contour_id": contour_id,
         },
-        "data": {annotation_type: texture_features,},
+        "data": {annotation_type: moments_features},
     }
 
     # =============================================================================
