@@ -4,9 +4,6 @@ import cv2
 import math
 import numpy as np
 import sys
-
-import logging
-
 from tqdm import tqdm as _tqdm
 
 from phenopype import __version__
@@ -556,9 +553,6 @@ def compute_texture_moments(
         
     # =============================================================================
     # execute
-
-    logger = logging.getLogger("radiomics")
-    logger.setLevel(logging.ERROR)
 
     ## create forgeround mask
     foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)

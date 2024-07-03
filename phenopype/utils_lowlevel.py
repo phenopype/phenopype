@@ -726,7 +726,7 @@ class _GUI:
         self.settings = _GUI_Settings()
         self.settings.tool = tool
         self.settings.interactive = interactive
-                        
+                                
         ## apply kwargs to setting
         for field in fields(self.settings):
             if field.name in kwargs:
@@ -981,14 +981,19 @@ class _GUI:
         if self.tool:
             if self.tool == "draw":
                 self._on_mouse_draw(event, x, y, flags)
+                self._canvas_print_instructions("add with left-, remove with right click, TAB+Scroll +/- brush size")
             elif self.tool == "point":
                 self._on_mouse_point(event, x, y)
+                self._canvas_print_instructions("add points with left-, remove with right-click")
             elif self.tool == "polygon":
                 self._on_mouse_polygon(event, x, y, flags)
+                self._canvas_print_instructions("add polygon nodes with left-, remove with right-click, finish polygon with CTRL")
             elif self.tool == "polyline" or self.tool == "polylines":
                 self._on_mouse_polygon(event, x, y, flags, polyline=True)
+                self._canvas_print_instructions("add polyline nodes with left-, remove with right-click, finish polyline with CTRL")
             elif self.tool == "rectangle":
                 self._on_mouse_rectangle(event, x, y, flags)
+                self._canvas_print_instructions("add box with left-click+drag, remove with right-click")
             elif self.tool == "reference":
                 self._on_mouse_polygon(event, x, y, flags, reference=True)
             elif self.tool == "template":
@@ -1168,6 +1173,9 @@ class _GUI:
                 )
             self._canvas_mount()
             self.flags.finished = True
+            
+
+
 
     def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
 
@@ -1472,7 +1480,22 @@ class _GUI:
         ## refresh canvas
         if refresh and self.settings.interactive:
             cv2.imshow(self.settings.window_name, self.canvas)
-
+            
+    def _canvas_print_instructions(self, text):
+        
+        if config.instructions_show:
+            y_pos, x_pos = config.instructions_pos
+            cv2.putText(
+                self.canvas,
+                str(text),
+                (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
+                _vars.opencv_font_flags["complex-small"],
+                self.settings.label_size * 0.75,
+                self.settings.label_colour,
+                1,# self.settings.label_width,
+                cv2.FILLED,
+            )
+            
     def _canvas_renew(self):
 
         ## pull copy from original image
@@ -1716,7 +1739,6 @@ def _get_annotation(annotations, annotation_type, annotation_id=None, reduce_cou
             if not annotation:
                 _print(f'- could not find "{annotation_type}" with ID "{annotation_id}"', lvl=1)
         else:
-            _print(f'- incompatible annotation type supplied - need "{annotation_type}" type', lvl=1)
             annotation = {}
     else:
         annotation = {}
@@ -2094,61 +2116,53 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
 
 def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize=1):
     """
-    Create a DataFreame with image information (e.g. dimensions).
+    Create a DataFrame with image information (e.g., dimensions).
 
     Parameters
     ----------
-    image: str or ndarray
-        can be a path to an image stored on the harddrive OR an array already 
-        loaded to Python.
-    path_and_type: bool, optional
-        return image path and filetype to image_data dictionary
+    image_path : str
+        Path to an image stored on the hard drive.
+    path_and_type : bool, optional
+        Return image path and file type in image_data dictionary (default is True).
+    image_rel_path : str, optional
+        Relative path to the image, used if path_and_type is True (default is None).
+    resize : int, optional
+        Resize factor for the image (default is 1, meaning no resize).
 
     Returns
     -------
-    image_data: dict
-        contains image data (+meta data, if selected)
-
+    image_data : dict
+        Contains image data (+meta data, if selected).
     """
-    
-    if image_path.__class__.__name__ == "str":
-        if os.path.isfile(image_path):
-            image = Image.open(image_path)
-            width, height = image.size
-            image.close()
-            image_data = {
-                "filename": os.path.split(image_path)[1],
-                "width": width,
-                "height": height,
-            }
-
-            if path_and_type:
-                if not image_rel_path.__class__.__name__ == "NoneType":
-                    image_path = image_rel_path
-                
-                image_data.update(
-                    {
-                        "filepath": image_path,
-                        "filetype": os.path.splitext(image_path)[1],
-                    }
-                )
-        else:
-            raise FileNotFoundError("Invalid image path - could not load image.")
-    else:
+    if not isinstance(image_path, str):
         raise TypeError("Not a valid image file - cannot read image data.")
 
+    if not os.path.isfile(image_path):
+        raise FileNotFoundError("Invalid image path - could not load image.")
 
-    ## issue warnings for large images
-    if width * height > 125000000:
+    with Image.open(image_path) as image:
+        width, height = image.size
+
+    image_data = {
+        "filename": os.path.basename(image_path),
+        "width": width,
+        "height": height,
+    }
+
+    if path_and_type:
+        image_path_to_use = image_rel_path if image_rel_path is not None else image_path
+        image_data.update({
+            "filepath": image_path_to_use,
+            "filetype": os.path.splitext(image_path_to_use)[1],
+        })
+
+    if width * height > 125_000_000:
         warnings.warn("Large image - expect slow processing.")
-    elif width * height > 250000000:
-        warnings.warn(
-            "Extremely large image - expect very slow processing \
-                      and consider resizing."
-        )
+    elif width * height > 250_000_000:
+        warnings.warn("Extremely large image - expect very slow processing and consider resizing.")
 
-    ## return image data
     return image_data
+
 
 
 def _format_config(template, template_name, config_name, keep_comments=True):

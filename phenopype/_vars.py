@@ -13,6 +13,7 @@ auto_text_size_factor = 0.0005
 
 confirm_options = ["True", "true", "y", "yes", True]
 
+_default_instructions_colour = "green"
 _default_label_colour = "red"
 _default_line_colour = "lime"
 _default_node_colour = "red"

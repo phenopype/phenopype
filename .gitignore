@@ -6,6 +6,7 @@
 .eggs
 .installed.cfg
 .ipynb_checkpoints
+*.orig
 .tox
 .pytest_cache
 jupyter_execute
