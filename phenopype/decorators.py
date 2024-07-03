@@ -43,28 +43,43 @@ def annotation_function(fun):
     ## close function wrapper
     return annotation_function_wrapper
 
+# def capture_stdout_log(fun, logger, *logger_args):
+    
+#     @wraps(fun)
+#     def capture_stdout_log_wrapper():
+                
+#         string_buffer = io.StringIO()
+#         with redirect_stdout(string_buffer):  
+#             fun()
+    
+#         ## reformat stdout
+#         stdout = string_buffer.getvalue()
+#         stdout_list = stdout.split("\n")
+#         for line in stdout_list:
+#             if not line == "":
+#                 if line.endswith("\n"):
+#                     line = line[:-2]
+#                 logger(logger_args)
+                
+#     ## close function wrapper
+#     return capture_stdout_log_wrapper
 
-def capture_stdout_log(fun, logger, *logger_args):
-    
-    @wraps(fun)
-    def capture_stdout_log_wrapper():
-                
-        string_buffer = io.StringIO()
-        with redirect_stdout(string_buffer):
-                
-            fun()
-    
-        ## reformat stdout
-        stdout = string_buffer.getvalue()
-        stdout_list = stdout.split("\n")
-        for line in stdout_list:
-            if not line == "":
-                if line.endswith("\n"):
-                    line = line[:-2]
-                logger(logger_args)
-                
-    ## close function wrapper
-    return capture_stdout_log_wrapper
+# def capture_print(func):
+#     def wrapper(*args, **kwargs):
+#         # Redirect stdout to capture print output
+#         old_stdout = sys.stdout
+#         sys.stdout = captured_output = StringIO()
+
+#         try:
+#             result = func(*args, **kwargs)
+#             output = captured_output.getvalue()
+#         finally:
+#             # Reset stdout
+#             sys.stdout = old_stdout
+        
+#         return result, output
+
+#     return wrapper
 
 def deprecation_warning(new_func=None):
     def decorator(func):

@@ -13,7 +13,6 @@ import shutil
 import string
 import sys
 import time
-import threading
 import warnings
 from _ctypes import PyObj_FromPtr
 from collections import defaultdict
@@ -24,13 +23,13 @@ from math import atan2, cos, pi, sin, sqrt
 from pathlib import Path
 from stat import S_IWRITE
 from timeit import default_timer as timer
+from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn
 
 import cv2
 import numpy as np
 from colour import Color
 from PIL import Image
-from ruamel.yaml import YAML
-from ruamel.yaml.constructor import SafeConstructor
+from ruamel.yaml import YAML, constructor
 from screeninfo import get_monitors
 from watchdog.events import PatternMatchingEventHandler
 from watchdog.observers import Observer
@@ -310,9 +309,9 @@ class _Container(object):
             annotations_updated = core.measurement.detect_skeleton(**kwargs_function)
         if fun == "compute_shape_features":
             annotations_updated = core.measurement.compute_shape_features(**kwargs_function)
-        if fun == "compute_texture_features":
-            annotations_updated = core.measurement.compute_texture_features(
-                self.image, **kwargs_function
+        if fun == "compute_texture_moments":
+            annotations_updated = core.measurement.compute_texture_moments(
+                self.image_copy, **kwargs_function
             )
 
         ## plugins.measurement
@@ -321,6 +320,10 @@ class _Container(object):
                 image = self.image,
                 model_path = self.active_model_path,
                 **kwargs_function)
+        if fun == "extract_radiomic_features":
+            annotations_updated = plugins.measurement.extract_radiomic_features(
+                self.image_copy, **kwargs_function
+            )
 
         ## visualization
         if fun == "select_canvas":
@@ -723,7 +726,7 @@ class _GUI:
         self.settings = _GUI_Settings()
         self.settings.tool = tool
         self.settings.interactive = interactive
-                        
+                                
         ## apply kwargs to setting
         for field in fields(self.settings):
             if field.name in kwargs:
@@ -978,14 +981,19 @@ class _GUI:
         if self.tool:
             if self.tool == "draw":
                 self._on_mouse_draw(event, x, y, flags)
+                self._canvas_print_instructions("add with left-, remove with right click, TAB+Scroll +/- brush size")
             elif self.tool == "point":
                 self._on_mouse_point(event, x, y)
+                self._canvas_print_instructions("add points with left-, remove with right-click")
             elif self.tool == "polygon":
                 self._on_mouse_polygon(event, x, y, flags)
+                self._canvas_print_instructions("add polygon nodes with left-, remove with right-click, finish polygon with CTRL")
             elif self.tool == "polyline" or self.tool == "polylines":
                 self._on_mouse_polygon(event, x, y, flags, polyline=True)
+                self._canvas_print_instructions("add polyline nodes with left-, remove with right-click, finish polyline with CTRL")
             elif self.tool == "rectangle":
                 self._on_mouse_rectangle(event, x, y, flags)
+                self._canvas_print_instructions("add box with left-click+drag, remove with right-click")
             elif self.tool == "reference":
                 self._on_mouse_polygon(event, x, y, flags, reference=True)
             elif self.tool == "template":
@@ -1165,6 +1173,9 @@ class _GUI:
                 )
             self._canvas_mount()
             self.flags.finished = True
+            
+
+
 
     def _on_mouse_rectangle(self, event, x, y, flags, **kwargs):
 
@@ -1469,7 +1480,22 @@ class _GUI:
         ## refresh canvas
         if refresh and self.settings.interactive:
             cv2.imshow(self.settings.window_name, self.canvas)
-
+            
+    def _canvas_print_instructions(self, text):
+        
+        if config.instructions_show:
+            y_pos, x_pos = config.instructions_pos
+            cv2.putText(
+                self.canvas,
+                str(text),
+                (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
+                _vars.opencv_font_flags["complex-small"],
+                self.settings.label_size * 0.75,
+                self.settings.label_colour,
+                1,# self.settings.label_width,
+                cv2.FILLED,
+            )
+            
     def _canvas_renew(self):
 
         ## pull copy from original image
@@ -1660,7 +1686,7 @@ class _YamlFileMonitor:
                 time.sleep(1)
                 current_time = timer() - start_time
                 if current_time > 3:
-                    print_msg = "FORCING WINDOW CLOSURE..."
+                    print_msg = "<<< OpenCV window issue - attempting fix >>>"
                     _print(print_msg, watch_last=True)
                     break
         self.time_start = timer()
@@ -1713,7 +1739,6 @@ def _get_annotation(annotations, annotation_type, annotation_id=None, reduce_cou
             if not annotation:
                 _print(f'- could not find "{annotation_type}" with ID "{annotation_id}"', lvl=1)
         else:
-            _print(f'- incompatible annotation type supplied - need "{annotation_type}" type', lvl=1)
             annotation = {}
     else:
         annotation = {}
@@ -1823,6 +1848,7 @@ def _update_annotations(
 
 #%% I/O helpers
 
+
 def _file_walker(
     directory,
     filetypes=[],
@@ -1834,115 +1860,198 @@ def _file_walker(
     **kwargs
 ):
     """
-    
+    Walks through a directory and returns a list of files based on specified criteria.
+
     Parameters
     ----------
     directory : str
-        path to directory to search for files
-    recursive: (optional): bool,
-        "False" searches only current directory for valid files; "True" walks 
-        through all subdirectories
-    filetypes (optional): list of str
-        single or multiple string patterns to target files with certain endings
-    include (optional): list of str
-        single or multiple string patterns to target certain files to include
-    include_all (optional): bool,
-        either all (True) or any (False) of the provided keywords have to match
-    exclude (optional): list of str
-        single or multiple string patterns to target certain files to exclude - can overrule "include"
-    unique (optional): str (default: "filepath")
-        how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
-        if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
-        whereas filename will ignore all those files after their first occurrence.
+        Path to the directory to search for files.
+    filetypes : list of str, optional
+        List of file extensions to include (e.g., ['.txt', '.jpg']). If empty, includes all file types.
+    include : list of str, optional
+        List of substrings that files must include in their names. If empty, includes all files.
+    include_all : bool, optional
+        If True, all substrings in `include` must be present in the file name. If False, any substring in `include` can be present. Default is True.
+    exclude : list of str, optional
+        List of substrings that files must not include in their names. If empty, no files are excluded.
+    recursive : bool, optional
+        If True, walks through all subdirectories. If False, only searches the specified directory. Default is False.
+    unique : {'path', 'filename'}, optional
+        Determines how to handle duplicate files. 'path' considers the full file path, while 'filename' considers only the file name. Default is 'path'.
+    **kwargs
+        Additional keyword arguments. Currently supports 'pype_mode' which if True, suppresses printing of "No files found" message.
 
     Returns
     -------
-    None.
-
+    tuple of lists
+        A tuple containing two lists:
+        - unique: List of unique file paths based on the specified `unique` criteria.
+        - duplicate: List of duplicate file paths based on the specified `unique` criteria.
     """
-    ## kwargs
     pype_mode = kwargs.get("pype_mode", False)
-    if not filetypes.__class__.__name__ == "list":
-        filetypes = [filetypes]
-    if not include.__class__.__name__ == "list":
-        include = [include]
-    if not exclude.__class__.__name__ == "list":
-        exclude = [exclude]
-    flag_include_all = include_all
-    flag_recursive = recursive
-    flag_unique = unique
+    filetypes = set(filetypes) if isinstance(filetypes, list) else {filetypes}
+    include = set(include) if isinstance(include, list) else {include}
+    exclude = set(exclude) if isinstance(exclude, list) else {exclude}
 
-    ## find files
-    filepaths1, filepaths2, filepaths3, filepaths4 = [], [], [], []
-    if flag_recursive == True:
-        for root, dirs, files in os.walk(directory):
-            for file in os.listdir(root):
-                filepath = os.path.join(root, file)
-                if os.path.isfile(filepath):
-                    filepaths1.append(filepath)
-    else:
-        for file in os.listdir(directory):
-            filepath = os.path.join(directory, file)
+    filepaths = []
+
+    for root, _, files in (os.walk(directory) if recursive else [(directory, None, os.listdir(directory))]):
+        for file in files:
+            filepath = os.path.join(root, file)
             if os.path.isfile(filepath):
-                filepaths1.append(filepath)
+                # Filetypes check
+                if filetypes and not any(filepath.endswith(ft) for ft in filetypes):
+                    continue
+                # Include check
+                if include:
+                    basename = os.path.basename(filepath)
+                    if include_all and not all(inc in basename for inc in include):
+                        continue
+                    elif not include_all and not any(inc in basename for inc in include):
+                        continue
+                # Exclude check
+                if exclude and any(exc in os.path.basename(filepath) for exc in exclude):
+                    continue
+                filepaths.append(filepath)
 
-    ## file endings
-    if len(filetypes) > 0:
-        for filepath in filepaths1:
-            if filepath.endswith(tuple(filetypes)):
-                filepaths2.append(filepath)
-    elif len(filetypes) == 0:
-        filepaths2 = filepaths1
-
-    ## include
-    if len(include) > 0:
-        for filepath in filepaths2:
-            if flag_include_all:
-                if all(inc in os.path.basename(filepath) for inc in include):
-                    filepaths3.append(filepath)
-            else:
-                if pype_mode:
-                    if any(inc in Path(filepath).stem for inc in include):
-                        filepaths3.append(filepath)
-                else:
-                    if any(inc in os.path.basename(filepath) for inc in include):
-                        filepaths3.append(filepath)
-    else:
-        filepaths3 = filepaths2
-
-    ## exclude
-    if len(exclude) > 0:
-        for filepath in filepaths3:
-            if not any(exc in os.path.basename(filepath) for exc in exclude):
-                filepaths4.append(filepath)
-    else:
-        filepaths4 = filepaths3
-
-    ## check if files found
-    filepaths = filepaths4
-    if len(filepaths) == 0 and not pype_mode:
-        print("No files found under the given location that match given criteria.")
+    if not filepaths and not pype_mode:
+        _print("No files found under the given location that match given criteria.", lvl=1)
         return [], []
-    
-    ## allow unique filenames filepath or by filename only
-    filenames, unique_filename, unique, duplicate = [], [], [], []
-    for filepath in filepaths:
-        filenames.append(os.path.basename(filepath))
-    if flag_unique in ["filepaths", "filepath", "path"]:
-        for filename, filepath in zip(filenames, filepaths):
-            if not filepath in unique:
-                unique.append(filepath)
-            else:
-                duplicate.append(filepath)
-    elif flag_unique in ["filenames", "filename", "name"]:
-        for filename, filepath in zip(filenames, filepaths):
-            if not filename in unique_filename:
-                unique_filename.append(filename)
-                unique.append(filepath)
-            else:
-                duplicate.append(filepath)
+
+    unique_files = {}
+    if unique in ["filepaths", "filepath", "path"]:
+        for filepath in filepaths:
+            unique_files[filepath] = filepath
+    elif unique in ["filenames", "filename", "name"]:
+        for filepath in filepaths:
+            filename = os.path.basename(filepath)
+            if filename not in unique_files:
+                unique_files[filename] = filepath
+
+    unique = list(unique_files.values())
+    duplicate = [f for f in filepaths if f not in unique_files.values()]
 
     return unique, duplicate
+# def _file_walker(
+#     directory,
+#     filetypes=[],
+#     include=[],
+#     include_all=True,
+#     exclude=[],
+#     recursive=False,
+#     unique="path",
+#     **kwargs
+# ):
+#     """
+    
+#     Parameters
+#     ----------
+#     directory : str
+#         path to directory to search for files
+#     recursive: (optional): bool,
+#         "False" searches only current directory for valid files; "True" walks 
+#         through all subdirectories
+#     filetypes (optional): list of str
+#         single or multiple string patterns to target files with certain endings
+#     include (optional): list of str
+#         single or multiple string patterns to target certain files to include
+#     include_all (optional): bool,
+#         either all (True) or any (False) of the provided keywords have to match
+#     exclude (optional): list of str
+#         single or multiple string patterns to target certain files to exclude - can overrule "include"
+#     unique (optional): str (default: "filepath")
+#         how should unique files be identified: "filepath" or "filename". "filepath" is useful, for example, 
+#         if identically named files exist in different subfolders (folder structure will be collapsed and goes into the filename),
+#         whereas filename will ignore all those files after their first occurrence.
+
+#     Returns
+#     -------
+#     None.
+
+#     """
+#     ## kwargs
+#     pype_mode = kwargs.get("pype_mode", False)
+#     if not filetypes.__class__.__name__ == "list":
+#         filetypes = [filetypes]
+#     if not include.__class__.__name__ == "list":
+#         include = [include]
+#     if not exclude.__class__.__name__ == "list":
+#         exclude = [exclude]
+#     flag_include_all = include_all
+#     flag_recursive = recursive
+#     flag_unique = unique
+
+#     ## find files
+#     filepaths1, filepaths2, filepaths3, filepaths4 = [], [], [], []
+#     if flag_recursive == True:
+#         for root, dirs, files in os.walk(directory):
+#             for file in os.listdir(root):
+#                 filepath = os.path.join(root, file)
+#                 if os.path.isfile(filepath):
+#                     filepaths1.append(filepath)
+#     else:
+#         for file in os.listdir(directory):
+#             filepath = os.path.join(directory, file)
+#             if os.path.isfile(filepath):
+#                 filepaths1.append(filepath)
+
+#     ## file endings
+#     if len(filetypes) > 0:
+#         for filepath in filepaths1:
+#             if filepath.endswith(tuple(filetypes)):
+#                 filepaths2.append(filepath)
+#     elif len(filetypes) == 0:
+#         filepaths2 = filepaths1
+
+#     ## include
+#     if len(include) > 0:
+#         for filepath in filepaths2:
+#             if flag_include_all:
+#                 if all(inc in os.path.basename(filepath) for inc in include):
+#                     filepaths3.append(filepath)
+#             else:
+#                 if pype_mode:
+#                     if any(inc in Path(filepath).stem for inc in include):
+#                         filepaths3.append(filepath)
+#                 else:
+#                     if any(inc in os.path.basename(filepath) for inc in include):
+#                         filepaths3.append(filepath)
+#     else:
+#         filepaths3 = filepaths2
+
+#     ## exclude
+#     if len(exclude) > 0:
+#         for filepath in filepaths3:
+#             if not any(exc in os.path.basename(filepath) for exc in exclude):
+#                 filepaths4.append(filepath)
+#     else:
+#         filepaths4 = filepaths3
+
+#     ## check if files found
+#     filepaths = filepaths4
+#     if len(filepaths) == 0 and not pype_mode:
+#         print("No files found under the given location that match given criteria.")
+#         return [], []
+    
+#     ## allow unique filenames filepath or by filename only
+#     filenames, unique_filename, unique, duplicate = [], [], [], []
+#     for filepath in filepaths:
+#         filenames.append(os.path.basename(filepath))
+#     if flag_unique in ["filepaths", "filepath", "path"]:
+#         for filename, filepath in zip(filenames, filepaths):
+#             if not filepath in unique:
+#                 unique.append(filepath)
+#             else:
+#                 duplicate.append(filepath)
+#     elif flag_unique in ["filenames", "filename", "name"]:
+#         for filename, filepath in zip(filenames, filepaths):
+#             if not filename in unique_filename:
+#                 unique_filename.append(filename)
+#                 unique.append(filepath)
+#             else:
+#                 duplicate.append(filepath)
+
+#     return unique, duplicate
 
 def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwargs):
     """
@@ -2007,130 +2116,85 @@ def _load_project_image_directory(dir_path, tag=None, as_container=True, **kwarg
 
 def _load_image_data(image_path, path_and_type=True, image_rel_path=None, resize=1):
     """
-    Create a DataFreame with image information (e.g. dimensions).
+    Create a DataFrame with image information (e.g., dimensions).
 
     Parameters
     ----------
-    image: str or ndarray
-        can be a path to an image stored on the harddrive OR an array already 
-        loaded to Python.
-    path_and_type: bool, optional
-        return image path and filetype to image_data dictionary
+    image_path : str
+        Path to an image stored on the hard drive.
+    path_and_type : bool, optional
+        Return image path and file type in image_data dictionary (default is True).
+    image_rel_path : str, optional
+        Relative path to the image, used if path_and_type is True (default is None).
+    resize : int, optional
+        Resize factor for the image (default is 1, meaning no resize).
 
     Returns
     -------
-    image_data: dict
-        contains image data (+meta data, if selected)
-
+    image_data : dict
+        Contains image data (+meta data, if selected).
     """
-    
-    if image_path.__class__.__name__ == "str":
-        if os.path.isfile(image_path):
-            image = Image.open(image_path)
-            width, height = image.size
-            image.close()
-            image_data = {
-                "filename": os.path.split(image_path)[1],
-                "width": width,
-                "height": height,
-            }
-
-            if path_and_type:
-                if not image_rel_path.__class__.__name__ == "NoneType":
-                    image_path = image_rel_path
-                
-                image_data.update(
-                    {
-                        "filepath": image_path,
-                        "filetype": os.path.splitext(image_path)[1],
-                    }
-                )
-        else:
-            raise FileNotFoundError("Invalid image path - could not load image.")
-    else:
+    if not isinstance(image_path, str):
         raise TypeError("Not a valid image file - cannot read image data.")
 
+    if not os.path.isfile(image_path):
+        raise FileNotFoundError("Invalid image path - could not load image.")
 
-    ## issue warnings for large images
-    if width * height > 125000000:
+    with Image.open(image_path) as image:
+        width, height = image.size
+
+    image_data = {
+        "filename": os.path.basename(image_path),
+        "width": width,
+        "height": height,
+    }
+
+    if path_and_type:
+        image_path_to_use = image_rel_path if image_rel_path is not None else image_path
+        image_data.update({
+            "filepath": image_path_to_use,
+            "filetype": os.path.splitext(image_path_to_use)[1],
+        })
+
+    if width * height > 125_000_000:
         warnings.warn("Large image - expect slow processing.")
-    elif width * height > 250000000:
-        warnings.warn(
-            "Extremely large image - expect very slow processing \
-                      and consider resizing."
-        )
+    elif width * height > 250_000_000:
+        warnings.warn("Extremely large image - expect very slow processing and consider resizing.")
 
-    ## return image data
     return image_data
 
 
-def _load_template(template_path, tag="v1", overwrite=False, keep_comments=True, image_path=None, dir_path=None, ret_path=False):
-    flags = make_dataclass("Flags", [("overwrite", bool, overwrite)])
-    
-    # Validate template path
-    if config.template_path_current != template_path:
-        if not isinstance(template_path, str) or not os.path.isfile(template_path):
-            print("Invalid or non-existent template_path")
-            return
-        template_loaded = _load_yaml(template_path)
-        config.template_path_current = template_path
-        config.template_loaded_current = template_loaded
-    else:
-        template_loaded = config.template_loaded_current
 
-    # Validate dir_path and image_path
-    if dir_path is None and image_path is None:
-        print("Need to specify image_path or dir_path")
-        return
-    elif dir_path is not None and image_path is None:
-        if not os.path.isdir(dir_path):
-            print("Could not find dir_path")
-            return
-        prepend = ""
-    elif dir_path is None:
-        dir_path = os.path.dirname(image_path)
-        image_name_root = os.path.splitext(os.path.basename(image_path))[0]
-        prepend = f"{image_name_root}_"
-
-    # Construct config name
-    suffix = f"_{tag}" if isinstance(tag, str) else ""
-    config_name = f"{prepend}pype_config{suffix}.yaml"
-    config_path = os.path.join(dir_path, config_name)
+def _format_config(template, template_name, config_name, keep_comments=True):
 
     # Prepare configuration
-    if "template_locked" in template_loaded:
-        template_loaded.pop("template_locked")
+    if "template_locked" in template:
+        template.pop("template_locked")
 
     config_info = {
         "config_info": {
             "config_name": config_name,
             "date_created": datetime.today().strftime(_vars.strftime_format),
             "date_last_modified": None,
-            "template_name": os.path.basename(template_path),
-            "template_path": template_path,
+            "template_name": template_name,
         }
     }
 
-    yaml = ruamel.yaml.YAML()
+    yaml = YAML()
     yaml.width = 4096
     yaml.indent(mapping=4, sequence=4, offset=4)
 
     if keep_comments:
         with io.StringIO() as buf, redirect_stdout(buf):
-            yaml.dump(config_info, sys.stdout)
+            yaml.dump(template, sys.stdout)
             output = buf.getvalue()
             output = yaml.load(output)
         for key in reversed(output):
-            template_loaded.insert(0, key, output[key])
+            template.insert(0, key, output[key])
     else:
-        template_loaded = {**config_info, **template_loaded}
-        _yaml_recursive_delete_comments(template_loaded)
+        _yaml_recursive_delete_comments(template)
 
-    if _overwrite_check(config_path, flags.overwrite):
-        _save_yaml(template_loaded, config_path)
-
-    if ret_path:
-        return config_path
+    return {**config_info, **template}
 
 
 #%% functions - GUI helpers
@@ -2141,8 +2205,6 @@ def _get_monitor_resolution():
         monitor = monitors[0]
         resolution_width = monitor.width
         resolution_height = monitor.height
-        width_mm = monitor.width_mm
-        height_mm = monitor.height_mm
         
         # Calculate diagonal size in pixels
         diagonal_pixels = math.sqrt(resolution_width**2 + resolution_height**2)
@@ -2270,7 +2332,7 @@ def _load_yaml(filepath, typ="rt", pure=False, legacy=False):
             value = self.construct_mapping(node)
             data.update(value)
 
-    SafeConstructor.add_constructor(u"tag:yaml.org,2002:map", _construct_yaml_map)
+    constructor.SafeConstructor.add_constructor(u"tag:yaml.org,2002:map", _construct_yaml_map)
     yaml = YAML(typ=typ, pure=pure)
     yaml.indent(mapping=4, sequence=4, offset=4)
 
@@ -2345,40 +2407,43 @@ def _yaml_recursive_delete_comments(d):
 #%% functions - DIALOGS
 
 
-def _overwrite_check(path, overwrite):
+def _overwrite_check(path, overwrite, **kwargs):
 
     base_name = os.path.basename(path)
     exists = os.path.isdir(path) or os.path.isfile(path)
 
     if exists and not overwrite:
-        _print(f"{base_name} not saved - already exists (overwrite=False)", lvl=1)
+        _print(f"{base_name} not saved - already exists (overwrite=False)", lvl=1, **kwargs)
         return False
     else:
         if exists and overwrite:
-            _print(f"{base_name} saved (overwritten)")
+            _print(f"{base_name} saved (overwritten)", **kwargs)
         else:
-            _print(f"{base_name} saved")
+            _print(f"{base_name} saved", **kwargs)
         return True
     
     
 #%% functions - PRINTING / LOGGING
 
-# def _print(msg, lvl=0, watch_last=False, **kwargs):
-#     if config.verbose:
-#         if lvl >= config.verbosity_level:
-#             if watch_last: 
-#                 if msg != config.last_print_msg:    
-#                     print(msg)
-#             else:
-#                 print(msg)
-#             config.last_print_msg = msg
+def _create_progress_bar(items):
+    
+    terminal_width = shutil.get_terminal_size()[0]
+    
+    return Progress(
+        TextColumn("{task.description}"),
+        BarColumn(bar_width=terminal_width),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TextColumn("({task.completed}/{task.total})"),
+        TimeRemainingColumn(),
+    ) 
 
-def _print(msg, level=0, watch_last=False, **kwargs):
-    level = kwargs.get("lvl", level)
-    if not config.verbose:
+
+def _print(msg, lvl=0, watch_last=False, silent=False, **kwargs):
+    lvl = kwargs.get("level", lvl)
+    if not config.verbose or silent:
         return
 
-    if level < config.verbosity_level:
+    if lvl < config.verbosity_level:
         return
 
     if watch_last and msg == config.last_print_msg:

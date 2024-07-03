@@ -389,6 +389,13 @@ def edit_contour(
         phenopype annotation containing contours
 
     """
+    
+    # =============================================================================
+    # setup
+    
+    line_width = kwargs.get("overlay_line_width", line_width)
+    
+    
     # =============================================================================
     # annotation management
 
@@ -424,8 +431,8 @@ def edit_contour(
     gui = ul._GUI(
         image=image,
         tool="draw",
-        overlay_blend=overlay_blend,
         line_width=line_width,
+        overlay_blend=overlay_blend,
         overlay_colour_left=overlay_colour_left,
         overlay_colour_right=overlay_colour_right,
         data=gui_data,
@@ -640,7 +647,6 @@ def threshold(
     constant=1,
     blocksize=99,
     value=127,
-    channel=None,
     mask=True,
     invert=False,
     **kwargs,
@@ -693,10 +699,9 @@ def threshold(
     )
 
     if len(image.shape) == 3:
-        if not channel:
-            channel = "gray"
-            ul._print("- multichannel image supplied, converting to grayscale", lvl=1)
-        image = preprocessing.decompose_image(image, channel)
+        if image.shape[2] > 1:
+            ul._print("- multichannel image supplied - converting to single", lvl=1)
+            image = preprocessing.decompose_image(image, col_space="gray")
         
     if blocksize % 2 == 0:
         blocksize = blocksize + 1

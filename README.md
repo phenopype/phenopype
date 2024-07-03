@@ -10,7 +10,7 @@
 
 # phenopype
 
-phenopype is a Python package for rapid extraction of phenotypic information from standardized images. It comes with a basic toolset for image preprocessing and signal-processing-based segmentation, but also leverages state of the art AI segmentation models like [Fast Segment Anything](https://github.com/CASIA-IVA-Lab/FastSAM) through a growing [set of plugins](https://github.com/phenopype/phenopype-plugins). Additionally, phenopype includes functionality for visualization of image processing results and export into various file and training data formats (json, csv, coco, ...).
+phenopype is a Python package for rapid extraction of phenotypic information from standardized images. It comes with a basic toolset for preprocessing and signal-processing-based segmentation, but also leverages state of the art AI segmentation models like [Fast Segment Anything](https://github.com/CASIA-IVA-Lab/FastSAM) through a growing [set of plugins](https://github.com/phenopype/phenopype-plugins). Additionally, phenopype includes functionality for visualization of image processing results and export into various file and training data formats (json, csv, coco, ...).
 
 phenopype is aiming to augment, rather than replace the utility of existing computer vision libraries. Put differently, phenopype does not intend to be an exhaustive library of granular image processing functions, like OpenCV, scikit-image or ImageJ, but instead provides a set of wrappers and convenient management tools to allow users to *get their data fast* without having to fiddle with too much code. As such, phenopype may also serve as a stepping stone for ecologists and evolutionary biologists who are interested in implementing computer vision workflows. 
 

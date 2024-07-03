@@ -60,7 +60,7 @@ def blur(
         kernel_size += 1  # Make kernel_size odd if it is even
     
     if verbose:
-        print(f"Applying {method} blur with kernel size {kernel_size}")
+        print(f" - applying {method} blur with kernel size {kernel_size}")
 
     if method == "averaging":
         blurred = cv2.blur(image, (kernel_size, kernel_size))
@@ -967,71 +967,80 @@ def detect_QRcode(
     return annotation
 
 
-def decompose_image(
-    image, channel="gray", invert=False, 
-    **kwargs
-):
-
+def decompose_image(image, col_space="raw", channels=[0, 1, 2], **kwargs):
     """
-    Extract single channel from multi-channel array.
+    Convert image to a specified color space and extract specific channels.
 
     Parameters
     ----------
     image : ndarray
         input image
-    channel : {"raw", "gray", "red", "green", "blue", "hue", "saturation", "value"} str, optional
-        select specific image channel
-    invert: false, bool
+    col_space : {"raw", "gray", "rgb", "hsv", "ycrcb", "lab", "luv"} str, optional
+        select specific color space
+    channels : list of int, optional
+        list of channel indices to return (e.g., [0, 1, 2] for BGR channels)
+    invert : bool, optional
         invert all pixel intensities in image (e.g. 0 to 255 or 100 to 155)
         
     Returns
     -------
     image : ndarray
-        decomposed image.
-
+        converted and decomposed image.
     """
-
-    # =============================================================================
-    # execute
+    
+    if kwargs.get("channel"):
+        channel = kwargs.get("channel")
+        if col_space in ["bgr", "raw"]:
+            channels = [{ "blue": 0, "green": 1, "red": 2}[channel]]
+        elif col_space in ["rgb"]:
+            channels = [{ "red": 0, "green": 1, "blue": 2}[channel]]
+        elif col_space in ["hsv"]:
+            channels = [{ "hue": 0, "sat": 1, "val": 2}[channel]]
+        else:
+            ul._print(f"- no string shorthand implemented for channel {channel} with color space {col_space}")
 
     if len(image.shape) == 2:
-        ul._print("- single channel image supplied - no decomposition possible", lvl=2)
-        pass
-    elif len(image.shape) == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        ul._print("- single channel image supplied - no decomposition possible", lvl=1)
+        return image
 
-        if channel in ["grayscale", "gray"]:
-            image = gray
-        elif channel in ["blue", "b"]:
-            image = image[:, :, 0]
-        elif channel in ["green", "g"]:
-            image = image[:, :, 1]
-        elif channel in ["red", "r"]:
-            image = image[:, :, 2]
-        elif channel in ["hue", "h"]:
-            image = hsv[:, :, 0]
-        elif channel in ["saturation", "sat", "s"]:
-            image = hsv[:, :, 1]
-        elif channel in ["value", "v"]:
-            image = hsv[:, :, 2]
-        elif channel == "raw":
+    if len(image.shape) == 3:
+        if col_space == "gray":
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        elif col_space == "rgb":
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        elif col_space == "hsv":
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        elif col_space == "ycrcb":
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        elif col_space == "lab":
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        elif col_space == "luv":
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2Luv)
+        elif col_space in ["raw","bgr"]:
             pass
         else:
-            ul._print("- don't know how to handle channel {}".format(channel), lvl=1)
-            return
+            ul._print(f"- don't know how to handle color space {col_space}", lvl=1)
+            return image
+        
+        if col_space != "raw":
+            ul._print(f"- converted color space to {col_space}")
+        else:
+            ul._print("- no decomposition (col_space=raw)")
 
-        ul._print("- decompose image: using {} channel".format(str(channel)))
+        if isinstance(channels, int):
+            channels = [channels]
+        
+        if len(image.shape) ==  3 and channels is not None:
+            if max(channels) < image.shape[2]:
+                image = image[:, :, channels]
+                ul._print(f"- selected channels {channels}")
+            else:
+                ul._print(f"- invalid channel indices {channels} for color space {col_space}", lvl=1)
+                
+        if len(image.shape) ==  3 and image.shape[2] == 1:
+            image = np.squeeze(image, axis=2)
 
-    if invert == True:
-        image = cv2.bitwise_not(image)
-        ul._print("- inverted image")
-
-    # =============================================================================
-    # return
-
-    return image
-
+        return image
 
 
 def write_comment(

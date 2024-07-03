@@ -13,6 +13,7 @@ auto_text_size_factor = 0.0005
 
 confirm_options = ["True", "true", "y", "yes", True]
 
+_default_instructions_colour = "green"
 _default_label_colour = "red"
 _default_line_colour = "lime"
 _default_node_colour = "red"
@@ -179,7 +180,8 @@ _annotation_functions = {
     "compute_shape_features": _shape_feature_type,
     
     ## texture_features
-    "compute_texture_features": _texture_feature_type,
+    "extract_radiomic_features": _texture_feature_type,
+    "compute_texture_moments": _texture_feature_type,
 }
 
 _annotation_types = list(set(_annotation_functions.values()))
@@ -210,16 +212,26 @@ _legacy_names = {
         "detect_shape": "detect_mask",
         },
     "segmentation": {
+        
+        ## plugins
+        "detect_object": "predict_keras",
+
+        ## main
         "detect_contours": "detect_contour",
         "edit_contours": "edit_contour",
     },
     "measurement": {
+        
+        ## plugins
+        "compute_texture_features": "extract_radiomic_features",
+        "texture_features": "extract_radiomic_features",
+        
+        ## main
         "set_landmark": "set_landmark",
         "set_landmarks": "set_landmark",
         "landmark": "set_landmark",
         "landmarks": "set_landmark",
         "shape_features": "compute_shape_features",
-        "texture_features": "compute_texture_features"
     },
     "visualization": {
         "draw_landmarks": "draw_landmark",
