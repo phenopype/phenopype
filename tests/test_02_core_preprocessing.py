@@ -97,17 +97,13 @@ def test_detect_reference(image, reference_created, settings):
 def test_decompose_image(image):
     
     mod = pp.preprocessing.decompose_image(image, "bier")
-    mod = pp.preprocessing.decompose_image(image, "raw", invert=True)
-    mod = pp.preprocessing.decompose_image(image, "v")
-    mod = pp.preprocessing.decompose_image(mod, "v")
-    
-    mod = pp.preprocessing.decompose_image(image, "r")
-    mod = pp.preprocessing.decompose_image(image, "g")
-    mod = pp.preprocessing.decompose_image(image, "b")
-    mod = pp.preprocessing.decompose_image(image, "h")
-    mod = pp.preprocessing.decompose_image(image, "s")
-    mod = pp.preprocessing.decompose_image(image, "v")
-    
+    mod = pp.preprocessing.decompose_image(image, "raw")
+    mod = pp.preprocessing.decompose_image(image, "hsv")
+    mod = pp.preprocessing.decompose_image(image, "hsv", channels=0)
+    mod = pp.preprocessing.decompose_image(image, "hsv", channels=[1,2])
+    mod = pp.preprocessing.decompose_image(image, channel="blue")
+    mod = pp.preprocessing.decompose_image(image, "rgb", channel="blue")
+
     canvas = pp.visualization.select_canvas(mod, multi_channel=True)
 
     assert not (image == canvas).all()

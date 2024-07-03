@@ -3,6 +3,17 @@ Known bugs
 - any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
 - on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
 
+6.0.1
+-----
+- bugfix:
+	- labelling tool export function broken (didn't find labels)
+	- core.segmentation couldn't decompose images to grayscale (default)
+- compute_texture_features -> plugins.extract_radiomic_features
+	- successor will be core.compute_texture_moments
+- progress bars replace excessive console printing for add_files, add_config, check_files, collect_results
+- Pype: skipping MUCH faster 
+- decompose_image: more meaningful options, some arguments changed (check API)
+
 6.0.0
 -----
 - MAJOR dependency change: phenopype is now usable with Python >=3.9, and the latest opencv-contrib-python versions. pyradiomics is now part of the plugins package, streamlining the entire installation procedure.

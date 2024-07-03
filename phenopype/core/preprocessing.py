@@ -60,7 +60,7 @@ def blur(
         kernel_size += 1  # Make kernel_size odd if it is even
     
     if verbose:
-        print(f"Applying {method} blur with kernel size {kernel_size}")
+        print(f" - applying {method} blur with kernel size {kernel_size}")
 
     if method == "averaging":
         blurred = cv2.blur(image, (kernel_size, kernel_size))
@@ -987,6 +987,17 @@ def decompose_image(image, col_space="raw", channels=[0, 1, 2], **kwargs):
     image : ndarray
         converted and decomposed image.
     """
+    
+    if kwargs.get("channel"):
+        channel = kwargs.get("channel")
+        if col_space in ["bgr", "raw"]:
+            channels = [{ "blue": 0, "green": 1, "red": 2}[channel]]
+        elif col_space in ["rgb"]:
+            channels = [{ "red": 0, "green": 1, "blue": 2}[channel]]
+        elif col_space in ["hsv"]:
+            channels = [{ "hue": 0, "sat": 1, "val": 2}[channel]]
+        else:
+            ul._print(f"- no string shorthand implemented for channel {channel} with color space {col_space}")
 
     if len(image.shape) == 2:
         ul._print("- single channel image supplied - no decomposition possible", lvl=1)
@@ -1013,16 +1024,23 @@ def decompose_image(image, col_space="raw", channels=[0, 1, 2], **kwargs):
         
         if col_space != "raw":
             ul._print(f"- converted color space to {col_space}")
+        else:
+            ul._print("- no decomposition (col_space=raw)")
+
+        if isinstance(channels, int):
+            channels = [channels]
         
         if len(image.shape) ==  3 and channels is not None:
             if max(channels) < image.shape[2]:
                 image = image[:, :, channels]
                 ul._print(f"- selected channels {channels}")
-                return image
             else:
                 ul._print(f"- invalid channel indices {channels} for color space {col_space}", lvl=1)
-        else:
-            return image
+                
+        if len(image.shape) ==  3 and image.shape[2] == 1:
+            image = np.squeeze(image, axis=2)
+
+        return image
 
 
 def write_comment(
