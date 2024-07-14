@@ -45,21 +45,20 @@ phenopype development is ongoing and contributions towards making it more broadl
 
 ## How to cite phenopype
 
-Lürig, M. D. (2021). phenopype : A phenotyping pipeline for Python. Methods in Ecology and Evolution. https://doi.org/10.1111/2041-210x.13771
+[Lürig, M. D. (2022). phenopype : A phenotyping pipeline for Python. Methods in Ecology and Evolution.](https://doi.org/10.1111/2041-210x.13771)
 	
 	@ARTICLE{Lurig2022-pb,
-	  title     = "phenopype : A phenotyping pipeline for Python",
-	  author    = "L{\"u}rig, Moritz D",
-	  journal   = "Methods in ecology and evolution / British Ecological Society",
+	  title     = "\textit{phenopype} : A phenotyping pipeline for Python",
+	  author    = "Lürig, Moritz D",
+	  journal   = "Methods in Ecology and Evolution",
 	  publisher = "Wiley",
 	  volume    =  13,
 	  number    =  3,
 	  pages     = "569--576",
 	  month     =  mar,
 	  year      =  2022,
-	  copyright = "http://creativecommons.org/licenses/by-nc/4.0/",
-	  language  = "en",
-	  issn      = "2041-210X",
-	  doi       = "10.1111/2041-210x.13771"
+	  doi       = "10.1111/2041-210X.13771",
+	  issn      = "2041-210X,2041-210X",
+	  language  = "en"
 	}
 
