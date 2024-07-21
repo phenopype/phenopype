@@ -14,9 +14,10 @@ phenopype is a Python package for rapid extraction of phenotypic information fro
 
 phenopype is aiming to augment, rather than replace the utility of existing computer vision libraries. Put differently, phenopype does not intend to be an exhaustive library of granular image processing functions, like OpenCV, scikit-image or ImageJ, but instead provides a set of wrappers and convenient management tools to allow users to *get their data fast* without having to fiddle with too much code. As such, phenopype may also serve as a stepping stone for ecologists and evolutionary biologists who are interested in implementing computer vision workflows. 
 
-<div align="center">
-<img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_features.png" width="500">
 </div><br>
+<div align="center">
+    <p><img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_features.png" width="500"></p>
+</div>
 
 ## Quickstart
 
@@ -36,8 +37,10 @@ https://www.phenopype.org/docs/quickstart/
 - project management tools to organize images and data (automatic creation of project directory tree)
 - customizable analysis-templates that allow anyone to reproduce all collected data with only a few lines of code (suitable for repositories like Dryad or OSF).
 
-![](https://github.com/mluerig/phenopype/raw/master/source/phenopype_demo.gif)
-
+</div><br>
+<div align="center">
+    <p><img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_demo.gif" width="500"></p>
+</div>
 
 ## Contributions and feedback
 
