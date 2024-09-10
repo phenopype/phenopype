@@ -1,6 +1,6 @@
-<h1 align="center">
+<div align="center">
 <img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_logo.png" width="300">
-</h1><br>
+</div><br>
 
 | | |
 | --- | --- | 
@@ -14,9 +14,10 @@ phenopype is a Python package for rapid extraction of phenotypic information fro
 
 phenopype is aiming to augment, rather than replace the utility of existing computer vision libraries. Put differently, phenopype does not intend to be an exhaustive library of granular image processing functions, like OpenCV, scikit-image or ImageJ, but instead provides a set of wrappers and convenient management tools to allow users to *get their data fast* without having to fiddle with too much code. As such, phenopype may also serve as a stepping stone for ecologists and evolutionary biologists who are interested in implementing computer vision workflows. 
 
-<h1 align="center">
-<img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_features.png" width="600">
-</h1><br>
+</div><br>
+<div align="center">
+    <p><img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_features.png" width="500"></p>
+</div>
 
 ## Quickstart
 
@@ -26,6 +27,7 @@ https://www.phenopype.org/docs/quickstart/
 
 (For a complete list [check the API reference](https://www.phenopype.org/docs/api/))
 
+- rapid manual image labelling (~1s per image)
 - image analysis workflow:
   - preprocessing (automatic reference-card and QR-code detection, colour and size correction, morphology operations)
   - segmentation (thresholding, watershed, contour-filtering, foreground-background subtraction)
@@ -35,8 +37,10 @@ https://www.phenopype.org/docs/quickstart/
 - project management tools to organize images and data (automatic creation of project directory tree)
 - customizable analysis-templates that allow anyone to reproduce all collected data with only a few lines of code (suitable for repositories like Dryad or OSF).
 
-![](https://github.com/mluerig/phenopype/raw/master/source/phenopype_demo.gif)
-
+</div><br>
+<div align="center">
+    <p><img src="https://github.com/phenopype/phenopype/raw/main/assets/phenopype_demo.gif" width="500"></p>
+</div>
 
 ## Contributions and feedback
 
@@ -44,21 +48,20 @@ phenopype development is ongoing and contributions towards making it more broadl
 
 ## How to cite phenopype
 
-Lürig, M. D. (2021). phenopype : A phenotyping pipeline for Python. Methods in Ecology and Evolution. https://doi.org/10.1111/2041-210x.13771
+[Lürig, M. D. (2022). phenopype : A phenotyping pipeline for Python. Methods in Ecology and Evolution.](https://doi.org/10.1111/2041-210x.13771)
 	
 	@ARTICLE{Lurig2022-pb,
-	  title     = "phenopype : A phenotyping pipeline for Python",
-	  author    = "L{\"u}rig, Moritz D",
-	  journal   = "Methods in ecology and evolution / British Ecological Society",
+	  title     = "\textit{phenopype} : A phenotyping pipeline for Python",
+	  author    = "Lürig, Moritz D",
+	  journal   = "Methods in Ecology and Evolution",
 	  publisher = "Wiley",
 	  volume    =  13,
 	  number    =  3,
 	  pages     = "569--576",
 	  month     =  mar,
 	  year      =  2022,
-	  copyright = "http://creativecommons.org/licenses/by-nc/4.0/",
-	  language  = "en",
-	  issn      = "2041-210X",
-	  doi       = "10.1111/2041-210x.13771"
+	  doi       = "10.1111/2041-210X.13771",
+	  issn      = "2041-210X,2041-210X",
+	  language  = "en"
 	}
 

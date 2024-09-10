@@ -870,7 +870,6 @@ def save_ROI(
             else:
                 roi_name = file_name + suffix + ext  
             
-            
             save_path = os.path.join(dir_path, roi_name)
             saved = cv2.imwrite(save_path, roi) 
             
