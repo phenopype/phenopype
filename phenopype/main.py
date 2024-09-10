@@ -19,8 +19,6 @@ from collections import deque
 from contextlib import redirect_stdout
 from dataclasses import make_dataclass
 from datetime import datetime
-from tqdm import tqdm
-from rich import progress
 
 # Third-party imports
 import cv2
