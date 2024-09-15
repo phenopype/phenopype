@@ -11,7 +11,6 @@ from phenopype import _vars
 from phenopype import decorators
 from phenopype import utils_lowlevel as ul
 
-
 #%% methods
 
 @decorators.annotation_function
@@ -589,12 +588,13 @@ def compute_texture_moments(
                 
                 rx, ry, rw, rh = cv2.boundingRect(coords)
                 data = image[ry : ry + rh, rx : rx + rw, idx2]
-                mask = foreground_mask_inverted[ry : ry + rh, rx : rx + rw]
+                mask = foreground_mask_inverted[ry : ry + rh, rx : rx + rw]            
                 
                 if len(np.unique(mask)) > 1:
-                    # Apply mask
-                    masked_data = data[mask == 0]
                     
+                    # Apply mask
+                    masked_data = data[mask != 0]
+
                     # Compute first-order statistics
                     mean = np.mean(masked_data)
                     std = np.std(masked_data)

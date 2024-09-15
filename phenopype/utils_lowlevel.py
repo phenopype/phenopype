@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import os
+import random
 import re
 import ruamel.yaml
 import shutil
@@ -14,6 +15,7 @@ import string
 import sys
 import time
 import warnings
+
 from _ctypes import PyObj_FromPtr
 from collections import defaultdict
 from contextlib import redirect_stdout
@@ -2818,7 +2820,14 @@ def _equalize_histogram(image, detected_rect_mask, template):
     return interp_template_values[image]
 
 
-
+def _generate_random_colors(num_colors, seed=42):
+    colors = []
+    for i in range(num_colors):
+        hue = int(i * 180 / num_colors)  # Spread hues evenly
+        color = np.uint8([[[hue, 255, 255]]])  # Full saturation and value
+        rgb_color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)[0][0]  # Convert HSV to BGR
+        colors.append((int(rgb_color[0]), int(rgb_color[1]), int(rgb_color[2])))  # Convert to BGR tuple
+    return colors
 
 
 def _get_caller_name(skip=2):
