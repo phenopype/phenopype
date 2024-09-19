@@ -112,10 +112,10 @@ opencv_morphology_flags = {
     },
 }
 
-opencv_skeletonize_flags = {
-    "zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
-    "guohall": cv2.ximgproc.THINNING_GUOHALL,
-}
+# opencv_skeletonize_flags = {
+#     "zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
+#     "guohall": cv2.ximgproc.THINNING_GUOHALL,
+# }
 
 opencv_window_flags = {
     "normal": cv2.WINDOW_NORMAL,
@@ -180,8 +180,7 @@ _annotation_functions = {
     "compute_shape_features": _shape_feature_type,
     
     ## texture_features
-    "extract_radiomic_features": _texture_feature_type,
-    "compute_texture_moments": _texture_feature_type,
+    "compute_color_moments": _texture_feature_type,
 }
 
 _annotation_types = list(set(_annotation_functions.values()))
@@ -231,7 +230,9 @@ _legacy_names = {
         "set_landmarks": "set_landmark",
         "landmark": "set_landmark",
         "landmarks": "set_landmark",
-        "shape_features": "compute_shape_features",
+        "shape_features": "compute_shape_moments",
+        "compute_texture_moments": "compute_color_moments",
+
     },
     "visualization": {
         "draw_landmarks": "draw_landmark",

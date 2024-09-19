@@ -10,6 +10,7 @@ from phenopype import __version__
 from phenopype import _vars
 from phenopype import decorators
 from phenopype import utils_lowlevel as ul
+from phenopype import core
 
 #%% methods
 
@@ -305,7 +306,7 @@ def detect_skeleton(annotations, thinning="zhangsuen", **kwargs):
     )
 
 
-def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kwargs):
+def compute_shape_moments(annotations, features=["basic"], min_diameter=5, **kwargs):
     """
     Collects a set of 41 shape descriptors from every contour. There are three sets of
     descriptors: basic shape descriptors, moments, and hu moments. Two additional features,
@@ -474,10 +475,9 @@ def compute_shape_features(annotations, features=["basic"], min_diameter=5, **kw
     )
 
 
-def compute_texture_moments(
+def compute_color_moments(
     image,
     annotations,
-    features=["firstorder"],
     channel_names=["blue", "green", "red"],
     min_diameter=5,
     **kwargs,
@@ -508,8 +508,6 @@ def compute_texture_moments(
         input image
     annotation: dict
         phenopype annotation containing contours
-    features: ["firstorder", "shape", "glcm", "gldm", "glrlm", "glszm", "ngtdm"] list, optional
-        type of texture features to extract
     channels : list, optional
         image channel to extract texture features from. if none is given, will extract from all channels in image
     min_diameter: int, optional
@@ -544,77 +542,51 @@ def compute_texture_moments(
     # =============================================================================
     # setup
 
+    ## progress bar management
     tqdm_off = kwargs.get("tqdm_off",True)
-
-    feature_activation = {}
-    for feature in features:
-        feature_activation[feature] = []
+    
+    ## channel formatting
+    if not isinstance(channel_names, list):
+        channel_names = [channel_names]
+        
+    ## create stack that works with 2D or ND imgs
+    channels = cv2.split(image)
         
     # =============================================================================
     # execute
-
-    ## create forgeround mask
-    foreground_mask_inverted = np.zeros(image.shape[:2], np.uint8)
     
-    # print(contours)
-    for coords in contours:
-        foreground_mask_inverted = cv2.fillPoly(foreground_mask_inverted, [coords], 255)
-        
-    moments_features = []
-    if image.ndim == 2:
-        layers = 1
-        image = np.dstack((image,image)) 
-    else:
-        layers = image.shape[2]
-        
-    if len(channel_names) > layers:
-        print("- Warning: more channels provided than in given image - skipping excess ones!")
-    
+    results = []
     for idx1, (coords, support) in _tqdm(
             enumerate(zip(contours, contours_support)),
-            "Computing basic moments",
+            "Computing color moments",
             total=len(contours),
             disable=tqdm_off
     ):
 
+        
+        ## get roi mask
+        rx, ry, rw, rh = cv2.boundingRect(coords)
+        roi_mask = np.zeros((rh, rw), np.uint8)
+        roi_mask = cv2.fillPoly(roi_mask, [coords], 255, 0, 0, (rx, ry))
+        
+        ## go through channels locally
         output = {}
-        
-        if support["diameter"] > min_diameter:
-
-            for idx2, channel in enumerate(channel_names):
-
-                if (idx2 + 1) > image.shape[2]:
-                    continue
+        if support["diameter"] > min_diameter and len(np.unique(roi_mask)) > 1:
+            for channel_name, channel in zip(channel_names, channels):
                 
-                rx, ry, rw, rh = cv2.boundingRect(coords)
-                data = image[ry : ry + rh, rx : rx + rw, idx2]
-                mask = foreground_mask_inverted[ry : ry + rh, rx : rx + rw]            
-                
-                if len(np.unique(mask)) > 1:
-                    
-                    # Apply mask
-                    masked_data = data[mask != 0]
+                ## get roi
+                roi = channel[ry : ry + rh, rx : rx + rw]
+                masked_data = roi[roi_mask != 0]
 
-                    # Compute first-order statistics
-                    mean = np.mean(masked_data)
-                    std = np.std(masked_data)
-                    var = np.var(masked_data)
-                    skewness = np.mean((masked_data - mean)**3) / (std**3)
-                    kurtosis = np.mean((masked_data - mean)**4) / (std**4) - 3
+                # Compute moments
+                output[channel_name + "_mean"] = float(np.mean(masked_data))
+                output[channel_name + "_std"] = float(np.std(masked_data))
+                output[channel_name + "_variance"] = float(np.var(masked_data))
+                output[channel_name + "_skewness"] = float(np.mean((masked_data - np.mean(masked_data))**3) / (np.std(masked_data)**3))
+                output[channel_name + "_kurtosis"] = float(np.mean((masked_data - np.mean(masked_data))**4) / (np.std(masked_data)**4) - 3)
 
-                    output[channel + "_mean"] = float(mean)
-                    output[channel + "_std"] = float(std)
-                    output[channel + "_variance"] = float(var)
-                    output[channel + "_skewness"] = float(skewness)
-                    output[channel + "_kurtosis"] = float(kurtosis)
-
-                else:
-                    continue
-
-        moments_features.append(output)
+        results.append(output)
        
-        
-
     # =============================================================================
     # return
 
@@ -625,12 +597,11 @@ def compute_texture_moments(
             "annotation_type": annotation_type,
         },
         "settings": {
-            "features": features,
             "min_diameter": min_diameter,
             "channels_names": channel_names,
             "contour_id": contour_id,
         },
-        "data": {annotation_type: moments_features},
+        "data": {annotation_type: results},
     }
 
     # =============================================================================
@@ -643,3 +614,40 @@ def compute_texture_moments(
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
+
+def compute_DFT_stats(image, channel="gray", size=600):
+        
+    ## slice and resize 
+    img2d = core.preprocessing.decompose_image(image, channel)
+    img2d = cv2.resize(img2d, (size, size))
+    
+    # apply the DFT (Discrete Fourier Transform)
+    dft = cv2.dft(np.float32(img2d), flags=cv2.DFT_COMPLEX_OUTPUT)
+    dft_shift = np.fft.fftshift(dft)
+    magnitude_spectrum = 20 * np.log(cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1]) + 1)
+
+    ## stats on regions of magnitude spectrum
+    h_step, w_step, means = size // 3, size // 3, []
+    for i in range(3):
+        for j in range(3):
+            region = magnitude_spectrum[i * h_step:(i + 1) * h_step, j * w_step:(j + 1) * w_step]
+            means.append(np.mean(region))
+    results = {
+        "high_dia": np.mean([means[0], means[2], means[6], means[8]]),
+        "high_ver": np.mean([means[1], means[7]]),
+        "high_hor": np.mean([means[3], means[5]]),
+        "low": means[4]
+        }
+    
+    ## stats on the entire magnitude spectrum  
+    mean_magnitude = np.mean(magnitude_spectrum)
+    std_magnitude = np.std(magnitude_spectrum)
+    high_freq_count = np.sum(magnitude_spectrum > (mean_magnitude + std_magnitude))
+    complexity_index = high_freq_count / (size * size)
+    results.update({
+        'mean_magnitude': mean_magnitude,
+        'std_magnitude': std_magnitude,
+        'complexity_index': complexity_index,  
+    })
+    
+    return results

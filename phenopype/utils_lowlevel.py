@@ -309,10 +309,10 @@ class _Container(object):
             annotations_updated = core.measurement.set_polyline(self.canvas, **kwargs_function)
         if fun == "detect_skeleton":
             annotations_updated = core.measurement.detect_skeleton(**kwargs_function)
-        if fun == "compute_shape_features":
-            annotations_updated = core.measurement.compute_shape_features(**kwargs_function)
-        if fun == "compute_texture_moments":
-            annotations_updated = core.measurement.compute_texture_moments(
+        if fun == "compute_shape_moments":
+            annotations_updated = core.measurement.compute_shape_moments(**kwargs_function)
+        if fun == "compute_color_moments":
+            annotations_updated = core.measurement.compute_color_moments(
                 self.image_copy, **kwargs_function
             )
 

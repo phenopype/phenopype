@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "phenopype"
 version = "6.0.1"  
-description = "A phenotyping pipeline for python"
-readme = "README.md"
-authors = [
-    {name = "Moritz Luerig", email = "moritz.luerig@gmail.com"}
-]
-license = {file = "LICENSE"}
 requires-python = ">=3.9"
+description = "A phenotyping pipeline for python"
+authors = [
+    {name = "Moritz Lürig", email = "moritz.luerig@gmail.com"}
+]
+readme = "README.md"
+license = {file = "LICENSE"}
 dependencies = [
 	"colour",
 	"numpy",
@@ -24,7 +24,12 @@ dependencies = [
 	"screeninfo",
 	"watchdog",
     ]
-keywords = ["computer vision", "biology"]  
+keywords = [
+	"computer vision", 
+	"biology", 
+	"ecology", 
+	"evolution"
+	]  
 
 [project.optional-dependencies]
 test = [
