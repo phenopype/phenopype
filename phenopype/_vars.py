@@ -87,11 +87,12 @@ opencv_interpolation_flags = {
     "linear": cv2.INTER_LINEAR,
     "cubic": cv2.INTER_CUBIC,
     "area": cv2.INTER_AREA,
-    "lanczos": cv2.INTER_LANCZOS4,
-    "lin_exact": cv2.INTER_LINEAR_EXACT,
-    "inter": cv2.INTER_MAX,
-    "warp_fill": cv2.WARP_FILL_OUTLIERS,
-    "warp_inverse": cv2.WARP_INVERSE_MAP,
+    "lanczos4": cv2.INTER_LANCZOS4,
+    "linear_exact": cv2.INTER_LINEAR_EXACT,
+    "nearest_exact": cv2.INTER_NEAREST_EXACT,
+    "max": cv2.INTER_MAX,
+    "warp_fill_outliers": cv2.WARP_FILL_OUTLIERS,
+    "warp_inverse_map": cv2.WARP_INVERSE_MAP,
 }
 
 opencv_morphology_flags = {
@@ -177,7 +178,7 @@ _annotation_functions = {
     "detect_reference": _reference_type,
     
     ## shape_features
-    "compute_shape_features": _shape_feature_type,
+    "compute_shape_moments": _shape_feature_type,
     
     ## texture_features
     "compute_color_moments": _texture_feature_type,

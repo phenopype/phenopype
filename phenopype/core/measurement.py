@@ -414,18 +414,18 @@ def compute_shape_moments(annotations, features=["basic"], min_diameter=5, **kwa
                 compactness = math.sqrt(4 * cnt_area / np.pi) / cnt_diameter
 
                 basic = {
-                    "area": cnt_area,
-                    "circularity": circularity,
-                    "diameter": cnt_diameter,
-                    "compactness": compactness,
-                    "min_rect_max": min_rect_max,
-                    "min_rect_min": min_rect_min,
-                    "perimeter_length": perimeter_length,
-                    "rect_height": rect_height,
-                    "rect_width": rect_width,
-                    "roundness": roundness,
-                    "solidity": solidity,
-                    "tri_area": tri_area,
+                    "shape_stats_area": cnt_area,
+                    "shape_stats_circularity": circularity,
+                    "shape_stats_diameter": cnt_diameter,
+                    "shape_stats_compactness": compactness,
+                    "shape_stats_min_rect_max": min_rect_max,
+                    "shape_stats_min_rect_min": min_rect_min,
+                    "shape_stats_perimeter_length": perimeter_length,
+                    "shape_stats_rect_height": rect_height,
+                    "shape_stats_rect_width": rect_width,
+                    "shape_stats_roundness": roundness,
+                    "shape_stats_solidity": solidity,
+                    "shape_stats_tri_area": tri_area,
                 }
 
                 output = {**output, **basic}
@@ -433,7 +433,8 @@ def compute_shape_moments(annotations, features=["basic"], min_diameter=5, **kwa
             ## moments
             if "moments" in features:
                 moments = cv2.moments(coords)
-                output = {**output, **moments}
+                moments_save = {f"shape_moments_{key}": value for key, value in moments.items()}
+                output = {**output, **moments_save}
 
             ## hu moments
             if "hu_moments" in features:
@@ -442,7 +443,8 @@ def compute_shape_moments(annotations, features=["basic"], min_diameter=5, **kwa
                 hu_moments = {}
                 for idx2, mom in enumerate(cv2.HuMoments(moments)):
                     hu_moments["hu" + str(idx2 + 1)] = mom[0]
-                output = {**output, **hu_moments}
+                hu_moments_save = {f"shape_moments_{key}": value for key, value in hu_moments.items()}
+                output = {**output, **hu_moments_save}
 
             shape_features.append(output)
 
@@ -579,11 +581,11 @@ def compute_color_moments(
                 masked_data = roi[roi_mask != 0]
 
                 # Compute moments
-                output[channel_name + "_mean"] = float(np.mean(masked_data))
-                output[channel_name + "_std"] = float(np.std(masked_data))
-                output[channel_name + "_variance"] = float(np.var(masked_data))
-                output[channel_name + "_skewness"] = float(np.mean((masked_data - np.mean(masked_data))**3) / (np.std(masked_data)**3))
-                output[channel_name + "_kurtosis"] = float(np.mean((masked_data - np.mean(masked_data))**4) / (np.std(masked_data)**4) - 3)
+                output[f"color_moments_{channel_name}_mean"] = float(np.mean(masked_data))
+                output[f"color_moments_{channel_name}_std"] = float(np.std(masked_data))
+                output[f"color_moments_{channel_name}_variance"] = float(np.var(masked_data))
+                output[f"color_moments_{channel_name}_skewness"] = float(np.mean((masked_data - np.mean(masked_data))**3) / (np.std(masked_data)**3))
+                output[f"color_moments_{channel_name}_kurtosis"] = float(np.mean((masked_data - np.mean(masked_data))**4) / (np.std(masked_data)**4) - 3)
 
         results.append(output)
        
@@ -615,11 +617,15 @@ def compute_color_moments(
         kwargs=kwargs,
     )
 
-def compute_DFT_stats(image, channel="gray", size=600):
+def compute_DFT_stats(image, col_space="bgr", channel="gray", resize=None):
         
     ## slice and resize 
-    img2d = core.preprocessing.decompose_image(image, channel)
-    img2d = cv2.resize(img2d, (size, size))
+    img2d = core.preprocessing.decompose_image(image, col_space=col_space, channels=channel)
+    if resize:
+        height, width = resize, resize
+        img2d = cv2.resize(img2d, (height, width))
+    else:
+        height, width = image.shape[:2]
     
     # apply the DFT (Discrete Fourier Transform)
     dft = cv2.dft(np.float32(img2d), flags=cv2.DFT_COMPLEX_OUTPUT)
@@ -627,27 +633,27 @@ def compute_DFT_stats(image, channel="gray", size=600):
     magnitude_spectrum = 20 * np.log(cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1]) + 1)
 
     ## stats on regions of magnitude spectrum
-    h_step, w_step, means = size // 3, size // 3, []
+    h_step, w_step, means = height // 3, width // 3, []
     for i in range(3):
         for j in range(3):
             region = magnitude_spectrum[i * h_step:(i + 1) * h_step, j * w_step:(j + 1) * w_step]
             means.append(np.mean(region))
     results = {
-        "high_dia": np.mean([means[0], means[2], means[6], means[8]]),
-        "high_ver": np.mean([means[1], means[7]]),
-        "high_hor": np.mean([means[3], means[5]]),
-        "low": means[4]
+        f"color_dft_{channel}_high_dia": np.mean([means[0], means[2], means[6], means[8]]),
+        f"color_dft_{channel}_high_ver": np.mean([means[1], means[7]]),
+        f"color_dft_{channel}_high_hor": np.mean([means[3], means[5]]),
+        f"color_dft_{channel}_low_vals": means[4]
         }
     
     ## stats on the entire magnitude spectrum  
     mean_magnitude = np.mean(magnitude_spectrum)
     std_magnitude = np.std(magnitude_spectrum)
     high_freq_count = np.sum(magnitude_spectrum > (mean_magnitude + std_magnitude))
-    complexity_index = high_freq_count / (size * size)
+    complexity_index = high_freq_count / (height * width)
     results.update({
-        'mean_magnitude': mean_magnitude,
-        'std_magnitude': std_magnitude,
-        'complexity_index': complexity_index,  
+        f"color_dft_{channel}_mean_mag": mean_magnitude,
+        f"color_dft_{channel}_std_mag": std_magnitude,
+        f"color_dft_{channel}_prop_high": complexity_index,  
     })
     
     return results

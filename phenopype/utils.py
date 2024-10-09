@@ -102,7 +102,7 @@ def resize_image(
         width=None,
         height=None,
         max_dim=None, 
-        interpolation="cubic",
+        interpolation="nearest_exact",
         ):
     """
     Resize image by resize factor 
@@ -121,7 +121,8 @@ def resize_image(
         Height to resize the image to. If specified, width must also be specified
     max_dim: int, optional
         Maximum size of any dimension that the image will be resized to. Maintains aspect ratio
-    interpolation: {'nearest', 'linear', 'cubic', 'area', 'lanczos', 'lin_exact', 'inter', 'warp_fill', 'warp_inverse'} str, optional
+    interpolation: {'nearest', 'linear', 'cubic', 'area', 'lanczos4', 'linear_exact', 
+                    'nearest_exact', 'max', 'warp_fill_outliers', 'warp_inverse_map'} str, optional
         interpolation algorithm to use - refer to https://docs.opencv.org/4.9.0/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
 
     Returns

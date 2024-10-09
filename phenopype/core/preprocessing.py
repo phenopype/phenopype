@@ -967,7 +967,7 @@ def detect_QRcode(
     return annotation
 
 
-def decompose_image(image, col_space="raw", channels=[0, 1, 2], **kwargs):
+def decompose_image(image, col_space="bgr", channels=[0, 1, 2], **kwargs):
     """
     Convert image to a specified color space and extract specific channels.
 
@@ -977,10 +977,10 @@ def decompose_image(image, col_space="raw", channels=[0, 1, 2], **kwargs):
         input image
     col_space : {"raw", "gray", "rgb", "hsv", "ycrcb", "lab", "luv"} str, optional
         select specific color space
-    channels : list of int, optional
-        list of channel indices to return (e.g., [0, 1, 2] for BGR channels)
+    channels : list of int or str, optional
+        list of channel indices or string names to return (e.g., [0, 1, 2] or ["red", "green", "blue"])
     invert : bool, optional
-        invert all pixel intensities in image (e.g. 0 to 255 or 100 to 155)
+        invert all pixel intensities in image (e.g., 0 to 255 or 100 to 155)
         
     Returns
     -------
@@ -988,21 +988,38 @@ def decompose_image(image, col_space="raw", channels=[0, 1, 2], **kwargs):
         converted and decomposed image.
     """
     
-    if kwargs.get("channel"):
-        channel = kwargs.get("channel")
-        if col_space in ["bgr", "raw"]:
-            channels = [{ "blue": 0, "green": 1, "red": 2}[channel]]
-        elif col_space in ["rgb"]:
-            channels = [{ "red": 0, "green": 1, "blue": 2}[channel]]
-        elif col_space in ["hsv"]:
-            channels = [{ "hue": 0, "sat": 1, "val": 2}[channel]]
+    channels = kwargs.get("channel", channels)
+    
+    # If channels is a string (e.g., "red", "hue"), map to the appropriate index
+    if isinstance(channels, str) :
+        if col_space in ["bgr", "rgb", "raw"] and channels == "gray":
+            col_space = "gray"
+            channels = [0]
+        elif col_space in ["bgr", "raw"]:
+            channels = [{ "blue": 0, "green": 1, "red": 2 }.get(channels, -1)]
+        elif col_space == "rgb":
+            channels = [{ "red": 0, "green": 1, "blue": 2 }.get(channels, -1)]
+        elif col_space == "hsv":
+            channels = [{ "hue": 0, "sat": 1, "val": 2 }.get(channels, -1)]
         else:
-            ul._print(f"- no string shorthand implemented for channel {channel} with color space {col_space}")
+            ul._print(f"- no string shorthand implemented for channel '{channels}' with color space {col_space}", lvl=1)
+            return image
 
+    elif isinstance(channels, int):
+        # If the channel is a single integer, wrap it in a list
+        channels = [channels]
+
+    # Handle invalid channel values
+    if isinstance(channels, list) and -1 in channels:
+        ul._print(f"- invalid channel '{channels}' for color space '{col_space}'")
+        return image
+
+    # Check if the image is single-channel (grayscale)
     if len(image.shape) == 2:
         ul._print("- single channel image supplied - no decomposition possible", lvl=1)
         return image
 
+    # Convert color spaces
     if len(image.shape) == 3:
         if col_space == "gray":
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -1016,31 +1033,32 @@ def decompose_image(image, col_space="raw", channels=[0, 1, 2], **kwargs):
             image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         elif col_space == "luv":
             image = cv2.cvtColor(image, cv2.COLOR_BGR2Luv)
-        elif col_space in ["raw","bgr"]:
-            pass
+        elif col_space in ["raw", "bgr"]:
+            pass  # no conversion needed
         else:
-            ul._print(f"- don't know how to handle color space {col_space}", lvl=1)
+            ul._print(f"- don't know how to handle color space {col_space}")
             return image
-        
+
+        # Inform about the color space conversion
         if col_space != "raw":
             ul._print(f"- converted color space to {col_space}")
         else:
-            ul._print("- no decomposition (col_space=raw)")
+            ul._print("- no decomposition (col_space=raw)", lvl=1)     
 
-        if isinstance(channels, int):
-            channels = [channels]
-        
-        if len(image.shape) ==  3 and channels is not None:
+        # Select channels
+        if isinstance(channels, list) and len(channels) > 0 and len(image.shape) == 3:
             if max(channels) < image.shape[2]:
                 image = image[:, :, channels]
                 ul._print(f"- selected channels {channels}")
             else:
                 ul._print(f"- invalid channel indices {channels} for color space {col_space}", lvl=1)
-                
-        if len(image.shape) ==  3 and image.shape[2] == 1:
+                return image 
+            
+        # Squeeze the image if there's a single channel left
+        if len(image.shape) == 3 and image.shape[2] == 1:
             image = np.squeeze(image, axis=2)
 
-        return image
+    return image
 
 
 def write_comment(
