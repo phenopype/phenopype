@@ -485,43 +485,48 @@ def compute_color_moments(
     **kwargs,
 ):
     """
-    Collects 120 texture features using the pyradiomics feature extractor
-    ( https://pyradiomics.readthedocs.io/en/latest/features.html ):
+    Compute statistical color moments for regions of interest (ROIs) in an image.
 
-    - firstorder: First Order Statistics (19 features)
-    - shape2d: Shape-based (2D) (16 features)
-    - glcm: Gray Level Cooccurence Matrix (24 features)
-    - gldm: Gray Level Dependence Matrix (14 features)
-    - glrm: Gray Level Run Length Matrix (16 features)
-    - glszm: Gray Level Size Zone Matrix (16 features)
-    - ngtdm: Neighbouring Gray Tone Difference Matrix (5 features)
-
-    Features are collected from every contour that is supplied along with the raw
-    image, which, depending on the number of contours, may result in long computing 
-    time and very large dataframes.
-
-    The specified channels correspond to the channels that can be selected in
-    phenopype.core.preprocessing.decompose_image.
-
+    This function calculates the mean, standard deviation, variance, skewness, 
+    and kurtosis for pixel intensities within each specified ROI and image channel.
+    The results are stored in the phenopype `annotations` dictionary.
 
     Parameters
     ----------
     image : ndarray
-        input image
-    annotation: dict
-        phenopype annotation containing contours
-    channels : list, optional
-        image channel to extract texture features from. if none is given, will extract from all channels in image
-    min_diameter: int, optional
-        minimum diameter of the contour (shouldn't be too small for sensible feature extraction')
+        Input image as a NumPy array. Can have multiple channels (e.g., RGB).
+    annotations : dict
+        Phenopype annotation dictionary containing contours and support information 
+        for regions of interest (ROIs).
+    channel_names : list, optional
+        Names of the image channels to extract color moments from. If not provided, 
+        the default is ["blue", "green", "red"].
+    min_diameter : int, optional
+        Minimum allowable diameter for contours to be included in the analysis.
+        ROIs smaller than this size are excluded to ensure meaningful feature extraction.
+    **kwargs : dict, optional
+        Additional arguments for configuration, including:
+        - `"tqdm_off"`: Disable progress bar if set to `True` (default).
+        - `"annotation_id"`: Specific annotation ID to process.
 
     Returns
     -------
-    annotations: dict
-        phenopype annotation containing texture features
-
+    annotations : dict
+        Updated phenopype annotation dictionary with computed color moments for each ROI:
+        - **First-order moments**:
+          - `color_moments_{channel_name}_mean`: Mean pixel intensity.
+          - `color_moments_{channel_name}_var`: Variance of pixel intensity.
+          - `color_moments_{channel_name}_skew`: Skewness of the intensity distribution.
+          - `color_moments_{channel_name}_kurt`: Kurtosis of the intensity distribution.
+        - **Dispersion and variability**:
+          - `color_moments_{channel_name}_median`: Median pixel intensity.
+          - `color_moments_{channel_name}_iqr`: Interquartile range (P75 - P25).
+          - `color_moments_{channel_name}_rmad`: Robust mean absolute deviation, based on the 10th to 90th percentile range.
+          - `color_moments_{channel_name}_entropy`: Entropy of the pixel intensity distribution, indicating uncertainty or randomness.
+          - `color_moments_{channel_name}_uniformity`: Uniformity of the pixel intensity distribution, measuring homogeneity.
+          - `color_moments_{channel_name}_cv`: Coefficient of variation (normalized standard deviation as a ratio of the mean).
     """
-
+    
     # =============================================================================
     # annotation management
 
@@ -580,12 +585,34 @@ def compute_color_moments(
                 roi = channel[ry : ry + rh, rx : rx + rw]
                 masked_data = roi[roi_mask != 0]
 
-                # Compute moments
-                output[f"color_moments_{channel_name}_mean"] = float(np.mean(masked_data))
-                output[f"color_moments_{channel_name}_std"] = float(np.std(masked_data))
-                output[f"color_moments_{channel_name}_variance"] = float(np.var(masked_data))
-                output[f"color_moments_{channel_name}_skewness"] = float(np.mean((masked_data - np.mean(masked_data))**3) / (np.std(masked_data)**3))
-                output[f"color_moments_{channel_name}_kurtosis"] = float(np.mean((masked_data - np.mean(masked_data))**4) / (np.std(masked_data)**4) - 3)
+                ## computations
+                mean = float(np.mean(masked_data))
+                std = float(np.std(masked_data))
+                var = float(np.var(masked_data)) #std**2
+                epsilon = np.finfo(float).eps
+                unique_values, counts = np.unique(masked_data, return_counts=True)
+                probabilities = counts / counts.sum()
+                p25 = np.percentile(masked_data, 25)
+                p75 = np.percentile(masked_data, 75)
+                lower_bound = np.percentile(masked_data, 10)
+                upper_bound = np.percentile(masked_data, 90)
+                data_within_bounds = masked_data[(masked_data >= lower_bound) & (masked_data <= upper_bound)]
+                mean_within_bounds = np.mean(data_within_bounds)
+
+                # firstorder moments
+                output[f"color_moments_{channel_name}_mean"] = mean
+                output[f"color_moments_{channel_name}_var"] = var
+                output[f"color_moments_{channel_name}_skew"] = float(np.mean((masked_data - mean)**3) / (std**3))
+                output[f"color_moments_{channel_name}_kurt"] = float(np.mean((masked_data - mean)**4) / (std**4) - 3)
+                
+                # dispersion and variability
+                output[f"color_moments_{channel_name}_median"] = float(np.median(masked_data))
+                output[f"color_moments_{channel_name}_std"] = std
+                output[f"color_moments_{channel_name}_iqr"] = float(p75 - p25)
+                output[f"color_moments_{channel_name}_rmad"] = float(np.mean(np.abs(data_within_bounds - mean_within_bounds)))
+                output[f"color_moments_{channel_name}_entropy"] = -float(np.sum(probabilities * np.log2(probabilities + epsilon)))
+                output[f"color_moments_{channel_name}_uniformity"] = float(np.sum(probabilities**2))
+                output[f"color_moments_{channel_name}_cv"] = float(std / mean) if mean != 0 else 0
 
         results.append(output)
        
@@ -618,6 +645,42 @@ def compute_color_moments(
     )
 
 def compute_DFT_stats(image, col_space="bgr", channel="gray", resize=None):
+    
+    """
+    Compute Discrete Fourier Transform (DFT) statistics for an image.
+    
+    This function performs the following steps:
+    1. Converts the image to the specified color space and extracts the selected channel.
+    2. Optionally resizes the image to a square of size `resize x resize`.
+    3. Applies the DFT to compute the magnitude spectrum of the frequency domain.
+    4. Calculates regional statistics on a 3x3 grid of the magnitude spectrum.
+        (see https://dsp.stackexchange.com/q/95090/46324)
+    5. Computes global statistics on the entire magnitude spectrum, including mean, standard deviation,
+       and a complexity index based on the proportion of high-frequency components.
+    
+    Parameters:
+    ----------
+    image : np.ndarray
+        Input image as a NumPy array.
+    col_space : str, optional
+        Color space to convert the image to (default is "bgr").
+    channel : str, optional
+        Specific channel to extract for analysis (default is "gray").
+    resize : int, optional
+        If specified, resizes the image to `resize x resize` dimensions (default is None).
+    
+    Returns:
+    -------
+    results : dict
+        A dictionary containing the following keys:
+        - `color_dft_{channel}_dia`: Mean intensity of diagonal regions in the 3x3 grid.
+        - `color_dft_{channel}_ver`: Mean intensity of vertical edge regions in the 3x3 grid.
+        - `color_dft_{channel}_hor`: Mean intensity of horizontal edge regions in the 3x3 grid.
+        - `color_dft_{channel}_low`: Mean intensity of the central region in the 3x3 grid.
+        - `color_dft_{channel}_meanmag`: Mean value of the entire magnitude spectrum.
+        - `color_dft_{channel}_stdmag`: Standard deviation of the entire magnitude spectrum.
+        - `color_dft_{channel}_hifreq`: Proportion of high-frequency components, normalized by image size.
+    """
         
     ## slice and resize 
     img2d = core.preprocessing.decompose_image(image, col_space=col_space, channels=channel)
@@ -639,10 +702,10 @@ def compute_DFT_stats(image, col_space="bgr", channel="gray", resize=None):
             region = magnitude_spectrum[i * h_step:(i + 1) * h_step, j * w_step:(j + 1) * w_step]
             means.append(np.mean(region))
     results = {
-        f"color_dft_{channel}_high_dia": np.mean([means[0], means[2], means[6], means[8]]),
-        f"color_dft_{channel}_high_ver": np.mean([means[1], means[7]]),
-        f"color_dft_{channel}_high_hor": np.mean([means[3], means[5]]),
-        f"color_dft_{channel}_low_vals": means[4]
+        f"color_dft_{channel}_dia": np.mean([means[0], means[2], means[6], means[8]]),
+        f"color_dft_{channel}_ver": np.mean([means[1], means[7]]),
+        f"color_dft_{channel}_hor": np.mean([means[3], means[5]]),
+        f"color_dft_{channel}_low": means[4]
         }
     
     ## stats on the entire magnitude spectrum  
@@ -651,9 +714,9 @@ def compute_DFT_stats(image, col_space="bgr", channel="gray", resize=None):
     high_freq_count = np.sum(magnitude_spectrum > (mean_magnitude + std_magnitude))
     complexity_index = high_freq_count / (height * width)
     results.update({
-        f"color_dft_{channel}_mean_mag": mean_magnitude,
-        f"color_dft_{channel}_std_mag": std_magnitude,
-        f"color_dft_{channel}_prop_high": complexity_index,  
+        f"color_dft_{channel}_meanmag": mean_magnitude,
+        f"color_dft_{channel}_stdmag": std_magnitude,
+        f"color_dft_{channel}_hifreq": complexity_index,  
     })
     
     return results

@@ -1001,6 +1001,10 @@ def decompose_image(image, col_space="bgr", channels=[0, 1, 2], **kwargs):
             channels = [{ "red": 0, "green": 1, "blue": 2 }.get(channels, -1)]
         elif col_space == "hsv":
             channels = [{ "hue": 0, "sat": 1, "val": 2 }.get(channels, -1)]
+        elif col_space == "hls":
+            channels = [{ "hue": 0, "lum": 1, "sat": 2 }.get(channels, -1)]
+        elif col_space == "lab":
+            channels = [{ "light": 0, "grre": 1, "blyl": 2 }.get(channels, -1)]
         else:
             ul._print(f"- no string shorthand implemented for channel '{channels}' with color space {col_space}", lvl=1)
             return image
@@ -1026,7 +1030,9 @@ def decompose_image(image, col_space="bgr", channels=[0, 1, 2], **kwargs):
         elif col_space == "rgb":
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         elif col_space == "hsv":
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
+        elif col_space == "hls":
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS_FULL)
         elif col_space == "ycrcb":
             image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
         elif col_space == "lab":

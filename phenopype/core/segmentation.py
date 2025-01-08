@@ -138,6 +138,7 @@ def detect_contour(
     image,
     approximation="simple",
     retrieval="ext",
+    keep="all",
     match_against=None,
     apply_drawing=False,
     offset_coords=[0, 0],
@@ -315,6 +316,16 @@ def detect_contour(
             ul._print("- found " + str(len(contours)) + " contours that match criteria")
     else:
         ul._print("- did not find any contours", lvl=2)
+        
+        
+    if keep=="all":
+        pass
+    elif keep=="smallest":
+        min_index = min(range(len(support)), key=lambda i: support[i]['area'])
+        contours, support = [contours[min_index]], [support[min_index]]
+    elif keep=="largest":
+        max_index = max(range(len(support)), key=lambda i: support[i]['area'])
+        contours, support = [contours[max_index]], [support[max_index]]
 
     # =============================================================================
     # assemble results
