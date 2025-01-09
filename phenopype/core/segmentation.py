@@ -369,6 +369,7 @@ def edit_contour(
     image,
     annotations,
     line_width="auto",
+    brush_size=10,
     overlay_blend=0.2,
     overlay_colour_left="default",
     overlay_colour_right="default",
@@ -385,6 +386,8 @@ def edit_contour(
         input image
     annotations: dict
         phenopype annotation containing contours
+    brush_size: int, optional
+        size of the drawing tool (can be changed with Tab + mousewheel)
     overlay_blend: float, optional
         transparency / colour-mixing of the contour overlay 
     line_width: int, optional
@@ -442,6 +445,7 @@ def edit_contour(
     gui = ul._GUI(
         image=image,
         tool="draw",
+        brush_size=brush_size,
         line_width=line_width,
         overlay_blend=overlay_blend,
         overlay_colour_left=overlay_colour_left,

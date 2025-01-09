@@ -225,9 +225,11 @@ class _Container(object):
                         annotation_type, annotation_id
                     )
                     if flag_edit == True:
-                        _print(print_msg + ": editing (edit=True)")
+                        _print(print_msg + ": editing")
+                    elif flag_edit == "once":
+                        _print(print_msg + ": editing once")
                     elif flag_edit == False:
-                        _print(print_msg + ": skipping (edit=False)")
+                        _print(print_msg + ": skipping")
                         if annotation_type in ["drawing"]:
                             kwargs_function["interactive"] = False
                             annotations_updated, self.image = core.segmentation.edit_contour(
@@ -235,7 +237,7 @@ class _Container(object):
                             )
                         return
                     elif flag_edit == "overwrite":
-                        _print(print_msg + ": overwriting (edit=overwrite)")
+                        _print(print_msg + ": overwriting")
                         annotations[annotation_type][annotation_id] = {}
                         pass
 
@@ -457,6 +459,8 @@ class _GUI_Settings:
     
     Attributes:
     ----------
+    brush_size: int, optional
+        starting size of cursor for drawing
     comment_key : chr, optional
         Default key binding for adding comments in the GUI. Defaults to None.
     interactive : bool
@@ -510,6 +514,7 @@ class _GUI_Settings:
     zoom_n_steps : int
         Number of steps for zoom adjustment. Defaults to 20.
     """
+    brush_size: int = 10
     comment_key: chr = None
     interactive: bool = True
     label_colour: tuple = "default"
@@ -764,7 +769,7 @@ class _GUI:
             self.data[_vars._comment_type] = ""
 
         ## collect interactions and set flags
-        self.line_width_orig = copy.deepcopy(self.settings.line_width)
+        self.brush_size_orig = copy.deepcopy(self.settings.brush_size)
 
         self.flags = make_dataclass(
             cls_name="flags",
@@ -824,7 +829,6 @@ class _GUI:
     def _prepare_tools(self, kwargs):
         
         if self.tool in ["comment", "labelling"]:
-                        
             self.settings.label_keymap = kwargs.get("label_keymap")
             self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
             y_pos, x_pos = self.settings.label_position
@@ -841,8 +845,7 @@ class _GUI:
             )
             
         if self.tool == "draw":
-            self.settings.line_width_draw = copy.deepcopy(self.settings.line_width)
-            ## draw contours if they're there
+            self.settings.brush_size_current = copy.deepcopy(self.settings.brush_size)
             if len(self.data[_vars._contour_type]) > 0:
                 if len(self.image.shape) == 2:
                     self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
@@ -858,6 +861,7 @@ class _GUI:
                         maxLevel=3,
                         offset=(0, 0),
                     )
+                    
                 ## initial pass
                 self._canvas_renew()
                 self._canvas_draw(tool="line_bin", coord_list=self.data[_vars._sequence_type])
@@ -927,9 +931,7 @@ class _GUI:
         
         
     def _labelling_tool(self):
-                
         y_pos, x_pos = self.settings.label_position
-        
         if self.keypress in [13, 27, 2424832, 2555904]:
             self.flags.end = True
         elif self.keypress in _vars.ascii_codes:
@@ -959,6 +961,8 @@ class _GUI:
             print(f"{self.keypress} is not a valid ASCII code")
 # 
     def _on_mouse_plain(self, event, x, y, flags, params):
+
+        ## zoom
         if event == cv2.EVENT_MOUSEWHEEL and not self.keypress == 9:
             self.keypress = None
             if flags > 0:
@@ -978,8 +982,8 @@ class _GUI:
                     ):
                         self._zoom_fun(x, y)
             self.x, self.y = x, y
-            cv2.imshow(self.settings.window_name, self.canvas)
 
+        ## use tools / print instructions
         if self.tool:
             if self.tool == "draw":
                 self._on_mouse_draw(event, x, y, flags)
@@ -1000,6 +1004,10 @@ class _GUI:
                 self._on_mouse_polygon(event, x, y, flags, reference=True)
             elif self.tool == "template":
                 self._on_mouse_rectangle(event, x, y, flags, template=True)
+                
+        ## show updated canvas
+        cv2.imshow(self.settings.window_name, self.canvas)
+
 
     def _on_mouse_point(self, event, x, y):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -1297,7 +1305,7 @@ class _GUI:
                 cv2.imshow(self.settings.window_name, self.canvas)
 
     def _on_mouse_draw(self, event, x, y, flags):
-
+        
         ## set colour - left/right mouse button use different settings.colours
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
@@ -1327,7 +1335,7 @@ class _GUI:
                 [
                     self.data[_vars._coord_type],
                     self.colour_current_bin,
-                    int(self.settings.line_width_draw * self.zoom.global_fx),
+                    int(self.settings.brush_size_current * self.zoom.global_fx),
                 ]
             )
             self.data[_vars._coord_type] = []
@@ -1356,31 +1364,31 @@ class _GUI:
                 (self.ix, self.iy),
                 (x, y),
                 self.colour_current,
-                self.settings.line_width_draw,
+                self.settings.brush_size_current,
             )
             self.ix, self.iy = x, y
             cv2.imshow(self.settings.window_name, self.canvas)
 
         if self.keypress == 9 and event == cv2.EVENT_MOUSEWHEEL:
             if flags > 1:
-                self.line_width_orig += 1
-            if flags < 1 and self.line_width_orig > 1:
-                self.line_width_orig -= 1
+                self.brush_size_orig += 1
+            if flags < 1 and self.brush_size_orig > 1:
+                self.brush_size_orig -= 1
 
             self.canvas = copy.deepcopy(self.canvas_copy)
-            self.settings.line_width_draw = int(
-                self.line_width_orig
+            self.settings.brush_size_current = int(
+                self.brush_size_orig
                 / ((self.zoom.x2 - self.zoom.x1) / self.image_width)
             )
             cv2.line(
-                self.canvas, (x, y), (x, y), _get_bgr("black"), self.settings.line_width_draw
+                self.canvas, (x, y), (x, y), _get_bgr("black"), self.settings.brush_size_current
             )
             cv2.line(
                 self.canvas,
                 (x, y),
                 (x, y),
                 _get_bgr("white"),
-                max(self.settings.line_width_draw - 5, 1),
+                max(self.settings.brush_size_current - 5, 1),
             )
             cv2.imshow(self.settings.window_name, self.canvas)
 
@@ -1569,8 +1577,8 @@ class _GUI:
 
         ## adjust brush size
         if self.tool == "draw":
-            self.settings.line_width_draw = int(
-                self.line_width_orig
+            self.settings.brush_size_current = int(
+                self.brush_size_orig
                 / ((self.zoom.x2 - self.zoom.x1) / self.image_width)
             )
             

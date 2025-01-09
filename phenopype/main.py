@@ -2870,7 +2870,10 @@ class Pype(object):
                     
                 ## feedback - check if method exists
                 if flags.execute:
-                    if hasattr(eval("core."+ step_name), method_name) or hasattr(eval("plugins."+ step_name), method_name):
+                    core_module = getattr(core, step_name, None)
+                    plugin_module = getattr(plugins, step_name, None)
+
+                    if hasattr(core_module, method_name) or hasattr(plugin_module, method_name):
                         self.config_parsed_flattened[step_name].append(method_name)
                         self._log("info", method_name, 1)
                     else:    
@@ -2881,8 +2884,8 @@ class Pype(object):
                             # self.config_updated["processing_steps"][step_idx][step_name][
                             #     method_idx
                             # ] = {method_name_updated: method_args}
-                            method_name = method_name_updated
                             self._log("info", f"{method_name} does not exist in phenopype.{step_name} - updated method name to {method_name_updated}", 1)
+                            method_name = method_name_updated
                         else:
                             error_msg =  f"{method_name} does not exist in phenopype.core.{step_name} or phenopype_plugins.{step_name} modules."
                             self._log("error", error_msg, 1)
@@ -2916,11 +2919,10 @@ class Pype(object):
                                     "contour_to_mask",
                                     "detect_contour",
                                     "detect_mask",
-                                    "compute_shape_features",
-                                    "compute_texture_features",
+                                    "compute_shape_moments",
+                                    "compute_color_moments",
                                     "detect_skeleton",
                                 ] else False })
-
 
                 elif method_name in ["convert_annotation"]:
                     try:
@@ -2974,7 +2976,15 @@ class Pype(object):
                             ## cleanup
                             if self.flags.debug:
                                 raise
-
+                                
+                    ## update edit argument if used only once
+                    if annotation_args:
+                        if "edit" in annotation_args:
+                            if annotation_args["edit"] == "once":
+                                annotation_args["edit"] = False
+                                method_args_updated = {"ANNOTATION": annotation_args}
+                                method_args_updated.update(method_args)
+                                self.config_updated["processing_steps"][step_idx][step_name][method_idx] = {method_name: method_args_updated}
 
                     ## check for pype-restart after config change
                     if config.pype_restart:

@@ -375,7 +375,7 @@ def compute_shape_moments(annotations, features=["basic"], min_diameter=5, **kwa
         annotation_id=contour_id,
         kwargs=kwargs,
     )
-    
+        
     contours = annotation["data"][_vars._contour_type]
     contours_support = annotation["data"]["support"]
     

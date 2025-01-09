@@ -218,6 +218,7 @@ _legacy_names = {
 
         ## main
         "detect_contours": "detect_contour",
+        "find_contours": "detect_contour",
         "edit_contours": "edit_contour",
     },
     "measurement": {

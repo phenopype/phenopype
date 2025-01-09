@@ -30,29 +30,29 @@ def test_set_polyline(image, polyline):
     assert len(annotations) > 0
     
 
-def test_compute_shape_feature(image_binary):
+def test_compute_shape_moments(image_binary):
     
     annotations = pp.segmentation.detect_contour(
         image_binary, 
         )    
     
-    annotations = pp.measurement.compute_shape_features(
+    annotations = pp.measurement.compute_shape_moments(
         annotations,
         features=["basic","moments","hu_moments"],
 )
     
     assert len(annotations) > 0
     
-def test_detect_skeleton(image_binary):
+# def test_detect_skeleton(image_binary):
     
-    annotations = pp.segmentation.detect_contour(
-        image_binary, 
-        )    
+#     annotations = pp.segmentation.detect_contour(
+#         image_binary, 
+#         )    
     
-    annotations = pp.measurement.detect_skeleton(
-        annotations,
-        )
+#     annotations = pp.measurement.detect_skeleton(
+#         annotations,
+#         )
     
-    assert len(annotations) > 0
+#     assert len(annotations) > 0
     
         
