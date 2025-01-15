@@ -2076,7 +2076,8 @@ class Project:
               https://github.com/agporto/ml-morph
             - "keras-cnn-semantic" - Images and masks to be used for training an
               image segmentation model in Keras
-            
+            - "yolo-od" - Object detection with ultralytics/YOLO
+              
         folder : str
             Name of the folder under "root/training_data" where the formatted 
             training data will be stored under.
@@ -2104,14 +2105,13 @@ class Project:
             print("No annotation id set - will use last one in annotations file.")
             time.sleep(1)
         if folder.__class__.__name__ == "NoneType":
-            training_data_path = os.path.join(self.root_dir, "training_data", tag)
+            training_data_root = os.path.join(self.root_dir, "training_data", tag)
         else:
-            assert os.path.exists(folder), "root folder for training images does not exist"
-            training_data_path = folder
+            training_data_root = folder
     
-        if not os.path.isdir(training_data_path):
-            os.makedirs(training_data_path)
-            print("Created " + training_data_path)
+        if not os.path.isdir(training_data_root):
+            os.makedirs(training_data_root)
+            print("Created " + training_data_root)
             
         params_all = {
             "ml-morph": {
@@ -2128,12 +2128,133 @@ class Project:
                 "ext": "tif",
                 },
             "keras-cnn-semantic": {
+                },
+            "yolo-od": {
+                "source_ann_type": "contour",
+                "source_ann_id": None,
+                "copy_images": True,
+                "class_name": "class1",
                 }
             }
 
         params_all = copy.deepcopy(params_all)
         params_all[method].update(params)
+        
+        # =============================================================================
+        ## yolo-od
+        
+        if method == "yolo-od":
+            
+            yolo_annotations = []
+            annotation_type = params_all["yolo-od"]["source_ann_type"]
+            annotation_id = params_all["yolo-od"]["source_ann_id"]
+            
+            ## temporarily turn off verbosity
+            verbosity_state = copy.deepcopy(config.verbose)
+            config.verbose = False
+            
+            print("Finding annotations...:")
+            pbar = ul._create_progress_bar(self.dir_paths)
+            with pbar:
+                task = pbar.add_task(description=False, total=len(self.dir_paths))
+            
+                for idx1, dirpath in enumerate(self.dir_paths, 1):
+                                       
+                    attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                    annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))  
+                    
+                    image_path = os.path.join(dirpath, attributes["image_phenopype"]["filepath"])
+                    image_name = attributes["image_original"]["filename"]
+                    image_height = attributes["image_original"]["height"]
+                    image_width = attributes["image_original"]["width"]
+                    
+                    annotation = ul._get_annotation(annotations, annotation_type, annotation_id)
+                    
+                    if not "data" in annotation:
+                        continue
+                        pbar.advance(task)
 
+                    coords_list = annotation["data"][annotation_type]
+    
+                    # Generate YOLO annotation
+                    for coords in coords_list:
+                        
+                        coords_resized = ul._resize_contour(coords, image_width, image_height, img_size, img_size)
+                        x, y, w, h = cv2.boundingRect(coords_resized)
+                        
+                        # Normalize bounding box coordinates
+                        x_center = (x + w / 2) / img_size   # x + w/2 gives the center x-coordinate
+                        y_center = (y + h / 2) / img_size  # y + h/2 gives the center y-coordinate
+                        bbox_width = w / img_size           # Normalize width
+                        bbox_height = h / img_size         # Normalize height
+       
+                    # Append annotation in YOLO format
+                    yolo_annotation = {
+                        "filename": image_name,
+                        "filepath": image_path,
+                        "annotation": (f"0 {x_center:.6f} {y_center:.6f} {bbox_width:.6f} {bbox_height:.6f}")
+                        }
+                    yolo_annotations.append(yolo_annotation)
+
+                    pbar.update(task, description=image_name)
+                    pbar.advance(task)
+                    
+                    # image = utils.load_image(image_path)
+                    # image_resized = utils.resize_image(image, width=img_size, height=img_size)
+                    # x_min = int((x_center - bbox_width / 2) * img_size)
+                    # y_min = int((y_center - bbox_height / 2) * img_size)
+                    # x_max = int((x_center + bbox_width / 2) * img_size)
+                    # y_max = int((y_center + bbox_height / 2) * img_size)
+                    # cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                    # cv2.rectangle(image_resized, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+                    # utils.show_image(image)
+
+            ## save datasets
+            train_data, val_data, test_data = ul._split_dataset(yolo_annotations)
+            print(" Saving datasets...:")
+            for data, data_name in zip(
+                    [train_data, val_data, test_data],
+                    ["train", "val", "test"]):    
+                pbar = ul._create_progress_bar(len(data))
+                with pbar:
+                    task = pbar.add_task(description=data_name, total=len(data))
+                    for data_point in data:
+                        ## imgs
+                        train_image_folder = os.path.join(training_data_root, "images", data_name)
+                        os.makedirs(train_image_folder, exist_ok=True)
+                        image = utils.load_image(data_point["filepath"])
+                        image_resized = utils.resize_image(image, width=img_size, height=img_size)
+                        
+                        # _, x_center, y_center, bbox_width, bbox_height = map(float, data_point["annotation"].split())
+                        # x_min = int((x_center - bbox_width / 2) * img_size)
+                        # y_min = int((y_center - bbox_height / 2) * img_size)
+                        # x_max = int((x_center + bbox_width / 2) * img_size)
+                        # y_max = int((y_center + bbox_height / 2) * img_size)
+                        # cv2.rectangle(image_resized, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+                        
+                        utils.save_image(image_resized, os.path.join(train_image_folder, data_point["filename"])) 
+                        ## labels
+                        train_label_folder = os.path.join(training_data_root, "labels", data_name)
+                        os.makedirs(train_label_folder, exist_ok=True)
+                        label_name = os.path.splitext(data_point["filename"])[0] + ".txt"
+                        with open(os.path.join(train_label_folder, label_name), "w") as f:
+                            f.write(data_point["annotation"])
+                        pbar.advance(task)
+
+            # Create the data.yaml content
+            data_yaml_content = {
+                "train": os.path.join(training_data_root, "images", "train"),
+                "val": os.path.join(training_data_root, "images", "val"),
+                "test": os.path.join(training_data_root, "images", "test") if len(test_data) > 0 else None,
+                "names": {
+                    0: params_all["yolo-od"]["class_name"]}
+            }
+                       
+            # Write the data.yaml file
+            ul._save_yaml(data_yaml_content, os.path.join(training_data_root, "data.yaml"))
+            config.verbose = verbosity_state
+  
+                        
         # =============================================================================
         ## ml-morph
         
@@ -2141,7 +2262,7 @@ class Project:
 
             annotation_type = _vars._landmark_type
             df_summary = pd.DataFrame()
-            file_path_save = os.path.join(training_data_path, "landmarks_ml-morph_" + tag + ".csv")
+            file_path_save = os.path.join(training_data_root, "landmarks_ml-morph_" + tag + ".csv")
 
             if not ul._overwrite_check_file(file_path_save, flags.overwrite):
                 return
@@ -2155,7 +2276,7 @@ class Project:
             flags.flip_y = params["ml-morph"]["flip_y"]
 
             if flags.export_mask:  
-                img_dir = os.path.join(training_data_path, "images")
+                img_dir = os.path.join(training_data_root, "images")
                 if not os.path.isdir(img_dir):
                     os.makedirs(img_dir)
             
@@ -2291,8 +2412,8 @@ class Project:
             
             annotation_type = kwargs.get("annotation_type", "mask")
             
-            img_dir = os.path.join(training_data_path, "images", "all")
-            mask_dir = os.path.join(training_data_path, "masks", "all")
+            img_dir = os.path.join(training_data_root, "images", "all")
+            mask_dir = os.path.join(training_data_root, "masks", "all")
             
             if not os.path.isdir(img_dir):
                 os.makedirs(img_dir)

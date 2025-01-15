@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phenopype"
-version = "6.0.1"  
+version = "6.0.2.dev0"  
 requires-python = ">=3.9"
 description = "A phenotyping pipeline for python"
 authors = [
@@ -15,7 +15,7 @@ license = {file = "LICENSE"}
 dependencies = [
 	"colour",
 	"numpy",
-	"opencv-contrib-python",
+	"opencv-python",
 	"pandas",
 	"pillow",
 	"ruamel.yaml",

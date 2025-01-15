@@ -2552,15 +2552,30 @@ def _get_orientation(coords, method="ellipse"):
         
     return angle
     
-def _resize_contour(contour, img_orig, img_resized):
+def _resize_contour(contour, x_orig, y_orig, x_new, y_new):
+    """
+    Resizes a contour to match the resizing/squeezing of an image.
 
-    coef_y = img_orig.shape[0] / img_resized.shape[0]
-    coef_x = img_orig.shape[1] / img_resized.shape[1]
-    
-    contour[:, :, 0] = contour[:, :, 0] * coef_x
-    contour[:, :, 1] = contour[:, :,  1] * coef_y
+    Args:
+        contour (numpy.ndarray): The contour points, expected in (n, 1, 2) shape.
+        img_orig (numpy.ndarray): The original image.
+        img_resized (numpy.ndarray): The resized image.
 
-    return contour
+    Returns:
+        numpy.ndarray: The resized contour.
+    """
+
+    # Create a copy of the contour to avoid modifying the original
+    resized_contour = contour.copy()
+
+    # Scale the contour points
+    resized_contour[:, :, 0] = resized_contour[:, :, 0] * (x_new / x_orig)
+    resized_contour[:, :, 1] = resized_contour[:, :, 1] * (y_new / y_orig)
+
+    ## conver to int
+    resized_contour = resized_contour.astype(int)
+
+    return resized_contour
 
 def _rotate_coords_center(array, center, angle):
         
@@ -2987,3 +3002,41 @@ def _rotate_image(image, angle, allow_crop=True, ret=False):
         return rotated_image, image_center
     else:
         return rotated_image
+
+
+
+def _split_dataset(data, train_ratio=0.8, val_ratio=0.2, test_ratio=0, seed=42):
+    """
+    Splits a list of dictionaries into train, validation, and optionally test sets.
+
+    Args:
+        data: List of dictionaries, each representing an item in the dataset.
+        train_ratio: Ratio of data for training (e.g., 0.7 for 70%).
+        val_ratio: Ratio of data for validation (e.g., 0.2 for 20%).
+        test_ratio: Ratio of data for testing (e.g., 0.1 for 10%).
+        seed: Random seed for reproducibility.
+
+    Returns:
+        Tuple of lists: (train_data, val_data, test_data).
+    """
+    if not (0 < train_ratio + val_ratio + test_ratio <= 1):
+        raise ValueError("Ratios must sum to 1 or less.")
+
+    # Set the random seed for reproducibility
+    random.seed(seed)
+
+    # Shuffle the data
+    shuffled_data = data[:]
+    random.shuffle(shuffled_data)
+
+    # Calculate split indices
+    total = len(shuffled_data)
+    train_end = int(total * train_ratio)
+    val_end = train_end + int(total * val_ratio)
+
+    # Split the data
+    train_data = shuffled_data[:train_end]
+    val_data = shuffled_data[train_end:val_end]
+    test_data = shuffled_data[val_end:] if test_ratio > 0 else []
+
+    return train_data, val_data, test_data
