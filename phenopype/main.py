@@ -1520,7 +1520,6 @@ class Project:
     
         # Initialize lists
         filenames_check, dirnames_check = [], []
-        new_dir_files = os.listdir(new_dir) if os.path.isdir(new_dir) else None
     
         # Process directories
         ul._print("Checking images in project data folder:")        
@@ -1536,6 +1535,7 @@ class Project:
                 dirnames_check.append(dirname)
                 
                 if flags.image_links:
+                    new_dir_files = os.listdir(new_dir) if os.path.isdir(new_dir) else None
                     filepath = attributes["image_phenopype"]["filepath"]
                     if attributes["image_phenopype"]["mode"] == "link":
                         if not os.path.isfile(os.path.join(dirpath, filepath)):
@@ -1904,7 +1904,478 @@ class Project:
                 print("User check failed - aborting.")
                 break
                     
+    def export_training_data(
+             self, 
+             tag,
+             method,
+             params={},
+             folder=None, 
+             annotation_id=None, 
+             overwrite=False, 
+             parameters=None,
+             **kwargs):
+        """
+   
+        Parameters
+        ----------
+        tag : str
+            The Pype tag from which training data should be extracted.
+        method :  {"ml-morph"} str
+            For which machine learning framwork should training data be created.
+            Currently instructions for the following architectures are supported:
             
+            - "ml-morph" - Machine-learning tools for landmark-based morphometrics 
+              https://github.com/agporto/ml-morph
+            - "keras-cnn-semantic" - Images and masks to be used for training an
+              image segmentation model in Keras
+            - "yolo-od" - Object detection with ultralytics/YOLO
+              
+        folder : str
+            Name of the folder under "root/training_data" where the formatted 
+            training data will be stored under.
+        annotation_id : str, optional
+            select a specific annotation id. The default is None.
+        overwrite : bool, optional
+            Should an existing training data set be overwritten. The default is False.
+   
+        Returns
+        -------
+        None.
+   
+        """
+        
+        # =============================================================================
+        # setup
+        
+        flags = make_dataclass(
+            cls_name="flags", fields=[
+                ("overwrite", bool, overwrite),
+                ]
+        )
+    
+        if annotation_id.__class__.__name__ == "NoneType":
+            print("No annotation id set - will use last one in annotations file.")
+            time.sleep(1)
+        if folder.__class__.__name__ == "NoneType":
+            training_data_root = os.path.join(self.root_dir, "training_data", tag)
+        else:
+            training_data_root = folder
+    
+        if not os.path.isdir(training_data_root):
+            os.makedirs(training_data_root)
+            print("Created " + training_data_root)
+            
+        params_all = {
+            "ml-morph": {
+                "export_mask": False,
+                "flip_y": False,
+                "mask_id": None,
+                "resize_factor": 1,
+                },
+            "generic-binary-mask" : {
+                "local": True,
+                "mode": "largest", 
+                "resize": 1,
+                "ext": "jpg",
+                "size": 512,
+                },
+            "keras-cnn-semantic": {
+                },
+            "yolo-od": {
+                "annotation_type": "contour",
+                "annotation_id": None,
+                "copy_images": True,
+                "class_name": "class1",
+                "size": 640,
+                },
+            "yolo-seg": {
+                "annotation_type": "contour",
+                "annotation_id": None,
+                "copy_images": True,
+                "class_name": "class1",
+                "size": 640,
+                }
+            }
+   
+        params_all = copy.deepcopy(params_all)
+        params_all[method].update(params)
+        
+        # =============================================================================
+        ## yolo-od
+        
+        if method == "yolo-od":
+            
+            yolo_annotations = []
+            annotation_type = params_all["yolo-od"]["annotation_type"]
+            annotation_id = params_all["yolo-od"]["annotation_id"]
+            
+            ## temporarily turn off verbosity
+            verbosity_state = copy.deepcopy(config.verbose)
+            config.verbose = False
+            
+            print("Finding annotations...:")
+            pbar = ul._create_progress_bar(self.dir_paths)
+            with pbar:
+                task = pbar.add_task(description=False, total=len(self.dir_paths))
+                for idx1, dirpath in enumerate(self.dir_paths, 1):                
+                    ## get data
+                    attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                    annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))     
+                    image_path = os.path.join(dirpath, attributes["image_phenopype"]["filepath"])
+                    image_name = attributes["image_original"]["filename"]
+                    image_height = attributes["image_original"]["height"]
+                    image_width = attributes["image_original"]["width"]
+                    annotation = ul._get_annotation(annotations, annotation_type, annotation_id)
+                    
+                    ## skip empty annotations
+                    if not "data" in annotation:
+                        continue
+                        pbar.advance(task)
+   
+                    ## populate coords list
+                    coords_list = annotation["data"][annotation_type]
+                    for coords in coords_list:
+                        
+                        ## resize coords
+                        coords_resized = ul._resize_contour(
+                            coords, image_width, image_height, params["size"], params["size"])
+                        x, y, w, h = cv2.boundingRect(coords_resized)
+                        
+                        # Normalize bounding box coordinates
+                        x_center = (x + w / 2) / params["size"]   # x + w/2 gives the center x-coordinate
+                        y_center = (y + h / 2) / params["size"]  # y + h/2 gives the center y-coordinate
+                        bbox_width = w / params["size"]           # Normalize width
+                        bbox_height = h / params["size"]         # Normalize height
+       
+                    # Append annotation in YOLO format
+                    yolo_annotation = {
+                        "filename": image_name,
+                        "filepath": image_path,
+                        "annotation": (f"0 {x_center:.6f} {y_center:.6f} {bbox_width:.6f} {bbox_height:.6f}")
+                        }
+                    yolo_annotations.append(yolo_annotation)
+   
+                    ## progress update
+                    pbar.update(task, description=image_name)
+                    pbar.advance(task)
+                    
+            ## save datasets
+            train_data, val_data, test_data = ul._split_dataset(yolo_annotations)
+            print(" Saving datasets...:")
+            for data, data_name in zip(
+                    [train_data, val_data, test_data],
+                    ["train", "val", "test"]):    
+                pbar = ul._create_progress_bar(len(data))
+                with pbar:
+                    task = pbar.add_task(description=data_name, total=len(data))
+                    for data_point in data:
+                        
+                        ## imgs
+                        train_image_folder = os.path.join(training_data_root, "images", data_name)
+                        os.makedirs(train_image_folder, exist_ok=True)
+                        image = utils.load_image(data_point["filepath"])
+                        image_resized = utils.resize_image(image, width=params["size"], height=params["size"])
+                        utils.save_image(image_resized, os.path.join(train_image_folder, data_point["filename"])) 
+                        
+                        ## labels
+                        train_label_folder = os.path.join(training_data_root, "labels", data_name)
+                        os.makedirs(train_label_folder, exist_ok=True)
+                        label_name = os.path.splitext(data_point["filename"])[0] + ".txt"
+                        with open(os.path.join(train_label_folder, label_name), "w") as f:
+                            f.write(data_point["annotation"])
+                        pbar.advance(task)
+   
+            # Create the data.yaml content
+            data_yaml_content = {
+                "train": os.path.join(training_data_root, "images", "train"),
+                "val": os.path.join(training_data_root, "images", "val"),
+                "test": os.path.join(training_data_root, "images", "test") if len(test_data) > 0 else None,
+                "names": {
+                    0: params_all["yolo-od"]["class_name"]}
+            }
+                       
+            # Write the data.yaml file
+            ul._save_yaml(data_yaml_content, os.path.join(training_data_root, "data.yaml"))
+            config.verbose = verbosity_state
+   
+        if method == "yolo-seg":
+            
+            image_list = []
+            annotation_type = params_all["yolo-od"]["annotation_type"]
+            annotation_id = params_all["yolo-od"]["annotation_id"]
+            roi_size = params["size"]
+
+            ## temporarily turn off verbosity
+            verbosity_state = copy.deepcopy(config.verbose)
+            config.verbose = False
+            
+            ## find annotations
+            print("Finding annotations...:")
+            pbar = ul._create_progress_bar(self.dir_paths)
+            with pbar:
+                task = pbar.add_task(description=False, total=len(self.dir_paths))
+                for idx1, dirpath in enumerate(self.dir_paths, 1):   
+                    attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))        
+                    image_name = attributes["image_original"]["filename"]
+                    annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))     
+                    annotation = ul._get_annotation(annotations, annotation_type, annotation_id)
+                    if annotation and "data" in annotation:
+                        image_list.append(dirpath)
+                        pbar.update(task, description=f"{image_name}: annotation found")
+                    else:
+                        pbar.update(task, description=f"{image_name}: no annotation found")
+                    pbar.advance(task)
+                    
+            ## make split
+            train_data, val_data, test_data, data_stats = ul._split_dataset(image_list)
+            
+            print(" Saving datasets...:")
+            for data, data_name in zip(
+                    [train_data, val_data, test_data],
+                    ["train", "val", "test"]):    
+                pbar = ul._create_progress_bar(len(data))
+                with pbar:
+                    task = pbar.add_task(description=data_name, total=len(data))
+                    for dirpath in data:
+
+                        ## get image and annotation
+                        attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                        annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))     
+                        annotation = ul._get_annotation(annotations, annotation_type, annotation_id)
+                        image_path = os.path.join(dirpath, attributes["image_phenopype"]["filepath"])
+                        image_name = attributes["image_original"]["filename"]
+                        image = utils.load_image(dirpath)
+
+                        ## format 
+                        coords = annotation["data"][annotation_type][-1]
+                        roi, roi_xyxy = ul._extract_roi_center(image, coords, roi_size)
+                        roi_coords = coords - [roi_xyxy[0], roi_xyxy[1]]
+                        roi_coords_n = [(point[0]/roi_size, point[1]/roi_size) for point in roi_coords.flatten().reshape(-1, 2)]
+                        roi_coords_nf = [coord for point in roi_coords_n for coord in point]                        
+
+                        ## imgs
+                        train_image_folder = os.path.join(training_data_root, data_name, "images")
+                        os.makedirs(train_image_folder, exist_ok=True)
+                        utils.save_image(roi, os.path.join(train_image_folder, os.path.splitext(image_name)[0] + ".jpg")) 
+                        
+                        ## labels
+                        train_label_folder = os.path.join(training_data_root, data_name, "labels")
+                        os.makedirs(train_label_folder, exist_ok=True)
+                        label_name = os.path.splitext(image_name)[0] + ".txt"
+                        with open(os.path.join(train_label_folder, label_name), "w") as f:  
+                            label = " ".join(map(str, roi_coords_nf))  # Convert list to space-separated string
+                            f.write("0 " + label)
+                            
+                        pbar.update(task, description=f"{image_name}: converted and saved!")
+                        pbar.advance(task)
+          
+            # Create the data.yaml content
+            data_yaml_content = {
+                "train": os.path.join("train", "images"),
+                "val": os.path.join("val", "images"),
+                "test": os.path.join("test", "images") if len(test_data) > 0 else None,
+                "names": {
+                    0: params_all["yolo-seg"]["class_name"]}
+            }
+                       
+            # Write the data.yaml file
+            ul._save_yaml(data_yaml_content, os.path.join(training_data_root, "data.yaml"))
+            config.verbose = verbosity_state
+
+                        
+        # =============================================================================
+        ## ml-morph
+        
+        if method=="ml-morph":
+   
+            annotation_type = _vars._landmark_type
+            df_summary = pd.DataFrame()
+            file_path_save = os.path.join(training_data_root, "landmarks_ml-morph_" + tag + ".csv")
+   
+            if not ul._overwrite_check_file(file_path_save, flags.overwrite):
+                return
+            
+            if not parameters.__class__.__name__ == "NoneType":
+                params["ml-morph"].update(parameters["ml-morph"])
+                
+                
+            flags.export_mask = params["ml-morph"]["export_mask"]
+            flags.resize_factor = params["ml-morph"]["resize_factor"]
+            flags.flip_y = params["ml-morph"]["flip_y"]
+   
+            if flags.export_mask:  
+                img_dir = os.path.join(training_data_root, "images")
+                if not os.path.isdir(img_dir):
+                    os.makedirs(img_dir)
+            
+            for idx1, dirpath in enumerate(self.dir_paths, 1):
+                            
+                ## load data
+                attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
+                filename = attributes["image_original"]["filename"]
+                image_height = attributes["image_phenopype"]["height"]
+                
+                print("Preparing training data for: ({}/{}) ".format(idx1, len(self.dir_paths)) + filename)
+    
+                ## checks and feedback
+                if annotations.__class__.__name__ == "NoneType": 
+                    print("No annotations found for {}".format(filename))
+                    continue
+                if not annotation_type in annotations:
+                    print("No annotation of type {} found for {}".format(annotation_type, filename))
+                    continue
+                if annotation_id.__class__.__name__ == "NoneType":
+                    annotation_id = max(list(annotations[annotation_type].keys()))
+                    
+                ## load landmarks
+                data = annotations[annotation_type][annotation_id]["data"][annotation_type]
+                lm_tuple_list = list(zip(*data))
+                
+                ## load image if masking or resizing
+                if flags.export_mask or flags.resize_factor != 1:
+                    image = utils.load_image(dirpath)
+                    image_height, image_width = image.shape[0:2]
+   
+                    ## select last mask if no id is given
+                    if params["ml-morph"]["mask_id"].__class__.__name__ == "NoneType":
+                        mask_id = max(list(annotations[_vars._mask_type].keys()))
+                        
+                    ## get bounding rectangle and crop image to mask coords
+                    if flags.export_mask and _vars._mask_type in annotations:
+                        coords = annotations[_vars._mask_type][mask_id]["data"][_vars._mask_type][0]
+                        rx, ry, rw, rh = cv2.boundingRect(np.asarray(coords, dtype="int32"))
+                        image = image[
+                            max(ry,0) : min(ry + rh, image_height), max(rx,1) : min(rx + rw, image_width)]
+                        image_height = image.shape[0]
+   
+                        ## subtract top left coord from bounding box from all landmarks
+                        lm_tuple_list[0] = tuple(c - rx for c in lm_tuple_list[0])
+                        lm_tuple_list[1] = tuple(c - ry for c in lm_tuple_list[1])
+                        
+                    ## resize image or cropped image
+                    if flags.resize_factor != 1:
+                        image = utils.resize_image(image, factor=flags.resize_factor, interpolation="cubic")
+                        image_height = int(image_height * flags.resize_factor)
+                        
+                        ## multiply all landmarks with resize factor
+                        lm_tuple_list[0] = tuple(int(c * flags.resize_factor) for c in lm_tuple_list[0])
+                        lm_tuple_list[1] = tuple(int(c * flags.resize_factor) for c in lm_tuple_list[1])
+                    
+                    ## save resized image or cropped image
+                    utils.save_image(image, dir_path=img_dir, file_name=filename, overwrite=overwrite)
+                    
+                ## add to dataframe
+                coord_row, colnames = list(), list()
+                colnames.append("id")
+                for  idx2, (x_coord, y_coord) in enumerate(zip(lm_tuple_list[0], lm_tuple_list[1]),1):
+                    coord_row.append(x_coord)
+                    if flags.flip_y:
+                        coord_row.append(int((y_coord - image_height) * -1))
+                    else: 
+                        coord_row.append(y_coord)
+                    colnames.append("X" + str(idx2))
+                    colnames.append("Y" + str(idx2))
+                df = pd.DataFrame([filename] + coord_row).transpose()
+                df_summary = pd.concat([df_summary, df])
+                
+            ## save dataframe
+            df_summary.set_axis(colnames, axis=1, inplace=True)
+            df_summary.to_csv(file_path_save, index=False)
+            
+            
+        # =============================================================================
+        ## generic-binary-masks
+        
+        if method=="generic-binary-mask":
+            
+            ## get params
+            params = params_all[method]
+            
+            ## make dirs
+            image_dir = os.path.join(folder, "images")
+            mask_dir = os.path.join(folder, "masks")
+            os.makedirs(image_dir, exist_ok=True)
+            os.makedirs(mask_dir, exist_ok=True)
+            
+            
+            if params["mode"] == "largest":
+                which = "max"
+             
+            print("Finding annotations...:")
+            pbar = ul._create_progress_bar(self.dir_paths)
+            with pbar:
+                task = pbar.add_task(description=False, total=len(self.dir_paths))   
+             
+                for idx, dirpath in enumerate(self.dir_paths, 1):
+                                     
+                    annotation_path = os.path.join(dirpath, "annotations_" + tag + ".json")
+                    
+                    if os.path.isfile(annotation_path):
+                        annotations = core.export.load_annotation(annotation_path)   
+                        image = utils.load_image(dirpath)
+                        attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                        file_name = attributes["image_original"]["filename"] 
+                        try:
+                            roi, mask = core.export.save_ROI(
+                                image=image,
+                                annotations=annotations,
+                                which=which,
+                                dir_path=None,
+                                file_name=None,
+                                annotation_type="contour",
+                                min_dim=params['size'],
+                                counter=False,
+                                training_data=True,
+                                )
+                            utils.save_image(roi, os.path.join(image_dir, os.path.splitext(file_name)[0] + f".{params['ext']}")) 
+                            utils.save_image(mask, os.path.join(mask_dir, os.path.splitext(file_name)[0] + f".{params['ext']}")) 
+                        except:
+                            print("missing annotation? - skipping")
+                    else:
+                        print(f"no annotations with tag {tag} - skipping")
+                    pbar.update(task, description=file_name)
+                    pbar.advance(task)
+                        
+        # =============================================================================
+        ## keras-cnn-semantic
+        
+        if method=="keras-cnn-semantic":
+            
+            annotation_type = kwargs.get("annotation_type", "mask")
+            
+            img_dir = os.path.join(training_data_root, "images", "all")
+            mask_dir = os.path.join(training_data_root, "masks", "all")
+            
+            if not os.path.isdir(img_dir):
+                os.makedirs(img_dir)
+            if not os.path.isdir(mask_dir):
+                os.makedirs(mask_dir)  
+   
+            for idx, dirpath in enumerate(self.dir_paths, 1):
+                            
+                attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
+                annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
+                filename = attributes["image_original"]["filename"]               
+                
+                print("Preparing training data for: ({}/{}) ".format(idx, len(self.dir_paths)) + filename)
+   
+                shape = (attributes["image_original"]["width"], attributes["image_original"]["height"], 3)
+                mask = np.zeros(shape, dtype="uint8")
+                if not annotation_type in annotations:
+                    print("No annotation of type {} found in dataset - aborting".format(annotation_type))
+                    return
+                if annotation_id.__class__.__name__ == "NoneType":
+                    annotation_id = max(list(annotations[annotation_type].keys()))
+                    
+                mask = core.visualization.draw_contour(image=mask, annotations=annotations, contour_id=annotation_id, line_width=0, line_colour=1, fill=1)
+                mask_resized = cv2.resize(mask, (img_size, img_size))
+                
+                image = utils.load_image(dirpath)
+                image_resized = cv2.resize(image, (img_size, img_size))
+                
+                utils.save_image(image_resized, dir_path=img_dir, file_name=filename, ext="png")
+                utils.save_image(mask_resized, dir_path=mask_dir, file_name=filename, ext="png")
 
     def export_zip(
             self, 
@@ -2050,400 +2521,7 @@ class Project:
                             file_relpath = os.path.join(results_dir_relpath, folder, file)
                             zip.write(file_abspath, file_relpath)   
     
-    def export_training_data(
-            self, 
-            tag,
-            method,
-            params={},
-            folder=None, 
-            annotation_id=None, 
-            overwrite=False, 
-            img_size=224,
-            parameters=None,
-            **kwargs):
-        """
-        
-
-        Parameters
-        ----------
-        tag : str
-            The Pype tag from which training data should be extracted.
-        method :  {"ml-morph"} str
-            For which machine learning framwork should training data be created.
-            Currently instructions for the following architectures are supported:
-            
-            - "ml-morph" - Machine-learning tools for landmark-based morphometrics 
-              https://github.com/agporto/ml-morph
-            - "keras-cnn-semantic" - Images and masks to be used for training an
-              image segmentation model in Keras
-            - "yolo-od" - Object detection with ultralytics/YOLO
-              
-        folder : str
-            Name of the folder under "root/training_data" where the formatted 
-            training data will be stored under.
-        annotation_id : str, optional
-            select a specific annotation id. The default is None.
-        overwrite : bool, optional
-            Should an existing training data set be overwritten. The default is False.
-
-        Returns
-        -------
-        None.
-
-        """
-        
-        # =============================================================================
-        # setup
-        
-        flags = make_dataclass(
-            cls_name="flags", fields=[
-                ("overwrite", bool, overwrite),
-                ]
-        )
-    
-        if annotation_id.__class__.__name__ == "NoneType":
-            print("No annotation id set - will use last one in annotations file.")
-            time.sleep(1)
-        if folder.__class__.__name__ == "NoneType":
-            training_data_root = os.path.join(self.root_dir, "training_data", tag)
-        else:
-            training_data_root = folder
-    
-        if not os.path.isdir(training_data_root):
-            os.makedirs(training_data_root)
-            print("Created " + training_data_root)
-            
-        params_all = {
-            "ml-morph": {
-                "export_mask": False,
-                "flip_y": False,
-                "mask_id": None,
-                "resize_factor": 1,
-                },
-            "generic-binary-mask" : {
-                "local": True,
-                "mode": "largest", 
-                "resize": 1,
-                "set_dim": None,
-                "ext": "tif",
-                },
-            "keras-cnn-semantic": {
-                },
-            "yolo-od": {
-                "source_ann_type": "contour",
-                "source_ann_id": None,
-                "copy_images": True,
-                "class_name": "class1",
-                }
-            }
-
-        params_all = copy.deepcopy(params_all)
-        params_all[method].update(params)
-        
-        # =============================================================================
-        ## yolo-od
-        
-        if method == "yolo-od":
-            
-            yolo_annotations = []
-            annotation_type = params_all["yolo-od"]["source_ann_type"]
-            annotation_id = params_all["yolo-od"]["source_ann_id"]
-            
-            ## temporarily turn off verbosity
-            verbosity_state = copy.deepcopy(config.verbose)
-            config.verbose = False
-            
-            print("Finding annotations...:")
-            pbar = ul._create_progress_bar(self.dir_paths)
-            with pbar:
-                task = pbar.add_task(description=False, total=len(self.dir_paths))
-            
-                for idx1, dirpath in enumerate(self.dir_paths, 1):
-                                       
-                    attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
-                    annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))  
-                    
-                    image_path = os.path.join(dirpath, attributes["image_phenopype"]["filepath"])
-                    image_name = attributes["image_original"]["filename"]
-                    image_height = attributes["image_original"]["height"]
-                    image_width = attributes["image_original"]["width"]
-                    
-                    annotation = ul._get_annotation(annotations, annotation_type, annotation_id)
-                    
-                    if not "data" in annotation:
-                        continue
-                        pbar.advance(task)
-
-                    coords_list = annotation["data"][annotation_type]
-    
-                    # Generate YOLO annotation
-                    for coords in coords_list:
-                        
-                        coords_resized = ul._resize_contour(coords, image_width, image_height, img_size, img_size)
-                        x, y, w, h = cv2.boundingRect(coords_resized)
-                        
-                        # Normalize bounding box coordinates
-                        x_center = (x + w / 2) / img_size   # x + w/2 gives the center x-coordinate
-                        y_center = (y + h / 2) / img_size  # y + h/2 gives the center y-coordinate
-                        bbox_width = w / img_size           # Normalize width
-                        bbox_height = h / img_size         # Normalize height
-       
-                    # Append annotation in YOLO format
-                    yolo_annotation = {
-                        "filename": image_name,
-                        "filepath": image_path,
-                        "annotation": (f"0 {x_center:.6f} {y_center:.6f} {bbox_width:.6f} {bbox_height:.6f}")
-                        }
-                    yolo_annotations.append(yolo_annotation)
-
-                    pbar.update(task, description=image_name)
-                    pbar.advance(task)
-                    
-                    # image = utils.load_image(image_path)
-                    # image_resized = utils.resize_image(image, width=img_size, height=img_size)
-                    # x_min = int((x_center - bbox_width / 2) * img_size)
-                    # y_min = int((y_center - bbox_height / 2) * img_size)
-                    # x_max = int((x_center + bbox_width / 2) * img_size)
-                    # y_max = int((y_center + bbox_height / 2) * img_size)
-                    # cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                    # cv2.rectangle(image_resized, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
-                    # utils.show_image(image)
-
-            ## save datasets
-            train_data, val_data, test_data = ul._split_dataset(yolo_annotations)
-            print(" Saving datasets...:")
-            for data, data_name in zip(
-                    [train_data, val_data, test_data],
-                    ["train", "val", "test"]):    
-                pbar = ul._create_progress_bar(len(data))
-                with pbar:
-                    task = pbar.add_task(description=data_name, total=len(data))
-                    for data_point in data:
-                        ## imgs
-                        train_image_folder = os.path.join(training_data_root, "images", data_name)
-                        os.makedirs(train_image_folder, exist_ok=True)
-                        image = utils.load_image(data_point["filepath"])
-                        image_resized = utils.resize_image(image, width=img_size, height=img_size)
-                        
-                        # _, x_center, y_center, bbox_width, bbox_height = map(float, data_point["annotation"].split())
-                        # x_min = int((x_center - bbox_width / 2) * img_size)
-                        # y_min = int((y_center - bbox_height / 2) * img_size)
-                        # x_max = int((x_center + bbox_width / 2) * img_size)
-                        # y_max = int((y_center + bbox_height / 2) * img_size)
-                        # cv2.rectangle(image_resized, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
-                        
-                        utils.save_image(image_resized, os.path.join(train_image_folder, data_point["filename"])) 
-                        ## labels
-                        train_label_folder = os.path.join(training_data_root, "labels", data_name)
-                        os.makedirs(train_label_folder, exist_ok=True)
-                        label_name = os.path.splitext(data_point["filename"])[0] + ".txt"
-                        with open(os.path.join(train_label_folder, label_name), "w") as f:
-                            f.write(data_point["annotation"])
-                        pbar.advance(task)
-
-            # Create the data.yaml content
-            data_yaml_content = {
-                "train": os.path.join(training_data_root, "images", "train"),
-                "val": os.path.join(training_data_root, "images", "val"),
-                "test": os.path.join(training_data_root, "images", "test") if len(test_data) > 0 else None,
-                "names": {
-                    0: params_all["yolo-od"]["class_name"]}
-            }
-                       
-            # Write the data.yaml file
-            ul._save_yaml(data_yaml_content, os.path.join(training_data_root, "data.yaml"))
-            config.verbose = verbosity_state
-  
-                        
-        # =============================================================================
-        ## ml-morph
-        
-        if method=="ml-morph":
-
-            annotation_type = _vars._landmark_type
-            df_summary = pd.DataFrame()
-            file_path_save = os.path.join(training_data_root, "landmarks_ml-morph_" + tag + ".csv")
-
-            if not ul._overwrite_check_file(file_path_save, flags.overwrite):
-                return
-            
-            if not parameters.__class__.__name__ == "NoneType":
-                params["ml-morph"].update(parameters["ml-morph"])
-                
-                
-            flags.export_mask = params["ml-morph"]["export_mask"]
-            flags.resize_factor = params["ml-morph"]["resize_factor"]
-            flags.flip_y = params["ml-morph"]["flip_y"]
-
-            if flags.export_mask:  
-                img_dir = os.path.join(training_data_root, "images")
-                if not os.path.isdir(img_dir):
-                    os.makedirs(img_dir)
-            
-            for idx1, dirpath in enumerate(self.dir_paths, 1):
-                            
-                ## load data
-                attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
-                annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
-                filename = attributes["image_original"]["filename"]
-                image_height = attributes["image_phenopype"]["height"]
-                
-                print("Preparing training data for: ({}/{}) ".format(idx1, len(self.dir_paths)) + filename)
-    
-                ## checks and feedback
-                if annotations.__class__.__name__ == "NoneType": 
-                    print("No annotations found for {}".format(filename))
-                    continue
-                if not annotation_type in annotations:
-                    print("No annotation of type {} found for {}".format(annotation_type, filename))
-                    continue
-                if annotation_id.__class__.__name__ == "NoneType":
-                    annotation_id = max(list(annotations[annotation_type].keys()))
-                    
-                ## load landmarks
-                data = annotations[annotation_type][annotation_id]["data"][annotation_type]
-                lm_tuple_list = list(zip(*data))
-                
-                ## load image if masking or resizing
-                if flags.export_mask or flags.resize_factor != 1:
-                    image = utils.load_image(dirpath)
-                    image_height, image_width = image.shape[0:2]
-
-                    ## select last mask if no id is given
-                    if params["ml-morph"]["mask_id"].__class__.__name__ == "NoneType":
-                        mask_id = max(list(annotations[_vars._mask_type].keys()))
-                        
-                    ## get bounding rectangle and crop image to mask coords
-                    if flags.export_mask and _vars._mask_type in annotations:
-                        coords = annotations[_vars._mask_type][mask_id]["data"][_vars._mask_type][0]
-                        rx, ry, rw, rh = cv2.boundingRect(np.asarray(coords, dtype="int32"))
-                        image = image[
-                            max(ry,0) : min(ry + rh, image_height), max(rx,1) : min(rx + rw, image_width)]
-                        image_height = image.shape[0]
-
-                        ## subtract top left coord from bounding box from all landmarks
-                        lm_tuple_list[0] = tuple(c - rx for c in lm_tuple_list[0])
-                        lm_tuple_list[1] = tuple(c - ry for c in lm_tuple_list[1])
-                        
-                    ## resize image or cropped image
-                    if flags.resize_factor != 1:
-                        image = utils.resize_image(image, factor=flags.resize_factor, interpolation="cubic")
-                        image_height = int(image_height * flags.resize_factor)
-                        
-                        ## multiply all landmarks with resize factor
-                        lm_tuple_list[0] = tuple(int(c * flags.resize_factor) for c in lm_tuple_list[0])
-                        lm_tuple_list[1] = tuple(int(c * flags.resize_factor) for c in lm_tuple_list[1])
-                    
-                    ## save resized image or cropped image
-                    utils.save_image(image, dir_path=img_dir, file_name=filename, overwrite=overwrite)
-                    
-                ## add to dataframe
-                coord_row, colnames = list(), list()
-                colnames.append("id")
-                for  idx2, (x_coord, y_coord) in enumerate(zip(lm_tuple_list[0], lm_tuple_list[1]),1):
-                    coord_row.append(x_coord)
-                    if flags.flip_y:
-                        coord_row.append(int((y_coord - image_height) * -1))
-                    else: 
-                        coord_row.append(y_coord)
-                    colnames.append("X" + str(idx2))
-                    colnames.append("Y" + str(idx2))
-                df = pd.DataFrame([filename] + coord_row).transpose()
-                df_summary = pd.concat([df_summary, df])
-                
-            ## save dataframe
-            df_summary.set_axis(colnames, axis=1, inplace=True)
-            df_summary.to_csv(file_path_save, index=False)
-            
-            
-        # =============================================================================
-        ## generic-binary-masks
-        
-        if method=="generic-binary-mask":
-            
-            ## get params
-            params = params_all[method]
-            
-            ## make dirs
-            image_dir = os.path.join(folder, "images")
-            mask_dir = os.path.join(folder, "masks")
-            os.makedirs(image_dir, exist_ok=True)
-            os.makedirs(mask_dir, exist_ok=True)
-            
-            
-            if params["mode"] == "largest":
-                which = "max"
-            
-            for idx, dirpath in enumerate(self.dir_paths, 1):
-                
-                print(str(idx) + " / " + str(len(self.dir_paths)))
-                
-                annotation_path = os.path.join(dirpath, "annotations_" + tag + ".json")
-                
-                if os.path.isfile(annotation_path):
-                    annotations = core.export.load_annotation(annotation_path)   
-                    image = utils.load_image(dirpath)
-                    attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
-                    file_name = attributes["image_original"]["filename"] 
-                    try:
-                        roi, mask = core.export.save_ROI(
-                            image=image,
-                            annotations=annotations,
-                            which=which,
-                            dir_path=None,
-                            file_name=None,
-                            annotation_type="contour",
-                            min_dim=512,
-                            counter=False,
-                            training_data=True,
-                            )
-                
-                        roi_saved = utils.save_image(roi, file_name, suffix="roi", ext=params["ext"], dir_path=image_dir)
-                        mask_saved = utils.save_image(mask, file_name, suffix="roi", ext=params["ext"], dir_path=mask_dir)
-                    except:
-                        print("missing annotation? - skipping")
-                else:
-                    print(f"no annotations with tag {tag} - skipping")
-
-        # =============================================================================
-        ## keras-cnn-semantic
-        
-        if method=="keras-cnn-semantic":
-            
-            annotation_type = kwargs.get("annotation_type", "mask")
-            
-            img_dir = os.path.join(training_data_root, "images", "all")
-            mask_dir = os.path.join(training_data_root, "masks", "all")
-            
-            if not os.path.isdir(img_dir):
-                os.makedirs(img_dir)
-            if not os.path.isdir(mask_dir):
-                os.makedirs(mask_dir)  
-
-            for idx, dirpath in enumerate(self.dir_paths, 1):
-                            
-                attributes = ul._load_yaml(os.path.join(dirpath, "attributes.yaml"))           
-                annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))       
-                filename = attributes["image_original"]["filename"]               
-                
-                print("Preparing training data for: ({}/{}) ".format(idx, len(self.dir_paths)) + filename)
-
-                shape = (attributes["image_original"]["width"], attributes["image_original"]["height"], 3)
-                mask = np.zeros(shape, dtype="uint8")
-                if not annotation_type in annotations:
-                    print("No annotation of type {} found in dataset - aborting".format(annotation_type))
-                    return
-                if annotation_id.__class__.__name__ == "NoneType":
-                    annotation_id = max(list(annotations[annotation_type].keys()))
-                    
-                mask = core.visualization.draw_contour(image=mask, annotations=annotations, contour_id=annotation_id, line_width=0, line_colour=1, fill=1)
-                mask_resized = cv2.resize(mask, (img_size, img_size))
-                
-                image = utils.load_image(dirpath)
-                image_resized = cv2.resize(image, (img_size, img_size))
-                
-                utils.save_image(image_resized, dir_path=img_dir, file_name=filename, ext="png")
-                utils.save_image(mask_resized, dir_path=mask_dir, file_name=filename, ext="png")
+   
 
             
 
@@ -3070,18 +3148,20 @@ class Pype(object):
                 ## run method with error handling
                 if flags.execute:
                                     
-                    ## some function specific switches
-                    method_args["interactive"] = flags.interactive                        
-                    method_args["zoom_memory"] = self.flags.zoom_memory           
-                    method_args["tqdm_off"] = not self.flags.feedback
-
+                    ## some function-specific switches                   
+                    method_args_inject = {
+                        "interactive": flags.interactive,
+                        "zoom_memory": self.flags.zoom_memory,
+                        "tqdm_off": not self.flags.feedback,
+                        }
+                    
                     ## open buffer, excecute and capture stdout
                     buffer = io.StringIO()
                     with redirect_stdout(buffer):
                         try:
                             self.container._run(
                                 fun=method_name,
-                                fun_kwargs=method_args,
+                                fun_kwargs={**method_args, **method_args_inject},
                                 annotation_kwargs=annotation_args,
                                 annotation_counter=annotation_counter,
                             )

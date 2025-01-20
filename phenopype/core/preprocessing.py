@@ -124,7 +124,7 @@ def clip_histogram(image, percent=1):
     return contrast_enhanced_image
 
 
-
+@decorators.annotation_function
 def create_mask(
     image,
     tool="rectangle",
@@ -174,28 +174,29 @@ def create_mask(
 
     """
 
-    # =============================================================================
-    # annotation management
+    # # =============================================================================
+    # # annotation management
 
-    fun_name = sys._getframe().f_code.co_name
+    # fun_name = sys._getframe().f_code.co_name
 
-    annotations = kwargs.get("annotations", {})
-    annotation_type = ul._get_annotation_type(fun_name)
-    annotation_id = kwargs.get("annotation_id", None)
+    # annotations = kwargs.get("annotations", {})
+    # annotation_type = ul._get_annotation_type(fun_name)
+    # annotation_id = kwargs.get("annotation_id", None)
 
-    annotation = ul._get_annotation(
-        annotations=annotations,
-        annotation_type=annotation_type,
-        annotation_id=annotation_id,
-        kwargs=kwargs,
-    )
+    # annotation = ul._get_annotation(
+    #     annotations=annotations,
+    #     annotation_type=annotation_type,
+    #     annotation_id=annotation_id,
+    #     kwargs=kwargs,
+    # )
 
-    gui_data = {_vars._coord_list_type: ul._get_GUI_data(annotation)}
-    gui_settings = ul._get_GUI_settings(kwargs, annotation)
+    # gui_data = {_vars._coord_list_type: ul._get_GUI_data(annotation)}
+    # gui_settings = ul._get_GUI_settings(kwargs, annotation)
 
     # =============================================================================
     # execute function
-
+    gui_data = kwargs.get("gui_data")
+    gui_settings = kwargs.get("gui_settings")
     gui = ul._GUI(
         image=image,
         tool=tool,
@@ -211,11 +212,12 @@ def create_mask(
         
     # =============================================================================
     # assemble results
-
+    
+    annotation_type = kwargs["annotation_type"]
     annotation = {
         "info": {
             "annotation_type": annotation_type,
-            "phenopype_function": fun_name,
+            "phenopype_function": kwargs["fun_name"],
             "phenopype_version": __version__,
         },
         "settings": {
@@ -231,22 +233,15 @@ def create_mask(
             "include": include,
             "n": len(gui.data[_vars._coord_list_type]),
             annotation_type: gui.data[_vars._coord_list_type],
-        },
+            },
     }
 
-    if len(gui_settings) > 0:
-        annotation["settings"]["GUI"] = gui_settings
+    
 
-    # =============================================================================
-    # return
+    if len(kwargs["gui_settings"]) > 0:
+        annotation["settings"]["GUI"] = kwargs["gui_settings"]
 
-    return ul._update_annotations(
-        annotations=annotations,
-        annotation=annotation,
-        annotation_type=annotation_type,
-        annotation_id=annotation_id,
-        kwargs=kwargs,
-    )
+    return annotation
 
 
 def detect_mask(

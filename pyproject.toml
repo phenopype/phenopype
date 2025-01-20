@@ -15,7 +15,7 @@ license = {file = "LICENSE"}
 dependencies = [
 	"colour",
 	"numpy",
-	"opencv-python",
+	"opencv-contrib-python",
 	"pandas",
 	"pillow",
 	"ruamel.yaml",

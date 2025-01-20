@@ -53,21 +53,10 @@ def set_landmark(
         phenopype annotation containing landmarks
         
     """
-
-    # =============================================================================
-    # annotation management
-
-    fun_name = sys._getframe().f_code.co_name
-    annotation_type = ul._get_annotation_type(fun_name)
-
-    annotation = kwargs.get("annotation")
-
-    gui_data = {_vars._coord_type: ul._get_GUI_data(annotation)}
-    gui_settings = ul._get_GUI_settings(kwargs, annotation)
-
-    # =============================================================================
-    # execute
-
+    
+    ## GUI interaction
+    gui_data = kwargs.get("gui_data")
+    gui_settings = kwargs.get("gui_settings")
     gui = ul._GUI(
         image=image,
         tool="point",
@@ -80,14 +69,14 @@ def set_landmark(
         data=gui_data,
         **gui_settings,
     )
-
-    # =============================================================================
-    # assemble results
-
+    coords = gui.data[_vars._coord_type]
+    
+    ## annotation management 
+    annotation_type = kwargs["annotation_type"]
     annotation = {
         "info": {
             "annotation_type": annotation_type,
-            "phenopype_function": fun_name,
+            "phenopype_function": kwargs["fun_name"],
             "phenopype_version": __version__,
         },
         "settings": {
@@ -98,14 +87,13 @@ def set_landmark(
             "label_width": label_width,
             "label_colour": label_colour,
         },
-        "data": {annotation_type: gui.data[_vars._coord_type],},
+        "data": {
+            annotation_type: coords,
+            },
     }
 
-    if len(gui_settings) > 0:
-        annotation["settings"]["GUI"] = gui_settings
-
-    # =============================================================================
-    # return
+    if len(kwargs["gui_settings"]) > 0:
+        annotation["settings"]["GUI"] = kwargs["gui_settings"]
 
     return annotation
 

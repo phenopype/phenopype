@@ -297,12 +297,15 @@ class _Container(object):
                 # self.annotations.update(annotations)
 
         ## plugins.segmentation
-        if fun == "predict_fastSAM":
-            self.image = plugins.segmentation.predict_fastSAM(self.image_copy, **kwargs_function)
+        if fun == "predict_yolo_det":
+            annotations_updated = plugins.segmentation.predict_yolo_det(self.image_copy, **kwargs_function)
+        
+        if fun == "predict_yolo_seg":
+            self.image = plugins.segmentation.predict_yolo_seg(self.image_copy, **kwargs_function)
         if fun == "predict_keras":
             self.image = plugins.segmentation.predict_keras(self.image_copy,  **kwargs_function)
-        if fun == "predict_torch":
-            self.image = plugins.segmentation.predict_torch(self.image_copy, **kwargs_function)
+        if fun == "predict_torch_seg":
+            self.image = plugins.segmentation.predict_torch_seg(self.image_copy, **kwargs_function)
 
         ## core.measurement
         if fun == "set_landmark":
@@ -747,7 +750,7 @@ class _GUI:
             if "size" in field.name or "width" in field.name: 
                 field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field_val)
                 setattr(self.settings, field.name, field_val)
-                 
+
         ## basic settings (maybe integrate better)
         self.__dict__.update(kwargs)
         self.tool = tool
@@ -2224,7 +2227,6 @@ def _get_monitor_resolution():
         raise Exception("No monitors found")
 
 def _get_size(image_height, image_width, element="line_width", size_value="auto"):
- 
     # Check if the size_value is explicitly "auto"; if not, directly return the input if it's numeric
     if size_value != "auto":
         try:
@@ -2248,17 +2250,20 @@ def _get_size(image_height, image_width, element="line_width", size_value="auto"
 
     # Retrieve factor from the default table
     factor = default_factors.get(element)
-    
+
     # Calculate the diagonal of the image for scaling purposes
     image_diagonal = math.sqrt(image_height**2 + image_width**2)
 
-    # Calculate size based on the factor
-    value = int(factor * image_diagonal)
+    # Calculate the size relative to the image and monitor diagonal scaling
+    monitor_scale = diagonal_pixels / math.sqrt(resolution_width**2 + resolution_height**2)
+    scaled_diagonal = image_diagonal * monitor_scale
+    value = int(factor * scaled_diagonal)
 
-    ## adjust value to minimally visible pixels
-    adj_value = max(config.min_visible_px, min(int(math.log1p(value) * 2), config.max_linewidth_px))
-    
-    # print(element, value, adj_value)
+    # Adjust value to minimally visible pixels
+    adj_value = max(
+        config.min_visible_px,  # Minimum size visible
+        min(int(math.log1p(value) * 2), config.max_linewidth_px)  # Scaled size within max limits
+    )
 
     return adj_value
 
@@ -2672,7 +2677,7 @@ def _extract_roi_center(image, coords, dim_final):
     if end_y - start_y < dim_final:
         start_y = max(end_y - dim_final, 0)
     
-    return image[start_y:end_y, start_x:end_x], (start_y, end_y,start_x,end_x)
+    return image[start_y:end_y, start_x:end_x], (start_x, start_y, end_x, end_y)
 
 
 def _calc_contour_stats(contour, mode="circle"):
@@ -3006,19 +3011,6 @@ def _rotate_image(image, angle, allow_crop=True, ret=False):
 
 
 def _split_dataset(data, train_ratio=0.8, val_ratio=0.2, test_ratio=0, seed=42):
-    """
-    Splits a list of dictionaries into train, validation, and optionally test sets.
-
-    Args:
-        data: List of dictionaries, each representing an item in the dataset.
-        train_ratio: Ratio of data for training (e.g., 0.7 for 70%).
-        val_ratio: Ratio of data for validation (e.g., 0.2 for 20%).
-        test_ratio: Ratio of data for testing (e.g., 0.1 for 10%).
-        seed: Random seed for reproducibility.
-
-    Returns:
-        Tuple of lists: (train_data, val_data, test_data).
-    """
     if not (0 < train_ratio + val_ratio + test_ratio <= 1):
         raise ValueError("Ratios must sum to 1 or less.")
 
@@ -3039,4 +3031,12 @@ def _split_dataset(data, train_ratio=0.8, val_ratio=0.2, test_ratio=0, seed=42):
     val_data = shuffled_data[train_end:val_end]
     test_data = shuffled_data[val_end:] if test_ratio > 0 else []
 
-    return train_data, val_data, test_data
+    # Prepare feedback as a dictionary
+    feedback = {
+        "total_images": total,
+        "train_images": len(train_data),
+        "val_images": len(val_data),
+        "test_images": len(test_data),
+    }
+
+    return train_data, val_data, test_data, feedback

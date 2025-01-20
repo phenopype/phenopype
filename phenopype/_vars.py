@@ -172,6 +172,7 @@ _annotation_functions = {
     "contour_to_mask": _mask_type,
     "create_mask": _mask_type,
     "detect_mask": _mask_type,
+    "predict_yolo_det": _mask_type,
     
     ## reference
     "create_reference": _reference_type,
@@ -215,6 +216,7 @@ _legacy_names = {
         
         ## plugins
         "detect_object": "predict_keras",
+        "predict_torch": "predict_torch_seg",
 
         ## main
         "detect_contours": "detect_contour",
@@ -233,6 +235,7 @@ _legacy_names = {
         "landmark": "set_landmark",
         "landmarks": "set_landmark",
         "shape_features": "compute_shape_moments",
+        "compute_shape_features": "compute_shape_moments",
         "compute_texture_moments": "compute_color_moments",
 
     },

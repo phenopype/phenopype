@@ -10,37 +10,40 @@ import warnings
 from contextlib import redirect_stdout
 from functools import wraps
 
+from phenopype import _vars
 from phenopype import utils_lowlevel as ul
 
 #%% decorators 
 
 def annotation_function(fun):
-    
     @wraps(fun)
     def annotation_function_wrapper(*args, **kwargs):
-
-        ## determine the annotation type from function name
+        # Determine the annotation type from function name
+        kwargs["fun_name"] = fun.__name__
         kwargs["annotation_type"] = ul._get_annotation_type(fun.__name__)
-
-        ## get annotation using 
+        
+        # Get annotation if provided
         if "annotations" in kwargs:
             if isinstance(kwargs["annotations"], dict):
                 if len(kwargs["annotations"]) > 0:
                     kwargs["annotation_id"] = ul._get_annotation_id(**kwargs)
                     kwargs["annotation"] = ul._get_annotation2(**kwargs)
-                
-        ## run function
+
+        ## Optional GUI-related logic
+        kwargs["gui_data"] = {_vars._coord_type: ul._get_GUI_data(kwargs.get("annotation"))}
+        kwargs["gui_settings"] = ul._get_GUI_settings(kwargs, kwargs.get("annotation"))
+
+        # Run the wrapped function
         kwargs["annotation"] = fun(*args, **kwargs)
-    
-        ## return and update annotations    
+
+        # Update annotations and return results
         if "annotations" in kwargs:
             result = ul._update_annotations(**kwargs)
         else:
             result = kwargs["annotation"]
 
         return result
-    
-    ## close function wrapper
+
     return annotation_function_wrapper
 
 # def capture_stdout_log(fun, logger, *logger_args):

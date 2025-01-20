@@ -382,7 +382,7 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
             try:
                 annotation_file = json.load(file)
             except Exception as ex:
-                print(
+                ul._print(
                     "load_annotation: " + str(ex.__class__.__name__) + " - " + str(ex)
                 )
                 return
@@ -390,14 +390,14 @@ def load_annotation(filepath, annotation_type=None, annotation_id=None, tag=None
 
     elif os.path.isdir(filepath):
         if tag.__class__.__name__ == "NoneType":
-            print("Attempting to load directory without specifying tag - aborting")
+            ul._print("Attempting to load directory without specifying tag - aborting")
             return
         else:
             filepath = os.path.join(filepath, "annotations_{}.json".format(tag))
             with open(filepath) as file:
                 annotation_file = json.load(file)
     else:
-        print("Annotation file not found")
+        ul._print("Annotation file not found")
         return
 
     ## parse serialized array
@@ -691,10 +691,6 @@ def save_ROI(
     None.
 
     """
-
-
-
-
 
     # =============================================================================
     # annotation management
