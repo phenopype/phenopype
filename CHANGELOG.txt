@@ -1,36 +1,43 @@
-Known bugs
-==========
-- any OS: high GUI window sometimes crashes. workaround: use "cv2.destroyAllWindows()", or restart kernel
-- on macOS, the high throughput workflow crashes when watchdog and opencv interact ("segmentation fault")
+6.0.2
+-----
+- new function: compute_DFT_stats: computes discrete fourier transformations of an image
+- core.compute_shape_features -> - core.compute_shape_moments: moments and shape statistics
+- core.compute_texture_moments -> - core.compute_color_moments: statistics on pixel intensities (flattened distributions instead of 2D context)
+- more options for decompose_image: hls, lab, luv - changed arguments
+- new option for detect_contour: keep largest, smallest, or all 
+- new option for draw_contour: randomized colors of masks
+- new option for export_training_data (YOLO object detection and segmentation)
+- new option for annotation functions: edit="once" (will set itself back to false after)
+- new option for edit_contour: brush_size
 
 6.0.1
 -----
 - bugfix:
-	- labelling tool export function broken (didn't find labels)
-	- core.segmentation couldn't decompose images to grayscale (default)
+	- labeling tool export function broken (didn't find labels)
+	- core.segmentation couldn't decompose images to gray scale (default)
 - core.compute_texture_features -> plugins.extract_radiomic_features
 	- successor will be core.extract_texture_moments
 - progress bars replaced excessive console printing for add_files, add_config, check_files, collect_results
-- Pype: skipping MUCH faster 
+- Pype: skipping now MUCH faster 
 - decompose_image: more meaningful options, some arguments changed (check API)
 
 6.0.0
 -----
 - MAJOR dependency change: phenopype is now usable with Python >=3.9, and the latest opencv-contrib-python versions. pyradiomics is now part of the plugins package, streamlining the entire installation procedure.
 - back to continuous integration and unit tests with GH actions! Real code coverage soon to follow...
-- improvided QR-code detection algorithm (with preprocessing, resizing and rotation)
-- streamling some utility functions - (e.g. save_image to take only paths)
+- improved QR-code detection algorithm (with preprocessing, resizing and rotation)
+- streamlined utility functions - (e.g. save_image to take only paths)
 - bugfix:
 	- more stable logging in Pype debug mode
  
 5.0.5
 -----
 - bugfix:
-	- labelling tool: would be in endless loop when skipping labelled or missing files and hitting beginning or end of file list. now exits loop on default 
+	- labeling tool: would be in endless loop when skipping labelled or missing files and hitting beginning or end of file list. now exits loop on default 
 
 5.0.4
 -----
-- labelling tool: will skip missing files instead of crashing
+- labeling tool: will skip missing files instead of crashing
 - Pype: skip=True now uses the skip_pattern argment, where single (e.g., "canvas") or multiple string patterns (e.g., ["canvas", "annotations", "shape"]) can be provided, which, if detected in the image folder, will trigger a skip to the next folder
 - numpy<2 now a requirement (numpy2 release will be integrated in future releases)
 bugfix:
