@@ -135,7 +135,7 @@ def test_export_csv(image, contours, comment, settings):
     
     annotations = {**contours, **comment}
 
-    annotations = pp.measurement.compute_shape_features(
+    annotations = pp.measurement.compute_shape_moments(
         annotations=annotations,
         features=["basic","moments","hu_moments"],
     )

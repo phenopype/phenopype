@@ -29,7 +29,7 @@ def test_create_mask(image, mask_polygon):
         )
 
     assert len(annotations) > 0
-    
+      
     
 def test_detect_mask(image):
     
@@ -41,7 +41,7 @@ def test_detect_mask(image):
     
     annotations = pp.preprocessing.detect_mask(
         image, 
-        circle_args={"param1": 150, "param2": 150, "max_radius":150}, 
+        circle_args={"param1": 150, "param2": 150, "max_radius":300}, 
         resize=0.5
         )
 

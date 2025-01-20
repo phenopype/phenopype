@@ -153,6 +153,7 @@ def draw_contour(
     label_colour="default",
     label_size="auto",
     label_width="auto",
+    random_colors=False,
     offset_coords=None,
     bbox=False,
     bbox_ext=20,
@@ -263,30 +264,33 @@ def draw_contour(
     # execute
 
     canvas = copy.deepcopy(image)
-
+    
+    if random_colors:
+        r_cols = ul._generate_random_colors(len(contours))
+    
     ## 1) fill contours
     if flags.fill:
         colour_mask = copy.deepcopy(canvas)
-        for contour in contours:
+        for idx, contour in enumerate(contours):
             cv2.drawContours(
                 image=canvas,
                 contours=[contour],
                 contourIdx=0,
                 thickness=-1,
-                color=line_colour,
+                color=line_colour if not random_colors else r_cols[idx],
                 maxLevel=level,
                 offset=offset_coords,
             )
         canvas = cv2.addWeighted(colour_mask, 1 - fill, canvas, fill, 0)
 
     ## 2) contour lines
-    for contour in contours:
+    for idx, contour in enumerate(contours):
         cv2.drawContours(
             image=canvas,
             contours=[contour],
             contourIdx=0,
             thickness=line_width,
-            color=line_colour,
+            color=line_colour if not random_colors else r_cols[idx],
             maxLevel=level,
             offset=offset_coords,
         )

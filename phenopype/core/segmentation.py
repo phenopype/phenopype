@@ -138,6 +138,7 @@ def detect_contour(
     image,
     approximation="simple",
     retrieval="ext",
+    keep="all",
     match_against=None,
     apply_drawing=False,
     offset_coords=[0, 0],
@@ -315,6 +316,16 @@ def detect_contour(
             ul._print("- found " + str(len(contours)) + " contours that match criteria")
     else:
         ul._print("- did not find any contours", lvl=2)
+        
+        
+    if keep=="all":
+        pass
+    elif keep=="smallest":
+        min_index = min(range(len(support)), key=lambda i: support[i]['area'])
+        contours, support = [contours[min_index]], [support[min_index]]
+    elif keep=="largest":
+        max_index = max(range(len(support)), key=lambda i: support[i]['area'])
+        contours, support = [contours[max_index]], [support[max_index]]
 
     # =============================================================================
     # assemble results
@@ -358,6 +369,7 @@ def edit_contour(
     image,
     annotations,
     line_width="auto",
+    brush_size=10,
     overlay_blend=0.2,
     overlay_colour_left="default",
     overlay_colour_right="default",
@@ -374,6 +386,8 @@ def edit_contour(
         input image
     annotations: dict
         phenopype annotation containing contours
+    brush_size: int, optional
+        size of the drawing tool (can be changed with Tab + mousewheel)
     overlay_blend: float, optional
         transparency / colour-mixing of the contour overlay 
     line_width: int, optional
@@ -431,6 +445,7 @@ def edit_contour(
     gui = ul._GUI(
         image=image,
         tool="draw",
+        brush_size=brush_size,
         line_width=line_width,
         overlay_blend=overlay_blend,
         overlay_colour_left=overlay_colour_left,

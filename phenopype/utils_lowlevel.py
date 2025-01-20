@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import os
+import random
 import re
 import ruamel.yaml
 import shutil
@@ -14,6 +15,7 @@ import string
 import sys
 import time
 import warnings
+
 from _ctypes import PyObj_FromPtr
 from collections import defaultdict
 from contextlib import redirect_stdout
@@ -223,9 +225,11 @@ class _Container(object):
                         annotation_type, annotation_id
                     )
                     if flag_edit == True:
-                        _print(print_msg + ": editing (edit=True)")
+                        _print(print_msg + ": editing")
+                    elif flag_edit == "once":
+                        _print(print_msg + ": editing once")
                     elif flag_edit == False:
-                        _print(print_msg + ": skipping (edit=False)")
+                        _print(print_msg + ": skipping")
                         if annotation_type in ["drawing"]:
                             kwargs_function["interactive"] = False
                             annotations_updated, self.image = core.segmentation.edit_contour(
@@ -233,7 +237,7 @@ class _Container(object):
                             )
                         return
                     elif flag_edit == "overwrite":
-                        _print(print_msg + ": overwriting (edit=overwrite)")
+                        _print(print_msg + ": overwriting")
                         annotations[annotation_type][annotation_id] = {}
                         pass
 
@@ -293,12 +297,15 @@ class _Container(object):
                 # self.annotations.update(annotations)
 
         ## plugins.segmentation
-        if fun == "predict_fastSAM":
-            self.image = plugins.segmentation.predict_fastSAM(self.image_copy, **kwargs_function)
+        if fun == "predict_yolo_det":
+            annotations_updated = plugins.segmentation.predict_yolo_det(self.image_copy, **kwargs_function)
+        
+        if fun == "predict_yolo_seg":
+            self.image = plugins.segmentation.predict_yolo_seg(self.image_copy, **kwargs_function)
         if fun == "predict_keras":
             self.image = plugins.segmentation.predict_keras(self.image_copy,  **kwargs_function)
-        if fun == "predict_torch":
-            self.image = plugins.segmentation.predict_torch(self.image_copy, **kwargs_function)
+        if fun == "predict_torch_seg":
+            self.image = plugins.segmentation.predict_torch_seg(self.image_copy, **kwargs_function)
 
         ## core.measurement
         if fun == "set_landmark":
@@ -307,10 +314,10 @@ class _Container(object):
             annotations_updated = core.measurement.set_polyline(self.canvas, **kwargs_function)
         if fun == "detect_skeleton":
             annotations_updated = core.measurement.detect_skeleton(**kwargs_function)
-        if fun == "compute_shape_features":
-            annotations_updated = core.measurement.compute_shape_features(**kwargs_function)
-        if fun == "compute_texture_moments":
-            annotations_updated = core.measurement.compute_texture_moments(
+        if fun == "compute_shape_moments":
+            annotations_updated = core.measurement.compute_shape_moments(**kwargs_function)
+        if fun == "compute_color_moments":
+            annotations_updated = core.measurement.compute_color_moments(
                 self.image_copy, **kwargs_function
             )
 
@@ -455,6 +462,8 @@ class _GUI_Settings:
     
     Attributes:
     ----------
+    brush_size: int, optional
+        starting size of cursor for drawing
     comment_key : chr, optional
         Default key binding for adding comments in the GUI. Defaults to None.
     interactive : bool
@@ -508,6 +517,7 @@ class _GUI_Settings:
     zoom_n_steps : int
         Number of steps for zoom adjustment. Defaults to 20.
     """
+    brush_size: int = 10
     comment_key: chr = None
     interactive: bool = True
     label_colour: tuple = "default"
@@ -740,7 +750,7 @@ class _GUI:
             if "size" in field.name or "width" in field.name: 
                 field_val = _get_size(self.canvas_height, self.canvas_width, field.name, field_val)
                 setattr(self.settings, field.name, field_val)
-                 
+
         ## basic settings (maybe integrate better)
         self.__dict__.update(kwargs)
         self.tool = tool
@@ -762,7 +772,7 @@ class _GUI:
             self.data[_vars._comment_type] = ""
 
         ## collect interactions and set flags
-        self.line_width_orig = copy.deepcopy(self.settings.line_width)
+        self.brush_size_orig = copy.deepcopy(self.settings.brush_size)
 
         self.flags = make_dataclass(
             cls_name="flags",
@@ -822,7 +832,6 @@ class _GUI:
     def _prepare_tools(self, kwargs):
         
         if self.tool in ["comment", "labelling"]:
-                        
             self.settings.label_keymap = kwargs.get("label_keymap")
             self.settings.label_position = kwargs.get("label_position", (0.1,0.1))
             y_pos, x_pos = self.settings.label_position
@@ -839,8 +848,7 @@ class _GUI:
             )
             
         if self.tool == "draw":
-            self.settings.line_width_draw = copy.deepcopy(self.settings.line_width)
-            ## draw contours if they're there
+            self.settings.brush_size_current = copy.deepcopy(self.settings.brush_size)
             if len(self.data[_vars._contour_type]) > 0:
                 if len(self.image.shape) == 2:
                     self.image = cv2.cvtColor(self.image, cv2.COLOR_GRAY2BGR)
@@ -856,6 +864,7 @@ class _GUI:
                         maxLevel=3,
                         offset=(0, 0),
                     )
+                    
                 ## initial pass
                 self._canvas_renew()
                 self._canvas_draw(tool="line_bin", coord_list=self.data[_vars._sequence_type])
@@ -925,9 +934,7 @@ class _GUI:
         
         
     def _labelling_tool(self):
-                
         y_pos, x_pos = self.settings.label_position
-        
         if self.keypress in [13, 27, 2424832, 2555904]:
             self.flags.end = True
         elif self.keypress in _vars.ascii_codes:
@@ -957,6 +964,8 @@ class _GUI:
             print(f"{self.keypress} is not a valid ASCII code")
 # 
     def _on_mouse_plain(self, event, x, y, flags, params):
+
+        ## zoom
         if event == cv2.EVENT_MOUSEWHEEL and not self.keypress == 9:
             self.keypress = None
             if flags > 0:
@@ -976,8 +985,8 @@ class _GUI:
                     ):
                         self._zoom_fun(x, y)
             self.x, self.y = x, y
-            cv2.imshow(self.settings.window_name, self.canvas)
 
+        ## use tools / print instructions
         if self.tool:
             if self.tool == "draw":
                 self._on_mouse_draw(event, x, y, flags)
@@ -998,6 +1007,10 @@ class _GUI:
                 self._on_mouse_polygon(event, x, y, flags, reference=True)
             elif self.tool == "template":
                 self._on_mouse_rectangle(event, x, y, flags, template=True)
+                
+        ## show updated canvas
+        cv2.imshow(self.settings.window_name, self.canvas)
+
 
     def _on_mouse_point(self, event, x, y):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -1295,7 +1308,7 @@ class _GUI:
                 cv2.imshow(self.settings.window_name, self.canvas)
 
     def _on_mouse_draw(self, event, x, y, flags):
-
+        
         ## set colour - left/right mouse button use different settings.colours
         if event in [cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN]:
             if event == cv2.EVENT_LBUTTONDOWN:
@@ -1325,7 +1338,7 @@ class _GUI:
                 [
                     self.data[_vars._coord_type],
                     self.colour_current_bin,
-                    int(self.settings.line_width_draw * self.zoom.global_fx),
+                    int(self.settings.brush_size_current * self.zoom.global_fx),
                 ]
             )
             self.data[_vars._coord_type] = []
@@ -1354,31 +1367,31 @@ class _GUI:
                 (self.ix, self.iy),
                 (x, y),
                 self.colour_current,
-                self.settings.line_width_draw,
+                self.settings.brush_size_current,
             )
             self.ix, self.iy = x, y
             cv2.imshow(self.settings.window_name, self.canvas)
 
         if self.keypress == 9 and event == cv2.EVENT_MOUSEWHEEL:
             if flags > 1:
-                self.line_width_orig += 1
-            if flags < 1 and self.line_width_orig > 1:
-                self.line_width_orig -= 1
+                self.brush_size_orig += 1
+            if flags < 1 and self.brush_size_orig > 1:
+                self.brush_size_orig -= 1
 
             self.canvas = copy.deepcopy(self.canvas_copy)
-            self.settings.line_width_draw = int(
-                self.line_width_orig
+            self.settings.brush_size_current = int(
+                self.brush_size_orig
                 / ((self.zoom.x2 - self.zoom.x1) / self.image_width)
             )
             cv2.line(
-                self.canvas, (x, y), (x, y), _get_bgr("black"), self.settings.line_width_draw
+                self.canvas, (x, y), (x, y), _get_bgr("black"), self.settings.brush_size_current
             )
             cv2.line(
                 self.canvas,
                 (x, y),
                 (x, y),
                 _get_bgr("white"),
-                max(self.settings.line_width_draw - 5, 1),
+                max(self.settings.brush_size_current - 5, 1),
             )
             cv2.imshow(self.settings.window_name, self.canvas)
 
@@ -1567,8 +1580,8 @@ class _GUI:
 
         ## adjust brush size
         if self.tool == "draw":
-            self.settings.line_width_draw = int(
-                self.line_width_orig
+            self.settings.brush_size_current = int(
+                self.brush_size_orig
                 / ((self.zoom.x2 - self.zoom.x1) / self.image_width)
             )
             
@@ -2214,7 +2227,6 @@ def _get_monitor_resolution():
         raise Exception("No monitors found")
 
 def _get_size(image_height, image_width, element="line_width", size_value="auto"):
- 
     # Check if the size_value is explicitly "auto"; if not, directly return the input if it's numeric
     if size_value != "auto":
         try:
@@ -2238,17 +2250,20 @@ def _get_size(image_height, image_width, element="line_width", size_value="auto"
 
     # Retrieve factor from the default table
     factor = default_factors.get(element)
-    
+
     # Calculate the diagonal of the image for scaling purposes
     image_diagonal = math.sqrt(image_height**2 + image_width**2)
 
-    # Calculate size based on the factor
-    value = int(factor * image_diagonal)
+    # Calculate the size relative to the image and monitor diagonal scaling
+    monitor_scale = diagonal_pixels / math.sqrt(resolution_width**2 + resolution_height**2)
+    scaled_diagonal = image_diagonal * monitor_scale
+    value = int(factor * scaled_diagonal)
 
-    ## adjust value to minimally visible pixels
-    adj_value = max(config.min_visible_px, min(int(math.log1p(value) * 2), config.max_linewidth_px))
-    
-    # print(element, value, adj_value)
+    # Adjust value to minimally visible pixels
+    adj_value = max(
+        config.min_visible_px,  # Minimum size visible
+        min(int(math.log1p(value) * 2), config.max_linewidth_px)  # Scaled size within max limits
+    )
 
     return adj_value
 
@@ -2542,15 +2557,30 @@ def _get_orientation(coords, method="ellipse"):
         
     return angle
     
-def _resize_contour(contour, img_orig, img_resized):
+def _resize_contour(contour, x_orig, y_orig, x_new, y_new):
+    """
+    Resizes a contour to match the resizing/squeezing of an image.
 
-    coef_y = img_orig.shape[0] / img_resized.shape[0]
-    coef_x = img_orig.shape[1] / img_resized.shape[1]
-    
-    contour[:, :, 0] = contour[:, :, 0] * coef_x
-    contour[:, :, 1] = contour[:, :,  1] * coef_y
+    Args:
+        contour (numpy.ndarray): The contour points, expected in (n, 1, 2) shape.
+        img_orig (numpy.ndarray): The original image.
+        img_resized (numpy.ndarray): The resized image.
 
-    return contour
+    Returns:
+        numpy.ndarray: The resized contour.
+    """
+
+    # Create a copy of the contour to avoid modifying the original
+    resized_contour = contour.copy()
+
+    # Scale the contour points
+    resized_contour[:, :, 0] = resized_contour[:, :, 0] * (x_new / x_orig)
+    resized_contour[:, :, 1] = resized_contour[:, :, 1] * (y_new / y_orig)
+
+    ## conver to int
+    resized_contour = resized_contour.astype(int)
+
+    return resized_contour
 
 def _rotate_coords_center(array, center, angle):
         
@@ -2647,7 +2677,7 @@ def _extract_roi_center(image, coords, dim_final):
     if end_y - start_y < dim_final:
         start_y = max(end_y - dim_final, 0)
     
-    return image[start_y:end_y, start_x:end_x], (start_y, end_y,start_x,end_x)
+    return image[start_y:end_y, start_x:end_x], (start_x, start_y, end_x, end_y)
 
 
 def _calc_contour_stats(contour, mode="circle"):
@@ -2818,7 +2848,14 @@ def _equalize_histogram(image, detected_rect_mask, template):
     return interp_template_values[image]
 
 
-
+def _generate_random_colors(num_colors, seed=42):
+    colors = []
+    for i in range(num_colors):
+        hue = int(i * 180 / num_colors)  # Spread hues evenly
+        color = np.uint8([[[hue, 255, 255]]])  # Full saturation and value
+        rgb_color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)[0][0]  # Convert HSV to BGR
+        colors.append((int(rgb_color[0]), int(rgb_color[1]), int(rgb_color[2])))  # Convert to BGR tuple
+    return colors
 
 
 def _get_caller_name(skip=2):
@@ -2970,3 +3007,36 @@ def _rotate_image(image, angle, allow_crop=True, ret=False):
         return rotated_image, image_center
     else:
         return rotated_image
+
+
+
+def _split_dataset(data, train_ratio=0.8, val_ratio=0.2, test_ratio=0, seed=42):
+    if not (0 < train_ratio + val_ratio + test_ratio <= 1):
+        raise ValueError("Ratios must sum to 1 or less.")
+
+    # Set the random seed for reproducibility
+    random.seed(seed)
+
+    # Shuffle the data
+    shuffled_data = data[:]
+    random.shuffle(shuffled_data)
+
+    # Calculate split indices
+    total = len(shuffled_data)
+    train_end = int(total * train_ratio)
+    val_end = train_end + int(total * val_ratio)
+
+    # Split the data
+    train_data = shuffled_data[:train_end]
+    val_data = shuffled_data[train_end:val_end]
+    test_data = shuffled_data[val_end:] if test_ratio > 0 else []
+
+    # Prepare feedback as a dictionary
+    feedback = {
+        "total_images": total,
+        "train_images": len(train_data),
+        "val_images": len(val_data),
+        "test_images": len(test_data),
+    }
+
+    return train_data, val_data, test_data, feedback

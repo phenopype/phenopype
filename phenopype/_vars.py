@@ -87,11 +87,12 @@ opencv_interpolation_flags = {
     "linear": cv2.INTER_LINEAR,
     "cubic": cv2.INTER_CUBIC,
     "area": cv2.INTER_AREA,
-    "lanczos": cv2.INTER_LANCZOS4,
-    "lin_exact": cv2.INTER_LINEAR_EXACT,
-    "inter": cv2.INTER_MAX,
-    "warp_fill": cv2.WARP_FILL_OUTLIERS,
-    "warp_inverse": cv2.WARP_INVERSE_MAP,
+    "lanczos4": cv2.INTER_LANCZOS4,
+    "linear_exact": cv2.INTER_LINEAR_EXACT,
+    "nearest_exact": cv2.INTER_NEAREST_EXACT,
+    "max": cv2.INTER_MAX,
+    "warp_fill_outliers": cv2.WARP_FILL_OUTLIERS,
+    "warp_inverse_map": cv2.WARP_INVERSE_MAP,
 }
 
 opencv_morphology_flags = {
@@ -112,10 +113,10 @@ opencv_morphology_flags = {
     },
 }
 
-opencv_skeletonize_flags = {
-    "zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
-    "guohall": cv2.ximgproc.THINNING_GUOHALL,
-}
+# opencv_skeletonize_flags = {
+#     "zhangsuen": cv2.ximgproc.THINNING_ZHANGSUEN,
+#     "guohall": cv2.ximgproc.THINNING_GUOHALL,
+# }
 
 opencv_window_flags = {
     "normal": cv2.WINDOW_NORMAL,
@@ -171,17 +172,17 @@ _annotation_functions = {
     "contour_to_mask": _mask_type,
     "create_mask": _mask_type,
     "detect_mask": _mask_type,
+    "predict_yolo_det": _mask_type,
     
     ## reference
     "create_reference": _reference_type,
     "detect_reference": _reference_type,
     
     ## shape_features
-    "compute_shape_features": _shape_feature_type,
+    "compute_shape_moments": _shape_feature_type,
     
     ## texture_features
-    "extract_radiomic_features": _texture_feature_type,
-    "compute_texture_moments": _texture_feature_type,
+    "compute_color_moments": _texture_feature_type,
 }
 
 _annotation_types = list(set(_annotation_functions.values()))
@@ -215,9 +216,11 @@ _legacy_names = {
         
         ## plugins
         "detect_object": "predict_keras",
+        "predict_torch": "predict_torch_seg",
 
         ## main
         "detect_contours": "detect_contour",
+        "find_contours": "detect_contour",
         "edit_contours": "edit_contour",
     },
     "measurement": {
@@ -231,7 +234,10 @@ _legacy_names = {
         "set_landmarks": "set_landmark",
         "landmark": "set_landmark",
         "landmarks": "set_landmark",
-        "shape_features": "compute_shape_features",
+        "shape_features": "compute_shape_moments",
+        "compute_shape_features": "compute_shape_moments",
+        "compute_texture_moments": "compute_color_moments",
+
     },
     "visualization": {
         "draw_landmarks": "draw_landmark",
