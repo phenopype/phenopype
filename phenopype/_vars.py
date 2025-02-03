@@ -156,6 +156,8 @@ _annotation_functions = {
     ## contours
     "detect_contour": _contour_type,
     "mask_to_contour": _contour_type,
+    "predict_yolo_seg":  _contour_type,
+    "predict_torch_seg":  _contour_type,
 
     ## drawings
     "edit_contour": _drawing_type,

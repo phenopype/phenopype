@@ -298,15 +298,14 @@ class _Container(object):
 
         ## plugins.segmentation
         if fun == "predict_yolo_det":
-            annotations_updated = plugins.segmentation.predict_yolo_det(self.image_copy, **kwargs_function)
-        
+            annotations_updated = plugins.segmentation.predict_yolo_det(self.image, **kwargs_function)
         if fun == "predict_yolo_seg":
-            self.image = plugins.segmentation.predict_yolo_seg(self.image_copy, **kwargs_function)
-        if fun == "predict_keras":
-            self.image = plugins.segmentation.predict_keras(self.image_copy,  **kwargs_function)
+            annotations_updated = plugins.segmentation.predict_yolo_seg(self.image_copy, **kwargs_function)
         if fun == "predict_torch_seg":
-            self.image = plugins.segmentation.predict_torch_seg(self.image_copy, **kwargs_function)
-
+            annotations_updated = plugins.segmentation.predict_torch_seg(self.image, **kwargs_function)
+        if fun == "predict_keras":
+            self.image = plugins.segmentation.predict_keras(self.image,  **kwargs_function)
+            
         ## core.measurement
         if fun == "set_landmark":
             annotations_updated = core.measurement.set_landmark(image=self.canvas, **kwargs_function)
@@ -1503,7 +1502,7 @@ class _GUI:
                 str(text),
                 (int(self.canvas.shape[0] * y_pos), int(self.canvas.shape[1] * x_pos)),
                 _vars.opencv_font_flags["complex-small"],
-                self.settings.label_size * 0.75,
+                self.settings.label_size,
                 self.settings.label_colour,
                 1,# self.settings.label_width,
                 cv2.FILLED,
@@ -1764,13 +1763,12 @@ def _get_annotation_id(
     annotation_type,
     annotation_id=None,
     reduce_counter=False,
-    verbose=True,
+    silent=False,
     **kwargs,
 ):
 
     ## setup
     annotation_counter = kwargs.get("annotation_counter", None)
-    print_msg = None
     
     if annotation_id.__class__.__name__ == "NoneType":
         if annotation_counter:
@@ -1779,38 +1777,33 @@ def _get_annotation_id(
                 annotation_counter[annotation_type]
             ]
             if annotation_id == "z":
-                print_msg = '- no previous annotations of type "{}" found'.format(annotation_type)
+                _print('- no previous annotations of type "{}" found'.format(
+                    annotation_type), watch_last=True, lvl=0, silent=silent)  
                 annotation_id = "a"
             else:
                 if reduce_counter:
                     annotation_id = chr(ord(annotation_id) - 1)
-                print_msg = '- using last annotation of type \"{}\" with ID "{}"'.format(
+                _print('- using last annotation of type \"{}\" with ID "{}"'.format(
                     annotation_type, annotation_id
-                    )
+                    ), watch_last=True, lvl=0, silent=silent)  
         else:
             if annotation_type in annotations:
                 annotation_id = max(list(annotations[annotation_type].keys()))
-                print_msg = '- using last annotation of type "{}" with ID "{}"'.format(
+                _print('- using last annotation of type "{}" with ID "{}"'.format(
                     annotation_type, annotation_id
-                )
+                ), watch_last=True, lvl=0, silent=silent)  
 
             else:
                 annotation_id = "a"
-                print_msg = '- annotation_id not specified and annotation of type "{}" not found'.format(
+                _print('- annotation_id not specified and annotation of type "{}" not found'.format(
                     annotation_type
-                )
-                
-    if print_msg:
-        _print(print_msg, watch_last=True)                
+                ), watch_last=True, lvl=0, silent=silent)  
 
     return annotation_id
 
 
 def _get_annotation_type(fun_name):
-
-    annotation_type = _vars._annotation_functions[fun_name]    
-
-    return annotation_type
+    return _vars._annotation_functions[fun_name]    
 
 
 def _get_annotation2(annotations, annotation_type, annotation_id, **kwargs):
@@ -1826,7 +1819,7 @@ def _get_annotation2(annotations, annotation_type, annotation_id, **kwargs):
         flag_failed = True
         
     if flag_failed:   
-        print('"get_annotation" failed!')
+        _print("- couldn't get annotation", lvl=0)
         annotation = {}
         
     return annotation
@@ -2227,6 +2220,7 @@ def _get_monitor_resolution():
         raise Exception("No monitors found")
 
 def _get_size(image_height, image_width, element="line_width", size_value="auto"):
+    
     # Check if the size_value is explicitly "auto"; if not, directly return the input if it's numeric
     if size_value != "auto":
         try:
@@ -2260,10 +2254,16 @@ def _get_size(image_height, image_width, element="line_width", size_value="auto"
     value = int(factor * scaled_diagonal)
 
     # Adjust value to minimally visible pixels
-    adj_value = max(
-        config.min_visible_px,  # Minimum size visible
-        min(int(math.log1p(value) * 2), config.max_linewidth_px)  # Scaled size within max limits
-    )
+    if element in ["label_size", "label_width",  "text_size", "text_width"]:
+        adj_value = max(
+            config.min_text_size,  # Minimum size visible
+            min(int(math.log1p(value) * 2), config.max_linewidth_px)  # Scaled size within max limits
+        )
+    else:
+        adj_value = max(
+            config.min_visible_px,  # Minimum size visible
+            min(int(math.log1p(value) * 2), config.max_linewidth_px)  # Scaled size within max limits
+        )
 
     return adj_value
 
@@ -2558,17 +2558,6 @@ def _get_orientation(coords, method="ellipse"):
     return angle
     
 def _resize_contour(contour, x_orig, y_orig, x_new, y_new):
-    """
-    Resizes a contour to match the resizing/squeezing of an image.
-
-    Args:
-        contour (numpy.ndarray): The contour points, expected in (n, 1, 2) shape.
-        img_orig (numpy.ndarray): The original image.
-        img_resized (numpy.ndarray): The resized image.
-
-    Returns:
-        numpy.ndarray: The resized contour.
-    """
 
     # Create a copy of the contour to avoid modifying the original
     resized_contour = contour.copy()
