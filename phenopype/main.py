@@ -958,8 +958,8 @@ class Project:
                 else:
                     print("\nWARNING: Number of images in existing project and in project attributes are not matching")
             if "models" in project_attributes:
-                
-                config.models = project_attributes["models"]
+                for model_id, model_info in project_attributes["models"].items():
+                    config.models[model_id] = model_info
                 n_models = len(project_attributes["models"])
                 print(f"- {n_models} model(s) loaded!")
 
@@ -1333,7 +1333,6 @@ class Project:
         model_path,
         model_id,
         model_config_path=None,
-        model_type="segmentation",
         overwrite=False,
         copy=True,
         **kwargs
@@ -1372,7 +1371,6 @@ class Project:
             model_info = {
                 "model_path": model_path,
                 "model_name": os.path.splitext(os.path.basename(model_path))[0],
-                "model_type": model_type,
             }
                  
             if model_config_path:
@@ -1401,6 +1399,8 @@ class Project:
                 project_attributes, os.path.join(self.root_dir, "attributes.yaml")
             )
 
+            config.models[model_id] = model_info
+            
             ul._print("\nRegistered model \"{}\" to project attributes: {}.".format(
                 model_id, pretty_repr(model_info)))
             break

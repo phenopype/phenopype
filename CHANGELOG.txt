@@ -1,5 +1,13 @@
+6.1.0
+-----
+- bugfix:
+	- broken automatic text sizing
+	- nonsensical auto ROI filenames
+	
+
 6.0.2
 -----
+(should have been 6.1.0 but stays 6.0.2 for consistency)
 - new function: compute_DFT_stats: computes discrete fourier transformations of an image
 - core.compute_shape_features -> - core.compute_shape_moments: moments and shape statistics
 - core.compute_texture_moments -> - core.compute_color_moments: statistics on pixel intensities (flattened distributions instead of 2D context)

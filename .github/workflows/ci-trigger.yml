@@ -1,0 +1,27 @@
+name: Merge Tagged Main to Dev-CI
+
+on:
+  push:
+    tags:
+      - '*'  # Triggers on any new tag push
+
+jobs:
+  merge-main-to-dev-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+      - name: Merge Main into Dev-CI
+        run: |
+          git checkout dev-ci
+          git pull origin dev-ci
+          git merge main --no-edit || (git merge --abort && exit 1)
+          git push origin dev-ci

@@ -639,7 +639,7 @@ def save_ROI(
     suffix=None,
     rotate=False,
     rotate_padding=5,
-    angle_apply = None,
+    angle_apply=None,
     align="v",
     ext="jpg",
     background="original",
@@ -738,7 +738,8 @@ def save_ROI(
     
     if not channel=="raw":
         image = preprocessing.decompose_image(image, channel, **kwargs)
-        
+
+    save_n = 0    
     for idx, roi_coords in enumerate(data):
 
         if annotation_type == _vars._mask_type and not isinstance(roi_coords, np.ndarray):
@@ -859,23 +860,23 @@ def save_ROI(
         ## saving          
                 
         if not kwargs.get("training_data"):
-                             
-            ## add counter
             if counter:
                 roi_name = file_name + suffix + "_" + str(idx+1).zfill(3) + ext
             else:
                 roi_name = file_name + suffix + ext  
-            
+                 
             save_path = os.path.join(dir_path, roi_name)
-            saved = cv2.imwrite(save_path, roi) 
-            
-            if saved:
-                ul._print("- saving ROI: {}".format(roi_name))
-            else:
-                ul._print("- something went wrong - didn't save ROI")
-                
+            save_n += cv2.imwrite(save_path, roi) 
+
+    if not kwargs.get("training_data"):
+        if os.path.isdir(dir_path):
+            parent_dir = os.path.basename(os.path.dirname(dir_path))
+            ul._print(f"- saved {save_n}/{len(data)} ROIs to {parent_dir}/{os.path.basename(dir_path)}")         
         else:
-            return roi, roi_mask
+            ul._print(f"- no ROIs saved: {dir_path} does not exist!")         
+    else:
+        return roi, roi_mask
+
         
 @decorators.legacy_args
 def save_canvas(
