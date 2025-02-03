@@ -2201,18 +2201,20 @@ def _format_config(template, template_name, config_name, keep_comments=True):
 #%% functions - GUI helpers
 
 def _get_monitor_resolution():
-    monitors = get_monitors()
-    if monitors:
+    
+    try:
+        monitors = get_monitors()
         monitor = monitors[0]
         resolution_width = monitor.width
-        resolution_height = monitor.height
+        resolution_height = monitor.height    
+    except:
+        resolution_width, resolution_height = 1920, 1080  
+    
+    # Calculate diagonal size in pixels
+    diagonal_pixels = math.sqrt(resolution_width**2 + resolution_height**2)
         
-        # Calculate diagonal size in pixels
-        diagonal_pixels = math.sqrt(resolution_width**2 + resolution_height**2)
-        
-        return resolution_width, resolution_height, diagonal_pixels
-    else:
-        raise Exception("No monitors found")
+    ## return
+    return resolution_width, resolution_height, diagonal_pixels
 
 def _get_size(image_height, image_width, element="line_width", size_value="auto"):
     
