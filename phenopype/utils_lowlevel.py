@@ -363,17 +363,12 @@ class _Container(object):
             core.export.save_canvas(self.canvas,file_path=file_path,**kwargs_function)
         if fun == "save_ROI":
             if not "file_name" in kwargs_function:
-                kwargs_function["file_name"] = self._construct_file_name(
-                    self.image_name, "png")
+                kwargs_function["file_name"] = self.image_name
             if not "dir_path" in kwargs_function:
                 kwargs_function["dir_path"] = os.path.join(self.dir_path, "ROI")
                 if not os.path.isdir(kwargs_function["dir_path"]):
                     os.makedirs(kwargs_function["dir_path"])
-            core.export.save_ROI(
-                self.image_copy,
-                **kwargs_function,
-            )
-
+            core.export.save_ROI(self.image_copy, **kwargs_function)
         if fun == "export_csv":
             core.export.export_csv(
                 dir_path=self.dir_path,
