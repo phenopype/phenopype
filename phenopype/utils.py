@@ -94,7 +94,6 @@ def print_colours():
     colours_path = os.path.join(resource_filename("phenopype", "assets"), "wc3_colours.html")
     webbrowser.open_new_tab(colours_path)
 
-
 def resize_image(
         image, 
         factor=1, 
@@ -105,66 +104,73 @@ def resize_image(
         interpolation="nearest_exact",
         ):
     """
-    Resize image by resize factor 
+    Resize image by resize factor.
 
     Parameters
     ----------
     image: array 
-        Image to be resized
+        Image to be resized.
     factor: float, optional
-        Resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of original size). At 1, no resizing will be performed
+        Resize factor for the image (1 = 100%, 0.5 = 50%, 0.1 = 10% of original size). At 1, no resizing will be performed.
     factor_ret: bool, optional
-        If True, returns the image and the resize factor
+        If True, returns the image and the resize factors (factor_x, factor_y).
     width: int, optional
-        Width to resize the image to. If specified, height must also be specified
+        Width to resize the image to. If specified, height must also be specified.
     height: int, optional
-        Height to resize the image to. If specified, width must also be specified
+        Height to resize the image to. If specified, width must also be specified.
     max_dim: int, optional
-        Maximum size of any dimension that the image will be resized to. Maintains aspect ratio
+        Maximum size of any dimension that the image will be resized to. Maintains aspect ratio.
     interpolation: {'nearest', 'linear', 'cubic', 'area', 'lanczos4', 'linear_exact', 
                     'nearest_exact', 'max', 'warp_fill_outliers', 'warp_inverse_map'} str, optional
-        interpolation algorithm to use - refer to https://docs.opencv.org/4.9.0/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
+        Interpolation algorithm to use.
 
     Returns
     -------
     image : ndarray
-        resized image
-
+        Resized image.
+    factor_x : float (optional)
+        Resize factor for the width.
+    factor_y : float (optional)
+        Resize factor for the height.
     """
     
     image_height, image_width = image.shape[:2]
+    factor_x, factor_y = 1.0, 1.0  # Default factors when no resizing occurs
 
     if width is not None and height is not None:
+        factor_x = width / image_width
+        factor_y = height / image_height
         image = cv2.resize(
             image,
             (width, height),
             interpolation=_vars.opencv_interpolation_flags[interpolation]
         )
     elif max_dim is not None:
-        if image_height > max_dim or image_width > max_dim:
-            if image_width >= image_height:
-                factor = max_dim / image_width
-            else:
-                factor = max_dim / image_height
-            new_image_width = int(image_width * factor)
-            new_image_height = int(image_height * factor)
-            image = cv2.resize(
-                image,
-                (new_image_width, new_image_height),
-                interpolation=_vars.opencv_interpolation_flags[interpolation]
-            )
+        if image_width >= image_height:
+            factor_x = factor_y = max_dim / image_width
+        else:
+            factor_x = factor_y = max_dim / image_height
+        new_image_width = int(image_width * factor_x)
+        new_image_height = int(image_height * factor_y)
+        image = cv2.resize(
+            image,
+            (new_image_width, new_image_height),
+            interpolation=_vars.opencv_interpolation_flags[interpolation]
+        )
     elif factor != 1:
+        factor_x = factor_y = factor
         image = cv2.resize(
             image,
             (0, 0),
-            fx=factor,
-            fy=factor,
+            fx=factor_x,
+            fy=factor_y,
             interpolation=_vars.opencv_interpolation_flags[interpolation]
         )
 
     if factor_ret:
-        return image, factor
+        return image, factor_x, factor_y
     return image
+
 
 @decorators.legacy_args
 def save_image(image, file_path, suffix=None, overwrite=False, **kwargs):

@@ -641,6 +641,7 @@ def save_ROI(
     rotate_padding=5,
     angle_apply=None,
     align="v",
+    align_method="pca",
     ext="jpg",
     background="original",
     canvas_dim=False,
@@ -726,15 +727,12 @@ def save_ROI(
     if which == "max":
         area = list()
         for idx, roi_coords in enumerate(data):
-    
             if annotation_type == _vars._mask_type:
                 coords = ul._convert_tup_list_arr(roi_coords)[0]
             else:
                 coords = copy.deepcopy(roi_coords)
-        
             area.append(int(cv2.contourArea(coords)))
-        
-            data = [data[area.index(max(area))]]
+        data = [data[area.index(max(area))]]
     
     if not channel=="raw":
         image = preprocessing.decompose_image(image, channel, **kwargs)
@@ -783,7 +781,7 @@ def save_ROI(
         
         if rotate:
             if angle_apply == None:
-                angle = ul._get_orientation(coords)
+                angle = ul._get_orientation(coords, method=align_method)
                 if align == "h":
                     angle = angle + 90
                 elif align == "v":

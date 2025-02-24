@@ -951,12 +951,11 @@ class Project:
             ## filename checks
             if "filenames" in project_attributes["project_data"]:
                 file_names_attr = project_attributes["project_data"]["filenames"]
-                dir_names_attr = project_attributes["project_data"]["dirnames"]
-                if len(dir_names_attr) == len(file_names_attr) == len(dir_names_counted):
+                if len(file_names_attr) == len(dir_names_counted):
                     flags.checked = True
                     print("\n- checks for directory completeness passed!")
                 else:
-                    print("\nWARNING: Number of images in existing project and in project attributes are not matching")
+                    print("\nWARNING: Number of images in existing project and in project attributes are not matching - consider running check_files method.")
             if "models" in project_attributes:
                 for model_id, model_info in project_attributes["models"].items():
                     config.models[model_id] = model_info
@@ -975,10 +974,8 @@ class Project:
         self.dir_paths = dir_paths
         if flags.checked:
             self.file_names = file_names_attr
-            self.dir_names = dir_names_attr
         else:
             self.file_names = []
-            self.dir_names = []
             
         ## add attributes
         self.attributes = project_attributes
@@ -1566,7 +1563,6 @@ class Project:
             
         # Find unmatched filenames and dirnames
         filenames_unmatched = [filename for filename in filenames if filename not in filenames_check]
-        dirnames_unmatched = [dirname for dirname in dirnames if dirname not in dirnames_check]
     
         # Print unmatched information
         if filenames_unmatched:
@@ -1580,12 +1576,12 @@ class Project:
             ul._print("\n--------------------------------------------")
             ul._print(f"phenopype found {len(filenames_check)} files in the data folder, but only {len(filenames)} are listed in the project attributes.")
         else:
-            ul._print("All checks passed - numbers in data folder and attributes file match.", lvl=2)
+            ul._print("-> All checks passed - numbers in data folder and attributes file match.", lvl=2)
             return
     
         # Ask for feedback and update attributes if confirmed
         if flags.feedback:
-            check = input("update project attributes (y/n)?") if filenames_unmatched or not filenames or len(filenames) < len(filenames_check) else "y"
+            check = input("update filenames in project attributes (y/n)?") if filenames_unmatched or not filenames or len(filenames) < len(filenames_check) else "y"
         else:
             check = "y"
     
@@ -1610,7 +1606,7 @@ class Project:
             tag, 
             files, 
             folder="", 
-            aggregate_csv=True,
+            aggregate=True,
             overwrite=False,
             **kwargs
             ):
@@ -1644,13 +1640,15 @@ class Project:
             cls_name="flags", 
             fields=[
                 ("folder", str, folder),
-                ("aggregate_csv", bool, aggregate_csv),
+                ("aggregate", bool, aggregate),
                 ("overwrite", bool, overwrite),
                 ])
 
         ## create results folder
         results_dir = os.path.join(self.root_dir, "results")
         os.makedirs(results_dir, exist_ok=True)   
+        
+        indent = kwargs.get("indent", 4)
             
         # =============================================================================
         # execute
@@ -1681,27 +1679,53 @@ class Project:
                 results = ["no-results"]  
             else:
                 print("file \"{}\": found {} results in {} project folders".format(
-                    file, len(results), len(self.dir_names)))
+                    file, len(results), len(self.dir_paths)))
 
             ## save to csv
-            if all([flags.aggregate_csv,
+            if all([flags.aggregate,
                     results[0] != "no-results",
-                    results[0].endswith(".csv")]):
+                    any([results[0].endswith(".csv"), 
+                         results[0].endswith(".json")
+                        ])]):
                 
-                result_list = []
-                for path in results:
-                    result_list.append(pd.read_csv(path))
-                result = pd.concat(result_list)
-                csv_name = file + "_" + tag + ".csv"
-                csv_path = os.path.join(results_dir, csv_name)
-                
-                ## overwrite check
-                if os.path.isfile(csv_path) and not flags.overwrite:
-                    print("Results file {} not saved: already exists (overwrite=False)".format(csv_name))
-                else:
-                    print("Saving file {}".format(csv_name))
-                    result.to_csv(csv_path, index=False)
-                
+                if results[0].endswith(".csv"):
+                    result_file_name = file + "_" + tag + ".csv"
+                    result_file_path = os.path.join(results_dir, result_file_name)
+                    if os.path.isfile(result_file_path) and not flags.overwrite:
+                        print(f"Results file {result_file_name} not saved: already exists (overwrite=False)")
+                    else:
+                        result_list = []
+                        pbar = ul._create_progress_bar(results)
+                        with pbar:
+                            task = pbar.add_task(description="Collecting files", total=len(results))
+                            for path in results:
+                                result_list.append(pd.read_csv(path))
+                                pbar.advance(task)
+                        result = pd.concat(result_list)
+                        print(f"Saving file {result_file_name}")
+                        result.to_csv(result_file_path, index=False)
+
+                    
+                if results[0].endswith(".json"):
+                    result_file_name = file + "_" + tag + ".json"
+                    result_file_path = os.path.join(results_dir, result_file_name)
+                    if os.path.isfile(result_file_path) and not flags.overwrite:
+                        print(f"Results file {result_file_name} not saved: already exists (overwrite=False)")
+                    else:
+                        
+                        result = {}
+                        pbar = ul._create_progress_bar(results)
+                        with pbar:
+                            task = pbar.add_task(description="Collecting files", total=len(results))
+                            for path in results: 
+                                attributes = ul._load_yaml(os.path.join(os.path.dirname(path), "attributes.yaml"))
+                                with open(path, 'r') as f:
+                                    result[attributes["image_original"]["filename"]] = ul._NoIndent(json.load(f))
+                                pbar.advance(task)
+                        print(f"Saving file {result_file_name}")
+                        with open(result_file_path, "w") as f:
+                            json.dump(result, f, indent=indent, cls=ul._NoIndentEncoder)
+
             ## copy files to subfolders
             elif results[0] != "no-results":
                 if len(folder)==0:
@@ -1908,11 +1932,10 @@ class Project:
              self, 
              tag,
              method,
-             params={},
+             parameters={},
              folder=None, 
              annotation_id=None, 
              overwrite=False, 
-             parameters=None,
              **kwargs):
         """
    
@@ -1993,12 +2016,13 @@ class Project:
                 "annotation_id": None,
                 "copy_images": True,
                 "class_name": "class1",
+                "roi_center_crop": False,
                 "size": 640,
                 }
             }
    
         params_all = copy.deepcopy(params_all)
-        params_all[method].update(params)
+        params_all[method].update(parameters)
         
         # =============================================================================
         ## yolo-od
@@ -2008,6 +2032,7 @@ class Project:
             yolo_annotations = []
             annotation_type = params_all["yolo-od"]["annotation_type"]
             annotation_id = params_all["yolo-od"]["annotation_id"]
+            params = params_all[method]
             
             ## temporarily turn off verbosity
             verbosity_state = copy.deepcopy(config.verbose)
@@ -2101,9 +2126,9 @@ class Project:
         if method == "yolo-seg":
             
             image_list = []
-            annotation_type = params_all["yolo-od"]["annotation_type"]
-            annotation_id = params_all["yolo-od"]["annotation_id"]
-            roi_size = params["size"]
+            annotation_type = params_all["yolo-seg"]["annotation_type"]
+            annotation_id = params_all["yolo-seg"]["annotation_id"]
+            params = params_all[method]
 
             ## temporarily turn off verbosity
             verbosity_state = copy.deepcopy(config.verbose)
@@ -2119,7 +2144,7 @@ class Project:
                     image_name = attributes["image_original"]["filename"]
                     annotations = core.export.load_annotation(os.path.join(dirpath, "annotations_" + tag + ".json"))     
                     annotation = ul._get_annotation(annotations, annotation_type, annotation_id)
-                    if annotation and "data" in annotation:
+                    if annotation and "data" in annotation and len(annotation["data"][annotation_type]) > 0:
                         image_list.append(dirpath)
                         pbar.update(task, description=f"{image_name}: annotation found")
                     else:
@@ -2147,11 +2172,18 @@ class Project:
                         image = utils.load_image(dirpath)
 
                         ## format 
-                        coords = annotation["data"][annotation_type][-1]
-                        roi, roi_xyxy = ul._extract_roi_center(image, coords, roi_size)
-                        roi_coords = coords - [roi_xyxy[0], roi_xyxy[1]]
-                        roi_coords_n = [(point[0]/roi_size, point[1]/roi_size) for point in roi_coords.flatten().reshape(-1, 2)]
-                        roi_coords_nf = [coord for point in roi_coords_n for coord in point]                        
+                        if params["roi_center_crop"]:
+                            coords = annotation["data"][annotation_type][-1]
+                            roi, roi_xyxy = ul._extract_roi_center(image, coords, params["size"])
+                            roi_coords = coords - [roi_xyxy[0], roi_xyxy[1]]
+                            roi_coords_n = [(point[0]/params["size"], point[1]/params["size"]) for point in roi_coords.flatten().reshape(-1, 2)]
+                            roi_coords_nf = [coord for point in roi_coords_n for coord in point]                        
+                        else:
+                            roi = utils.resize_image(image, width=params["size"], height=params["size"])
+                            coords = annotation["data"][annotation_type][-1]
+                            coords_resized = ul._resize_contour(coords, image.shape[1], image.shape[0], params["size"], params["size"])
+                            roi_coords_n = [(point[0]/params["size"], point[1]/params["size"]) for point in coords_resized.flatten().reshape(-1, 2)]
+                            roi_coords_nf = [coord for point in roi_coords_n for coord in point]      
 
                         ## imgs
                         train_image_folder = os.path.join(training_data_root, data_name, "images")
@@ -2889,11 +2921,14 @@ class Pype(object):
     def _start_file_monitor(self, delay):
 
         if platform.system() == "Darwin":  # macOS
-            subprocess.call(("open", self.config_path))
+            subprocess.Popen(["open", self.config_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         elif platform.system() == "Windows":  # Windows
-            os.startfile(os.path.normpath(self.config_path))
-        else:  # linux variants
-            subprocess.call(("xdg-open", self.config_path))
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 7  # SW_SHOWMINNOACTIVE
+            subprocess.Popen(["start", "", self.config_path], shell=True, startupinfo=si, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:  # Linux variants
+            subprocess.Popen(["xdg-open", self.config_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         self.YFM = ul._YamlFileMonitor(self.config_path, delay)
         self._log("debug", "Pype: starting config file monitor", 0)

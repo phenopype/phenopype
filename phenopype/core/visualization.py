@@ -217,7 +217,7 @@ def draw_contour(
         annotation_id=annotation_id,
         kwargs=kwargs,
     )
-
+    
     contours = annotation["data"][annotation_type]
     contours_support = annotation["data"]["support"]
     

@@ -1707,51 +1707,39 @@ class _YamlFileMonitor:
         
 #%% functions - annotations helpers
 
-
 def _get_annotation(annotations, annotation_type, annotation_id=None, reduce_counter=False, prep_msg=None, **kwargs):
-
     annotation_counter = kwargs.get("annotation_counter", {})
     annotations = copy.deepcopy(annotations or {})
 
     if not annotation_type:
         return {}
 
+    # Get annotation ID if not provided
     annotation_id_str = f"{annotation_type}_id"
+    annotation_id = kwargs.get(annotation_id_str, annotation_id)
 
-    if annotation_id_str in kwargs:
-        annotation_id = kwargs.get(annotation_id_str)
+    # Auto-select the last annotation ID if not specified
+    if not annotation_id and annotation_type in annotations:
+        if annotation_counter:
+            annotation_id = string.ascii_lowercase[annotation_counter.get(annotation_type, 0)]
+            if reduce_counter and annotation_id > 'a':
+                annotation_id = chr(ord(annotation_id) - 1)
+        else:
+            annotation_id = max(annotations[annotation_type], default=None)
 
-    if isinstance(annotations, (dict, defaultdict)):
-        if not annotation_id:
-            if annotation_counter:
-                _print(f'- "{annotation_id_str}" not provided: ')
-                annotation_id = string.ascii_lowercase[annotation_counter.get(annotation_type, 0)]
-                if annotation_id == "z":
-                    _print(f'- no preceding annotations of type "{annotation_type}" found')
-                    annotation_id = None
-                else:
-                    if reduce_counter:
-                        annotation_id = chr(ord(annotation_id) - 1)
-                    _print(f'- using last annotation of type "{annotation_type}" with ID "{annotation_id}"')
-
-            if annotation_type in annotations:
-                annotation_id = max(annotations[annotation_type], default=None)
-                if annotation_id is not None:
-                    _print(f"- '{annotation_id_str}' not specified - using last annotation of type {annotation_type} ('{annotation_id}')")
-                else:
-                    annotation_id = None
-
+    # Handle both flattened and nested structures
+    if isinstance(annotations, dict):
         if annotation_type in annotations:
             annotation = annotations[annotation_type].get(annotation_id, {})
-            if not annotation:
-                _print(f'- could not find "{annotation_type}" with ID "{annotation_id}"', lvl=1)
+        elif all(key in annotations for key in ['info', 'data']):
+            annotation = annotations  # Flattened structure
         else:
             annotation = {}
     else:
         annotation = {}
-        
+
     return annotation
-    
+
 
 def _get_annotation_id(
     annotations,
@@ -2555,17 +2543,47 @@ def _get_orientation(coords, method="ellipse"):
     return angle
     
 def _resize_contour(contour, x_orig, y_orig, x_new, y_new):
+    """
+    Resizes a contour based on the scaling factors derived from original and new image dimensions.
 
+    This function takes a contour and scales its coordinates proportionally according to the 
+    ratio between the original and new image dimensions. The resized contour coordinates are 
+    returned as integers to ensure compatibility with image processing functions.
+
+    Parameters:
+    -----------
+    contour : np.ndarray
+        The input contour, typically an array of shape (N, 1, 2), where N is the number of points.
+    x_orig : int
+        The width of the original image.
+    y_orig : int
+        The height of the original image.
+    x_new : int
+        The width of the new image to which the contour is being resized.
+    y_new : int
+        The height of the new image to which the contour is being resized.
+
+    Returns:
+    --------
+    resized_contour : np.ndarray
+        The resized contour with scaled coordinates, converted to integers.
+
+    Notes:
+    ------
+    - The function creates a copy of the input contour to avoid modifying the original.
+    - If the original dimensions are zero, this will result in a division by zero error.
+    """
+   
     # Create a copy of the contour to avoid modifying the original
     resized_contour = contour.copy()
-
+   
     # Scale the contour points
     resized_contour[:, :, 0] = resized_contour[:, :, 0] * (x_new / x_orig)
     resized_contour[:, :, 1] = resized_contour[:, :, 1] * (y_new / y_orig)
-
+   
     ## conver to int
     resized_contour = resized_contour.astype(int)
-
+   
     return resized_contour
 
 def _rotate_coords_center(array, center, angle):
@@ -2636,6 +2654,30 @@ def _rotate_point(point, angle, center=None):
 
 
 def _extract_roi_center(image, coords, dim_final):
+    """
+    Extracts a square region of interest (ROI) centered around the given contour in an image.
+
+    The function calculates the centroid of the provided contour (`coords`) and extracts a 
+    square ROI of size `dim_final x dim_final` around this center. If the centroid is outside 
+    the image bounds or the contour has zero area, it defaults to the image center. The function 
+    also ensures the ROI does not exceed the image boundaries.
+
+    Parameters:
+    -----------
+    image : np.ndarray
+        The input image (height x width x channels) from which the ROI is extracted.
+    coords : np.ndarray
+        An array of contour points (Nx2) defining the region of interest.
+    dim_final : int
+        The desired size of the square ROI.
+
+    Returns:
+    --------
+    cropped_image : np.ndarray
+        The extracted `dim_final x dim_final` region from the image.
+    bbox : tuple (start_x, start_y, end_x, end_y)
+        The coordinates of the extracted ROI in the original image.
+    """
     
     ## get half of final length
     dim_half = int(dim_final/2)

@@ -392,8 +392,9 @@ def compute_shape_moments(annotations, features=["basic"], min_diameter=5, **kwa
                 cnt_diameter = support["diameter"]
                 cnt_area = support["area"]
                 tri_area, tri_coords = cv2.minEnclosingTriangle(coords)
-                min_rect_center, min_rect_min_max, min_rect_angle = cv2.minAreaRect(coords)
-                min_rect_max, min_rect_min = min_rect_min_max[0], min_rect_min_max[1]
+                min_rect_center, (min_rect_width, min_rect_height), min_rect_angle = cv2.minAreaRect(coords)
+                min_rect_max = max(min_rect_width, min_rect_height)
+                min_rect_min = min(min_rect_width, min_rect_height)   
                 rect_x, rect_y, rect_width, rect_height = cv2.boundingRect(coords)
                 perimeter_length = cv2.arcLength(coords, closed=True)
                 circularity = 4 * np.pi * cnt_area / math.pow(perimeter_length, 2)
@@ -525,7 +526,7 @@ def compute_color_moments(
         annotation_type=_vars._contour_type,
         annotation_id=contour_id,
         kwargs=kwargs,
-    )
+    )    
     contours = annotation["data"][_vars._contour_type]
     contours_support = annotation["data"]["support"]
     
@@ -557,18 +558,17 @@ def compute_color_moments(
             total=len(contours),
             disable=tqdm_off
     ):
-
         
         ## get roi mask
         rx, ry, rw, rh = cv2.boundingRect(coords)
         roi_mask = np.zeros((rh, rw), np.uint8)
-        roi_mask = cv2.fillPoly(roi_mask, [coords], 255, 0, 0, (rx, ry))
-        
+        roi_mask = cv2.fillPoly(roi_mask, [coords - [rx, ry]], 255, 0, 0)
+                
         ## go through channels locally
         output = {}
         if support["diameter"] > min_diameter and len(np.unique(roi_mask)) > 1:
             for channel_name, channel in zip(channel_names, channels):
-                
+                                
                 ## get roi
                 roi = channel[ry : ry + rh, rx : rx + rw]
                 masked_data = roi[roi_mask != 0]

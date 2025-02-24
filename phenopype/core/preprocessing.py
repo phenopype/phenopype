@@ -874,8 +874,7 @@ def detect_QRcode(
     # =============================================================================
     # execute
     
-    image_copy, resize_factor = utils.resize_image(image.copy(), max_dim=max_dim, factor_ret=True)
-    
+    image_copy,  factor_x, factor_y = utils.resize_image(image.copy(), max_dim=max_dim, factor_ret=True)
     
     # Initialize QR-code detector
     qrCodeDetector = cv2.QRCodeDetector()
@@ -909,7 +908,10 @@ def detect_QRcode(
          
     # Format points
     if flags.found:
-        points = (points / resize_factor).astype(int)
+        points = (points).astype(int)
+        points = np.squeeze(points)
+        points = np.vstack([points, points[0]])
+        points = points / np.array([[factor_x, factor_y]])
         points = ul._convert_arr_tup_list(points)
         ul._print("- found QRcode: '{}'".format(decodedText))
     else:
