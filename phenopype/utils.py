@@ -173,7 +173,7 @@ def resize_image(
 
 
 @decorators.legacy_args
-def save_image(image, file_path, suffix=None, overwrite=False, **kwargs):
+def save_image(image, file_path, ext=None, suffix=None, overwrite=False, **kwargs):
     """Save an image (array) to a specified format.
 
     Parameters
@@ -194,11 +194,14 @@ def save_image(image, file_path, suffix=None, overwrite=False, **kwargs):
     """
     # Normalize file path and extract base name and extension
     dir_path, file_name = os.path.split(file_path)
-    base_name, ext = os.path.splitext(file_name)
+    base_name, ext_old = os.path.splitext(file_name)
+        
+    # Handle ext
+    ext = f".{ext.lstrip('.')}" if ext else ext_old
     
     # Handle suffix
     suffix = f"_{suffix}" if suffix else ""
-    
+        
     # Construct new file path
     file_name_new = f"{base_name}{suffix}{ext}"
     new_file_path = os.path.join(dir_path, file_name_new)

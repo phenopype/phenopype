@@ -1810,28 +1810,35 @@ def _get_annotation2(annotations, annotation_type, annotation_id, **kwargs):
 
 def _update_annotations(
     annotations, 
-    annotation, 
-    annotation_type, 
-    annotation_id, 
+    annotation=None, 
+    annotation_type=None, 
+    annotation_id=None, 
     **kwargs,
 ):
 
-    annotations = copy.deepcopy(annotations)
-    
-    if annotations.__class__.__name__ == "NoneType":
+    ## if annotations dict not supplied, make new 
+    if not annotations:
         annotations = {}
+    else:
+        annotations = copy.deepcopy(annotations)
+                
+    ## annotations not none or empty dict
+    if annotation and len(annotation) > 0:
         
-    if not annotation_type in annotations:
-        annotations[annotation_type] = {}
-
-    if annotation_id.__class__.__name__ == "NoneType":
-        if "annotation_counter" in kwargs:
-            annotation_counter = kwargs.get("annotation_counter")
-            annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
-        else:
-            annotation_id = "a"
-            
-    annotations[annotation_type][annotation_id] = copy.deepcopy(annotation)
+        ## add annotation type entry
+        if not annotation_type in annotations:
+            annotations[annotation_type] = {}
+                
+        ## add annotation id
+        if not annotation_id:
+            if "annotation_counter" in kwargs:
+                annotation_counter = kwargs.get("annotation_counter")
+                annotation_id = string.ascii_lowercase[annotation_counter[annotation_type]]
+            else:
+                annotation_id = "a"
+                
+        ## write new annotation
+        annotations[annotation_type][annotation_id] = copy.deepcopy(annotation)
 
     return annotations
 

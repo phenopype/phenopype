@@ -41,7 +41,6 @@ def annotation_function(fun):
             result = ul._update_annotations(**kwargs)
         else:
             result = kwargs["annotation"]
-
         return result
 
     return annotation_function_wrapper
