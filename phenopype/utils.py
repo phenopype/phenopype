@@ -134,9 +134,11 @@ def resize_image(
         Resize factor for the height.
     """
     
-    image_height, image_width = image.shape[:2]
-    factor_x, factor_y = 1.0, 1.0  # Default factors when no resizing occurs
 
+    image_height, image_width = image.shape[:2]
+    factor_x, factor_y = 1.0, 1.0  # default (no scaling)
+
+    # case 1: explicit width & height
     if width is not None and height is not None:
         factor_x = width / image_width
         factor_y = height / image_height
@@ -145,18 +147,49 @@ def resize_image(
             (width, height),
             interpolation=_vars.opencv_interpolation_flags[interpolation]
         )
-    elif max_dim is not None:
-        if image_width >= image_height:
-            factor_x = factor_y = max_dim / image_width
-        else:
-            factor_x = factor_y = max_dim / image_height
-        new_image_width = int(image_width * factor_x)
-        new_image_height = int(image_height * factor_y)
+
+    # case 2: only width
+    elif width is not None:
+        factor_x = width / image_width
+        factor_y = factor_x
+        new_h = int(image_height * factor_y)
         image = cv2.resize(
             image,
-            (new_image_width, new_image_height),
+            (width, new_h),
             interpolation=_vars.opencv_interpolation_flags[interpolation]
         )
+
+    # case 3: only height
+    elif height is not None:
+        factor_y = height / image_height
+        factor_x = factor_y
+        new_w = int(image_width * factor_x)
+        image = cv2.resize(
+            image,
+            (new_w, height),
+            interpolation=_vars.opencv_interpolation_flags[interpolation]
+        )
+
+    # case 4: max_dim given (only resize if either dimension exceeds max_dim)
+    elif max_dim is not None:
+        # Only downscale if image is larger than max_dim in any axis.
+        if image_width > max_dim or image_height > max_dim:
+            if image_width >= image_height:
+                factor_x = factor_y = max_dim / image_width
+            else:
+                factor_x = factor_y = max_dim / image_height
+            new_w = int(image_width * factor_x)
+            new_h = int(image_height * factor_y)
+            image = cv2.resize(
+                image,
+                (new_w, new_h),
+                interpolation=_vars.opencv_interpolation_flags[interpolation]
+            )
+        else:
+            # no resizing required; keep factors at 1.0 and return original image
+            pass
+
+    # case 5: scale factor
     elif factor != 1:
         factor_x = factor_y = factor
         image = cv2.resize(
